@@ -1,41 +1,48 @@
 CREATE TABLE Users (
-			UserID SERIAL PRIMARY KEY,
-			Name VARCHAR(255) NOT NULL,
-			Email VARCHAR(255) UNIQUE NOT NULL,
-			Password VARCHAR(255) NOT NULL,
-			UserRole VARCHAR(50) NOT NULL,
-			VerificationStatus BOOLEAN DEFAULT FALSE,
-			ApprovalStatus BOOLEAN DEFAULT FALSE
-		);
-		CREATE TABLE  Schools (
-			SchoolID SERIAL PRIMARY KEY,
-			Name VARCHAR(255) NOT NULL,
-			Address VARCHAR(255) NOT NULL,
-			ContactPersonID INTEGER NOT NULL REFERENCES Users(UserID),
-			ContactEmail VARCHAR(255) NOT NULL,
-			Category VARCHAR(50) NOT NULL
-		);
-		CREATE TABLE Students (
-			StudentID SERIAL PRIMARY KEY,
-			Name VARCHAR(255) NOT NULL,
-			Grade VARCHAR(10) NOT NULL,
-			SchoolID INTEGER NOT NULL REFERENCES Schools(SchoolID),
-			UserID INTEGER NOT NULL REFERENCES Users(UserID)
-		);
-		CREATE TABLE UserProfiles (
-			ProfileID SERIAL PRIMARY KEY,
-			UserID INTEGER UNIQUE NOT NULL REFERENCES Users(UserID),
-			Address VARCHAR(255),
-			Phone VARCHAR(20),
-			Bio TEXT,
-			ProfilePicture BYTEA
-		);
-		CREATE TABLE Volunteers (
-			VolunteerID SERIAL PRIMARY KEY,
-			Name VARCHAR(255) NOT NULL,
-			Role VARCHAR(50) NOT NULL,
-			UserID INTEGER NOT NULL REFERENCES Users(UserID)
-		);
+  UserID SERIAL PRIMARY KEY,
+  FirstName VARCHAR(255) NOT NULL,
+  LastName VARCHAR(255) NOT NULL,
+  Email VARCHAR(255) UNIQUE NOT NULL,
+  Password VARCHAR(255) NOT NULL,
+  UserRole VARCHAR(50) NOT NULL,
+  Bio TEXT,
+  VerificationStatus BOOLEAN DEFAULT FALSE,
+  ApprovalStatus BOOLEAN DEFAULT FALSE
+);
+
+CREATE TABLE Schools (
+  SchoolID SERIAL PRIMARY KEY,
+  UserID INTEGER NOT NULL REFERENCES Users(UserID),
+  Name VARCHAR(255) NOT NULL,
+  Country VARCHAR(255) NOT NULL,
+  Province VARCHAR(255),
+  District VARCHAR(255),
+  SchoolType VARCHAR(255) NOT NULL,
+  ContactPersonName VARCHAR(255) NOT NULL,
+  ContactPersonNumber VARCHAR(20) NOT NULL,
+  ContactEmail VARCHAR(255) NOT NULL,
+  UniqueSchoolID VARCHAR(8) UNIQUE NOT NULL
+);
+
+CREATE TABLE Students (
+  StudentID SERIAL PRIMARY KEY,
+  UserID INTEGER NOT NULL REFERENCES Users(UserID),
+  DateOfBirth DATE,
+  SchoolID INTEGER REFERENCES Schools(SchoolID),
+  UniqueStudentID VARCHAR(8) UNIQUE NOT NULL
+);
+
+CREATE TABLE Volunteers (
+  VolunteerID SERIAL PRIMARY KEY,
+  UserID INTEGER NOT NULL REFERENCES Users(UserID),
+  DateOfBirth DATE,
+  NationalID VARCHAR(255) NOT NULL,
+  SchoolAttended VARCHAR(255) NOT NULL,
+  GraduationYear INTEGER,
+  RoleInterestedIn VARCHAR(255),
+  SafeguardingCertificate BYTEA,
+  UniqueVolunteerID VARCHAR(8) UNIQUE NOT NULL
+);
 		CREATE TABLE TournamentFormats (
 			FormatID SERIAL PRIMARY KEY,
 			FormatName VARCHAR(255) NOT NULL,

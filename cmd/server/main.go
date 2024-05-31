@@ -5,15 +5,19 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 	"github.com/spf13/viper"
+	"google.golang.org/grpc"
 
 	"github.com/iRankHub/backend/internal/config"
 	"github.com/iRankHub/backend/internal/database/postgres"
+	"github.com/iRankHub/backend/internal/grpc/proto"
+	"github.com/iRankHub/backend/internal/grpc/server"
 	"github.com/iRankHub/backend/internal/models"
 )
 
@@ -69,6 +73,25 @@ func main() {
 		log.Fatalf("failed to get users: %v", err)
 	}
 	log.Printf("Retrieved %d users from the database", len(users))
+
+	// Create a new gRPC server
+	grpcServer := grpc.NewServer()
+
+	// Register the AuthService with the gRPC server
+	proto.RegisterAuthServiceServer(grpcServer, server.NewAuthServer(db))
+
+	// Start the gRPC server on a specific port
+	grpcPort := ":50051"
+	listener, err := net.Listen("tcp", grpcPort)
+	if err != nil {
+		log.Fatalf("Failed to listen on port %s: %v", grpcPort, err)
+	}
+	log.Printf("gRPC server started on%s", grpcPort)
+	go func() {
+		if err := grpcServer.Serve(listener); err != nil {
+			log.Fatalf("Failed to serve gRPC server: %v", err)
+		}
+	}()
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Hello, World!")
