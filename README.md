@@ -1,8 +1,3 @@
-Apologies for the confusion. If you don't have a separate `migrator/main.go` file, you can remove that section from the README. The database migrations can be run directly using a migration library or through a separate script.
-
-Here's an updated version of the README without the `migrator/main.go` file:
-
-```markdown
 # iRankHub Backend
 
 This repository contains the backend application for the iRankHub project. It provides the necessary APIs and services for managing debate tournaments, users, schools, teams, and more.
