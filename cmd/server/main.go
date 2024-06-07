@@ -42,6 +42,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
 	}
+	log.Println("Successfully connected to the database")
 	defer db.Close()
 
 	// Run database migrations using the migration library
@@ -53,7 +54,7 @@ func main() {
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		log.Fatalf("Failed to run database migrations: %v", err)
 	}
-
+	log.Println("Successfully ran database migrations")
 	// Initialize database connection for the generated models
 	queries := models.New(db)
 
