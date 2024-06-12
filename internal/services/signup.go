@@ -1,14 +1,11 @@
-package server
+package services
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/base64"
 	"fmt"
 	"time"
 
-	"github.com/o1egl/paseto"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/iRankHub/backend/internal/grpc/proto"
@@ -16,16 +13,7 @@ import (
 	"github.com/iRankHub/backend/internal/utils"
 )
 
-type authServer struct {
-	proto.UnimplementedAuthServiceServer
-	queries *models.Queries
-}
-
-func NewAuthServer(queries *models.Queries) proto.AuthServiceServer {
-	return &authServer{queries: queries}
-}
-
-func (s *authServer) SignUp(ctx context.Context, req *proto.SignUpRequest) (*proto.SignUpResponse, error) {
+func (s *AuthService) SignUp(ctx context.Context, req *proto.SignUpRequest) (*proto.SignUpResponse, error) {
 	// Validate input
 	if req.FirstName == "" || req.LastName == "" || req.Email == "" || req.Password == "" || req.UserRole == "" {
 		return nil, fmt.Errorf("missing required fields")
@@ -48,7 +36,6 @@ func (s *authServer) SignUp(ctx context.Context, req *proto.SignUpRequest) (*pro
 		return nil, fmt.Errorf("failed to create user: %v", err)
 	}
 
-	// Create a student, school, or volunteer record based on the user role
 	// Create a student, school, or volunteer record based on the user role
 	switch req.UserRole {
 	case "student":
@@ -108,9 +95,6 @@ func (s *authServer) SignUp(ctx context.Context, req *proto.SignUpRequest) (*pro
 	default:
 		return nil, fmt.Errorf("invalid user role")
 	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to create user-specific record: %v", err)
-	}
 
 	// Send welcome email
 	err = utils.SendWelcomeEmail(req.Email, req.FirstName)
@@ -120,71 +104,4 @@ func (s *authServer) SignUp(ctx context.Context, req *proto.SignUpRequest) (*pro
 	}
 
 	return &proto.SignUpResponse{Success: true, Message: "Sign-up successful"}, nil
-}
-
-func (s *authServer) Login(ctx context.Context, req *proto.LoginRequest) (*proto.LoginResponse, error) {
-	// Validate input
-	if req.Email == "" || req.Password == "" {
-		return nil, fmt.Errorf("missing required fields")
-	}
-
-	// Retrieve the user based on the provided email
-	user, err := s.queries.GetUserByEmail(ctx, req.Email)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve user: %v", err)
-	}
-
-	// Verify the password
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
-	if err != nil {
-		return nil, fmt.Errorf("invalid password")
-	}
-
-	// Generate a PASETO token
-	token, err := generateToken(user.Userid, user.Userrole)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate token: %v", err)
-	}
-
-	return &proto.LoginResponse{Success: true, Token: token, UserRole: user.Userrole, UserID: user.Userid}, nil
-}
-
-func generateToken(userID int32, userRole string) (string, error) {
-	// Generate a PASETO secret key
-	secretKey, err := generatePasetoSecretKey()
-	if err != nil {
-		return "", fmt.Errorf("failed to generate PASETO secret key: %v", err)
-	}
-
-	// Create a new PASETO maker with the generated secret key
-	maker := paseto.NewV2()
-
-	// Set the token claims
-	claims := map[string]interface{}{
-		"user_id":   userID,
-		"user_role": userRole,
-		"exp":       time.Now().Add(time.Hour * 24).Unix(), // Token expires in 24 hours
-	}
-
-	// Generate and return the token
-	token, err := maker.Sign([]byte(secretKey), claims, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to sign token: %v", err)
-	}
-
-	return token, nil
-}
-
-func generatePasetoSecretKey() (string, error) {
-	// Generate a 32-byte random key
-	keyBytes := make([]byte, 32)
-	_, err := rand.Read(keyBytes)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate random key: %v", err)
-	}
-
-	// Encode the key using base64
-	keyBase64 := base64.StdEncoding.EncodeToString(keyBytes)
-
-	return keyBase64, nil
 }

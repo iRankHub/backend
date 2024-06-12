@@ -65,7 +65,7 @@ func main() {
 	proto.RegisterAuthServiceServer(grpcServer, server.NewAuthServer(queries))
 
 	// Start the gRPC server on a specific port
-	grpcPort := ":50051"
+	grpcPort := ":8080"
 	listener, err := net.Listen("tcp", grpcPort)
 	if err != nil {
 		log.Fatalf("Failed to listen on port %s: %v", grpcPort, err)
