@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+option go_package = "github.com/iRankHub/backend/internal/grpc/proto";
+
+package auth;
+
+service AuthService {
+  rpc SignUp(SignUpRequest) returns (SignUpResponse) {}
+  rpc Login(LoginRequest) returns (LoginResponse) {}
+}
+
+message SignUpRequest {
+  string firstName = 1;
+  string lastName = 2;
+  string email = 3;
+  string password = 4;
+  string userRole = 5;
+  string dateOfBirth = 6;
+  int32 schoolID = 7;
+  string schoolName = 8;
+  string country = 9;
+  string province = 10;
+  string district = 11;
+  string schoolType = 12;
+  string contactPersonName = 13;
+  string contactPersonNumber = 14;
+  string contactEmail = 15;
+  string nationalID = 16;
+  string schoolAttended = 17;
+  int32 graduationYear = 18;
+  string roleInterestedIn = 19;
+  bytes safeguardingCertificate = 20;
+}
+
+message SignUpResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  bool success = 1;
+  string token = 2;
+  string userRole = 3;
+  int32 userID = 4;
+}

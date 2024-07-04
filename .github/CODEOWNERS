@@ -1,0 +1,8 @@
+# Default reviewers/codeowners for all code changes
+* @Josy-coder
+
+# Reviewer by email for go files
+*.go josekecha@keemail.me benconte201@gmail.com
+
+# Reviewer by email for js/ts files
+*.ts benconte201@gmail.com
