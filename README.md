@@ -21,12 +21,14 @@ To get started with the iRankHub backend, follow these steps:
    - Create a PostgreSQL database for the project.
    - Rename the `.env.example` to `.env` file in the root directory and add your database configuration:
 
-4. Install Air for live reloading:
+4. Install Docker
+   
+5. Install Air for live reloading:
    ```bash
    go install github.com/cosmtrek/air@latest
    ```
 
-5. Start the server:
+6. Start the server:
    ```bash
    air
    ```

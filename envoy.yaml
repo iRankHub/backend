@@ -9,12 +9,9 @@ static_resources:
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
           codec_type: AUTO
-          http2_protocol_options: {}
-          upgrade_configs:
-          - upgrade_type: CONNECT
-            connect_config: {}
-          use_remote_address: true
           stat_prefix: ingress_http
+          http2_protocol_options: {}
+          use_remote_address: true
           route_config:
             name: local_route
             virtual_hosts:
@@ -52,12 +49,3 @@ admin:
     socket_address:
       address: 0.0.0.0
       port_value: 9901
-
-tracing:
-  http:
-    name: envoy.tracers.zipkin
-    typed_config:
-      "@type": type.googleapis.com/envoy.config.trace.v3.ZipkinConfig
-      collector_cluster: zipkin
-      collector_endpoint: "/api/v2/spans"
-      shared_span_context: false
