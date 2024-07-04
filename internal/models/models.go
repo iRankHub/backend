@@ -65,11 +65,27 @@ type Judgereview struct {
 	Comments  sql.NullString `json:"comments"`
 }
 
+type Result struct {
+	Resultid     int32          `json:"resultid"`
+	Tournamentid int32          `json:"tournamentid"`
+	Teamid       int32          `json:"teamid"`
+	Rank         sql.NullInt32  `json:"rank"`
+	Points       sql.NullString `json:"points"`
+}
+
 type Room struct {
 	Roomid   int32  `json:"roomid"`
 	Roomname string `json:"roomname"`
 	Location string `json:"location"`
 	Capacity int32  `json:"capacity"`
+}
+
+type Roombooking struct {
+	Bookingid    int32     `json:"bookingid"`
+	Tournamentid int32     `json:"tournamentid"`
+	Roomid       int32     `json:"roomid"`
+	Starttime    time.Time `json:"starttime"`
+	Endtime      time.Time `json:"endtime"`
 }
 
 type Round struct {
@@ -79,21 +95,36 @@ type Round struct {
 	Iseliminationround bool  `json:"iseliminationround"`
 }
 
+type Schedule struct {
+	Scheduleid    int32     `json:"scheduleid"`
+	Tournamentid  int32     `json:"tournamentid"`
+	Roundid       int32     `json:"roundid"`
+	Debateid      int32     `json:"debateid"`
+	Scheduledtime time.Time `json:"scheduledtime"`
+}
+
 type School struct {
-	Schoolid        int32  `json:"schoolid"`
-	Name            string `json:"name"`
-	Address         string `json:"address"`
-	Contactpersonid int32  `json:"contactpersonid"`
-	Contactemail    string `json:"contactemail"`
-	Category        string `json:"category"`
+	Schoolid        int32          `json:"schoolid"`
+	Schoolname      string         `json:"schoolname"`
+	Address         string         `json:"address"`
+	Country         sql.NullString `json:"country"`
+	Province        sql.NullString `json:"province"`
+	District        sql.NullString `json:"district"`
+	Contactpersonid int32          `json:"contactpersonid"`
+	Contactemail    string         `json:"contactemail"`
+	Schooltype      string         `json:"schooltype"`
 }
 
 type Student struct {
-	Studentid int32  `json:"studentid"`
-	Name      string `json:"name"`
-	Grade     string `json:"grade"`
-	Schoolid  int32  `json:"schoolid"`
-	Userid    int32  `json:"userid"`
+	Studentid   int32          `json:"studentid"`
+	Firstname   string         `json:"firstname"`
+	Lastname    string         `json:"lastname"`
+	Grade       string         `json:"grade"`
+	Dateofbirth sql.NullTime   `json:"dateofbirth"`
+	Email       sql.NullString `json:"email"`
+	Password    string         `json:"password"`
+	Schoolid    int32          `json:"schoolid"`
+	Userid      int32          `json:"userid"`
 }
 
 type Studentrank struct {
@@ -102,6 +133,15 @@ type Studentrank struct {
 	Tournamentid int32          `json:"tournamentid"`
 	Rankvalue    string         `json:"rankvalue"`
 	Rankcomments sql.NullString `json:"rankcomments"`
+}
+
+type Studenttransfer struct {
+	Transferid   int32          `json:"transferid"`
+	Studentid    int32          `json:"studentid"`
+	Fromschoolid sql.NullInt32  `json:"fromschoolid"`
+	Toschoolid   int32          `json:"toschoolid"`
+	Transferdate time.Time      `json:"transferdate"`
+	Reason       sql.NullString `json:"reason"`
 }
 
 type Team struct {
@@ -123,6 +163,15 @@ type Tournament struct {
 	Enddate      time.Time `json:"enddate"`
 	Location     string    `json:"location"`
 	Formatid     int32     `json:"formatid"`
+}
+
+type Tournamentcoordinator struct {
+	Coordinatorid int32  `json:"coordinatorid"`
+	Firstname     string `json:"firstname"`
+	Lastname      string `json:"lastname"`
+	Email         string `json:"email"`
+	Password      string `json:"password"`
+	Userid        int32  `json:"userid"`
 }
 
 type Tournamentformat struct {
@@ -151,10 +200,15 @@ type Userprofile struct {
 }
 
 type Volunteer struct {
-	Volunteerid int32  `json:"volunteerid"`
-	Name        string `json:"name"`
-	Role        string `json:"role"`
-	Userid      int32  `json:"userid"`
+	Volunteerid          int32         `json:"volunteerid"`
+	Firstname            string        `json:"firstname"`
+	Lastname             string        `json:"lastname"`
+	Dateofbirth          sql.NullTime  `json:"dateofbirth"`
+	Role                 string        `json:"role"`
+	Graduateyear         sql.NullInt32 `json:"graduateyear"`
+	Password             string        `json:"password"`
+	Safeguardcertificate sql.NullBool  `json:"safeguardcertificate"`
+	Userid               int32         `json:"userid"`
 }
 
 type Volunteerrating struct {

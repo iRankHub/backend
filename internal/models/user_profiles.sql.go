@@ -45,20 +45,22 @@ func (q *Queries) CreateUserProfile(ctx context.Context, arg CreateUserProfilePa
 }
 
 const deleteUserProfile = `-- name: DeleteUserProfile :exec
-DELETE FROM UserProfiles WHERE ProfileID = $1
+DELETE FROM UserProfiles
+WHERE UserID = $1
 `
 
-func (q *Queries) DeleteUserProfile(ctx context.Context, profileid int32) error {
-	_, err := q.db.ExecContext(ctx, deleteUserProfile, profileid)
+func (q *Queries) DeleteUserProfile(ctx context.Context, userid int32) error {
+	_, err := q.db.ExecContext(ctx, deleteUserProfile, userid)
 	return err
 }
 
 const getUserProfile = `-- name: GetUserProfile :one
-SELECT profileid, userid, address, phone, bio, profilepicture FROM UserProfiles WHERE ProfileID = $1
+SELECT profileid, userid, address, phone, bio, profilepicture FROM UserProfiles
+WHERE UserID = $1
 `
 
-func (q *Queries) GetUserProfile(ctx context.Context, profileid int32) (Userprofile, error) {
-	row := q.db.QueryRowContext(ctx, getUserProfile, profileid)
+func (q *Queries) GetUserProfile(ctx context.Context, userid int32) (Userprofile, error) {
+	row := q.db.QueryRowContext(ctx, getUserProfile, userid)
 	var i Userprofile
 	err := row.Scan(
 		&i.Profileid,
@@ -71,49 +73,15 @@ func (q *Queries) GetUserProfile(ctx context.Context, profileid int32) (Userprof
 	return i, err
 }
 
-const getUserProfiles = `-- name: GetUserProfiles :many
-SELECT profileid, userid, address, phone, bio, profilepicture FROM UserProfiles
-`
-
-func (q *Queries) GetUserProfiles(ctx context.Context) ([]Userprofile, error) {
-	rows, err := q.db.QueryContext(ctx, getUserProfiles)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Userprofile{}
-	for rows.Next() {
-		var i Userprofile
-		if err := rows.Scan(
-			&i.Profileid,
-			&i.Userid,
-			&i.Address,
-			&i.Phone,
-			&i.Bio,
-			&i.Profilepicture,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE UserProfiles
 SET Address = $2, Phone = $3, Bio = $4, ProfilePicture = $5
-WHERE ProfileID = $1
+WHERE UserID = $1
 RETURNING profileid, userid, address, phone, bio, profilepicture
 `
 
 type UpdateUserProfileParams struct {
-	Profileid      int32          `json:"profileid"`
+	Userid         int32          `json:"userid"`
 	Address        sql.NullString `json:"address"`
 	Phone          sql.NullString `json:"phone"`
 	Bio            sql.NullString `json:"bio"`
@@ -122,7 +90,7 @@ type UpdateUserProfileParams struct {
 
 func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (Userprofile, error) {
 	row := q.db.QueryRowContext(ctx, updateUserProfile,
-		arg.Profileid,
+		arg.Userid,
 		arg.Address,
 		arg.Phone,
 		arg.Bio,

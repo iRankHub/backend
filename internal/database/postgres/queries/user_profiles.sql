@@ -1,8 +1,6 @@
 -- name: GetUserProfile :one
-SELECT * FROM UserProfiles WHERE ProfileID = $1;
-
--- name: GetUserProfiles :many
-SELECT * FROM UserProfiles;
+SELECT * FROM UserProfiles
+WHERE UserID = $1;
 
 -- name: CreateUserProfile :one
 INSERT INTO UserProfiles (UserID, Address, Phone, Bio, ProfilePicture)
@@ -12,8 +10,9 @@ RETURNING *;
 -- name: UpdateUserProfile :one
 UPDATE UserProfiles
 SET Address = $2, Phone = $3, Bio = $4, ProfilePicture = $5
-WHERE ProfileID = $1
+WHERE UserID = $1
 RETURNING *;
 
 -- name: DeleteUserProfile :exec
-DELETE FROM UserProfiles WHERE ProfileID = $1;
+DELETE FROM UserProfiles
+WHERE UserID = $1;

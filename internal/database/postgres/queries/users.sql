@@ -1,11 +1,10 @@
--- name: GetUser :one
-SELECT * FROM Users WHERE UserID = $1;
+-- name: GetUserByID :one
+SELECT * FROM Users
+WHERE UserID = $1;
 
 -- name: GetUserByEmail :one
-SELECT userid, name, email, password, userrole, verificationstatus, approvalstatus FROM Users WHERE Email = $1;
-
--- name: GetUsers :many
-SELECT * FROM Users;
+SELECT * FROM Users
+WHERE Email = $1;
 
 -- name: CreateUser :one
 INSERT INTO Users (Name, Email, Password, UserRole)
@@ -19,4 +18,5 @@ WHERE UserID = $1
 RETURNING *;
 
 -- name: DeleteUser :exec
-DELETE FROM Users WHERE UserID = $1;
+DELETE FROM Users
+WHERE UserID = $1;

@@ -4,19 +4,18 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"net"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/spf13/viper"
-	"google.golang.org/grpc"
 
+	"github.com/iRankHub/backend/envoy"
 	"github.com/iRankHub/backend/internal/config"
-	"github.com/iRankHub/backend/internal/grpc/proto"
 	"github.com/iRankHub/backend/internal/grpc/server"
 	"github.com/iRankHub/backend/internal/models"
+
 )
 
 func main() {
@@ -45,7 +44,7 @@ func main() {
 	log.Println("Successfully connected to the database")
 	defer db.Close()
 
-	// Run database migrations using the migration library
+	// Run database migrations
 	migrationPath := "file://internal/database/postgres/migrations"
 	m, err := migrate.New(migrationPath, connString)
 	if err != nil {
@@ -55,23 +54,19 @@ func main() {
 		log.Fatalf("Failed to run database migrations: %v", err)
 	}
 	log.Println("Successfully ran database migrations")
+
 	// Initialize database connection for the generated models
 	queries := models.New(db)
 
-	// Create a new gRPC server
-	grpcServer := grpc.NewServer()
+	// Start the Envoy Proxy server
+	go func() {
+		if err := envoy.StartEnvoyProxy(); err != nil {
+			log.Fatalf("Failed to start Envoy Proxy: %v", err)
+		}
+	}()
 
-	// Register the AuthService with the gRPC server
-	proto.RegisterAuthServiceServer(grpcServer, server.NewAuthServer(queries))
-
-	// Start the gRPC server on a specific port
-	grpcPort := ":50051"
-	listener, err := net.Listen("tcp", grpcPort)
-	if err != nil {
-		log.Fatalf("Failed to listen on port %s: %v", grpcPort, err)
-	}
-	log.Printf("gRPC server started on %s", grpcPort)
-	if err := grpcServer.Serve(listener); err != nil {
-		log.Fatalf("Failed to serve gRPC server: %v", err)
+	// Start the gRPC server
+	if err := server.StartGRPCServer(queries); err != nil {
+		log.Fatalf("Failed to start gRPC server: %v", err)
 	}
 }

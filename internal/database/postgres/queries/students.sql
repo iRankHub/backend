@@ -1,14 +1,22 @@
--- name: GetStudent :one
-SELECT studentid, userid, dateofbirth, schoolid, uniquestudentid FROM Students WHERE StudentID = $1;
+-- name: GetStudentByID :one
+SELECT * FROM Students
+WHERE StudentID = $1;
 
--- name: ListStudents :many
-SELECT studentid, userid, dateofbirth, schoolid, uniquestudentid FROM Students;
+-- name: GetStudentByEmail :one
+SELECT * FROM Students
+WHERE Email = $1;
 
 -- name: CreateStudent :one
-INSERT INTO Students (UserID, DateOfBirth, SchoolID, UniqueStudentID) VALUES ($1, $2, $3, $4) RETURNING studentid, userid, dateofbirth, schoolid, uniquestudentid;
+INSERT INTO Students (FirstName, LastName, Grade, DateOfBirth, Email, Password, SchoolID, UserID)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING *;
 
 -- name: UpdateStudent :one
-UPDATE Students SET UserID = $2, DateOfBirth = $3, SchoolID = $4, UniqueStudentID = $5 WHERE StudentID = $1 RETURNING studentid, userid, dateofbirth, schoolid, uniquestudentid;
+UPDATE Students
+SET FirstName = $2, LastName = $3, Grade = $4, DateOfBirth = $5, Email = $6, Password = $7, SchoolID = $8
+WHERE StudentID = $1
+RETURNING *;
 
 -- name: DeleteStudent :exec
-DELETE FROM Students WHERE StudentID = $1;
+DELETE FROM Students
+WHERE StudentID = $1;

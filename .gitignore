@@ -21,7 +21,7 @@
 go.work
 
 #other files
-server
+
 
 # Ignore .env files
 .env

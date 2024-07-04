@@ -1,8 +1,7 @@
-package server
+package services
 
 import (
 	"context"
-	"crypto/ed25519"
 	"database/sql"
 	"fmt"
 	"time"
@@ -14,21 +13,7 @@ import (
 	"github.com/iRankHub/backend/internal/utils"
 )
 
-type authServer struct {
-	proto.UnimplementedAuthServiceServer
-	queries    *models.Queries
-	privateKey ed25519.PrivateKey
-}
-
-func NewAuthServer(queries *models.Queries) (proto.AuthServiceServer, error) {
-	privateKey, _, err := utils.GeneratePasetoKeyPair()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate PASETO key pair: %v", err)
-	}
-	return &authServer{queries: queries, privateKey: privateKey}, nil
-}
-
-func (s *authServer) SignUp(ctx context.Context, req *proto.SignUpRequest) (*proto.SignUpResponse, error) {
+func (s *AuthService) SignUp(ctx context.Context, req *proto.SignUpRequest) (*proto.SignUpResponse, error) {
 	// Validate input
 	if req.FirstName == "" || req.LastName == "" || req.Email == "" || req.Password == "" || req.UserRole == "" {
 		return nil, fmt.Errorf("missing required fields")
@@ -110,9 +95,6 @@ func (s *authServer) SignUp(ctx context.Context, req *proto.SignUpRequest) (*pro
 	default:
 		return nil, fmt.Errorf("invalid user role")
 	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to create user-specific record: %v", err)
-	}
 
 	// Send welcome email
 	err = utils.SendWelcomeEmail(req.Email, req.FirstName)
@@ -122,31 +104,4 @@ func (s *authServer) SignUp(ctx context.Context, req *proto.SignUpRequest) (*pro
 	}
 
 	return &proto.SignUpResponse{Success: true, Message: "Sign-up successful"}, nil
-}
-
-func (s *authServer) Login(ctx context.Context, req *proto.LoginRequest) (*proto.LoginResponse, error) {
-	// Validate input
-	if req.Email == "" || req.Password == "" {
-		return nil, fmt.Errorf("missing required fields")
-	}
-
-	// Retrieve the user based on the provided email
-	user, err := s.queries.GetUserByEmail(ctx, req.Email)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve user: %v", err)
-	}
-
-	// Verify the password
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
-	if err != nil {
-		return nil, fmt.Errorf("invalid password")
-	}
-
-	// Generate a PASETO token
-	token, err := utils.GenerateToken(user.Userid, user.Userrole, s.privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate token: %v", err)
-	}
-
-	return &proto.LoginResponse{Success: true, Token: token, UserRole: user.Userrole, UserID: user.Userid}, nil
 }

@@ -44,7 +44,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 }
 
 const deleteUser = `-- name: DeleteUser :exec
-DELETE FROM Users WHERE UserID = $1
+DELETE FROM Users
+WHERE UserID = $1
 `
 
 func (q *Queries) DeleteUser(ctx context.Context, userid int32) error {
@@ -52,27 +53,9 @@ func (q *Queries) DeleteUser(ctx context.Context, userid int32) error {
 	return err
 }
 
-const getUser = `-- name: GetUser :one
-SELECT userid, name, email, password, userrole, verificationstatus, approvalstatus FROM Users WHERE UserID = $1
-`
-
-func (q *Queries) GetUser(ctx context.Context, userid int32) (User, error) {
-	row := q.db.QueryRowContext(ctx, getUser, userid)
-	var i User
-	err := row.Scan(
-		&i.Userid,
-		&i.Name,
-		&i.Email,
-		&i.Password,
-		&i.Userrole,
-		&i.Verificationstatus,
-		&i.Approvalstatus,
-	)
-	return i, err
-}
-
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT userid, name, email, password, userrole, verificationstatus, approvalstatus FROM Users WHERE Email = $1
+SELECT userid, name, email, password, userrole, verificationstatus, approvalstatus FROM Users
+WHERE Email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -90,39 +73,24 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	return i, err
 }
 
-const getUsers = `-- name: GetUsers :many
+const getUserByID = `-- name: GetUserByID :one
 SELECT userid, name, email, password, userrole, verificationstatus, approvalstatus FROM Users
+WHERE UserID = $1
 `
 
-func (q *Queries) GetUsers(ctx context.Context) ([]User, error) {
-	rows, err := q.db.QueryContext(ctx, getUsers)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []User{}
-	for rows.Next() {
-		var i User
-		if err := rows.Scan(
-			&i.Userid,
-			&i.Name,
-			&i.Email,
-			&i.Password,
-			&i.Userrole,
-			&i.Verificationstatus,
-			&i.Approvalstatus,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) GetUserByID(ctx context.Context, userid int32) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByID, userid)
+	var i User
+	err := row.Scan(
+		&i.Userid,
+		&i.Name,
+		&i.Email,
+		&i.Password,
+		&i.Userrole,
+		&i.Verificationstatus,
+		&i.Approvalstatus,
+	)
+	return i, err
 }
 
 const updateUser = `-- name: UpdateUser :one

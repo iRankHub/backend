@@ -19,39 +19,48 @@ To get started with the iRankHub backend, follow these steps:
 
 3. Set up the database:
    - Create a PostgreSQL database for the project.
-   - Update the database configuration in `internal/config/database.go`.
-   - Run the database migrations:
-     ```bash
-     go run scripts/migrate.go
-     ```
+   - Rename the `.env.example` to `.env` file in the root directory and add your database configuration:
 
-4. Start the server:
+4. Install Docker
+   
+5. Install Air for live reloading:
    ```bash
-   go run cmd/server/main.go
+   go install github.com/cosmtrek/air@latest
    ```
 
-   The server will start running on `http://localhost:8080`.
+6. Start the server:
+   ```bash
+   air
+   ```
+
+   This command will start the gRPC server on port 8080, run database migrations, and start the Envoy proxy on port 10000.
 
 ## Project Structure
 
 The project follows a standard Go project structure:
 
 - `cmd/`: Contains the main entry points for the application.
-  - `server/`: Contains the main server application.
 - `docs/`: Contains the project documentation.
 - `internal/`: Contains the internal packages used by the application.
-  - `config/`: Contains the configuration files and utilities.
-  - `database/`: Contains the database-related files and migrations.
-  - `grpc/`: Contains the gRPC server and protocol buffer files.
-  - `handlers/`: Contains the gRPC handler functions.
-  - `middleware/`: Contains the middleware functions.
-  - `models/`: Contains the data models.
-  - `repositories/`: Contains the data access layer and repository interfaces.
-  - `services/`: Contains the business logic and service-level operations.
-  - `utils/`: Contains utility functions.
 - `pkg/`: Contains reusable packages used across the application.
 - `scripts/`: Contains shell scripts for building, deploying, and testing the application.
 - `tests/`: Contains the integration and unit tests for the backend components.
+
+## API Documentation
+
+For detailed API documentation, refer to the `docs/api.md` file.
+
+## Architecture
+
+For information about the system architecture, refer to the `docs/architecture.md` file.
+
+## Database
+
+For database-related information, refer to the `docs/database.md` file.
+
+## Deployment
+
+For deployment instructions, refer to the `docs/deployment.md` file.
 
 ## Testing
 
