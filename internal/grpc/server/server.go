@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/ed25519"
 	"fmt"
 	"log"
 	"net"
@@ -11,12 +12,12 @@ import (
 	"github.com/iRankHub/backend/internal/models"
 )
 
-func StartGRPCServer(queries *models.Queries) error {
+func StartGRPCServer(queries *models.Queries, privateKey ed25519.PrivateKey) error {
 	// Create a new gRPC server
 	grpcServer := grpc.NewServer()
 
 	// Create the AuthServer
-	authServer, err := NewAuthServer(queries)
+	authServer, err := NewAuthServer(queries, privateKey)
 	if err != nil {
 		return fmt.Errorf("failed to create AuthServer: %v", err)
 	}

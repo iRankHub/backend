@@ -20,3 +20,36 @@ RETURNING *;
 -- name: DeleteUser :exec
 DELETE FROM Users
 WHERE UserID = $1;
+
+-- name: UpdateUserTwoFactorSecret :exec
+UPDATE Users SET two_factor_secret = $2 WHERE UserID = $1;
+
+-- name: EnableTwoFactor :exec
+UPDATE Users SET two_factor_enabled = TRUE WHERE UserID = $1;
+
+-- name: DisableTwoFactor :exec
+UPDATE Users SET two_factor_enabled = FALSE WHERE UserID = $1;
+
+-- name: IncrementFailedLoginAttempts :exec
+UPDATE Users SET failed_login_attempts = failed_login_attempts + 1, last_login_attempt = NOW() WHERE UserID = $1;
+
+-- name: ResetFailedLoginAttempts :exec
+UPDATE Users SET failed_login_attempts = 0 WHERE UserID = $1;
+
+-- name: SetResetToken :exec
+UPDATE Users SET reset_token = $2, reset_token_expires = $3 WHERE UserID = $1;
+
+-- name: ClearResetToken :exec
+UPDATE Users SET reset_token = NULL, reset_token_expires = NULL WHERE UserID = $1;
+
+-- name: SetBiometricToken :exec
+UPDATE Users SET biometric_token = $2 WHERE UserID = $1;
+
+-- name: GetUserByBiometricToken :one
+SELECT * FROM Users WHERE biometric_token = $1 LIMIT 1;
+
+-- name: GetUserByResetToken :one
+SELECT * FROM Users WHERE reset_token = $1 AND reset_token_expires > NOW() LIMIT 1;
+
+-- name: GetUserWithAuthDetails :one
+SELECT * FROM Users WHERE UserID = $1;

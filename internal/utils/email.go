@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func SendWelcomeEmail(to, name string) error {
+func sendEmail(to, subject, body string) error {
 	viper.SetConfigFile(".env")
 	err := viper.ReadInConfig()
 	if err != nil {
@@ -19,9 +19,36 @@ func SendWelcomeEmail(to, name string) error {
 	smtpHost := viper.GetString("SMTP_HOST")
 	smtpPort := viper.GetString("SMTP_PORT")
 
+	// Set the email headers
+	headers := make(map[string]string)
+	headers["From"] = from
+	headers["To"] = to
+	headers["Subject"] = subject
+	headers["MIME-Version"] = "1.0"
+	headers["Content-Type"] = "text/html; charset=UTF-8"
+
+	// Create the email message
+	message := ""
+	for k, v := range headers {
+		message += fmt.Sprintf("%s: %s\r\n", k, v)
+	}
+	message += "\r\n" + body
+
+	// Set up authentication
+	auth := smtp.PlainAuth("", from, password, smtpHost)
+
+	// Send the email
+	err = smtp.SendMail(smtpHost+":"+smtpPort, auth, from, []string{to}, []byte(message))
+	if err != nil {
+		return fmt.Errorf("failed to send email: %v", err)
+	}
+
+	return nil
+}
+
+func SendWelcomeEmail(to, name string) error {
 	subject := "Welcome to iRankHub"
 
-	// Create the HTML email template
 	body := fmt.Sprintf(`
 		<html>
 		<head>
@@ -67,29 +94,55 @@ func SendWelcomeEmail(to, name string) error {
 		</html>
 	`, name)
 
-	// Set the email headers
-	headers := make(map[string]string)
-	headers["From"] = from
-	headers["To"] = to
-	headers["Subject"] = subject
-	headers["MIME-Version"] = "1.0"
-	headers["Content-Type"] = "text/html; charset=UTF-8"
+	return sendEmail(to, subject, body)
+}
 
-	// Create the email message
-	message := ""
-	for k, v := range headers {
-		message += fmt.Sprintf("%s: %s\r\n", k, v)
-	}
-	message += "\r\n" + body
+func SendPasswordResetEmail(to, resetToken string) error {
+	subject := "Password Reset Request"
 
-	// Set up authentication
-	auth := smtp.PlainAuth("", from, password, smtpHost)
+	body := fmt.Sprintf(`
+		<html>
+		<head>
+			<style>
+				body {
+					font-family: Arial, sans-serif;
+					background-color: #f4f4f4;
+				}
+				.container {
+					max-width: 600px;
+					margin: 0 auto;
+					padding: 20px;
+					background-color: #ffffff;
+				}
+				h1 {
+					color: #333333;
+				}
+				.button {
+					display: inline-block;
+					padding: 10px 20px;
+					background-color: #007bff;
+					color: #ffffff;
+					text-decoration: none;
+					border-radius: 5px;
+				}
+			</style>
+		</head>
+		<body>
+			<div class="container">
+				<h1>Password Reset Request</h1>
+				<p>We received a request to reset your password. If you didn't make this request, you can ignore this email.</p>
+				<p>To reset your password, click the button below:</p>
+				<p>
+					<a href="https://irankhub.com/reset-password?token=%s" class="button">Reset Password</a>
+				</p>
+				<p>This link will expire in 15 minutes.</p>
+				<p>If you're having trouble clicking the button, copy and paste the following URL into your web browser:</p>
+				<p>https://irankhub.com/reset-password?token=%s</p>
+				<p>Best regards,<br>The iRankHub Team</p>
+			</div>
+		</body>
+		</html>
+	`, resetToken, resetToken)
 
-	// Send the email
-	err = smtp.SendMail(smtpHost+":"+smtpPort, auth, from, []string{to}, []byte(message))
-	if err != nil {
-		return fmt.Errorf("failed to send email: %v", err)
-	}
-
-	return nil
+	return sendEmail(to, subject, body)
 }

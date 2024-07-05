@@ -10,10 +10,19 @@ import (
 	"database/sql"
 )
 
+const clearResetToken = `-- name: ClearResetToken :exec
+UPDATE Users SET reset_token = NULL, reset_token_expires = NULL WHERE UserID = $1
+`
+
+func (q *Queries) ClearResetToken(ctx context.Context, userid int32) error {
+	_, err := q.db.ExecContext(ctx, clearResetToken, userid)
+	return err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO Users (Name, Email, Password, UserRole)
 VALUES ($1, $2, $3, $4)
-RETURNING userid, name, email, password, userrole, verificationstatus, approvalstatus
+RETURNING userid, name, email, password, userrole, verificationstatus, approvalstatus, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, reset_token, reset_token_expires, biometric_token
 `
 
 type CreateUserParams struct {
@@ -39,6 +48,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Userrole,
 		&i.Verificationstatus,
 		&i.Approvalstatus,
+		&i.TwoFactorSecret,
+		&i.TwoFactorEnabled,
+		&i.FailedLoginAttempts,
+		&i.LastLoginAttempt,
+		&i.ResetToken,
+		&i.ResetTokenExpires,
+		&i.BiometricToken,
 	)
 	return i, err
 }
@@ -53,8 +69,52 @@ func (q *Queries) DeleteUser(ctx context.Context, userid int32) error {
 	return err
 }
 
+const disableTwoFactor = `-- name: DisableTwoFactor :exec
+UPDATE Users SET two_factor_enabled = FALSE WHERE UserID = $1
+`
+
+func (q *Queries) DisableTwoFactor(ctx context.Context, userid int32) error {
+	_, err := q.db.ExecContext(ctx, disableTwoFactor, userid)
+	return err
+}
+
+const enableTwoFactor = `-- name: EnableTwoFactor :exec
+UPDATE Users SET two_factor_enabled = TRUE WHERE UserID = $1
+`
+
+func (q *Queries) EnableTwoFactor(ctx context.Context, userid int32) error {
+	_, err := q.db.ExecContext(ctx, enableTwoFactor, userid)
+	return err
+}
+
+const getUserByBiometricToken = `-- name: GetUserByBiometricToken :one
+SELECT userid, name, email, password, userrole, verificationstatus, approvalstatus, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, reset_token, reset_token_expires, biometric_token FROM Users WHERE biometric_token = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByBiometricToken(ctx context.Context, biometricToken sql.NullString) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByBiometricToken, biometricToken)
+	var i User
+	err := row.Scan(
+		&i.Userid,
+		&i.Name,
+		&i.Email,
+		&i.Password,
+		&i.Userrole,
+		&i.Verificationstatus,
+		&i.Approvalstatus,
+		&i.TwoFactorSecret,
+		&i.TwoFactorEnabled,
+		&i.FailedLoginAttempts,
+		&i.LastLoginAttempt,
+		&i.ResetToken,
+		&i.ResetTokenExpires,
+		&i.BiometricToken,
+	)
+	return i, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT userid, name, email, password, userrole, verificationstatus, approvalstatus FROM Users
+SELECT userid, name, email, password, userrole, verificationstatus, approvalstatus, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, reset_token, reset_token_expires, biometric_token FROM Users
 WHERE Email = $1
 `
 
@@ -69,12 +129,19 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Userrole,
 		&i.Verificationstatus,
 		&i.Approvalstatus,
+		&i.TwoFactorSecret,
+		&i.TwoFactorEnabled,
+		&i.FailedLoginAttempts,
+		&i.LastLoginAttempt,
+		&i.ResetToken,
+		&i.ResetTokenExpires,
+		&i.BiometricToken,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT userid, name, email, password, userrole, verificationstatus, approvalstatus FROM Users
+SELECT userid, name, email, password, userrole, verificationstatus, approvalstatus, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, reset_token, reset_token_expires, biometric_token FROM Users
 WHERE UserID = $1
 `
 
@@ -89,15 +156,121 @@ func (q *Queries) GetUserByID(ctx context.Context, userid int32) (User, error) {
 		&i.Userrole,
 		&i.Verificationstatus,
 		&i.Approvalstatus,
+		&i.TwoFactorSecret,
+		&i.TwoFactorEnabled,
+		&i.FailedLoginAttempts,
+		&i.LastLoginAttempt,
+		&i.ResetToken,
+		&i.ResetTokenExpires,
+		&i.BiometricToken,
 	)
 	return i, err
+}
+
+const getUserByResetToken = `-- name: GetUserByResetToken :one
+SELECT userid, name, email, password, userrole, verificationstatus, approvalstatus, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, reset_token, reset_token_expires, biometric_token FROM Users WHERE reset_token = $1 AND reset_token_expires > NOW() LIMIT 1
+`
+
+func (q *Queries) GetUserByResetToken(ctx context.Context, resetToken sql.NullString) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByResetToken, resetToken)
+	var i User
+	err := row.Scan(
+		&i.Userid,
+		&i.Name,
+		&i.Email,
+		&i.Password,
+		&i.Userrole,
+		&i.Verificationstatus,
+		&i.Approvalstatus,
+		&i.TwoFactorSecret,
+		&i.TwoFactorEnabled,
+		&i.FailedLoginAttempts,
+		&i.LastLoginAttempt,
+		&i.ResetToken,
+		&i.ResetTokenExpires,
+		&i.BiometricToken,
+	)
+	return i, err
+}
+
+const getUserWithAuthDetails = `-- name: GetUserWithAuthDetails :one
+SELECT userid, name, email, password, userrole, verificationstatus, approvalstatus, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, reset_token, reset_token_expires, biometric_token FROM Users WHERE UserID = $1
+`
+
+func (q *Queries) GetUserWithAuthDetails(ctx context.Context, userid int32) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserWithAuthDetails, userid)
+	var i User
+	err := row.Scan(
+		&i.Userid,
+		&i.Name,
+		&i.Email,
+		&i.Password,
+		&i.Userrole,
+		&i.Verificationstatus,
+		&i.Approvalstatus,
+		&i.TwoFactorSecret,
+		&i.TwoFactorEnabled,
+		&i.FailedLoginAttempts,
+		&i.LastLoginAttempt,
+		&i.ResetToken,
+		&i.ResetTokenExpires,
+		&i.BiometricToken,
+	)
+	return i, err
+}
+
+const incrementFailedLoginAttempts = `-- name: IncrementFailedLoginAttempts :exec
+UPDATE Users SET failed_login_attempts = failed_login_attempts + 1, last_login_attempt = NOW() WHERE UserID = $1
+`
+
+func (q *Queries) IncrementFailedLoginAttempts(ctx context.Context, userid int32) error {
+	_, err := q.db.ExecContext(ctx, incrementFailedLoginAttempts, userid)
+	return err
+}
+
+const resetFailedLoginAttempts = `-- name: ResetFailedLoginAttempts :exec
+UPDATE Users SET failed_login_attempts = 0 WHERE UserID = $1
+`
+
+func (q *Queries) ResetFailedLoginAttempts(ctx context.Context, userid int32) error {
+	_, err := q.db.ExecContext(ctx, resetFailedLoginAttempts, userid)
+	return err
+}
+
+const setBiometricToken = `-- name: SetBiometricToken :exec
+UPDATE Users SET biometric_token = $2 WHERE UserID = $1
+`
+
+type SetBiometricTokenParams struct {
+	Userid         int32          `json:"userid"`
+	BiometricToken sql.NullString `json:"biometric_token"`
+}
+
+func (q *Queries) SetBiometricToken(ctx context.Context, arg SetBiometricTokenParams) error {
+	_, err := q.db.ExecContext(ctx, setBiometricToken, arg.Userid, arg.BiometricToken)
+	return err
+}
+
+const setResetToken = `-- name: SetResetToken :exec
+UPDATE Users SET reset_token = $2, reset_token_expires = $3 WHERE UserID = $1
+`
+
+type SetResetTokenParams struct {
+	Userid            int32          `json:"userid"`
+	ResetToken        sql.NullString `json:"reset_token"`
+	ResetTokenExpires sql.NullTime   `json:"reset_token_expires"`
+}
+
+func (q *Queries) SetResetToken(ctx context.Context, arg SetResetTokenParams) error {
+	_, err := q.db.ExecContext(ctx, setResetToken, arg.Userid, arg.ResetToken, arg.ResetTokenExpires)
+	return err
 }
 
 const updateUser = `-- name: UpdateUser :one
 UPDATE Users
 SET Name = $2, Email = $3, Password = $4, UserRole = $5, VerificationStatus = $6, ApprovalStatus = $7
 WHERE UserID = $1
-RETURNING userid, name, email, password, userrole, verificationstatus, approvalstatus
+RETURNING userid, name, email, password, userrole, verificationstatus, approvalstatus, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, reset_token, reset_token_expires, biometric_token
 `
 
 type UpdateUserParams struct {
@@ -129,6 +302,27 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.Userrole,
 		&i.Verificationstatus,
 		&i.Approvalstatus,
+		&i.TwoFactorSecret,
+		&i.TwoFactorEnabled,
+		&i.FailedLoginAttempts,
+		&i.LastLoginAttempt,
+		&i.ResetToken,
+		&i.ResetTokenExpires,
+		&i.BiometricToken,
 	)
 	return i, err
+}
+
+const updateUserTwoFactorSecret = `-- name: UpdateUserTwoFactorSecret :exec
+UPDATE Users SET two_factor_secret = $2 WHERE UserID = $1
+`
+
+type UpdateUserTwoFactorSecretParams struct {
+	Userid          int32          `json:"userid"`
+	TwoFactorSecret sql.NullString `json:"two_factor_secret"`
+}
+
+func (q *Queries) UpdateUserTwoFactorSecret(ctx context.Context, arg UpdateUserTwoFactorSecretParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserTwoFactorSecret, arg.Userid, arg.TwoFactorSecret)
+	return err
 }

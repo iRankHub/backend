@@ -181,13 +181,20 @@ type Tournamentformat struct {
 }
 
 type User struct {
-	Userid             int32        `json:"userid"`
-	Name               string       `json:"name"`
-	Email              string       `json:"email"`
-	Password           string       `json:"password"`
-	Userrole           string       `json:"userrole"`
-	Verificationstatus sql.NullBool `json:"verificationstatus"`
-	Approvalstatus     sql.NullBool `json:"approvalstatus"`
+	Userid              int32          `json:"userid"`
+	Name                string         `json:"name"`
+	Email               string         `json:"email"`
+	Password            string         `json:"password"`
+	Userrole            string         `json:"userrole"`
+	Verificationstatus  sql.NullBool   `json:"verificationstatus"`
+	Approvalstatus      sql.NullBool   `json:"approvalstatus"`
+	TwoFactorSecret     sql.NullString `json:"two_factor_secret"`
+	TwoFactorEnabled    sql.NullBool   `json:"two_factor_enabled"`
+	FailedLoginAttempts sql.NullInt32  `json:"failed_login_attempts"`
+	LastLoginAttempt    sql.NullTime   `json:"last_login_attempt"`
+	ResetToken          sql.NullString `json:"reset_token"`
+	ResetTokenExpires   sql.NullTime   `json:"reset_token_expires"`
+	BiometricToken      sql.NullString `json:"biometric_token"`
 }
 
 type Userprofile struct {

@@ -2,9 +2,8 @@ package services
 
 import (
 	"context"
+	"crypto/ed25519"
 	"fmt"
-
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/iRankHub/backend/internal/grpc/proto"
 	"github.com/iRankHub/backend/internal/models"
@@ -12,11 +11,12 @@ import (
 )
 
 type AuthService struct {
-	queries *models.Queries
+	queries    *models.Queries
+	privateKey ed25519.PrivateKey
 }
 
-func NewAuthService(queries *models.Queries) *AuthService {
-	return &AuthService{queries: queries}
+func NewAuthService(queries *models.Queries, privateKey ed25519.PrivateKey) *AuthService {
+	return &AuthService{queries: queries, privateKey: privateKey}
 }
 
 func (s *AuthService) Login(ctx context.Context, req *proto.LoginRequest) (*proto.LoginResponse, error) {
@@ -32,19 +32,13 @@ func (s *AuthService) Login(ctx context.Context, req *proto.LoginRequest) (*prot
 	}
 
 	// Verify the password
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+	err = utils.ComparePasswords(user.Password, req.Password)
 	if err != nil {
 		return nil, fmt.Errorf("invalid password")
 	}
 
-	// Generate an Ed25519 key pair
-	privateKey, _, err := utils.GeneratePasetoKeyPair()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate PASETO key pair: %v", err)
-	}
-
 	// Generate a PASETO token
-	token, err := utils.GenerateToken(user.Userid, user.Userrole, privateKey)
+	token, err := utils.GenerateToken(user.Userid, user.Userrole, s.privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token: %v", err)
 	}

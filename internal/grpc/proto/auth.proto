@@ -7,6 +7,12 @@ package auth;
 service AuthService {
   rpc SignUp(SignUpRequest) returns (SignUpResponse) {}
   rpc Login(LoginRequest) returns (LoginResponse) {}
+  rpc EnableTwoFactor(EnableTwoFactorRequest) returns (EnableTwoFactorResponse) {}
+  rpc VerifyTwoFactor(VerifyTwoFactorRequest) returns (VerifyTwoFactorResponse) {}
+  rpc RequestPasswordReset(PasswordResetRequest) returns (PasswordResetResponse) {}
+  rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse) {}
+  rpc EnableBiometricLogin(EnableBiometricLoginRequest) returns (EnableBiometricLoginResponse) {}
+  rpc BiometricLogin(BiometricLoginRequest) returns (LoginResponse) {}
 }
 
 message SignUpRequest {
@@ -47,4 +53,51 @@ message LoginResponse {
   string token = 2;
   string userRole = 3;
   int32 userID = 4;
+}
+
+message EnableTwoFactorRequest {
+  int32 userID = 1;
+}
+
+message EnableTwoFactorResponse {
+  string secret = 1;
+  string qrCode = 2;
+}
+
+message VerifyTwoFactorRequest {
+  int32 userID = 1;
+  string code = 2;
+}
+
+message VerifyTwoFactorResponse {
+  bool success = 1;
+}
+
+message PasswordResetRequest {
+  string email = 1;
+}
+
+message PasswordResetResponse {
+  bool success = 1;
+}
+
+message ResetPasswordRequest {
+  string token = 1;
+  string newPassword = 2;
+}
+
+message ResetPasswordResponse {
+  bool success = 1;
+}
+
+message EnableBiometricLoginRequest {
+  int32 userID = 1;
+}
+
+message EnableBiometricLoginResponse {
+  string biometricToken = 1;
+}
+
+message BiometricLoginRequest {
+  string biometricToken = 1;
 }

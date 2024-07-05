@@ -15,7 +15,7 @@ import (
 	"github.com/iRankHub/backend/internal/config"
 	"github.com/iRankHub/backend/internal/grpc/server"
 	"github.com/iRankHub/backend/internal/models"
-
+	"github.com/iRankHub/backend/internal/utils"
 )
 
 func main() {
@@ -58,6 +58,15 @@ func main() {
 	// Initialize database connection for the generated models
 	queries := models.New(db)
 
+	// Generate PASETO key pair
+	privateKey, publicKey, err := utils.GeneratePasetoKeyPair()
+	if err != nil {
+		log.Fatalf("Failed to generate PASETO key pair: %v", err)
+	}
+
+	// Set the public key for token validation
+	utils.SetPublicKey(publicKey)
+
 	// Start the Envoy Proxy server
 	go func() {
 		if err := envoy.StartEnvoyProxy(); err != nil {
@@ -66,7 +75,7 @@ func main() {
 	}()
 
 	// Start the gRPC server
-	if err := server.StartGRPCServer(queries); err != nil {
+	if err := server.StartGRPCServer(queries, privateKey); err != nil {
 		log.Fatalf("Failed to start gRPC server: %v", err)
 	}
 }

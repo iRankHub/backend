@@ -5,7 +5,14 @@ CREATE TABLE Users (
    Password VARCHAR(255) NOT NULL,
    UserRole VARCHAR(50) NOT NULL,
    VerificationStatus BOOLEAN DEFAULT FALSE,
-   ApprovalStatus BOOLEAN DEFAULT FALSE
+   ApprovalStatus BOOLEAN DEFAULT FALSE,
+   two_factor_secret VARCHAR(32),
+   two_factor_enabled BOOLEAN DEFAULT FALSE,
+   failed_login_attempts INTEGER DEFAULT 0,
+   last_login_attempt TIMESTAMP,
+   reset_token VARCHAR(64),
+   reset_token_expires TIMESTAMP,
+   biometric_token VARCHAR(64)
 );
 
 CREATE TABLE UserProfiles (
