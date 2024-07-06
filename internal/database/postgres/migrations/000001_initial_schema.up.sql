@@ -23,13 +23,32 @@ CREATE TABLE TournamentFormats (
    Description TEXT
 );
 
+CREATE TABLE Leagues (
+    LeagueID SERIAL PRIMARY KEY,
+    Name VARCHAR(255) NOT NULL,
+    LeagueType VARCHAR(50) NOT NULL CHECK (LeagueType IN ('local', 'international'))
+);
+
+CREATE TABLE LocalLeagueDetails (
+    LeagueID INTEGER PRIMARY KEY REFERENCES Leagues(LeagueID),
+    Province VARCHAR(255),
+    District VARCHAR(255)
+);
+
+CREATE TABLE InternationalLeagueDetails (
+    LeagueID INTEGER PRIMARY KEY REFERENCES Leagues(LeagueID),
+    Continent VARCHAR(255),
+    Country VARCHAR(255)
+);
+
 CREATE TABLE Tournaments (
-   TournamentID SERIAL PRIMARY KEY,
-   Name VARCHAR(255) NOT NULL,
-   StartDate DATE NOT NULL,
-   EndDate DATE NOT NULL,
-   Location VARCHAR(255) NOT NULL,
-   FormatID INTEGER NOT NULL REFERENCES TournamentFormats(FormatID)
+    TournamentID SERIAL PRIMARY KEY,
+    Name VARCHAR(255) NOT NULL,
+    StartDate DATE NOT NULL,
+    EndDate DATE NOT NULL,
+    Location VARCHAR(255) NOT NULL,
+    FormatID INTEGER NOT NULL REFERENCES TournamentFormats(FormatID),
+    LeagueID INTEGER REFERENCES Leagues(LeagueID)
 );
 
 CREATE TABLE Schools (
