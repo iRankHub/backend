@@ -35,22 +35,21 @@ static_resources:
           - name: envoy.access_loggers.stdout
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
-
-clusters:
-- name: grpc_backend
-  connect_timeout: 0.25s
-  type: LOGICAL_DNS
-  lb_policy: ROUND_ROBIN
-  http2_protocol_options: {}
-  load_assignment:
-    cluster_name: grpc_backend
-    endpoints:
-    - lb_endpoints:
-      - endpoint:
-          address:
-            socket_address:
-              address: host.docker.internal
-              port_value: 8080
+  clusters:
+  - name: grpc_backend
+    connect_timeout: 0.25s
+    type: LOGICAL_DNS
+    lb_policy: ROUND_ROBIN
+    http2_protocol_options: {}
+    load_assignment:
+      cluster_name: grpc_backend
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: host.docker.internal
+                port_value: 8080
 
 admin:
   access_log_path: /dev/stdout
