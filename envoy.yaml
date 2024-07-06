@@ -22,26 +22,35 @@ static_resources:
                 route:
                   cluster: grpc_backend
                   timeout: 0s
+                  max_stream_duration:
+                    grpc_timeout_header_max: 0s
           http_filters:
+          - name: envoy.filters.http.grpc_web
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_web.v3.GrpcWeb
           - name: envoy.filters.http.router
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+          access_log:
+          - name: envoy.access_loggers.stdout
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
 
-  clusters:
-  - name: grpc_backend
-    connect_timeout: 0.25s
-    type: STRICT_DNS
-    lb_policy: ROUND_ROBIN
-    http2_protocol_options: {}
-    load_assignment:
-      cluster_name: grpc_backend
-      endpoints:
-      - lb_endpoints:
-        - endpoint:
-            address:
-              socket_address:
-                address: host.docker.internal
-                port_value: 8080
+clusters:
+- name: grpc_backend
+  connect_timeout: 0.25s
+  type: LOGICAL_DNS
+  lb_policy: ROUND_ROBIN
+  http2_protocol_options: {}
+  load_assignment:
+    cluster_name: grpc_backend
+    endpoints:
+    - lb_endpoints:
+      - endpoint:
+          address:
+            socket_address:
+              address: host.docker.internal
+              port_value: 8080
 
 admin:
   access_log_path: /dev/stdout

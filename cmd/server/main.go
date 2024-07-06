@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"time"
 	"log"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -16,6 +17,7 @@ import (
 	"github.com/iRankHub/backend/internal/grpc/server"
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
+
 )
 
 func main() {
@@ -67,15 +69,18 @@ func main() {
 	// Set the public key for token validation
 	utils.SetPublicKey(publicKey)
 
-	// Start the Envoy Proxy server
+	// Start the gRPC server
 	go func() {
-		if err := envoy.StartEnvoyProxy(); err != nil {
-			log.Fatalf("Failed to start Envoy Proxy: %v", err)
+		if err := server.StartGRPCServer(queries, privateKey); err != nil {
+			log.Fatalf("Failed to start gRPC server: %v", err)
 		}
 	}()
 
-	// Start the gRPC server
-	if err := server.StartGRPCServer(queries, privateKey); err != nil {
-		log.Fatalf("Failed to start gRPC server: %v", err)
+	// Give the gRPC server a moment to start
+	time.Sleep(2 * time.Second)
+
+	// Start the Envoy Proxy server
+	if err := envoy.StartEnvoyProxy(); err != nil {
+		log.Fatalf("Failed to start Envoy Proxy: %v", err)
 	}
 }
