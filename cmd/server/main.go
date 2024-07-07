@@ -15,7 +15,6 @@ import (
 	"github.com/iRankHub/backend/internal/config"
 	"github.com/iRankHub/backend/internal/grpc/server"
 	"github.com/iRankHub/backend/internal/models"
-
 )
 
 func main() {
