@@ -208,33 +208,65 @@ func (s *authServer) Login(ctx context.Context, req *proto.LoginRequest) (*proto
 }
 
 func (s *authServer) EnableTwoFactor(ctx context.Context, req *proto.EnableTwoFactorRequest) (*proto.EnableTwoFactorResponse, error) {
-	secret, qrCode, err := s.twoFactorService.EnableTwoFactor(ctx, req.UserID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to enable two-factor authentication: %v", err)
-	}
+    // Verify the token
+    claims, err := utils.ValidateToken(req.Token)
+    if err != nil {
+        return nil, fmt.Errorf("invalid token: %v", err)
+    }
 
-	return &proto.EnableTwoFactorResponse{
-		Secret: secret,
-		QrCode: qrCode,
-	}, nil
+    userID := int32(claims["user_id"].(float64))
+    if userID != req.UserID {
+        return nil, fmt.Errorf("unauthorized: token does not match user ID")
+    }
+
+    secret, qrCode, err := s.twoFactorService.EnableTwoFactor(ctx, req.UserID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to enable two-factor authentication: %v", err)
+    }
+
+    return &proto.EnableTwoFactorResponse{
+        Secret: secret,
+        QrCode: qrCode,
+    }, nil
 }
 
 func (s *authServer) VerifyTwoFactor(ctx context.Context, req *proto.VerifyTwoFactorRequest) (*proto.VerifyTwoFactorResponse, error) {
-	user, err := s.queries.GetUserByID(ctx, req.UserID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user: %v", err)
-	}
+    user, err := s.queries.GetUserByID(ctx, req.UserID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get user: %v", err)
+    }
 
-	if !user.TwoFactorSecret.Valid || !s.twoFactorService.ValidateCode(user.TwoFactorSecret.String, req.Code) {
-		return nil, fmt.Errorf("invalid two-factor code")
-	}
+    if !user.TwoFactorSecret.Valid || !s.twoFactorService.ValidateCode(user.TwoFactorSecret.String, req.Code) {
+        return nil, fmt.Errorf("invalid two-factor code")
+    }
 
-	err = s.queries.EnableTwoFactor(ctx, req.UserID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to enable two-factor authentication: %v", err)
-	}
+    // Actually enable two-factor authentication
+    err = s.queries.EnableTwoFactor(ctx, req.UserID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to enable two-factor authentication: %v", err)
+    }
 
-	return &proto.VerifyTwoFactorResponse{Success: true}, nil
+    return &proto.VerifyTwoFactorResponse{Success: true}, nil
+}
+
+func (s *authServer) DisableTwoFactor(ctx context.Context, req *proto.DisableTwoFactorRequest) (*proto.DisableTwoFactorResponse, error) {
+    // Verify the token
+    claims, err := utils.ValidateToken(req.Token)
+    if err != nil {
+        return nil, fmt.Errorf("invalid token: %v", err)
+    }
+
+    userID := int32(claims["user_id"].(float64))
+    if userID != req.UserID {
+        return nil, fmt.Errorf("unauthorized: token does not match user ID")
+    }
+
+    err = s.queries.DisableTwoFactor(ctx, req.UserID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to disable two-factor authentication: %v", err)
+    }
+
+    return &proto.DisableTwoFactorResponse{Success: true}, nil
 }
 
 func (s *authServer) RequestPasswordReset(ctx context.Context, req *proto.PasswordResetRequest) (*proto.PasswordResetResponse, error) {

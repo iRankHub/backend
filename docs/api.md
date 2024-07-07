@@ -77,12 +77,13 @@ Demo Data:
 
 Endpoint: `AuthService.EnableTwoFactor`
 
-Description: Enable 2FA for a user account.
+Description: Enable 2FA for a user account. Requires authentication.
 
 Demo Data:
 ```json
 {
-  "userID": 1
+  "userID": 1,
+  "token": "your_auth_token_here"
 }
 ```
 
@@ -99,6 +100,33 @@ Demo Data:
   "code": "123456"
 }
 ```
+
+### Disable Two-Factor Authentication
+
+Endpoint: `AuthService.DisableTwoFactor`
+
+Description: Disable 2FA for a user account. Requires authentication.
+
+Demo Data:
+```json
+{
+  "userID": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+## Testing Two-Factor Authentication
+
+To test the two-factor authentication flow:
+
+1. Log in using the `Login` endpoint to obtain an authentication token.
+2. Use the `EnableTwoFactor` endpoint with the obtained token to enable 2FA for the user.
+3. The response will include a secret and a QR code URL. Use an authenticator app to scan the QR code or manually enter the secret.
+4. Generate a 2FA code using the authenticator app.
+5. Use the `VerifyTwoFactor` endpoint with the generated code to verify and complete the 2FA setup.
+6. For subsequent logins, the `Login` endpoint will return `requireTwoFactor: true` if 2FA is enabled.
+7. Provide the 2FA code using the `VerifyTwoFactor` endpoint to complete the login process.
+8. To disable 2FA, use the `DisableTwoFactor` endpoint with a valid authentication token.
 
 ### Request Password Reset
 

@@ -9,6 +9,7 @@ service AuthService {
   rpc Login(LoginRequest) returns (LoginResponse) {}
   rpc EnableTwoFactor(EnableTwoFactorRequest) returns (EnableTwoFactorResponse) {}
   rpc VerifyTwoFactor(VerifyTwoFactorRequest) returns (VerifyTwoFactorResponse) {}
+  rpc DisableTwoFactor(DisableTwoFactorRequest) returns (DisableTwoFactorResponse) {}
   rpc RequestPasswordReset(PasswordResetRequest) returns (PasswordResetResponse) {}
   rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse) {}
   rpc EnableBiometricLogin(EnableBiometricLoginRequest) returns (EnableBiometricLoginResponse) {}
@@ -60,6 +61,7 @@ message LoginResponse {
 
 message EnableTwoFactorRequest {
   int32 userID = 1;
+  string token = 2;
 }
 
 message EnableTwoFactorResponse {
@@ -73,6 +75,15 @@ message VerifyTwoFactorRequest {
 }
 
 message VerifyTwoFactorResponse {
+  bool success = 1;
+}
+
+message DisableTwoFactorRequest {
+  int32 userID = 1;
+  string token = 2;
+}
+
+message DisableTwoFactorResponse {
   bool success = 1;
 }
 

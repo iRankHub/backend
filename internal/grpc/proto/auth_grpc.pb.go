@@ -23,6 +23,7 @@ const (
 	AuthService_Login_FullMethodName                = "/auth.AuthService/Login"
 	AuthService_EnableTwoFactor_FullMethodName      = "/auth.AuthService/EnableTwoFactor"
 	AuthService_VerifyTwoFactor_FullMethodName      = "/auth.AuthService/VerifyTwoFactor"
+	AuthService_DisableTwoFactor_FullMethodName     = "/auth.AuthService/DisableTwoFactor"
 	AuthService_RequestPasswordReset_FullMethodName = "/auth.AuthService/RequestPasswordReset"
 	AuthService_ResetPassword_FullMethodName        = "/auth.AuthService/ResetPassword"
 	AuthService_EnableBiometricLogin_FullMethodName = "/auth.AuthService/EnableBiometricLogin"
@@ -37,6 +38,7 @@ type AuthServiceClient interface {
 	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 	EnableTwoFactor(ctx context.Context, in *EnableTwoFactorRequest, opts ...grpc.CallOption) (*EnableTwoFactorResponse, error)
 	VerifyTwoFactor(ctx context.Context, in *VerifyTwoFactorRequest, opts ...grpc.CallOption) (*VerifyTwoFactorResponse, error)
+	DisableTwoFactor(ctx context.Context, in *DisableTwoFactorRequest, opts ...grpc.CallOption) (*DisableTwoFactorResponse, error)
 	RequestPasswordReset(ctx context.Context, in *PasswordResetRequest, opts ...grpc.CallOption) (*PasswordResetResponse, error)
 	ResetPassword(ctx context.Context, in *ResetPasswordRequest, opts ...grpc.CallOption) (*ResetPasswordResponse, error)
 	EnableBiometricLogin(ctx context.Context, in *EnableBiometricLoginRequest, opts ...grpc.CallOption) (*EnableBiometricLoginResponse, error)
@@ -91,6 +93,16 @@ func (c *authServiceClient) VerifyTwoFactor(ctx context.Context, in *VerifyTwoFa
 	return out, nil
 }
 
+func (c *authServiceClient) DisableTwoFactor(ctx context.Context, in *DisableTwoFactorRequest, opts ...grpc.CallOption) (*DisableTwoFactorResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DisableTwoFactorResponse)
+	err := c.cc.Invoke(ctx, AuthService_DisableTwoFactor_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *authServiceClient) RequestPasswordReset(ctx context.Context, in *PasswordResetRequest, opts ...grpc.CallOption) (*PasswordResetResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(PasswordResetResponse)
@@ -139,6 +151,7 @@ type AuthServiceServer interface {
 	Login(context.Context, *LoginRequest) (*LoginResponse, error)
 	EnableTwoFactor(context.Context, *EnableTwoFactorRequest) (*EnableTwoFactorResponse, error)
 	VerifyTwoFactor(context.Context, *VerifyTwoFactorRequest) (*VerifyTwoFactorResponse, error)
+	DisableTwoFactor(context.Context, *DisableTwoFactorRequest) (*DisableTwoFactorResponse, error)
 	RequestPasswordReset(context.Context, *PasswordResetRequest) (*PasswordResetResponse, error)
 	ResetPassword(context.Context, *ResetPasswordRequest) (*ResetPasswordResponse, error)
 	EnableBiometricLogin(context.Context, *EnableBiometricLoginRequest) (*EnableBiometricLoginResponse, error)
@@ -161,6 +174,9 @@ func (UnimplementedAuthServiceServer) EnableTwoFactor(context.Context, *EnableTw
 }
 func (UnimplementedAuthServiceServer) VerifyTwoFactor(context.Context, *VerifyTwoFactorRequest) (*VerifyTwoFactorResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VerifyTwoFactor not implemented")
+}
+func (UnimplementedAuthServiceServer) DisableTwoFactor(context.Context, *DisableTwoFactorRequest) (*DisableTwoFactorResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DisableTwoFactor not implemented")
 }
 func (UnimplementedAuthServiceServer) RequestPasswordReset(context.Context, *PasswordResetRequest) (*PasswordResetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RequestPasswordReset not implemented")
@@ -259,6 +275,24 @@ func _AuthService_VerifyTwoFactor_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_DisableTwoFactor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DisableTwoFactorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).DisableTwoFactor(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_DisableTwoFactor_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).DisableTwoFactor(ctx, req.(*DisableTwoFactorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AuthService_RequestPasswordReset_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PasswordResetRequest)
 	if err := dec(in); err != nil {
@@ -353,6 +387,10 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "VerifyTwoFactor",
 			Handler:    _AuthService_VerifyTwoFactor_Handler,
+		},
+		{
+			MethodName: "DisableTwoFactor",
+			Handler:    _AuthService_DisableTwoFactor_Handler,
 		},
 		{
 			MethodName: "RequestPasswordReset",

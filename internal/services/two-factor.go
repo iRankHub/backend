@@ -46,7 +46,7 @@ func (s *TwoFactorService) EnableTwoFactor(ctx context.Context, userID int32) (s
     key, err := totp.Generate(totp.GenerateOpts{
         Issuer:      "iRankHub",
         AccountName: fmt.Sprintf("user-%d", userID),
-        Secret:      []byte(secret),  // Convert string to byte slice
+        Secret:      []byte(secret),
     })
     if err != nil {
         return "", "", fmt.Errorf("failed to generate TOTP key: %v", err)
