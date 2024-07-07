@@ -11,22 +11,37 @@ import (
 
 	"github.com/iRankHub/backend/internal/grpc/proto"
 	"github.com/iRankHub/backend/internal/models"
+	"github.com/iRankHub/backend/internal/services"
 	"github.com/iRankHub/backend/internal/utils"
 )
 
 type authServer struct {
 	proto.UnimplementedAuthServiceServer
-	queries    *models.Queries
-	privateKey ed25519.PrivateKey
+	queries           *models.Queries
+	twoFactorService  *services.TwoFactorService
+	recoveryService   *services.RecoveryService
+	biometricService  *services.BiometricService
+	privateKey        ed25519.PrivateKey
 }
 
 func NewAuthServer(queries *models.Queries) (proto.AuthServiceServer, error) {
-	privateKey, _, err := utils.GeneratePasetoKeyPair()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate PASETO key pair: %v", err)
-	}
-	return &authServer{queries: queries, privateKey: privateKey}, nil
+    privateKey, publicKey, err := utils.GeneratePasetoKeyPair()
+    if err != nil {
+        return nil, fmt.Errorf("failed to generate PASETO key pair: %v", err)
+    }
+
+    // Set the public key for token validation
+    utils.SetPublicKey(publicKey)
+
+    return &authServer{
+        queries:           queries,
+        twoFactorService:  services.NewTwoFactorService(queries),
+        recoveryService:   services.NewRecoveryService(queries),
+        biometricService:  services.NewBiometricService(queries),
+        privateKey:        privateKey,
+    }, nil
 }
+
 
 func (s *authServer) SignUp(ctx context.Context, req *proto.SignUpRequest) (*proto.SignUpResponse, error) {
 	// Validate input
@@ -124,29 +139,185 @@ func (s *authServer) SignUp(ctx context.Context, req *proto.SignUpRequest) (*pro
 	return &proto.SignUpResponse{Success: true, Message: "Sign-up successful"}, nil
 }
 
+func (s *authServer) sendForcedPasswordReset(ctx context.Context, email string) error {
+    err := s.recoveryService.RequestPasswordReset(ctx, email)
+    if err != nil {
+        return fmt.Errorf("failed to initiate forced password reset: %v", err)
+    }
+    return nil
+}
+
 func (s *authServer) Login(ctx context.Context, req *proto.LoginRequest) (*proto.LoginResponse, error) {
-	// Validate input
-	if req.Email == "" || req.Password == "" {
-		return nil, fmt.Errorf("missing required fields")
-	}
+    // Validate input
+    if req.Email == "" || req.Password == "" {
+        return nil, fmt.Errorf("missing required fields")
+    }
 
-	// Retrieve the user based on the provided email
-	user, err := s.queries.GetUserByEmail(ctx, req.Email)
+    // Retrieve the user based on the provided email
+    user, err := s.queries.GetUserByEmail(ctx, req.Email)
+    if err != nil {
+        return nil, fmt.Errorf("failed to retrieve user: %v", err)
+    }
+
+    // Update last login attempt
+    err = s.queries.UpdateLastLoginAttempt(ctx, user.Userid)
+    if err != nil {
+        return nil, fmt.Errorf("failed to update last login attempt: %v", err)
+    }
+
+    // Verify the password
+    err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+    if err != nil {
+        // Increment failed login attempts
+        err = s.queries.IncrementFailedLoginAttempts(ctx, user.Userid)
+        if err != nil {
+            return nil, fmt.Errorf("failed to update login attempts: %v", err)
+        }
+
+        // Check if we need to enforce 2FA or password reset
+        if user.FailedLoginAttempts.Int32 >= 4 { // Now 5 total attempts including this one
+            if user.TwoFactorEnabled.Valid && user.TwoFactorEnabled.Bool {
+                return &proto.LoginResponse{Success: false, RequireTwoFactor: true}, nil
+            } else {
+                // Automatically send password reset email
+                err = s.sendForcedPasswordReset(ctx, user.Email)
+                if err != nil {
+                    // Log the error, but don't expose it to the user
+                    fmt.Printf("Failed to send forced password reset email: %v\n", err)
+                }
+                return &proto.LoginResponse{Success: false, RequirePasswordReset: true, Message: "A password reset email has been sent to your account."}, nil
+            }
+        }
+
+        return nil, fmt.Errorf("invalid password")
+    }
+
+    // Reset failed login attempts on successful login
+    err = s.queries.ResetFailedLoginAttempts(ctx, user.Userid)
+    if err != nil {
+        return nil, fmt.Errorf("failed to reset login attempts: %v", err)
+    }
+
+    // Generate a PASETO token
+    token, err := utils.GenerateToken(user.Userid, user.Userrole, s.privateKey)
+    if err != nil {
+        return nil, fmt.Errorf("failed to generate token: %v", err)
+    }
+
+    return &proto.LoginResponse{Success: true, Token: token, UserRole: user.Userrole, UserID: user.Userid}, nil
+}
+
+func (s *authServer) EnableTwoFactor(ctx context.Context, req *proto.EnableTwoFactorRequest) (*proto.EnableTwoFactorResponse, error) {
+	secret, qrCode, err := s.twoFactorService.EnableTwoFactor(ctx, req.UserID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve user: %v", err)
+		return nil, fmt.Errorf("failed to enable two-factor authentication: %v", err)
 	}
 
-	// Verify the password
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+	return &proto.EnableTwoFactorResponse{
+		Secret: secret,
+		QrCode: qrCode,
+	}, nil
+}
+
+func (s *authServer) VerifyTwoFactor(ctx context.Context, req *proto.VerifyTwoFactorRequest) (*proto.VerifyTwoFactorResponse, error) {
+	user, err := s.queries.GetUserByID(ctx, req.UserID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid password")
+		return nil, fmt.Errorf("failed to get user: %v", err)
 	}
 
-	// Generate a PASETO token
-	token, err := utils.GenerateToken(user.Userid, user.Userrole, s.privateKey)
+	if !user.TwoFactorSecret.Valid || !s.twoFactorService.ValidateCode(user.TwoFactorSecret.String, req.Code) {
+		return nil, fmt.Errorf("invalid two-factor code")
+	}
+
+	err = s.queries.EnableTwoFactor(ctx, req.UserID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate token: %v", err)
+		return nil, fmt.Errorf("failed to enable two-factor authentication: %v", err)
 	}
 
-	return &proto.LoginResponse{Success: true, Token: token, UserRole: user.Userrole, UserID: user.Userid}, nil
+	return &proto.VerifyTwoFactorResponse{Success: true}, nil
+}
+
+func (s *authServer) RequestPasswordReset(ctx context.Context, req *proto.PasswordResetRequest) (*proto.PasswordResetResponse, error) {
+	err := s.recoveryService.RequestPasswordReset(ctx, req.Email)
+	if err != nil {
+		return nil, fmt.Errorf("failed to request password reset: %v", err)
+	}
+
+	return &proto.PasswordResetResponse{Success: true}, nil
+}
+
+func (s *authServer) ResetPassword(ctx context.Context, req *proto.ResetPasswordRequest) (*proto.ResetPasswordResponse, error) {
+	err := s.recoveryService.ResetPassword(ctx, req.Token, req.NewPassword)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reset password: %v", err)
+	}
+
+	return &proto.ResetPasswordResponse{Success: true}, nil
+}
+
+func (s *authServer) EnableBiometricLogin(ctx context.Context, req *proto.EnableBiometricLoginRequest) (*proto.EnableBiometricLoginResponse, error) {
+	token, err := s.biometricService.EnableBiometricLogin(ctx, req.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to enable biometric login: %v", err)
+	}
+
+	return &proto.EnableBiometricLoginResponse{BiometricToken: token}, nil
+}
+
+func (s *authServer) BiometricLogin(ctx context.Context, req *proto.BiometricLoginRequest) (*proto.LoginResponse, error) {
+    user, err := s.biometricService.VerifyBiometricToken(ctx, req.BiometricToken)
+    if err != nil {
+        // Update last login attempt
+        updateErr := s.queries.UpdateLastLoginAttempt(ctx, user.Userid)
+        if updateErr != nil {
+            return nil, fmt.Errorf("failed to update last login attempt: %v", updateErr)
+        }
+
+        // Increment failed login attempts
+        incrementErr := s.queries.IncrementFailedLoginAttempts(ctx, user.Userid)
+        if incrementErr != nil {
+            return nil, fmt.Errorf("failed to update login attempts: %v", incrementErr)
+        }
+
+         // Check if we need to enforce 2FA or password reset
+		 if user.FailedLoginAttempts.Int32 >= 4 { // Now 5 total attempts including this one
+            if user.TwoFactorEnabled.Valid && user.TwoFactorEnabled.Bool {
+                return &proto.LoginResponse{Success: false, RequireTwoFactor: true}, nil
+            } else {
+                // Automatically send password reset email
+                err = s.sendForcedPasswordReset(ctx, user.Email)
+                if err != nil {
+                    // Log the error, but don't expose it to the user
+                    fmt.Printf("Failed to send forced password reset email: %v\n", err)
+                }
+                return &proto.LoginResponse{Success: false, RequirePasswordReset: true, Message: "A password reset email has been sent to your account."}, nil
+            }
+        }
+
+        return nil, fmt.Errorf("failed to verify biometric token: %v", err)
+    }
+
+    // Update last login attempt for successful login
+    err = s.queries.UpdateLastLoginAttempt(ctx, user.Userid)
+    if err != nil {
+        return nil, fmt.Errorf("failed to update last login attempt: %v", err)
+    }
+
+    // Reset failed login attempts on successful login
+    err = s.queries.ResetFailedLoginAttempts(ctx, user.Userid)
+    if err != nil {
+        return nil, fmt.Errorf("failed to reset login attempts: %v", err)
+    }
+
+    token, err := utils.GenerateToken(user.Userid, user.Userrole, s.privateKey)
+    if err != nil {
+        return nil, fmt.Errorf("failed to generate token: %v", err)
+    }
+
+    return &proto.LoginResponse{
+        Success:  true,
+        Token:    token,
+        UserRole: user.Userrole,
+        UserID:   user.Userid,
+    }, nil
 }

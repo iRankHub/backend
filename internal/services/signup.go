@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/iRankHub/backend/internal/grpc/proto"
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
@@ -20,7 +18,7 @@ func (s *AuthService) SignUp(ctx context.Context, req *proto.SignUpRequest) (*pr
 	}
 
 	// Hash the password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %v", err)
 	}
@@ -29,7 +27,7 @@ func (s *AuthService) SignUp(ctx context.Context, req *proto.SignUpRequest) (*pr
 	user, err := s.queries.CreateUser(ctx, models.CreateUserParams{
 		Name:     req.FirstName + " " + req.LastName,
 		Email:    req.Email,
-		Password: string(hashedPassword),
+		Password: hashedPassword,
 		Userrole: req.UserRole,
 	})
 	if err != nil {

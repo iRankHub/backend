@@ -9,6 +9,10 @@ import (
 	"github.com/o1egl/paseto"
 )
 
+var (
+	publicKey ed25519.PublicKey
+)
+
 func GenerateToken(userID int32, userRole string, privateKey ed25519.PrivateKey) (string, error) {
 	// Create a new PASETO maker with version 2
 	maker := paseto.NewV2()
@@ -37,4 +41,23 @@ func GeneratePasetoKeyPair() (ed25519.PrivateKey, ed25519.PublicKey, error) {
 	}
 
 	return privateKey, publicKey, nil
+}
+
+func SetPublicKey(key ed25519.PublicKey) {
+	publicKey = key
+}
+
+func ValidateToken(token string) (map[string]interface{}, error) {
+	if publicKey == nil {
+		return nil, fmt.Errorf("public key not set")
+	}
+
+	maker := paseto.NewV2()
+	var claims map[string]interface{}
+	err := maker.Verify(token, publicKey, &claims, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify token: %v", err)
+	}
+
+	return claims, nil
 }
