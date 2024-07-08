@@ -5,7 +5,14 @@ CREATE TABLE Users (
    Password VARCHAR(255) NOT NULL,
    UserRole VARCHAR(50) NOT NULL,
    VerificationStatus BOOLEAN DEFAULT FALSE,
-   ApprovalStatus BOOLEAN DEFAULT FALSE
+   ApprovalStatus BOOLEAN DEFAULT FALSE,
+   two_factor_secret VARCHAR(32),
+   two_factor_enabled BOOLEAN DEFAULT FALSE,
+   failed_login_attempts INTEGER DEFAULT 0,
+   last_login_attempt TIMESTAMP,
+   reset_token VARCHAR(64),
+   reset_token_expires TIMESTAMP,
+   biometric_token VARCHAR(64)
 );
 
 CREATE TABLE UserProfiles (
@@ -23,13 +30,32 @@ CREATE TABLE TournamentFormats (
    Description TEXT
 );
 
+CREATE TABLE Leagues (
+    LeagueID SERIAL PRIMARY KEY,
+    Name VARCHAR(255) NOT NULL,
+    LeagueType VARCHAR(50) NOT NULL CHECK (LeagueType IN ('local', 'international'))
+);
+
+CREATE TABLE LocalLeagueDetails (
+    LeagueID INTEGER PRIMARY KEY REFERENCES Leagues(LeagueID),
+    Province VARCHAR(255),
+    District VARCHAR(255)
+);
+
+CREATE TABLE InternationalLeagueDetails (
+    LeagueID INTEGER PRIMARY KEY REFERENCES Leagues(LeagueID),
+    Continent VARCHAR(255),
+    Country VARCHAR(255)
+);
+
 CREATE TABLE Tournaments (
-   TournamentID SERIAL PRIMARY KEY,
-   Name VARCHAR(255) NOT NULL,
-   StartDate DATE NOT NULL,
-   EndDate DATE NOT NULL,
-   Location VARCHAR(255) NOT NULL,
-   FormatID INTEGER NOT NULL REFERENCES TournamentFormats(FormatID)
+    TournamentID SERIAL PRIMARY KEY,
+    Name VARCHAR(255) NOT NULL,
+    StartDate DATE NOT NULL,
+    EndDate DATE NOT NULL,
+    Location VARCHAR(255) NOT NULL,
+    FormatID INTEGER NOT NULL REFERENCES TournamentFormats(FormatID),
+    LeagueID INTEGER REFERENCES Leagues(LeagueID)
 );
 
 CREATE TABLE Schools (

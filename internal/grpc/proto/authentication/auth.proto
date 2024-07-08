@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+option go_package = "github.com/iRankHub/backend/internal/grpc/proto/authentication";
+
+package auth;
+
+service AuthService {
+  rpc SignUp(SignUpRequest) returns (SignUpResponse) {}
+  rpc Login(LoginRequest) returns (LoginResponse) {}
+  rpc EnableTwoFactor(EnableTwoFactorRequest) returns (EnableTwoFactorResponse) {}
+  rpc VerifyTwoFactor(VerifyTwoFactorRequest) returns (VerifyTwoFactorResponse) {}
+  rpc DisableTwoFactor(DisableTwoFactorRequest) returns (DisableTwoFactorResponse) {}
+  rpc RequestPasswordReset(PasswordResetRequest) returns (PasswordResetResponse) {}
+  rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse) {}
+  rpc EnableBiometricLogin(EnableBiometricLoginRequest) returns (EnableBiometricLoginResponse) {}
+  rpc BiometricLogin(BiometricLoginRequest) returns (LoginResponse) {}
+}
+
+message SignUpRequest {
+  string firstName = 1;
+  string lastName = 2;
+  string email = 3;
+  string password = 4;
+  string userRole = 5;
+  string dateOfBirth = 6;
+  int32 schoolID = 7;
+  string schoolName = 8;
+  string address = 9;
+  string country = 10;
+  string province = 11;
+  string district = 12;
+  string schoolType = 13;
+  string contactPersonName = 14;
+  string contactPersonNumber = 15;
+  string contactEmail = 16;
+  string nationalID = 17;
+  string schoolAttended = 18;
+  int32 graduationYear = 19;
+  string roleInterestedIn = 20;
+  bool safeguardingCertificate = 21;
+  string grade = 22;
+}
+
+message SignUpResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  bool success = 1;
+  string token = 2;
+  string userRole = 3;
+  int32 userID = 4;
+  bool require_two_factor = 5;
+  bool require_password_reset = 6;
+  string message = 7;
+}
+
+message EnableTwoFactorRequest {
+  int32 userID = 1;
+  string token = 2;
+}
+
+message EnableTwoFactorResponse {
+  string secret = 1;
+  string qrCode = 2;
+}
+
+message VerifyTwoFactorRequest {
+  int32 userID = 1;
+  string code = 2;
+}
+
+message VerifyTwoFactorResponse {
+  bool success = 1;
+}
+
+message DisableTwoFactorRequest {
+  int32 userID = 1;
+  string token = 2;
+}
+
+message DisableTwoFactorResponse {
+  bool success = 1;
+}
+
+message PasswordResetRequest {
+  string email = 1;
+}
+
+message PasswordResetResponse {
+  bool success = 1;
+}
+
+message ResetPasswordRequest {
+  string token = 1;
+  string newPassword = 2;
+}
+
+message ResetPasswordResponse {
+  bool success = 1;
+}
+
+message EnableBiometricLoginRequest {
+  int32 userID = 1;
+}
+
+message EnableBiometricLoginResponse {
+  string biometricToken = 1;
+}
+
+message BiometricLoginRequest {
+  string biometricToken = 1;
+}

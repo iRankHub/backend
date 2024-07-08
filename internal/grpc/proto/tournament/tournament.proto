@@ -1,0 +1,176 @@
+syntax = "proto3";
+
+package tournament;
+
+option go_package = "github.com/iRankHub/backend/internal/grpc/proto/tournament";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+service TournamentService {
+  // League operations
+  rpc CreateLeague(CreateLeagueRequest) returns (League);
+  rpc GetLeague(GetLeagueRequest) returns (League);
+  rpc ListLeagues(ListLeaguesRequest) returns (ListLeaguesResponse);
+  rpc UpdateLeague(UpdateLeagueRequest) returns (League);
+  rpc DeleteLeague(DeleteLeagueRequest) returns (google.protobuf.Empty);
+
+  // Tournament Format operations
+  rpc CreateTournamentFormat(CreateTournamentFormatRequest) returns (TournamentFormat);
+  rpc GetTournamentFormat(GetTournamentFormatRequest) returns (TournamentFormat);
+  rpc ListTournamentFormats(ListTournamentFormatsRequest) returns (ListTournamentFormatsResponse);
+  rpc UpdateTournamentFormat(UpdateTournamentFormatRequest) returns (TournamentFormat);
+  rpc DeleteTournamentFormat(DeleteTournamentFormatRequest) returns (google.protobuf.Empty);
+
+  // Tournament operations
+  rpc CreateTournament(CreateTournamentRequest) returns (Tournament);
+  rpc GetTournament(GetTournamentRequest) returns (Tournament);
+  rpc ListTournaments(ListTournamentsRequest) returns (ListTournamentsResponse);
+  rpc UpdateTournament(UpdateTournamentRequest) returns (Tournament);
+  rpc DeleteTournament(DeleteTournamentRequest) returns (google.protobuf.Empty);
+}
+
+message TournamentFormat {
+  int32 format_id = 1;
+  string format_name = 2;
+  string description = 3;
+}
+
+message League {
+  int32 league_id = 1;
+  string name = 2;
+  LeagueType league_type = 3;
+  oneof league_details {
+    LocalLeagueDetails local_details = 4;
+    InternationalLeagueDetails international_details = 5;
+  }
+}
+
+enum LeagueType {
+  LEAGUE_TYPE_UNSPECIFIED = 0;
+  LEAGUE_TYPE_LOCAL = 1;
+  LEAGUE_TYPE_INTERNATIONAL = 2;
+}
+
+message LocalLeagueDetails {
+  string province = 1;
+  string district = 2;
+}
+
+message InternationalLeagueDetails {
+  string continent = 1;
+  string country = 2;
+}
+
+message Tournament {
+  int32 tournament_id = 1;
+  string name = 2;
+  google.protobuf.Timestamp start_date = 3;
+  google.protobuf.Timestamp end_date = 4;
+  string location = 5;
+  TournamentFormat format = 6;
+  League league = 7;
+}
+
+message CreateLeagueRequest {
+  string name = 1;
+  LeagueType league_type = 2;
+  oneof league_details {
+    LocalLeagueDetails local_details = 3;
+    InternationalLeagueDetails international_details = 4;
+  }
+}
+
+message GetLeagueRequest {
+  int32 league_id = 1;
+}
+
+message ListLeaguesRequest {
+  int32 page_size = 1;
+  int32 page_token = 2;
+}
+
+message ListLeaguesResponse {
+  repeated League leagues = 1;
+  int32 next_page_token = 2;
+}
+
+message UpdateLeagueRequest {
+  int32 league_id = 1;
+  string name = 2;
+  LeagueType league_type = 3;
+  oneof league_details {
+    LocalLeagueDetails local_details = 4;
+    InternationalLeagueDetails international_details = 5;
+  }
+}
+
+message DeleteLeagueRequest {
+  int32 league_id = 1;
+}
+
+message CreateTournamentFormatRequest {
+  string format_name = 1;
+  string description = 2;
+}
+
+message GetTournamentFormatRequest {
+  int32 format_id = 1;
+}
+
+message ListTournamentFormatsRequest {
+  int32 page_size = 1;
+  int32 page_token = 2;
+}
+
+message ListTournamentFormatsResponse {
+  repeated TournamentFormat formats = 1;
+  int32 next_page_token = 2;
+}
+
+message UpdateTournamentFormatRequest {
+  int32 format_id = 1;
+  string format_name = 2;
+  string description = 3;
+}
+
+message DeleteTournamentFormatRequest {
+  int32 format_id = 1;
+}
+
+message CreateTournamentRequest {
+  string name = 1;
+  google.protobuf.Timestamp start_date = 2;
+  google.protobuf.Timestamp end_date = 3;
+  string location = 4;
+  int32 format_id = 5;
+  int32 league_id = 6;
+}
+
+message GetTournamentRequest {
+  int32 tournament_id = 1;
+}
+
+message ListTournamentsRequest {
+  int32 page_size = 1;
+  int32 page_token = 2;
+}
+
+message ListTournamentsResponse {
+  repeated Tournament tournaments = 1;
+  int32 next_page_token = 2;
+}
+
+message UpdateTournamentRequest {
+  int32 tournament_id = 1;
+  string name = 2;
+  google.protobuf.Timestamp start_date = 3;
+  google.protobuf.Timestamp end_date = 4;
+  string location = 5;
+  int32 format_id = 6;
+  int32 league_id = 7;
+}
+
+message DeleteTournamentRequest {
+  int32 tournament_id = 1;
+}

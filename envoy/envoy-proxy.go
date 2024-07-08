@@ -39,9 +39,10 @@ func StartEnvoyProxy() error {
 	// Create and start the Envoy Proxy container
 	log.Printf("Starting Envoy Proxy container: %s", envoyContainerName)
 	runCmd := exec.Command("docker", "run", "-d", "--name", envoyContainerName,
-		"-p", "10000:10000",
-		"--add-host", "host.docker.internal:host-gateway",
-		envoyContainerName)
+    "-p", "10000:10000",  // Expose Envoy's listener port
+    "-p", "9901:9901",    // Expose Envoy's admin interface
+    "--add-host", "host.docker.internal:host-gateway",
+    envoyContainerName)
 
 	output, err = runCmd.CombinedOutput()
 	if err != nil {
