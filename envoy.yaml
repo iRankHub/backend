@@ -55,6 +55,7 @@ static_resources:
               socket_address:
                 address: host.docker.internal
                 # address: 192.168.1.73
+
                 port_value: 8080
 
 admin:
