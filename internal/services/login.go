@@ -5,7 +5,7 @@ import (
 	"crypto/ed25519"
 	"fmt"
 
-	"github.com/iRankHub/backend/internal/grpc/proto"
+	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
 )
@@ -19,7 +19,7 @@ func NewAuthService(queries *models.Queries, privateKey ed25519.PrivateKey) *Aut
 	return &AuthService{queries: queries, privateKey: privateKey}
 }
 
-func (s *AuthService) Login(ctx context.Context, req *proto.LoginRequest) (*proto.LoginResponse, error) {
+func (s *AuthService) Login(ctx context.Context, req *authentication.LoginRequest) (*authentication.LoginResponse, error) {
 	// Validate input
 	if req.Email == "" || req.Password == "" {
 		return nil, fmt.Errorf("missing required fields")
@@ -43,5 +43,5 @@ func (s *AuthService) Login(ctx context.Context, req *proto.LoginRequest) (*prot
 		return nil, fmt.Errorf("failed to generate token: %v", err)
 	}
 
-	return &proto.LoginResponse{Success: true, Token: token, UserRole: user.Userrole, UserID: user.Userid}, nil
+	return &authentication.LoginResponse{Success: true, Token: token, UserRole: user.Userrole, UserID: user.Userid}, nil
 }

@@ -9,14 +9,14 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/iRankHub/backend/internal/grpc/proto"
+	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/services"
 	"github.com/iRankHub/backend/internal/utils"
 )
 
 type authServer struct {
-	proto.UnimplementedAuthServiceServer
+	authentication.UnimplementedAuthServiceServer
 	queries           *models.Queries
 	twoFactorService  *services.TwoFactorService
 	recoveryService   *services.RecoveryService
@@ -24,7 +24,7 @@ type authServer struct {
 	privateKey        ed25519.PrivateKey
 }
 
-func NewAuthServer(queries *models.Queries) (proto.AuthServiceServer, error) {
+func NewAuthServer(queries *models.Queries) (authentication.AuthServiceServer, error) {
     privateKey, publicKey, err := utils.GeneratePasetoKeyPair()
     if err != nil {
         return nil, fmt.Errorf("failed to generate PASETO key pair: %v", err)
@@ -43,7 +43,7 @@ func NewAuthServer(queries *models.Queries) (proto.AuthServiceServer, error) {
 }
 
 
-func (s *authServer) SignUp(ctx context.Context, req *proto.SignUpRequest) (*proto.SignUpResponse, error) {
+func (s *authServer) SignUp(ctx context.Context, req *authentication.SignUpRequest) (*authentication.SignUpResponse, error) {
 	// Validate input
 	if req.FirstName == "" || req.LastName == "" || req.Email == "" || req.Password == "" || req.UserRole == "" {
 		return nil, fmt.Errorf("missing required fields")
@@ -136,7 +136,7 @@ func (s *authServer) SignUp(ctx context.Context, req *proto.SignUpRequest) (*pro
 		fmt.Printf("Failed to send welcome email: %v\n", err)
 	}
 
-	return &proto.SignUpResponse{Success: true, Message: "Sign-up successful"}, nil
+	return &authentication.SignUpResponse{Success: true, Message: "Sign-up successful"}, nil
 }
 
 func (s *authServer) sendForcedPasswordReset(ctx context.Context, email string) error {
@@ -147,7 +147,7 @@ func (s *authServer) sendForcedPasswordReset(ctx context.Context, email string) 
     return nil
 }
 
-func (s *authServer) Login(ctx context.Context, req *proto.LoginRequest) (*proto.LoginResponse, error) {
+func (s *authServer) Login(ctx context.Context, req *authentication.LoginRequest) (*authentication.LoginResponse, error) {
     // Validate input
     if req.Email == "" || req.Password == "" {
         return nil, fmt.Errorf("missing required fields")
@@ -177,7 +177,7 @@ func (s *authServer) Login(ctx context.Context, req *proto.LoginRequest) (*proto
         // Check if we need to enforce 2FA or password reset
         if user.FailedLoginAttempts.Int32 >= 4 { // Now 5 total attempts including this one
             if user.TwoFactorEnabled.Valid && user.TwoFactorEnabled.Bool {
-                return &proto.LoginResponse{Success: false, RequireTwoFactor: true}, nil
+                return &authentication.LoginResponse{Success: false, RequireTwoFactor: true}, nil
             } else {
                 // Automatically send password reset email
                 err = s.sendForcedPasswordReset(ctx, user.Email)
@@ -185,7 +185,7 @@ func (s *authServer) Login(ctx context.Context, req *proto.LoginRequest) (*proto
                     // Log the error, but don't expose it to the user
                     fmt.Printf("Failed to send forced password reset email: %v\n", err)
                 }
-                return &proto.LoginResponse{Success: false, RequirePasswordReset: true, Message: "A password reset email has been sent to your account."}, nil
+                return &authentication.LoginResponse{Success: false, RequirePasswordReset: true, Message: "A password reset email has been sent to your account."}, nil
             }
         }
 
@@ -204,10 +204,10 @@ func (s *authServer) Login(ctx context.Context, req *proto.LoginRequest) (*proto
         return nil, fmt.Errorf("failed to generate token: %v", err)
     }
 
-    return &proto.LoginResponse{Success: true, Token: token, UserRole: user.Userrole, UserID: user.Userid}, nil
+    return &authentication.LoginResponse{Success: true, Token: token, UserRole: user.Userrole, UserID: user.Userid}, nil
 }
 
-func (s *authServer) EnableTwoFactor(ctx context.Context, req *proto.EnableTwoFactorRequest) (*proto.EnableTwoFactorResponse, error) {
+func (s *authServer) EnableTwoFactor(ctx context.Context, req *authentication.EnableTwoFactorRequest) (*authentication.EnableTwoFactorResponse, error) {
     // Verify the token
     claims, err := utils.ValidateToken(req.Token)
     if err != nil {
@@ -224,13 +224,13 @@ func (s *authServer) EnableTwoFactor(ctx context.Context, req *proto.EnableTwoFa
         return nil, fmt.Errorf("failed to enable two-factor authentication: %v", err)
     }
 
-    return &proto.EnableTwoFactorResponse{
+    return &authentication.EnableTwoFactorResponse{
         Secret: secret,
         QrCode: qrCode,
     }, nil
 }
 
-func (s *authServer) VerifyTwoFactor(ctx context.Context, req *proto.VerifyTwoFactorRequest) (*proto.VerifyTwoFactorResponse, error) {
+func (s *authServer) VerifyTwoFactor(ctx context.Context, req *authentication.VerifyTwoFactorRequest) (*authentication.VerifyTwoFactorResponse, error) {
     user, err := s.queries.GetUserByID(ctx, req.UserID)
     if err != nil {
         return nil, fmt.Errorf("failed to get user: %v", err)
@@ -246,10 +246,10 @@ func (s *authServer) VerifyTwoFactor(ctx context.Context, req *proto.VerifyTwoFa
         return nil, fmt.Errorf("failed to enable two-factor authentication: %v", err)
     }
 
-    return &proto.VerifyTwoFactorResponse{Success: true}, nil
+    return &authentication.VerifyTwoFactorResponse{Success: true}, nil
 }
 
-func (s *authServer) DisableTwoFactor(ctx context.Context, req *proto.DisableTwoFactorRequest) (*proto.DisableTwoFactorResponse, error) {
+func (s *authServer) DisableTwoFactor(ctx context.Context, req *authentication.DisableTwoFactorRequest) (*authentication.DisableTwoFactorResponse, error) {
     // Verify the token
     claims, err := utils.ValidateToken(req.Token)
     if err != nil {
@@ -266,37 +266,37 @@ func (s *authServer) DisableTwoFactor(ctx context.Context, req *proto.DisableTwo
         return nil, fmt.Errorf("failed to disable two-factor authentication: %v", err)
     }
 
-    return &proto.DisableTwoFactorResponse{Success: true}, nil
+    return &authentication.DisableTwoFactorResponse{Success: true}, nil
 }
 
-func (s *authServer) RequestPasswordReset(ctx context.Context, req *proto.PasswordResetRequest) (*proto.PasswordResetResponse, error) {
+func (s *authServer) RequestPasswordReset(ctx context.Context, req *authentication.PasswordResetRequest) (*authentication.PasswordResetResponse, error) {
 	err := s.recoveryService.RequestPasswordReset(ctx, req.Email)
 	if err != nil {
 		return nil, fmt.Errorf("failed to request password reset: %v", err)
 	}
 
-	return &proto.PasswordResetResponse{Success: true}, nil
+	return &authentication.PasswordResetResponse{Success: true}, nil
 }
 
-func (s *authServer) ResetPassword(ctx context.Context, req *proto.ResetPasswordRequest) (*proto.ResetPasswordResponse, error) {
+func (s *authServer) ResetPassword(ctx context.Context, req *authentication.ResetPasswordRequest) (*authentication.ResetPasswordResponse, error) {
 	err := s.recoveryService.ResetPassword(ctx, req.Token, req.NewPassword)
 	if err != nil {
 		return nil, fmt.Errorf("failed to reset password: %v", err)
 	}
 
-	return &proto.ResetPasswordResponse{Success: true}, nil
+	return &authentication.ResetPasswordResponse{Success: true}, nil
 }
 
-func (s *authServer) EnableBiometricLogin(ctx context.Context, req *proto.EnableBiometricLoginRequest) (*proto.EnableBiometricLoginResponse, error) {
+func (s *authServer) EnableBiometricLogin(ctx context.Context, req *authentication.EnableBiometricLoginRequest) (*authentication.EnableBiometricLoginResponse, error) {
 	token, err := s.biometricService.EnableBiometricLogin(ctx, req.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to enable biometric login: %v", err)
 	}
 
-	return &proto.EnableBiometricLoginResponse{BiometricToken: token}, nil
+	return &authentication.EnableBiometricLoginResponse{BiometricToken: token}, nil
 }
 
-func (s *authServer) BiometricLogin(ctx context.Context, req *proto.BiometricLoginRequest) (*proto.LoginResponse, error) {
+func (s *authServer) BiometricLogin(ctx context.Context, req *authentication.BiometricLoginRequest) (*authentication.LoginResponse, error) {
     user, err := s.biometricService.VerifyBiometricToken(ctx, req.BiometricToken)
     if err != nil {
         // Update last login attempt
@@ -314,7 +314,7 @@ func (s *authServer) BiometricLogin(ctx context.Context, req *proto.BiometricLog
          // Check if we need to enforce 2FA or password reset
 		 if user.FailedLoginAttempts.Int32 >= 4 { // Now 5 total attempts including this one
             if user.TwoFactorEnabled.Valid && user.TwoFactorEnabled.Bool {
-                return &proto.LoginResponse{Success: false, RequireTwoFactor: true}, nil
+                return &authentication.LoginResponse{Success: false, RequireTwoFactor: true}, nil
             } else {
                 // Automatically send password reset email
                 err = s.sendForcedPasswordReset(ctx, user.Email)
@@ -322,7 +322,7 @@ func (s *authServer) BiometricLogin(ctx context.Context, req *proto.BiometricLog
                     // Log the error, but don't expose it to the user
                     fmt.Printf("Failed to send forced password reset email: %v\n", err)
                 }
-                return &proto.LoginResponse{Success: false, RequirePasswordReset: true, Message: "A password reset email has been sent to your account."}, nil
+                return &authentication.LoginResponse{Success: false, RequirePasswordReset: true, Message: "A password reset email has been sent to your account."}, nil
             }
         }
 
@@ -346,7 +346,7 @@ func (s *authServer) BiometricLogin(ctx context.Context, req *proto.BiometricLog
         return nil, fmt.Errorf("failed to generate token: %v", err)
     }
 
-    return &proto.LoginResponse{
+    return &authentication.LoginResponse{
         Success:  true,
         Token:    token,
         UserRole: user.Userrole,

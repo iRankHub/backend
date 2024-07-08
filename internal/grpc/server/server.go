@@ -7,8 +7,9 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/iRankHub/backend/internal/grpc/proto"
+	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
 	"github.com/iRankHub/backend/internal/models"
+	authserver "github.com/iRankHub/backend/internal/grpc/server/authentication"
 )
 
 func StartGRPCServer(queries *models.Queries) error {
@@ -16,13 +17,13 @@ func StartGRPCServer(queries *models.Queries) error {
 	grpcServer := grpc.NewServer()
 
 	// Create the AuthServer
-	authServer, err := NewAuthServer(queries)
+	authServer, err := authserver.NewAuthServer(queries)
 	if err != nil {
 		return fmt.Errorf("failed to create AuthServer: %v", err)
 	}
 
 	// Register the AuthService with the gRPC server
-	proto.RegisterAuthServiceServer(grpcServer, authServer)
+	authentication.RegisterAuthServiceServer(grpcServer, authServer)
 
 	// Start the gRPC server on a specific port
 	grpcPort := "0.0.0.0:8080"  // Changed to listen on all interfaces

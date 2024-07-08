@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/iRankHub/backend/internal/grpc/proto"
+	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
 )
 
-func (s *AuthService) SignUp(ctx context.Context, req *proto.SignUpRequest) (*proto.SignUpResponse, error) {
+func (s *AuthService) SignUp(ctx context.Context, req *authentication.SignUpRequest) (*authentication.SignUpResponse, error) {
 	// Validate input
 	if req.FirstName == "" || req.LastName == "" || req.Email == "" || req.Password == "" || req.UserRole == "" {
 		return nil, fmt.Errorf("missing required fields")
@@ -101,5 +101,5 @@ func (s *AuthService) SignUp(ctx context.Context, req *proto.SignUpRequest) (*pr
 		fmt.Printf("Failed to send welcome email: %v\n", err)
 	}
 
-	return &proto.SignUpResponse{Success: true, Message: "Sign-up successful"}, nil
+	return &authentication.SignUpResponse{Success: true, Message: "Sign-up successful"}, nil
 }
