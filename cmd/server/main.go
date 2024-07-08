@@ -14,8 +14,6 @@ import (
 	"github.com/iRankHub/backend/envoy"
 	"github.com/iRankHub/backend/internal/config"
 	"github.com/iRankHub/backend/internal/grpc/server"
-	"github.com/iRankHub/backend/internal/models"
-
 )
 
 func main() {
@@ -55,9 +53,6 @@ func main() {
 	}
 	log.Println("Successfully ran database migrations")
 
-	// Initialize database connection for the generated models
-	queries := models.New(db)
-
 	// Start the Envoy Proxy server
 	go func() {
 		if err := envoy.StartEnvoyProxy(); err != nil {
@@ -66,7 +61,7 @@ func main() {
 	}()
 
 	// Start the gRPC server
-	if err := server.StartGRPCServer(queries); err != nil {
+	if err := server.StartGRPCServer(db); err != nil {
 		log.Fatalf("Failed to start gRPC server: %v", err)
 	}
 }

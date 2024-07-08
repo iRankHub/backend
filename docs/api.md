@@ -24,7 +24,8 @@ Demo Data:
   "password": "studentPass123!",
   "userRole": "student",
   "dateOfBirth": "2005-05-15",
-  "schoolID": "1234"
+  "grade": "Grade 4",
+  "schoolID": 2
 }
 ```
 
@@ -37,6 +38,7 @@ Demo Data:
   "password": "schoolAdmin456!",
   "userRole": "school",
   "schoolName": "Springfield High",
+  "address": "KK 123 St",
   "country": "USA",
   "province": "Illinois",
   "district": "Springfield",
@@ -56,7 +58,7 @@ Demo Data:
   "dateOfBirth": "1990-08-20",
   "roleInterestedIn": "Mentor",
   "graduationYear": 2012,
-  "safeguardingCertificate": "cert123"
+  "safeguardingCertificate": true
 }
 ```
 

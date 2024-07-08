@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net"
@@ -8,16 +9,15 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
-	"github.com/iRankHub/backend/internal/models"
 	authserver "github.com/iRankHub/backend/internal/grpc/server/authentication"
 )
 
-func StartGRPCServer(queries *models.Queries) error {
+func StartGRPCServer(db *sql.DB) error {
 	// Create a new gRPC server
 	grpcServer := grpc.NewServer()
 
 	// Create the AuthServer
-	authServer, err := authserver.NewAuthServer(queries)
+	authServer, err := authserver.NewAuthServer(db)
 	if err != nil {
 		return fmt.Errorf("failed to create AuthServer: %v", err)
 	}
@@ -26,7 +26,7 @@ func StartGRPCServer(queries *models.Queries) error {
 	authentication.RegisterAuthServiceServer(grpcServer, authServer)
 
 	// Start the gRPC server on a specific port
-	grpcPort := "0.0.0.0:8080"  // Changed to listen on all interfaces
+	grpcPort := "0.0.0.0:8080"
 	listener, err := net.Listen("tcp", grpcPort)
 	if err != nil {
 		return fmt.Errorf("failed to listen on port %s: %v", grpcPort, err)
