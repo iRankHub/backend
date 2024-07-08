@@ -146,3 +146,54 @@ func SendPasswordResetEmail(to, resetToken string) error {
 
 	return sendEmail(to, subject, body)
 }
+
+func SendForcedPasswordResetEmail(to, resetToken string) error {
+	subject := "Security Alert: Forced Password Reset"
+
+	body := fmt.Sprintf(`
+		<html>
+		<head>
+			<style>
+				body {
+					font-family: Arial, sans-serif;
+					background-color: #f4f4f4;
+				}
+				.container {
+					max-width: 600px;
+					margin: 0 auto;
+					padding: 20px;
+					background-color: #ffffff;
+				}
+				h1 {
+					color: #ff0000;
+				}
+				.button {
+					display: inline-block;
+					padding: 10px 20px;
+					background-color: #ff0000;
+					color: #ffffff;
+					text-decoration: none;
+					border-radius: 5px;
+				}
+			</style>
+		</head>
+		<body>
+			<div class="container">
+				<h1>Security Alert: Forced Password Reset</h1>
+				<p>We've detected multiple failed login attempts on your account. As a security measure, we've temporarily locked your account and are requiring a password reset.</p>
+				<p>To reset your password and regain access to your account, click the button below:</p>
+				<p>
+					<a href="https://irankhub.com/forced-reset-password?token=%s" class="button">Reset Password Now</a>
+				</p>
+				<p>This link will expire in 15 minutes.</p>
+				<p>If you're having trouble clicking the button, copy and paste the following URL into your web browser:</p>
+				<p>https://irankhub.com/forced-reset-password?token=%s</p>
+				<p>If you didn't attempt to log in recently, please contact our support team immediately as your account may be at risk.</p>
+				<p>Best regards,<br>The iRankHub Security Team</p>
+			</div>
+		</body>
+		</html>
+	`, resetToken, resetToken)
+
+	return sendEmail(to, subject, body)
+}
