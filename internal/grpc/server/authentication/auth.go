@@ -55,7 +55,7 @@ func (s *authServer) SignUp(ctx context.Context, req *authentication.SignUpReque
 		"dateOfBirth":             req.DateOfBirth,
 		"schoolID":                req.SchoolID,
 		"schoolName":              req.SchoolName,
-        "address":                 req.Address,
+		"address":                 req.Address,
 		"country":                 req.Country,
 		"province":                req.Province,
 		"district":                req.District,
@@ -64,7 +64,7 @@ func (s *authServer) SignUp(ctx context.Context, req *authentication.SignUpReque
 		"roleInterestedIn":        req.RoleInterestedIn,
 		"graduationYear":          req.GraduationYear,
 		"safeguardingCertificate": req.SafeguardingCertificate,
-        "grade":                   req.Grade,
+		"grade":                   req.Grade,
 	}
 
 	err := s.signUpService.SignUp(ctx, req.FirstName, req.LastName, req.Email, req.Password, req.UserRole, additionalInfo)
@@ -72,7 +72,14 @@ func (s *authServer) SignUp(ctx context.Context, req *authentication.SignUpReque
 		return nil, err
 	}
 
-	return &authentication.SignUpResponse{Success: true, Message: "Sign-up successful. Please wait for admin approval."}, nil
+	var message string
+	if req.UserRole == "admin" {
+		message = "Admin account created successfully. You can now log in to the system."
+	} else {
+		message = "Sign-up successful. Please wait for admin approval."
+	}
+
+	return &authentication.SignUpResponse{Success: true, Message: message}, nil
 }
 
 func (s *authServer) Login(ctx context.Context, req *authentication.LoginRequest) (*authentication.LoginResponse, error) {
