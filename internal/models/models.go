@@ -194,28 +194,31 @@ type Teammember struct {
 }
 
 type Tournament struct {
-	Tournamentid int32         `json:"tournamentid"`
-	Name         string        `json:"name"`
-	Startdate    time.Time     `json:"startdate"`
-	Enddate      time.Time     `json:"enddate"`
-	Location     string        `json:"location"`
-	Formatid     int32         `json:"formatid"`
-	Leagueid     sql.NullInt32 `json:"leagueid"`
+	Tournamentid               int32         `json:"tournamentid"`
+	Name                       string        `json:"name"`
+	Startdate                  time.Time     `json:"startdate"`
+	Enddate                    time.Time     `json:"enddate"`
+	Location                   string        `json:"location"`
+	Formatid                   int32         `json:"formatid"`
+	Leagueid                   sql.NullInt32 `json:"leagueid"`
+	Numberofpreliminaryrounds  int32         `json:"numberofpreliminaryrounds"`
+	Numberofeliminationrounds  int32         `json:"numberofeliminationrounds"`
+	Judgesperdebatepreliminary int32         `json:"judgesperdebatepreliminary"`
+	Judgesperdebateelimination int32         `json:"judgesperdebateelimination"`
+	Tournamentfee              string        `json:"tournamentfee"`
 }
 
 type Tournamentcoordinator struct {
-	Coordinatorid int32  `json:"coordinatorid"`
-	Firstname     string `json:"firstname"`
-	Lastname      string `json:"lastname"`
-	Email         string `json:"email"`
-	Password      string `json:"password"`
-	Userid        int32  `json:"userid"`
+	Coordinatorid int32 `json:"coordinatorid"`
+	Volunteerid   int32 `json:"volunteerid"`
+	Tournamentid  int32 `json:"tournamentid"`
 }
 
 type Tournamentformat struct {
-	Formatid    int32          `json:"formatid"`
-	Formatname  string         `json:"formatname"`
-	Description sql.NullString `json:"description"`
+	Formatid        int32          `json:"formatid"`
+	Formatname      string         `json:"formatname"`
+	Description     sql.NullString `json:"description"`
+	Speakersperteam int32          `json:"speakersperteam"`
 }
 
 type User struct {

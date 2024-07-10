@@ -12,6 +12,9 @@ import (
 	"github.com/iRankHub/backend/internal/grpc/proto/user_management"
 	authserver "github.com/iRankHub/backend/internal/grpc/server/authentication"
 	userserver "github.com/iRankHub/backend/internal/grpc/server/user_management"
+	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
+	tournamentserver "github.com/iRankHub/backend/internal/grpc/server/tournament_management"
+
 )
 
 func StartGRPCServer(db *sql.DB) error {
@@ -34,6 +37,14 @@ func StartGRPCServer(db *sql.DB) error {
 	}
 	// Register the UserManagementService with the gRPC server
 	user_management.RegisterUserManagementServiceServer(grpcServer, userManagementServer)
+
+		// Create the Tournament server
+	tournamentServer, err := tournamentserver.NewTournamentServer(db)
+	if err != nil {
+		return fmt.Errorf("failed to create TournamentServer: %v", err)
+	}
+	// Register the TournamentService with the gRPC server
+	tournament_management.RegisterTournamentServiceServer(grpcServer, tournamentServer)
 
 	// Start the gRPC server on a specific port
 	grpcPort := "0.0.0.0:8080"
