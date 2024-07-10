@@ -1,3 +1,4 @@
+-- Create Users table first as it's referenced by many other tables
 CREATE TABLE Users (
    UserID SERIAL PRIMARY KEY,
    Name VARCHAR(255) NOT NULL,
@@ -19,6 +20,7 @@ CREATE TABLE Users (
    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create UserProfiles table
 CREATE TABLE UserProfiles (
    ProfileID SERIAL PRIMARY KEY,
    UserID INTEGER UNIQUE NOT NULL REFERENCES Users(UserID),
@@ -32,7 +34,7 @@ CREATE TABLE UserProfiles (
    VerificationStatus BOOLEAN DEFAULT FALSE
 );
 
--- Notifications table
+-- Create Notifications table
 CREATE TABLE Notifications (
     NotificationID SERIAL PRIMARY KEY,
     UserID INTEGER NOT NULL REFERENCES Users(UserID),
@@ -42,7 +44,7 @@ CREATE TABLE Notifications (
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- NotificationPreferences table
+-- Create NotificationPreferences table
 CREATE TABLE NotificationPreferences (
     PreferenceID SERIAL PRIMARY KEY,
     UserID INTEGER NOT NULL REFERENCES Users(UserID),
@@ -53,61 +55,35 @@ CREATE TABLE NotificationPreferences (
     InAppNotifications BOOLEAN DEFAULT TRUE
 );
 
--- Create Indexes
-CREATE INDEX IF NOT EXISTS idx_users_email ON Users(Email);
-CREATE INDEX IF NOT EXISTS idx_users_status ON Users(Status);
-CREATE INDEX IF NOT EXISTS idx_users_biometric_token ON Users(biometric_token);
-CREATE INDEX IF NOT EXISTS idx_users_reset_token ON Users(reset_token);
-
-CREATE INDEX IF NOT EXISTS idx_schools_contactpersonid ON Schools(ContactPersonID);
-CREATE INDEX IF NOT EXISTS idx_schools_contactemail ON Schools(ContactEmail);
-
-CREATE INDEX IF NOT EXISTS idx_students_email ON Students(Email);
-CREATE INDEX IF NOT EXISTS idx_students_schoolid ON Students(SchoolID);
-CREATE INDEX IF NOT Exists idx_students_userid ON Students(UserID);
-
-CREATE INDEX IF NOT EXISTS idx_volunteers_userid ON Volunteers(UserID);
-
-CREATE INDEX IF NOT EXISTS idx_notifications_userid ON Notifications(UserID);
-
--- Create Triggers
-CREATE OR REPLACE FUNCTION update_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER update_users_updated_at
-BEFORE UPDATE ON Users
-FOR EACH ROW
-EXECUTE FUNCTION update_updated_at();
-
+-- Create TournamentFormats table
 CREATE TABLE TournamentFormats (
    FormatID SERIAL PRIMARY KEY,
    FormatName VARCHAR(255) NOT NULL,
    Description TEXT
 );
 
+-- Create Leagues table
 CREATE TABLE Leagues (
     LeagueID SERIAL PRIMARY KEY,
     Name VARCHAR(255) NOT NULL,
     LeagueType VARCHAR(50) NOT NULL CHECK (LeagueType IN ('local', 'international'))
 );
 
+-- Create LocalLeagueDetails table
 CREATE TABLE LocalLeagueDetails (
     LeagueID INTEGER PRIMARY KEY REFERENCES Leagues(LeagueID),
     Province VARCHAR(255),
     District VARCHAR(255)
 );
 
+-- Create InternationalLeagueDetails table
 CREATE TABLE InternationalLeagueDetails (
     LeagueID INTEGER PRIMARY KEY REFERENCES Leagues(LeagueID),
     Continent VARCHAR(255),
     Country VARCHAR(255)
 );
 
+-- Create Tournaments table
 CREATE TABLE Tournaments (
     TournamentID SERIAL PRIMARY KEY,
     Name VARCHAR(255) NOT NULL,
@@ -118,6 +94,7 @@ CREATE TABLE Tournaments (
     LeagueID INTEGER REFERENCES Leagues(LeagueID)
 );
 
+-- Create Schools table
 CREATE TABLE Schools (
    SchoolID SERIAL PRIMARY KEY,
    SchoolName VARCHAR(255) NOT NULL,
@@ -130,6 +107,7 @@ CREATE TABLE Schools (
    SchoolType VARCHAR(50) NOT NULL
 );
 
+-- Create Students table
 CREATE TABLE Students (
    StudentID SERIAL PRIMARY KEY,
    FirstName VARCHAR(255) NOT NULL,
@@ -142,6 +120,7 @@ CREATE TABLE Students (
    UserID INTEGER NOT NULL REFERENCES Users(UserID)
 );
 
+-- Create Teams table
 CREATE TABLE Teams (
    TeamID SERIAL PRIMARY KEY,
    Name VARCHAR(255) NOT NULL,
@@ -149,12 +128,14 @@ CREATE TABLE Teams (
    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID)
 );
 
+-- Create TeamMembers table
 CREATE TABLE TeamMembers (
    TeamID INTEGER NOT NULL REFERENCES Teams(TeamID),
    StudentID INTEGER NOT NULL REFERENCES Students(StudentID),
    PRIMARY KEY (TeamID, StudentID)
 );
 
+-- Create Volunteers table
 CREATE TABLE Volunteers (
    VolunteerID SERIAL PRIMARY KEY,
    FirstName VARCHAR(255) NOT NULL,
@@ -167,6 +148,7 @@ CREATE TABLE Volunteers (
    UserID INTEGER NOT NULL REFERENCES Users(UserID)
 );
 
+-- Create Rounds table
 CREATE TABLE Rounds (
    RoundID SERIAL PRIMARY KEY,
    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
@@ -174,6 +156,7 @@ CREATE TABLE Rounds (
    IsEliminationRound BOOLEAN NOT NULL DEFAULT FALSE
 );
 
+-- Create Rooms table
 CREATE TABLE Rooms (
    RoomID SERIAL PRIMARY KEY,
    RoomName VARCHAR(255) NOT NULL,
@@ -181,6 +164,7 @@ CREATE TABLE Rooms (
    Capacity INTEGER NOT NULL
 );
 
+-- Create Debates table
 CREATE TABLE Debates (
    DebateID SERIAL PRIMARY KEY,
    RoundID INTEGER NOT NULL REFERENCES Rounds(RoundID),
@@ -193,6 +177,7 @@ CREATE TABLE Debates (
    Status VARCHAR(50) NOT NULL
 );
 
+-- Create JudgeAssignments table
 CREATE TABLE JudgeAssignments (
    AssignmentID SERIAL PRIMARY KEY,
    VolunteerID INTEGER NOT NULL REFERENCES Volunteers(VolunteerID),
@@ -200,6 +185,7 @@ CREATE TABLE JudgeAssignments (
    DebateID INTEGER NOT NULL REFERENCES Debates(DebateID)
 );
 
+-- Create Ballots table
 CREATE TABLE Ballots (
    BallotID SERIAL PRIMARY KEY,
    DebateID INTEGER NOT NULL REFERENCES Debates(DebateID),
@@ -220,6 +206,7 @@ CREATE TABLE Ballots (
    Team2TotalScore NUMERIC
 );
 
+-- Create TournamentCoordinators table
 CREATE TABLE TournamentCoordinators (
    CoordinatorID SERIAL PRIMARY KEY,
    FirstName VARCHAR(255) NOT NULL,
@@ -229,6 +216,7 @@ CREATE TABLE TournamentCoordinators (
    UserID INTEGER NOT NULL REFERENCES Users(UserID)
 );
 
+-- Create Schedules table
 CREATE TABLE Schedules (
    ScheduleID SERIAL PRIMARY KEY,
    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
@@ -237,6 +225,7 @@ CREATE TABLE Schedules (
    ScheduledTime TIMESTAMP NOT NULL
 );
 
+-- Create Results table
 CREATE TABLE Results (
    ResultID SERIAL PRIMARY KEY,
    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
@@ -245,6 +234,7 @@ CREATE TABLE Results (
    Points NUMERIC
 );
 
+-- Create RoomBookings table
 CREATE TABLE RoomBookings (
    BookingID SERIAL PRIMARY KEY,
    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
@@ -253,6 +243,7 @@ CREATE TABLE RoomBookings (
    EndTime TIMESTAMP NOT NULL
 );
 
+-- Create Communications table
 CREATE TABLE Communications (
    CommunicationID SERIAL PRIMARY KEY,
    UserID INTEGER NOT NULL REFERENCES Users(UserID),
@@ -262,6 +253,7 @@ CREATE TABLE Communications (
    Timestamp TIMESTAMP NOT NULL
 );
 
+-- Create JudgeReviews table
 CREATE TABLE JudgeReviews (
    ReviewID SERIAL PRIMARY KEY,
    StudentID INTEGER NOT NULL REFERENCES Students(StudentID),
@@ -270,11 +262,13 @@ CREATE TABLE JudgeReviews (
    Comments TEXT
 );
 
+-- Create VolunteerRatingTypes table
 CREATE TABLE VolunteerRatingTypes (
    RatingTypeID SERIAL PRIMARY KEY,
    RatingTypeName VARCHAR(255) NOT NULL
 );
 
+-- Create VolunteerRatings table
 CREATE TABLE VolunteerRatings (
    RatingID SERIAL PRIMARY KEY,
    VolunteerID INTEGER NOT NULL REFERENCES Volunteers(VolunteerID),
@@ -284,6 +278,7 @@ CREATE TABLE VolunteerRatings (
    CumulativeRating NUMERIC
 );
 
+-- Create StudentRanks table
 CREATE TABLE StudentRanks (
    RankID SERIAL PRIMARY KEY,
    StudentID INTEGER NOT NULL REFERENCES Students(StudentID),
@@ -292,6 +287,7 @@ CREATE TABLE StudentRanks (
    RankComments TEXT
 );
 
+-- Create StudentTransfers table
 CREATE TABLE StudentTransfers (
    TransferID SERIAL PRIMARY KEY,
    StudentID INTEGER NOT NULL REFERENCES Students(StudentID),
@@ -300,3 +296,34 @@ CREATE TABLE StudentTransfers (
    TransferDate DATE NOT NULL,
    Reason VARCHAR(255)
 );
+
+-- Create Indexes
+CREATE INDEX IF NOT EXISTS idx_users_email ON Users(Email);
+CREATE INDEX IF NOT EXISTS idx_users_status ON Users(Status);
+CREATE INDEX IF NOT EXISTS idx_users_biometric_token ON Users(biometric_token);
+CREATE INDEX IF NOT EXISTS idx_users_reset_token ON Users(reset_token);
+
+CREATE INDEX IF NOT EXISTS idx_schools_contactpersonid ON Schools(ContactPersonID);
+CREATE INDEX IF NOT EXISTS idx_schools_contactemail ON Schools(ContactEmail);
+
+CREATE INDEX IF NOT EXISTS idx_students_email ON Students(Email);
+CREATE INDEX IF NOT EXISTS idx_students_schoolid ON Students(SchoolID);
+CREATE INDEX IF NOT EXISTS idx_students_userid ON Students(UserID);
+
+CREATE INDEX IF NOT EXISTS idx_volunteers_userid ON Volunteers(UserID);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_userid ON Notifications(UserID);
+
+-- Create Triggers
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_users_updated_at
+BEFORE UPDATE ON Users
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at();
