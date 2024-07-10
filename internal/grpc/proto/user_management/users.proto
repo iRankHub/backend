@@ -1,0 +1,162 @@
+syntax = "proto3";
+
+option go_package = "github.com/iRankHub/backend/internal/grpc/proto/user_management";
+
+package user_management;
+
+service UserManagementService {
+  rpc GetPendingUsers(GetPendingUsersRequest) returns (GetPendingUsersResponse) {}
+  rpc GetUserDetails(GetUserDetailsRequest) returns (GetUserDetailsResponse) {}
+  rpc ApproveUser(ApproveUserRequest) returns (ApproveUserResponse) {}
+  rpc RejectUser(RejectUserRequest) returns (RejectUserResponse) {}
+  rpc UpdateUserProfile(UpdateUserProfileRequest) returns (UpdateUserProfileResponse) {}
+  rpc DeleteUserProfile(DeleteUserProfileRequest) returns (DeleteUserProfileResponse) {}
+  rpc DeactivateAccount(DeactivateAccountRequest) returns (DeactivateAccountResponse) {}
+  rpc ReactivateAccount(ReactivateAccountRequest) returns (ReactivateAccountResponse) {}
+  rpc GetAccountStatus(GetAccountStatusRequest) returns (GetAccountStatusResponse) {}
+}
+
+message GetPendingUsersRequest {
+  string token = 1;
+}
+
+message GetPendingUsersResponse {
+  repeated UserSummary users = 1;
+}
+
+message UserSummary {
+  int32 userID = 1;
+  string name = 2;
+  string email = 3;
+  string userRole = 4;
+  string signUpDate = 5;
+}
+
+message GetUserDetailsRequest {
+  string token = 1;
+  int32 userID = 2;
+}
+
+message GetUserDetailsResponse {
+  UserDetails user = 1;
+}
+
+message UserDetails {
+  int32 userID = 1;
+  string name = 2;
+  string email = 3;
+  string userRole = 4;
+  string signUpDate = 5;
+  UserProfile profile = 6;
+  oneof role_specific_details {
+    StudentDetails studentDetails = 7;
+    SchoolDetails schoolDetails = 8;
+    VolunteerDetails volunteerDetails = 9;
+  }
+}
+
+message UserProfile {
+  string address = 1;
+  string phone = 2;
+  string bio = 3;
+  bytes profilePicture = 4;
+}
+
+message StudentDetails {
+  string grade = 1;
+  string dateOfBirth = 2;
+  int32 schoolID = 3;
+  string schoolName = 4;
+}
+
+message SchoolDetails {
+  string address = 1;
+  string country = 2;
+  string province = 3;
+  string district = 4;
+  string schoolType = 5;
+  string contactPersonName = 6;
+  string contactPersonNumber = 7;
+}
+
+message VolunteerDetails {
+  string dateOfBirth = 1;
+  int32 graduationYear = 2;
+  string roleInterestedIn = 3;
+  bool safeguardingCertificate = 4;
+}
+
+message ApproveUserRequest {
+  string token = 1;
+  int32 userID = 2;
+}
+
+message ApproveUserResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message RejectUserRequest {
+  string token = 1;
+  int32 userID = 2;
+}
+
+message RejectUserResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message UpdateUserProfileRequest {
+  string token = 1;
+  int32 userID = 2;
+  string name = 3;
+  string email = 4;
+  string address = 5;
+  string phone = 6;
+  string bio = 7;
+  bytes profilePicture = 8;
+}
+
+message UpdateUserProfileResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message DeleteUserProfileRequest {
+  string token = 1;
+  int32 userID = 2;
+}
+
+message DeleteUserProfileResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message DeactivateAccountRequest {
+  string token = 1;
+  int32 userID = 2;
+}
+
+message DeactivateAccountResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ReactivateAccountRequest {
+  string token = 1;
+  int32 userID = 2;
+}
+
+message ReactivateAccountResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetAccountStatusRequest {
+  string token = 1;
+  int32 userID = 2;
+}
+
+message GetAccountStatusResponse {
+  string status = 1;
+}

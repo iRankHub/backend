@@ -7,15 +7,28 @@ SELECT * FROM Users
 WHERE Email = $1;
 
 -- name: CreateUser :one
-INSERT INTO Users (Name, Email, Password, UserRole)
-VALUES ($1, $2, $3, $4)
+INSERT INTO Users (Name, Email, Password, UserRole, Status)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
 -- name: UpdateUser :one
 UPDATE Users
-SET Name = $2, Email = $3, Password = $4, UserRole = $5, VerificationStatus = $6, ApprovalStatus = $7
+SET Name = $2, Email = $3, Password = $4, UserRole = $5, VerificationStatus = $6, Status = $7
 WHERE UserID = $1
 RETURNING *;
+
+-- name: UpdateUserStatus :exec
+UPDATE Users
+SET Status = $2
+WHERE UserID = $1;
+
+-- name: GetPendingUsers :many
+SELECT * FROM Users
+WHERE Status = 'pending';
+
+-- name: GetUsersByStatus :many
+SELECT * FROM Users
+WHERE Status = $1;
 
 -- name: UpdateUserPassword :exec
 UPDATE Users
@@ -37,6 +50,11 @@ UPDATE Users SET two_factor_enabled = FALSE WHERE UserID = $1;
 
 -- name: UpdateLastLoginAttempt :exec
 UPDATE Users SET last_login_attempt = NOW() WHERE UserID = $1;
+
+-- name: UpdateLastLogout :exec
+UPDATE Users
+SET last_logout = $2
+WHERE UserID = $1;
 
 -- name: IncrementFailedLoginAttempts :exec
 UPDATE Users
@@ -64,3 +82,22 @@ SELECT * FROM Users WHERE reset_token = $1 AND reset_token_expires > NOW() LIMIT
 
 -- name: GetUserWithAuthDetails :one
 SELECT * FROM Users WHERE UserID = $1;
+
+-- name: DeactivateAccount :exec
+UPDATE Users
+SET DeactivatedAt = CURRENT_TIMESTAMP
+WHERE UserID = $1;
+
+-- name: ReactivateAccount :exec
+UPDATE Users
+SET DeactivatedAt = NULL
+WHERE UserID = $1;
+
+-- name: GetAccountStatus :one
+SELECT
+    CASE
+        WHEN DeactivatedAt IS NULL THEN 'active'
+        ELSE 'deactivated'
+    END AS status
+FROM Users
+WHERE UserID = $1;

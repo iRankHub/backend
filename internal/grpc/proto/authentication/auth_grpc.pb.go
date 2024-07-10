@@ -28,6 +28,7 @@ const (
 	AuthService_ResetPassword_FullMethodName        = "/auth.AuthService/ResetPassword"
 	AuthService_EnableBiometricLogin_FullMethodName = "/auth.AuthService/EnableBiometricLogin"
 	AuthService_BiometricLogin_FullMethodName       = "/auth.AuthService/BiometricLogin"
+	AuthService_Logout_FullMethodName               = "/auth.AuthService/Logout"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -43,6 +44,7 @@ type AuthServiceClient interface {
 	ResetPassword(ctx context.Context, in *ResetPasswordRequest, opts ...grpc.CallOption) (*ResetPasswordResponse, error)
 	EnableBiometricLogin(ctx context.Context, in *EnableBiometricLoginRequest, opts ...grpc.CallOption) (*EnableBiometricLoginResponse, error)
 	BiometricLogin(ctx context.Context, in *BiometricLoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
+	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error)
 }
 
 type authServiceClient struct {
@@ -143,6 +145,16 @@ func (c *authServiceClient) BiometricLogin(ctx context.Context, in *BiometricLog
 	return out, nil
 }
 
+func (c *authServiceClient) Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LogoutResponse)
+	err := c.cc.Invoke(ctx, AuthService_Logout_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServiceServer is the server API for AuthService service.
 // All implementations must embed UnimplementedAuthServiceServer
 // for forward compatibility
@@ -156,6 +168,7 @@ type AuthServiceServer interface {
 	ResetPassword(context.Context, *ResetPasswordRequest) (*ResetPasswordResponse, error)
 	EnableBiometricLogin(context.Context, *EnableBiometricLoginRequest) (*EnableBiometricLoginResponse, error)
 	BiometricLogin(context.Context, *BiometricLoginRequest) (*LoginResponse, error)
+	Logout(context.Context, *LogoutRequest) (*LogoutResponse, error)
 	mustEmbedUnimplementedAuthServiceServer()
 }
 
@@ -189,6 +202,9 @@ func (UnimplementedAuthServiceServer) EnableBiometricLogin(context.Context, *Ena
 }
 func (UnimplementedAuthServiceServer) BiometricLogin(context.Context, *BiometricLoginRequest) (*LoginResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BiometricLogin not implemented")
+}
+func (UnimplementedAuthServiceServer) Logout(context.Context, *LogoutRequest) (*LogoutResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Logout not implemented")
 }
 func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}
 
@@ -365,6 +381,24 @@ func _AuthService_BiometricLogin_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_Logout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LogoutRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).Logout(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_Logout_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).Logout(ctx, req.(*LogoutRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -407,6 +441,10 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "BiometricLogin",
 			Handler:    _AuthService_BiometricLogin_Handler,
+		},
+		{
+			MethodName: "Logout",
+			Handler:    _AuthService_Logout_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

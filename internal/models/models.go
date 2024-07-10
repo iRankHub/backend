@@ -83,6 +83,25 @@ type Localleaguedetail struct {
 	District sql.NullString `json:"district"`
 }
 
+type Notification struct {
+	Notificationid int32        `json:"notificationid"`
+	Userid         int32        `json:"userid"`
+	Type           string       `json:"type"`
+	Message        string       `json:"message"`
+	Isread         sql.NullBool `json:"isread"`
+	Createdat      sql.NullTime `json:"createdat"`
+}
+
+type Notificationpreference struct {
+	Preferenceid       int32          `json:"preferenceid"`
+	Userid             int32          `json:"userid"`
+	Emailnotifications sql.NullBool   `json:"emailnotifications"`
+	Emailfrequency     sql.NullString `json:"emailfrequency"`
+	Emailday           sql.NullInt32  `json:"emailday"`
+	Emailtime          sql.NullTime   `json:"emailtime"`
+	Inappnotifications sql.NullBool   `json:"inappnotifications"`
+}
+
 type Result struct {
 	Resultid     int32          `json:"resultid"`
 	Tournamentid int32          `json:"tournamentid"`
@@ -175,28 +194,31 @@ type Teammember struct {
 }
 
 type Tournament struct {
-	Tournamentid int32         `json:"tournamentid"`
-	Name         string        `json:"name"`
-	Startdate    time.Time     `json:"startdate"`
-	Enddate      time.Time     `json:"enddate"`
-	Location     string        `json:"location"`
-	Formatid     int32         `json:"formatid"`
-	Leagueid     sql.NullInt32 `json:"leagueid"`
+	Tournamentid               int32         `json:"tournamentid"`
+	Name                       string        `json:"name"`
+	Startdate                  time.Time     `json:"startdate"`
+	Enddate                    time.Time     `json:"enddate"`
+	Location                   string        `json:"location"`
+	Formatid                   int32         `json:"formatid"`
+	Leagueid                   sql.NullInt32 `json:"leagueid"`
+	Numberofpreliminaryrounds  int32         `json:"numberofpreliminaryrounds"`
+	Numberofeliminationrounds  int32         `json:"numberofeliminationrounds"`
+	Judgesperdebatepreliminary int32         `json:"judgesperdebatepreliminary"`
+	Judgesperdebateelimination int32         `json:"judgesperdebateelimination"`
+	Tournamentfee              string        `json:"tournamentfee"`
 }
 
 type Tournamentcoordinator struct {
-	Coordinatorid int32  `json:"coordinatorid"`
-	Firstname     string `json:"firstname"`
-	Lastname      string `json:"lastname"`
-	Email         string `json:"email"`
-	Password      string `json:"password"`
-	Userid        int32  `json:"userid"`
+	Coordinatorid int32 `json:"coordinatorid"`
+	Volunteerid   int32 `json:"volunteerid"`
+	Tournamentid  int32 `json:"tournamentid"`
 }
 
 type Tournamentformat struct {
-	Formatid    int32          `json:"formatid"`
-	Formatname  string         `json:"formatname"`
-	Description sql.NullString `json:"description"`
+	Formatid        int32          `json:"formatid"`
+	Formatname      string         `json:"formatname"`
+	Description     sql.NullString `json:"description"`
+	Speakersperteam int32          `json:"speakersperteam"`
 }
 
 type User struct {
@@ -205,24 +227,32 @@ type User struct {
 	Email               string         `json:"email"`
 	Password            string         `json:"password"`
 	Userrole            string         `json:"userrole"`
+	Status              sql.NullString `json:"status"`
 	Verificationstatus  sql.NullBool   `json:"verificationstatus"`
-	Approvalstatus      sql.NullBool   `json:"approvalstatus"`
+	Deactivatedat       sql.NullTime   `json:"deactivatedat"`
 	TwoFactorSecret     sql.NullString `json:"two_factor_secret"`
 	TwoFactorEnabled    sql.NullBool   `json:"two_factor_enabled"`
 	FailedLoginAttempts sql.NullInt32  `json:"failed_login_attempts"`
 	LastLoginAttempt    sql.NullTime   `json:"last_login_attempt"`
+	LastLogout          sql.NullTime   `json:"last_logout"`
 	ResetToken          sql.NullString `json:"reset_token"`
 	ResetTokenExpires   sql.NullTime   `json:"reset_token_expires"`
 	BiometricToken      sql.NullString `json:"biometric_token"`
+	CreatedAt           sql.NullTime   `json:"created_at"`
+	UpdatedAt           sql.NullTime   `json:"updated_at"`
 }
 
 type Userprofile struct {
-	Profileid      int32          `json:"profileid"`
-	Userid         int32          `json:"userid"`
-	Address        sql.NullString `json:"address"`
-	Phone          sql.NullString `json:"phone"`
-	Bio            sql.NullString `json:"bio"`
-	Profilepicture []byte         `json:"profilepicture"`
+	Profileid          int32          `json:"profileid"`
+	Userid             int32          `json:"userid"`
+	Name               string         `json:"name"`
+	Userrole           string         `json:"userrole"`
+	Email              string         `json:"email"`
+	Address            sql.NullString `json:"address"`
+	Phone              sql.NullString `json:"phone"`
+	Bio                sql.NullString `json:"bio"`
+	Profilepicture     []byte         `json:"profilepicture"`
+	Verificationstatus sql.NullBool   `json:"verificationstatus"`
 }
 
 type Volunteer struct {

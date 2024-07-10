@@ -14,6 +14,7 @@ service AuthService {
   rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse) {}
   rpc EnableBiometricLogin(EnableBiometricLoginRequest) returns (EnableBiometricLoginResponse) {}
   rpc BiometricLogin(BiometricLoginRequest) returns (LoginResponse) {}
+  rpc Logout(LogoutRequest) returns (LogoutResponse) {}
 }
 
 message SignUpRequest {
@@ -44,6 +45,7 @@ message SignUpRequest {
 message SignUpResponse {
   bool success = 1;
   string message = 2;
+  string status = 3;
 }
 
 message LoginRequest {
@@ -59,6 +61,7 @@ message LoginResponse {
   bool require_two_factor = 5;
   bool require_password_reset = 6;
   string message = 7;
+  string status = 8;
 }
 
 message EnableTwoFactorRequest {
@@ -116,4 +119,14 @@ message EnableBiometricLoginResponse {
 
 message BiometricLoginRequest {
   string biometricToken = 1;
+}
+
+message LogoutRequest {
+  int32 userID = 1;
+  string token = 2;
+}
+
+message LogoutResponse {
+  bool success = 1;
+  string message = 2;
 }

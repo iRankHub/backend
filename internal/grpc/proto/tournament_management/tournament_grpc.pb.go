@@ -2,16 +2,15 @@
 // versions:
 // - protoc-gen-go-grpc v1.4.0
 // - protoc             v5.27.0
-// source: internal/grpc/proto/tournament/tournament.proto
+// source: internal/grpc/proto/tournament_management/tournament.proto
 
-package tournament
+package tournament_management
 
 import (
 	context "context"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -20,21 +19,21 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	TournamentService_CreateLeague_FullMethodName           = "/tournament.TournamentService/CreateLeague"
-	TournamentService_GetLeague_FullMethodName              = "/tournament.TournamentService/GetLeague"
-	TournamentService_ListLeagues_FullMethodName            = "/tournament.TournamentService/ListLeagues"
-	TournamentService_UpdateLeague_FullMethodName           = "/tournament.TournamentService/UpdateLeague"
-	TournamentService_DeleteLeague_FullMethodName           = "/tournament.TournamentService/DeleteLeague"
-	TournamentService_CreateTournamentFormat_FullMethodName = "/tournament.TournamentService/CreateTournamentFormat"
-	TournamentService_GetTournamentFormat_FullMethodName    = "/tournament.TournamentService/GetTournamentFormat"
-	TournamentService_ListTournamentFormats_FullMethodName  = "/tournament.TournamentService/ListTournamentFormats"
-	TournamentService_UpdateTournamentFormat_FullMethodName = "/tournament.TournamentService/UpdateTournamentFormat"
-	TournamentService_DeleteTournamentFormat_FullMethodName = "/tournament.TournamentService/DeleteTournamentFormat"
-	TournamentService_CreateTournament_FullMethodName       = "/tournament.TournamentService/CreateTournament"
-	TournamentService_GetTournament_FullMethodName          = "/tournament.TournamentService/GetTournament"
-	TournamentService_ListTournaments_FullMethodName        = "/tournament.TournamentService/ListTournaments"
-	TournamentService_UpdateTournament_FullMethodName       = "/tournament.TournamentService/UpdateTournament"
-	TournamentService_DeleteTournament_FullMethodName       = "/tournament.TournamentService/DeleteTournament"
+	TournamentService_CreateLeague_FullMethodName           = "/tournament_management.TournamentService/CreateLeague"
+	TournamentService_GetLeague_FullMethodName              = "/tournament_management.TournamentService/GetLeague"
+	TournamentService_ListLeagues_FullMethodName            = "/tournament_management.TournamentService/ListLeagues"
+	TournamentService_UpdateLeague_FullMethodName           = "/tournament_management.TournamentService/UpdateLeague"
+	TournamentService_DeleteLeague_FullMethodName           = "/tournament_management.TournamentService/DeleteLeague"
+	TournamentService_CreateTournamentFormat_FullMethodName = "/tournament_management.TournamentService/CreateTournamentFormat"
+	TournamentService_GetTournamentFormat_FullMethodName    = "/tournament_management.TournamentService/GetTournamentFormat"
+	TournamentService_ListTournamentFormats_FullMethodName  = "/tournament_management.TournamentService/ListTournamentFormats"
+	TournamentService_UpdateTournamentFormat_FullMethodName = "/tournament_management.TournamentService/UpdateTournamentFormat"
+	TournamentService_DeleteTournamentFormat_FullMethodName = "/tournament_management.TournamentService/DeleteTournamentFormat"
+	TournamentService_CreateTournament_FullMethodName       = "/tournament_management.TournamentService/CreateTournament"
+	TournamentService_GetTournament_FullMethodName          = "/tournament_management.TournamentService/GetTournament"
+	TournamentService_ListTournaments_FullMethodName        = "/tournament_management.TournamentService/ListTournaments"
+	TournamentService_UpdateTournament_FullMethodName       = "/tournament_management.TournamentService/UpdateTournament"
+	TournamentService_DeleteTournament_FullMethodName       = "/tournament_management.TournamentService/DeleteTournament"
 )
 
 // TournamentServiceClient is the client API for TournamentService service.
@@ -42,23 +41,23 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TournamentServiceClient interface {
 	// League operations
-	CreateLeague(ctx context.Context, in *CreateLeagueRequest, opts ...grpc.CallOption) (*League, error)
-	GetLeague(ctx context.Context, in *GetLeagueRequest, opts ...grpc.CallOption) (*League, error)
+	CreateLeague(ctx context.Context, in *CreateLeagueRequest, opts ...grpc.CallOption) (*CreateLeagueResponse, error)
+	GetLeague(ctx context.Context, in *GetLeagueRequest, opts ...grpc.CallOption) (*GetLeagueResponse, error)
 	ListLeagues(ctx context.Context, in *ListLeaguesRequest, opts ...grpc.CallOption) (*ListLeaguesResponse, error)
-	UpdateLeague(ctx context.Context, in *UpdateLeagueRequest, opts ...grpc.CallOption) (*League, error)
-	DeleteLeague(ctx context.Context, in *DeleteLeagueRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	UpdateLeague(ctx context.Context, in *UpdateLeagueRequest, opts ...grpc.CallOption) (*UpdateLeagueResponse, error)
+	DeleteLeague(ctx context.Context, in *DeleteLeagueRequest, opts ...grpc.CallOption) (*DeleteLeagueResponse, error)
 	// Tournament Format operations
-	CreateTournamentFormat(ctx context.Context, in *CreateTournamentFormatRequest, opts ...grpc.CallOption) (*TournamentFormat, error)
-	GetTournamentFormat(ctx context.Context, in *GetTournamentFormatRequest, opts ...grpc.CallOption) (*TournamentFormat, error)
+	CreateTournamentFormat(ctx context.Context, in *CreateTournamentFormatRequest, opts ...grpc.CallOption) (*CreateTournamentFormatResponse, error)
+	GetTournamentFormat(ctx context.Context, in *GetTournamentFormatRequest, opts ...grpc.CallOption) (*GetTournamentFormatResponse, error)
 	ListTournamentFormats(ctx context.Context, in *ListTournamentFormatsRequest, opts ...grpc.CallOption) (*ListTournamentFormatsResponse, error)
-	UpdateTournamentFormat(ctx context.Context, in *UpdateTournamentFormatRequest, opts ...grpc.CallOption) (*TournamentFormat, error)
-	DeleteTournamentFormat(ctx context.Context, in *DeleteTournamentFormatRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	UpdateTournamentFormat(ctx context.Context, in *UpdateTournamentFormatRequest, opts ...grpc.CallOption) (*UpdateTournamentFormatResponse, error)
+	DeleteTournamentFormat(ctx context.Context, in *DeleteTournamentFormatRequest, opts ...grpc.CallOption) (*DeleteTournamentFormatResponse, error)
 	// Tournament operations
-	CreateTournament(ctx context.Context, in *CreateTournamentRequest, opts ...grpc.CallOption) (*Tournament, error)
-	GetTournament(ctx context.Context, in *GetTournamentRequest, opts ...grpc.CallOption) (*Tournament, error)
+	CreateTournament(ctx context.Context, in *CreateTournamentRequest, opts ...grpc.CallOption) (*CreateTournamentResponse, error)
+	GetTournament(ctx context.Context, in *GetTournamentRequest, opts ...grpc.CallOption) (*GetTournamentResponse, error)
 	ListTournaments(ctx context.Context, in *ListTournamentsRequest, opts ...grpc.CallOption) (*ListTournamentsResponse, error)
-	UpdateTournament(ctx context.Context, in *UpdateTournamentRequest, opts ...grpc.CallOption) (*Tournament, error)
-	DeleteTournament(ctx context.Context, in *DeleteTournamentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	UpdateTournament(ctx context.Context, in *UpdateTournamentRequest, opts ...grpc.CallOption) (*UpdateTournamentResponse, error)
+	DeleteTournament(ctx context.Context, in *DeleteTournamentRequest, opts ...grpc.CallOption) (*DeleteTournamentResponse, error)
 }
 
 type tournamentServiceClient struct {
@@ -69,9 +68,9 @@ func NewTournamentServiceClient(cc grpc.ClientConnInterface) TournamentServiceCl
 	return &tournamentServiceClient{cc}
 }
 
-func (c *tournamentServiceClient) CreateLeague(ctx context.Context, in *CreateLeagueRequest, opts ...grpc.CallOption) (*League, error) {
+func (c *tournamentServiceClient) CreateLeague(ctx context.Context, in *CreateLeagueRequest, opts ...grpc.CallOption) (*CreateLeagueResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(League)
+	out := new(CreateLeagueResponse)
 	err := c.cc.Invoke(ctx, TournamentService_CreateLeague_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -79,9 +78,9 @@ func (c *tournamentServiceClient) CreateLeague(ctx context.Context, in *CreateLe
 	return out, nil
 }
 
-func (c *tournamentServiceClient) GetLeague(ctx context.Context, in *GetLeagueRequest, opts ...grpc.CallOption) (*League, error) {
+func (c *tournamentServiceClient) GetLeague(ctx context.Context, in *GetLeagueRequest, opts ...grpc.CallOption) (*GetLeagueResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(League)
+	out := new(GetLeagueResponse)
 	err := c.cc.Invoke(ctx, TournamentService_GetLeague_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -99,9 +98,9 @@ func (c *tournamentServiceClient) ListLeagues(ctx context.Context, in *ListLeagu
 	return out, nil
 }
 
-func (c *tournamentServiceClient) UpdateLeague(ctx context.Context, in *UpdateLeagueRequest, opts ...grpc.CallOption) (*League, error) {
+func (c *tournamentServiceClient) UpdateLeague(ctx context.Context, in *UpdateLeagueRequest, opts ...grpc.CallOption) (*UpdateLeagueResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(League)
+	out := new(UpdateLeagueResponse)
 	err := c.cc.Invoke(ctx, TournamentService_UpdateLeague_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -109,9 +108,9 @@ func (c *tournamentServiceClient) UpdateLeague(ctx context.Context, in *UpdateLe
 	return out, nil
 }
 
-func (c *tournamentServiceClient) DeleteLeague(ctx context.Context, in *DeleteLeagueRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *tournamentServiceClient) DeleteLeague(ctx context.Context, in *DeleteLeagueRequest, opts ...grpc.CallOption) (*DeleteLeagueResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(emptypb.Empty)
+	out := new(DeleteLeagueResponse)
 	err := c.cc.Invoke(ctx, TournamentService_DeleteLeague_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -119,9 +118,9 @@ func (c *tournamentServiceClient) DeleteLeague(ctx context.Context, in *DeleteLe
 	return out, nil
 }
 
-func (c *tournamentServiceClient) CreateTournamentFormat(ctx context.Context, in *CreateTournamentFormatRequest, opts ...grpc.CallOption) (*TournamentFormat, error) {
+func (c *tournamentServiceClient) CreateTournamentFormat(ctx context.Context, in *CreateTournamentFormatRequest, opts ...grpc.CallOption) (*CreateTournamentFormatResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(TournamentFormat)
+	out := new(CreateTournamentFormatResponse)
 	err := c.cc.Invoke(ctx, TournamentService_CreateTournamentFormat_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -129,9 +128,9 @@ func (c *tournamentServiceClient) CreateTournamentFormat(ctx context.Context, in
 	return out, nil
 }
 
-func (c *tournamentServiceClient) GetTournamentFormat(ctx context.Context, in *GetTournamentFormatRequest, opts ...grpc.CallOption) (*TournamentFormat, error) {
+func (c *tournamentServiceClient) GetTournamentFormat(ctx context.Context, in *GetTournamentFormatRequest, opts ...grpc.CallOption) (*GetTournamentFormatResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(TournamentFormat)
+	out := new(GetTournamentFormatResponse)
 	err := c.cc.Invoke(ctx, TournamentService_GetTournamentFormat_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -149,9 +148,9 @@ func (c *tournamentServiceClient) ListTournamentFormats(ctx context.Context, in 
 	return out, nil
 }
 
-func (c *tournamentServiceClient) UpdateTournamentFormat(ctx context.Context, in *UpdateTournamentFormatRequest, opts ...grpc.CallOption) (*TournamentFormat, error) {
+func (c *tournamentServiceClient) UpdateTournamentFormat(ctx context.Context, in *UpdateTournamentFormatRequest, opts ...grpc.CallOption) (*UpdateTournamentFormatResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(TournamentFormat)
+	out := new(UpdateTournamentFormatResponse)
 	err := c.cc.Invoke(ctx, TournamentService_UpdateTournamentFormat_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -159,9 +158,9 @@ func (c *tournamentServiceClient) UpdateTournamentFormat(ctx context.Context, in
 	return out, nil
 }
 
-func (c *tournamentServiceClient) DeleteTournamentFormat(ctx context.Context, in *DeleteTournamentFormatRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *tournamentServiceClient) DeleteTournamentFormat(ctx context.Context, in *DeleteTournamentFormatRequest, opts ...grpc.CallOption) (*DeleteTournamentFormatResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(emptypb.Empty)
+	out := new(DeleteTournamentFormatResponse)
 	err := c.cc.Invoke(ctx, TournamentService_DeleteTournamentFormat_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -169,9 +168,9 @@ func (c *tournamentServiceClient) DeleteTournamentFormat(ctx context.Context, in
 	return out, nil
 }
 
-func (c *tournamentServiceClient) CreateTournament(ctx context.Context, in *CreateTournamentRequest, opts ...grpc.CallOption) (*Tournament, error) {
+func (c *tournamentServiceClient) CreateTournament(ctx context.Context, in *CreateTournamentRequest, opts ...grpc.CallOption) (*CreateTournamentResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Tournament)
+	out := new(CreateTournamentResponse)
 	err := c.cc.Invoke(ctx, TournamentService_CreateTournament_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -179,9 +178,9 @@ func (c *tournamentServiceClient) CreateTournament(ctx context.Context, in *Crea
 	return out, nil
 }
 
-func (c *tournamentServiceClient) GetTournament(ctx context.Context, in *GetTournamentRequest, opts ...grpc.CallOption) (*Tournament, error) {
+func (c *tournamentServiceClient) GetTournament(ctx context.Context, in *GetTournamentRequest, opts ...grpc.CallOption) (*GetTournamentResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Tournament)
+	out := new(GetTournamentResponse)
 	err := c.cc.Invoke(ctx, TournamentService_GetTournament_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -199,9 +198,9 @@ func (c *tournamentServiceClient) ListTournaments(ctx context.Context, in *ListT
 	return out, nil
 }
 
-func (c *tournamentServiceClient) UpdateTournament(ctx context.Context, in *UpdateTournamentRequest, opts ...grpc.CallOption) (*Tournament, error) {
+func (c *tournamentServiceClient) UpdateTournament(ctx context.Context, in *UpdateTournamentRequest, opts ...grpc.CallOption) (*UpdateTournamentResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Tournament)
+	out := new(UpdateTournamentResponse)
 	err := c.cc.Invoke(ctx, TournamentService_UpdateTournament_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -209,9 +208,9 @@ func (c *tournamentServiceClient) UpdateTournament(ctx context.Context, in *Upda
 	return out, nil
 }
 
-func (c *tournamentServiceClient) DeleteTournament(ctx context.Context, in *DeleteTournamentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *tournamentServiceClient) DeleteTournament(ctx context.Context, in *DeleteTournamentRequest, opts ...grpc.CallOption) (*DeleteTournamentResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(emptypb.Empty)
+	out := new(DeleteTournamentResponse)
 	err := c.cc.Invoke(ctx, TournamentService_DeleteTournament_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -224,23 +223,23 @@ func (c *tournamentServiceClient) DeleteTournament(ctx context.Context, in *Dele
 // for forward compatibility
 type TournamentServiceServer interface {
 	// League operations
-	CreateLeague(context.Context, *CreateLeagueRequest) (*League, error)
-	GetLeague(context.Context, *GetLeagueRequest) (*League, error)
+	CreateLeague(context.Context, *CreateLeagueRequest) (*CreateLeagueResponse, error)
+	GetLeague(context.Context, *GetLeagueRequest) (*GetLeagueResponse, error)
 	ListLeagues(context.Context, *ListLeaguesRequest) (*ListLeaguesResponse, error)
-	UpdateLeague(context.Context, *UpdateLeagueRequest) (*League, error)
-	DeleteLeague(context.Context, *DeleteLeagueRequest) (*emptypb.Empty, error)
+	UpdateLeague(context.Context, *UpdateLeagueRequest) (*UpdateLeagueResponse, error)
+	DeleteLeague(context.Context, *DeleteLeagueRequest) (*DeleteLeagueResponse, error)
 	// Tournament Format operations
-	CreateTournamentFormat(context.Context, *CreateTournamentFormatRequest) (*TournamentFormat, error)
-	GetTournamentFormat(context.Context, *GetTournamentFormatRequest) (*TournamentFormat, error)
+	CreateTournamentFormat(context.Context, *CreateTournamentFormatRequest) (*CreateTournamentFormatResponse, error)
+	GetTournamentFormat(context.Context, *GetTournamentFormatRequest) (*GetTournamentFormatResponse, error)
 	ListTournamentFormats(context.Context, *ListTournamentFormatsRequest) (*ListTournamentFormatsResponse, error)
-	UpdateTournamentFormat(context.Context, *UpdateTournamentFormatRequest) (*TournamentFormat, error)
-	DeleteTournamentFormat(context.Context, *DeleteTournamentFormatRequest) (*emptypb.Empty, error)
+	UpdateTournamentFormat(context.Context, *UpdateTournamentFormatRequest) (*UpdateTournamentFormatResponse, error)
+	DeleteTournamentFormat(context.Context, *DeleteTournamentFormatRequest) (*DeleteTournamentFormatResponse, error)
 	// Tournament operations
-	CreateTournament(context.Context, *CreateTournamentRequest) (*Tournament, error)
-	GetTournament(context.Context, *GetTournamentRequest) (*Tournament, error)
+	CreateTournament(context.Context, *CreateTournamentRequest) (*CreateTournamentResponse, error)
+	GetTournament(context.Context, *GetTournamentRequest) (*GetTournamentResponse, error)
 	ListTournaments(context.Context, *ListTournamentsRequest) (*ListTournamentsResponse, error)
-	UpdateTournament(context.Context, *UpdateTournamentRequest) (*Tournament, error)
-	DeleteTournament(context.Context, *DeleteTournamentRequest) (*emptypb.Empty, error)
+	UpdateTournament(context.Context, *UpdateTournamentRequest) (*UpdateTournamentResponse, error)
+	DeleteTournament(context.Context, *DeleteTournamentRequest) (*DeleteTournamentResponse, error)
 	mustEmbedUnimplementedTournamentServiceServer()
 }
 
@@ -248,49 +247,49 @@ type TournamentServiceServer interface {
 type UnimplementedTournamentServiceServer struct {
 }
 
-func (UnimplementedTournamentServiceServer) CreateLeague(context.Context, *CreateLeagueRequest) (*League, error) {
+func (UnimplementedTournamentServiceServer) CreateLeague(context.Context, *CreateLeagueRequest) (*CreateLeagueResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateLeague not implemented")
 }
-func (UnimplementedTournamentServiceServer) GetLeague(context.Context, *GetLeagueRequest) (*League, error) {
+func (UnimplementedTournamentServiceServer) GetLeague(context.Context, *GetLeagueRequest) (*GetLeagueResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetLeague not implemented")
 }
 func (UnimplementedTournamentServiceServer) ListLeagues(context.Context, *ListLeaguesRequest) (*ListLeaguesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListLeagues not implemented")
 }
-func (UnimplementedTournamentServiceServer) UpdateLeague(context.Context, *UpdateLeagueRequest) (*League, error) {
+func (UnimplementedTournamentServiceServer) UpdateLeague(context.Context, *UpdateLeagueRequest) (*UpdateLeagueResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateLeague not implemented")
 }
-func (UnimplementedTournamentServiceServer) DeleteLeague(context.Context, *DeleteLeagueRequest) (*emptypb.Empty, error) {
+func (UnimplementedTournamentServiceServer) DeleteLeague(context.Context, *DeleteLeagueRequest) (*DeleteLeagueResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteLeague not implemented")
 }
-func (UnimplementedTournamentServiceServer) CreateTournamentFormat(context.Context, *CreateTournamentFormatRequest) (*TournamentFormat, error) {
+func (UnimplementedTournamentServiceServer) CreateTournamentFormat(context.Context, *CreateTournamentFormatRequest) (*CreateTournamentFormatResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateTournamentFormat not implemented")
 }
-func (UnimplementedTournamentServiceServer) GetTournamentFormat(context.Context, *GetTournamentFormatRequest) (*TournamentFormat, error) {
+func (UnimplementedTournamentServiceServer) GetTournamentFormat(context.Context, *GetTournamentFormatRequest) (*GetTournamentFormatResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTournamentFormat not implemented")
 }
 func (UnimplementedTournamentServiceServer) ListTournamentFormats(context.Context, *ListTournamentFormatsRequest) (*ListTournamentFormatsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListTournamentFormats not implemented")
 }
-func (UnimplementedTournamentServiceServer) UpdateTournamentFormat(context.Context, *UpdateTournamentFormatRequest) (*TournamentFormat, error) {
+func (UnimplementedTournamentServiceServer) UpdateTournamentFormat(context.Context, *UpdateTournamentFormatRequest) (*UpdateTournamentFormatResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateTournamentFormat not implemented")
 }
-func (UnimplementedTournamentServiceServer) DeleteTournamentFormat(context.Context, *DeleteTournamentFormatRequest) (*emptypb.Empty, error) {
+func (UnimplementedTournamentServiceServer) DeleteTournamentFormat(context.Context, *DeleteTournamentFormatRequest) (*DeleteTournamentFormatResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteTournamentFormat not implemented")
 }
-func (UnimplementedTournamentServiceServer) CreateTournament(context.Context, *CreateTournamentRequest) (*Tournament, error) {
+func (UnimplementedTournamentServiceServer) CreateTournament(context.Context, *CreateTournamentRequest) (*CreateTournamentResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateTournament not implemented")
 }
-func (UnimplementedTournamentServiceServer) GetTournament(context.Context, *GetTournamentRequest) (*Tournament, error) {
+func (UnimplementedTournamentServiceServer) GetTournament(context.Context, *GetTournamentRequest) (*GetTournamentResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTournament not implemented")
 }
 func (UnimplementedTournamentServiceServer) ListTournaments(context.Context, *ListTournamentsRequest) (*ListTournamentsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListTournaments not implemented")
 }
-func (UnimplementedTournamentServiceServer) UpdateTournament(context.Context, *UpdateTournamentRequest) (*Tournament, error) {
+func (UnimplementedTournamentServiceServer) UpdateTournament(context.Context, *UpdateTournamentRequest) (*UpdateTournamentResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateTournament not implemented")
 }
-func (UnimplementedTournamentServiceServer) DeleteTournament(context.Context, *DeleteTournamentRequest) (*emptypb.Empty, error) {
+func (UnimplementedTournamentServiceServer) DeleteTournament(context.Context, *DeleteTournamentRequest) (*DeleteTournamentResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteTournament not implemented")
 }
 func (UnimplementedTournamentServiceServer) mustEmbedUnimplementedTournamentServiceServer() {}
@@ -580,7 +579,7 @@ func _TournamentService_DeleteTournament_Handler(srv interface{}, ctx context.Co
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var TournamentService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "tournament.TournamentService",
+	ServiceName: "tournament_management.TournamentService",
 	HandlerType: (*TournamentServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -645,5 +644,5 @@ var TournamentService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "internal/grpc/proto/tournament/tournament.proto",
+	Metadata: "internal/grpc/proto/tournament_management/tournament.proto",
 }
