@@ -88,6 +88,19 @@ func SendWelcomeEmail(to, name string) error {
 	return sendAuthEmail(to, subject, body)
 }
 
+func SendAdminWelcomeEmail(to, name string) error {
+	subject := "Welcome to iRankHub - Admin Account"
+	content := fmt.Sprintf(`
+		<p>Welcome to iRankHub, %s!</p>
+		<p>Your admin account has been successfully created and is ready to use.</p>
+		<p>You can now log in to the admin dashboard and start managing the platform.</p>
+		<p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
+		<p>Best regards,<br>The iRankHub Team</p>
+	`, name)
+	body := getAuthEmailTemplate("Welcome to iRankHub - Admin Account", content)
+	return sendAuthEmail(to, subject, body)
+}
+
 func SendPasswordResetEmail(to, resetToken string) error {
 	subject := "Password Reset Request"
 	content := fmt.Sprintf(`

@@ -75,17 +75,23 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	// Move these operations to background tasks
+	// This go routine run in the background as to not impact performance
 	go func() {
-		if userRole != "admin" {
-			ctx := context.Background()
-			queries := models.New(s.db)
-			if err := s.notifyAdminOfNewSignUp(ctx, queries, user.Userid, userRole); err != nil {
-				log.Printf("Failed to notify admin of new signup: %v", err)
+		if userRole == "admin" {
+			if err := utils.SendAdminWelcomeEmail(email, firstName); err != nil {
+				log.Printf("Failed to send admin welcome email: %v", err)
 			}
-		}
-		if err := utils.SendWelcomeEmail(email, firstName); err != nil {
-			log.Printf("Failed to send welcome email: %v", err)
+		} else {
+			if userRole != "admin" {
+				ctx := context.Background()
+				queries := models.New(s.db)
+				if err := s.notifyAdminOfNewSignUp(ctx, queries, user.Userid, userRole); err != nil {
+					log.Printf("Failed to notify admin of new signup: %v", err)
+				}
+			}
+			if err := utils.SendWelcomeEmail(email, firstName); err != nil {
+				log.Printf("Failed to send welcome email: %v", err)
+			}
 		}
 	}()
 

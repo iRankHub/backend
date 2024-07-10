@@ -9,6 +9,7 @@ import (
 	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
 	services "github.com/iRankHub/backend/internal/services/authentication"
 	"github.com/iRankHub/backend/internal/utils"
+
 )
 
 type authServer struct {
@@ -115,6 +116,7 @@ func (s *authServer) Login(ctx context.Context, req *authentication.LoginRequest
 		UserRole: user.Userrole,
 		UserID:   user.Userid,
 		Message:  "Login successful",
+		Status: user.Status.String,
 	}, nil
 }
 
