@@ -1,3 +1,4 @@
+-- League Queries
 -- name: CreateLeague :one
 INSERT INTO Leagues (Name, LeagueType)
 VALUES ($1, $2)
@@ -13,8 +14,8 @@ VALUES ($1, $2, $3);
 
 -- name: GetLeagueByID :one
 SELECT l.*,
-       CASE WHEN l.LeagueType = 'LEAGUE_TYPE_LOCAL' THEN lld.Province ELSE ild.Continent END as detail1,
-       CASE WHEN l.LeagueType = 'LEAGUE_TYPE_LOCAL' THEN lld.District ELSE ild.Country END as detail2
+       COALESCE(lld.Province, ild.Continent) AS detail1,
+       COALESCE(lld.District, ild.Country) AS detail2
 FROM Leagues l
 LEFT JOIN LocalLeagueDetails lld ON l.LeagueID = lld.LeagueID
 LEFT JOIN InternationalLeagueDetails ild ON l.LeagueID = ild.LeagueID
@@ -22,8 +23,8 @@ WHERE l.LeagueID = $1;
 
 -- name: ListLeaguesPaginated :many
 SELECT l.*,
-       CASE WHEN l.LeagueType = 'LEAGUE_TYPE_LOCAL' THEN lld.Province ELSE ild.Continent END as detail1,
-       CASE WHEN l.LeagueType = 'LEAGUE_TYPE_LOCAL' THEN lld.District ELSE ild.Country END as detail2
+       COALESCE(lld.Province, ild.Continent) AS detail1,
+       COALESCE(lld.District, ild.Country) AS detail2
 FROM Leagues l
 LEFT JOIN LocalLeagueDetails lld ON l.LeagueID = lld.LeagueID
 LEFT JOIN InternationalLeagueDetails ild ON l.LeagueID = ild.LeagueID
@@ -49,9 +50,10 @@ WHERE LeagueID = $1;
 -- name: DeleteLeagueByID :exec
 DELETE FROM Leagues WHERE LeagueID = $1;
 
+-- Tournament Format Queries
 -- name: CreateTournamentFormat :one
-INSERT INTO TournamentFormats (FormatName, Description)
-VALUES ($1, $2)
+INSERT INTO TournamentFormats (FormatName, Description, SpeakersPerTeam)
+VALUES ($1, $2, $3)
 RETURNING *;
 
 -- name: GetTournamentFormatByID :one
@@ -64,44 +66,49 @@ LIMIT $1 OFFSET $2;
 
 -- name: UpdateTournamentFormatDetails :one
 UPDATE TournamentFormats
-SET FormatName = $2, Description = $3
+SET FormatName = $2, Description = $3, SpeakersPerTeam = $4
 WHERE FormatID = $1
 RETURNING *;
 
 -- name: DeleteTournamentFormatByID :exec
 DELETE FROM TournamentFormats WHERE FormatID = $1;
 
+-- Tournament Queries
 -- name: CreateTournamentEntry :one
-INSERT INTO Tournaments (Name, StartDate, EndDate, Location, FormatID, LeagueID)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO Tournaments (Name, StartDate, EndDate, Location, FormatID, LeagueID, NumberOfPreliminaryRounds, NumberOfEliminationRounds, JudgesPerDebatePreliminary, JudgesPerDebateElimination, TournamentFee)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 RETURNING *;
 
 -- name: GetTournamentByID :one
 SELECT t.*, tf.*, l.*,
-       CASE WHEN l.LeagueType = 'LEAGUE_TYPE_LOCAL' THEN lld.Province ELSE ild.Continent END as league_detail1,
-       CASE WHEN l.LeagueType = 'LEAGUE_TYPE_LOCAL' THEN lld.District ELSE ild.Country END as league_detail2
+       COALESCE(lld.Province, ild.Continent) AS league_detail1,
+       COALESCE(lld.District, ild.Country) AS league_detail2,
+       tc.VolunteerID as CoordinatorID
 FROM Tournaments t
 JOIN TournamentFormats tf ON t.FormatID = tf.FormatID
 JOIN Leagues l ON t.LeagueID = l.LeagueID
 LEFT JOIN LocalLeagueDetails lld ON l.LeagueID = lld.LeagueID
 LEFT JOIN InternationalLeagueDetails ild ON l.LeagueID = ild.LeagueID
+LEFT JOIN TournamentCoordinators tc ON t.TournamentID = tc.TournamentID
 WHERE t.TournamentID = $1;
 
 -- name: ListTournamentsPaginated :many
 SELECT t.*, tf.*, l.*,
-       CASE WHEN l.LeagueType = 'LEAGUE_TYPE_LOCAL' THEN lld.Province ELSE ild.Continent END as league_detail1,
-       CASE WHEN l.LeagueType = 'LEAGUE_TYPE_LOCAL' THEN lld.District ELSE ild.Country END as league_detail2
+       COALESCE(lld.Province, ild.Continent) AS league_detail1,
+       COALESCE(lld.District, ild.Country) AS league_detail2,
+       tc.VolunteerID as CoordinatorID
 FROM Tournaments t
 JOIN TournamentFormats tf ON t.FormatID = tf.FormatID
 JOIN Leagues l ON t.LeagueID = l.LeagueID
 LEFT JOIN LocalLeagueDetails lld ON l.LeagueID = lld.LeagueID
 LEFT JOIN InternationalLeagueDetails ild ON l.LeagueID = ild.LeagueID
+LEFT JOIN TournamentCoordinators tc ON t.TournamentID = tc.TournamentID
 ORDER BY t.TournamentID
 LIMIT $1 OFFSET $2;
 
 -- name: UpdateTournamentDetails :one
 UPDATE Tournaments
-SET Name = $2, StartDate = $3, EndDate = $4, Location = $5, FormatID = $6, LeagueID = $7
+SET Name = $2, StartDate = $3, EndDate = $4, Location = $5, FormatID = $6, LeagueID = $7, NumberOfPreliminaryRounds = $8, NumberOfEliminationRounds = $9, JudgesPerDebatePreliminary = $10, JudgesPerDebateElimination = $11, TournamentFee = $12
 WHERE TournamentID = $1
 RETURNING *;
 

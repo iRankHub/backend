@@ -59,7 +59,8 @@ CREATE TABLE NotificationPreferences (
 CREATE TABLE TournamentFormats (
    FormatID SERIAL PRIMARY KEY,
    FormatName VARCHAR(255) NOT NULL,
-   Description TEXT
+   Description TEXT,
+   SpeakersPerTeam INTEGER NOT NULL
 );
 
 -- Create Leagues table
@@ -91,8 +92,14 @@ CREATE TABLE Tournaments (
     EndDate DATE NOT NULL,
     Location VARCHAR(255) NOT NULL,
     FormatID INTEGER NOT NULL REFERENCES TournamentFormats(FormatID),
-    LeagueID INTEGER REFERENCES Leagues(LeagueID)
+    LeagueID INTEGER REFERENCES Leagues(LeagueID),
+    NumberOfPreliminaryRounds INTEGER NOT NULL,
+    NumberOfEliminationRounds INTEGER NOT NULL,
+    JudgesPerDebatePreliminary INTEGER NOT NULL,
+    JudgesPerDebateElimination INTEGER NOT NULL,
+    TournamentFee DECIMAL(10, 2) NOT NULL
 );
+
 
 -- Create Schools table
 CREATE TABLE Schools (
@@ -209,11 +216,8 @@ CREATE TABLE Ballots (
 -- Create TournamentCoordinators table
 CREATE TABLE TournamentCoordinators (
    CoordinatorID SERIAL PRIMARY KEY,
-   FirstName VARCHAR(255) NOT NULL,
-   LastName VARCHAR(255) NOT NULL,
-   Email VARCHAR(255) UNIQUE NOT NULL,
-   Password VARCHAR(255) NOT NULL,
-   UserID INTEGER NOT NULL REFERENCES Users(UserID)
+   VolunteerID INTEGER NOT NULL REFERENCES Volunteers(VolunteerID),
+   TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID)
 );
 
 -- Create Schedules table
