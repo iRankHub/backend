@@ -107,6 +107,27 @@ func (q *Queries) GetSchoolByID(ctx context.Context, schoolid int32) (School, er
 	return i, err
 }
 
+const getSchoolByUserID = `-- name: GetSchoolByUserID :one
+SELECT schoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schooltype FROM Schools WHERE ContactPersonID = $1
+`
+
+func (q *Queries) GetSchoolByUserID(ctx context.Context, contactpersonid int32) (School, error) {
+	row := q.db.QueryRowContext(ctx, getSchoolByUserID, contactpersonid)
+	var i School
+	err := row.Scan(
+		&i.Schoolid,
+		&i.Schoolname,
+		&i.Address,
+		&i.Country,
+		&i.Province,
+		&i.District,
+		&i.Contactpersonid,
+		&i.Contactemail,
+		&i.Schooltype,
+	)
+	return i, err
+}
+
 const updateSchool = `-- name: UpdateSchool :one
 UPDATE Schools
 SET SchoolName = $2, Address = $3, Country = $4, Province = $5, District = $6, ContactPersonID = $7, ContactEmail = $8, SchoolType = $9

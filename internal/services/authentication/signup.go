@@ -38,15 +38,21 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 		return fmt.Errorf("failed to hash password: %v", err)
 	}
 
-	user, err := queries.CreateUser(ctx, models.CreateUserParams{
-		Name:     firstName + " " + lastName,
-		Email:    email,
-		Password: hashedPassword,
-		Userrole: userRole,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create user: %v", err)
-	}
+    status := sql.NullString{String: "pending", Valid: true}
+    if userRole == "admin" {
+        status = sql.NullString{String: "approved", Valid: true}
+    }
+
+    user, err := queries.CreateUser(ctx, models.CreateUserParams{
+        Name:     firstName + " " + lastName,
+        Email:    email,
+        Password: hashedPassword,
+        Userrole: userRole,
+        Status:   status,
+    })
+    if err != nil {
+        return fmt.Errorf("failed to create user: %v", err)
+    }
 
 	switch userRole {
 	case "student":
@@ -55,12 +61,21 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 		err = s.createSchoolRecord(ctx, queries, user.Userid, additionalInfo)
 	case "volunteer":
 		err = s.createVolunteerRecord(ctx, queries, user.Userid, firstName, lastName, hashedPassword, additionalInfo)
+	case "admin":
+		// No additional record needed for admin
 	default:
 		return fmt.Errorf("invalid user role")
 	}
 
 	if err != nil {
 		return fmt.Errorf("failed to create user-specific record: %v", err)
+	}
+
+	if userRole != "admin" {
+		err = s.notifyAdminOfNewSignUp(ctx, queries, user.Userid, userRole)
+		if err != nil {
+			return fmt.Errorf("failed to notify admin: %v", err)
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -73,6 +88,16 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 	}
 
 	return nil
+}
+
+func (s *SignUpService) notifyAdminOfNewSignUp(ctx context.Context, queries *models.Queries, userID int32, userRole string) error {
+	message := fmt.Sprintf("New %s user signed up and needs approval", userRole)
+	_, err := queries.CreateNotification(ctx, models.CreateNotificationParams{
+		Userid:  userID,
+		Type:    "new_signup",
+		Message: message,
+	})
+	return err
 }
 
 func (s *SignUpService) createStudentRecord(ctx context.Context, queries *models.Queries, userID int32, firstName, lastName, email string, hashedPassword string, additionalInfo map[string]interface{}) error {

@@ -4,25 +4,68 @@ CREATE TABLE Users (
    Email VARCHAR(255) UNIQUE NOT NULL,
    Password VARCHAR(255) NOT NULL,
    UserRole VARCHAR(50) NOT NULL,
+   Status VARCHAR(20) DEFAULT 'pending' CHECK (Status IN ('pending', 'approved', 'rejected')),
    VerificationStatus BOOLEAN DEFAULT FALSE,
-   ApprovalStatus BOOLEAN DEFAULT FALSE,
+   DeactivatedAt TIMESTAMP,
    two_factor_secret VARCHAR(32),
    two_factor_enabled BOOLEAN DEFAULT FALSE,
    failed_login_attempts INTEGER DEFAULT 0,
    last_login_attempt TIMESTAMP,
+   last_logout TIMESTAMP,
    reset_token VARCHAR(64),
    reset_token_expires TIMESTAMP,
-   biometric_token VARCHAR(64)
+   biometric_token VARCHAR(64),
+   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE UserProfiles (
    ProfileID SERIAL PRIMARY KEY,
    UserID INTEGER UNIQUE NOT NULL REFERENCES Users(UserID),
+   Name VARCHAR(255) NOT NULL,
+   UserRole VARCHAR(50) NOT NULL,
+   Email VARCHAR(255) NOT NULL,
    Address VARCHAR(255),
    Phone VARCHAR(20),
    Bio TEXT,
-   ProfilePicture BYTEA
+   ProfilePicture BYTEA,
+   VerificationStatus BOOLEAN DEFAULT FALSE
 );
+
+-- Notifications table
+CREATE TABLE Notifications (
+    NotificationID SERIAL PRIMARY KEY,
+    UserID INTEGER NOT NULL REFERENCES Users(UserID),
+    Type VARCHAR(50) NOT NULL,
+    Message TEXT NOT NULL,
+    IsRead BOOLEAN DEFAULT FALSE,
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- NotificationPreferences table
+CREATE TABLE NotificationPreferences (
+    PreferenceID SERIAL PRIMARY KEY,
+    UserID INTEGER NOT NULL REFERENCES Users(UserID),
+    EmailNotifications BOOLEAN DEFAULT TRUE,
+    EmailFrequency VARCHAR(20) DEFAULT 'daily' CHECK (EmailFrequency IN ('daily', 'weekly', 'monthly')),
+    EmailDay INTEGER CHECK (EmailDay >= 1 AND EmailDay <= 7),
+    EmailTime TIME,
+    InAppNotifications BOOLEAN DEFAULT TRUE
+);
+
+-- Update trigger for Users table
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_users_updated_at
+BEFORE UPDATE ON Users
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at();
 
 CREATE TABLE TournamentFormats (
    FormatID SERIAL PRIMARY KEY,

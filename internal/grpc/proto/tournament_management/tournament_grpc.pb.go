@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.4.0
 // - protoc             v5.27.0
-// source: internal/grpc/proto/tournament/tournament.proto
+// source: internal/grpc/proto/tournament_management/tournament.proto
 
-package tournament
+package tournament_management
 
 import (
 	context "context"
@@ -20,21 +20,21 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	TournamentService_CreateLeague_FullMethodName           = "/tournament.TournamentService/CreateLeague"
-	TournamentService_GetLeague_FullMethodName              = "/tournament.TournamentService/GetLeague"
-	TournamentService_ListLeagues_FullMethodName            = "/tournament.TournamentService/ListLeagues"
-	TournamentService_UpdateLeague_FullMethodName           = "/tournament.TournamentService/UpdateLeague"
-	TournamentService_DeleteLeague_FullMethodName           = "/tournament.TournamentService/DeleteLeague"
-	TournamentService_CreateTournamentFormat_FullMethodName = "/tournament.TournamentService/CreateTournamentFormat"
-	TournamentService_GetTournamentFormat_FullMethodName    = "/tournament.TournamentService/GetTournamentFormat"
-	TournamentService_ListTournamentFormats_FullMethodName  = "/tournament.TournamentService/ListTournamentFormats"
-	TournamentService_UpdateTournamentFormat_FullMethodName = "/tournament.TournamentService/UpdateTournamentFormat"
-	TournamentService_DeleteTournamentFormat_FullMethodName = "/tournament.TournamentService/DeleteTournamentFormat"
-	TournamentService_CreateTournament_FullMethodName       = "/tournament.TournamentService/CreateTournament"
-	TournamentService_GetTournament_FullMethodName          = "/tournament.TournamentService/GetTournament"
-	TournamentService_ListTournaments_FullMethodName        = "/tournament.TournamentService/ListTournaments"
-	TournamentService_UpdateTournament_FullMethodName       = "/tournament.TournamentService/UpdateTournament"
-	TournamentService_DeleteTournament_FullMethodName       = "/tournament.TournamentService/DeleteTournament"
+	TournamentService_CreateLeague_FullMethodName           = "/tournament_management.TournamentService/CreateLeague"
+	TournamentService_GetLeague_FullMethodName              = "/tournament_management.TournamentService/GetLeague"
+	TournamentService_ListLeagues_FullMethodName            = "/tournament_management.TournamentService/ListLeagues"
+	TournamentService_UpdateLeague_FullMethodName           = "/tournament_management.TournamentService/UpdateLeague"
+	TournamentService_DeleteLeague_FullMethodName           = "/tournament_management.TournamentService/DeleteLeague"
+	TournamentService_CreateTournamentFormat_FullMethodName = "/tournament_management.TournamentService/CreateTournamentFormat"
+	TournamentService_GetTournamentFormat_FullMethodName    = "/tournament_management.TournamentService/GetTournamentFormat"
+	TournamentService_ListTournamentFormats_FullMethodName  = "/tournament_management.TournamentService/ListTournamentFormats"
+	TournamentService_UpdateTournamentFormat_FullMethodName = "/tournament_management.TournamentService/UpdateTournamentFormat"
+	TournamentService_DeleteTournamentFormat_FullMethodName = "/tournament_management.TournamentService/DeleteTournamentFormat"
+	TournamentService_CreateTournament_FullMethodName       = "/tournament_management.TournamentService/CreateTournament"
+	TournamentService_GetTournament_FullMethodName          = "/tournament_management.TournamentService/GetTournament"
+	TournamentService_ListTournaments_FullMethodName        = "/tournament_management.TournamentService/ListTournaments"
+	TournamentService_UpdateTournament_FullMethodName       = "/tournament_management.TournamentService/UpdateTournament"
+	TournamentService_DeleteTournament_FullMethodName       = "/tournament_management.TournamentService/DeleteTournament"
 )
 
 // TournamentServiceClient is the client API for TournamentService service.
@@ -580,7 +580,7 @@ func _TournamentService_DeleteTournament_Handler(srv interface{}, ctx context.Co
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var TournamentService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "tournament.TournamentService",
+	ServiceName: "tournament_management.TournamentService",
 	HandlerType: (*TournamentServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -645,5 +645,5 @@ var TournamentService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "internal/grpc/proto/tournament/tournament.proto",
+	Metadata: "internal/grpc/proto/tournament_management/tournament.proto",
 }

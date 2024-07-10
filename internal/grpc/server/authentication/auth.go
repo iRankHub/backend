@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
-	"github.com/iRankHub/backend/internal/services/authentication"
+	services "github.com/iRankHub/backend/internal/services/authentication"
 	"github.com/iRankHub/backend/internal/utils"
 )
 
@@ -71,28 +71,72 @@ func (s *authServer) SignUp(ctx context.Context, req *authentication.SignUpReque
 		return nil, err
 	}
 
-	return &authentication.SignUpResponse{Success: true, Message: "Sign-up successful"}, nil
+	return &authentication.SignUpResponse{Success: true, Message: "Sign-up successful. Please wait for admin approval."}, nil
 }
 
 func (s *authServer) Login(ctx context.Context, req *authentication.LoginRequest) (*authentication.LoginResponse, error) {
-    user, err := s.loginService.Login(ctx, req.Email, req.Password)
-    if err != nil {
-        if err.Error() == "two factor authentication required" {
-            return &authentication.LoginResponse{Success: false, RequireTwoFactor: true}, nil
+	user, err := s.loginService.Login(ctx, req.Email, req.Password)
+	if err != nil {
+		if err.Error() == "two factor authentication required" {
+			return &authentication.LoginResponse{Success: false, RequireTwoFactor: true}, nil
+		}
+		if err.Error() == "password reset required" {
+			return &authentication.LoginResponse{Success: false, RequirePasswordReset: true, Message: "A password reset email has been sent to your account."}, nil
+		}
+		return &authentication.LoginResponse{Success: false, Message: "Invalid email or password"}, nil
+	}
+
+    if user.Status.Valid && user.Status.String == "pending" {
+        token, err := utils.GenerateToken(user.Userid, user.Userrole, s.privateKey)
+        if err != nil {
+            return nil, fmt.Errorf("failed to generate token: %v", err)
         }
-        if err.Error() == "password reset required" {
-            return &authentication.LoginResponse{Success: false, RequirePasswordReset: true, Message: "A password reset email has been sent to your account."}, nil
-        }
-        // For any other error, return a generic message
-        return &authentication.LoginResponse{Success: false, Message: "Invalid email or password"}, nil
+        return &authentication.LoginResponse{
+            Success:  true,
+            Token:    token,
+            UserRole: user.Userrole,
+            UserID:   user.Userid,
+            Message:  "Your account is pending approval. You will be logged out in 20 seconds.",
+        }, nil
     }
 
-    token, err := utils.GenerateToken(user.Userid, user.Userrole, s.privateKey)
-    if err != nil {
-        return nil, fmt.Errorf("failed to generate token: %v", err)
+    if user.Status.Valid && user.Status.String == "rejected" {
+        return &authentication.LoginResponse{Success: false, Message: "Your account has been rejected."}, nil
     }
 
-    return &authentication.LoginResponse{Success: true, Token: token, UserRole: user.Userrole, UserID: user.Userid, Message:"Login Successful"}, nil
+	token, err := utils.GenerateToken(user.Userid, user.Userrole, s.privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate token: %v", err)
+	}
+
+	return &authentication.LoginResponse{
+		Success:  true,
+		Token:    token,
+		UserRole: user.Userrole,
+		UserID:   user.Userid,
+		Message:  "Login successful",
+	}, nil
+}
+
+func (s *authServer) Logout(ctx context.Context, req *authentication.LogoutRequest) (*authentication.LogoutResponse, error) {
+	// Validate the token
+	claims, err := utils.ValidateToken(req.Token)
+	if err != nil {
+		return nil, fmt.Errorf("invalid token: %v", err)
+	}
+
+	userID := int32(claims["user_id"].(float64))
+	if userID != req.UserID {
+		return nil, fmt.Errorf("unauthorized: token does not match user ID")
+	}
+
+	// Invalidate the token
+	utils.InvalidateToken(req.Token)
+
+	return &authentication.LogoutResponse{
+		Success: true,
+		Message: "Logged out successfully",
+	}, nil
 }
 
 func (s *authServer) EnableTwoFactor(ctx context.Context, req *authentication.EnableTwoFactorRequest) (*authentication.EnableTwoFactorResponse, error) {
