@@ -4,10 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
+
 )
 
 type SignUpService struct {
@@ -15,9 +17,7 @@ type SignUpService struct {
 }
 
 func NewSignUpService(db *sql.DB) *SignUpService {
-	return &SignUpService{
-		db: db,
-	}
+	return &SignUpService{db: db}
 }
 
 func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, password, userRole string, additionalInfo map[string]interface{}) error {
@@ -38,21 +38,21 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 		return fmt.Errorf("failed to hash password: %v", err)
 	}
 
-    status := sql.NullString{String: "pending", Valid: true}
-    if userRole == "admin" {
-        status = sql.NullString{String: "approved", Valid: true}
-    }
+	status := sql.NullString{String: "pending", Valid: true}
+	if userRole == "admin" {
+		status = sql.NullString{String: "approved", Valid: true}
+	}
 
-    user, err := queries.CreateUser(ctx, models.CreateUserParams{
-        Name:     firstName + " " + lastName,
-        Email:    email,
-        Password: hashedPassword,
-        Userrole: userRole,
-        Status:   status,
-    })
-    if err != nil {
-        return fmt.Errorf("failed to create user: %v", err)
-    }
+	user, err := queries.CreateUser(ctx, models.CreateUserParams{
+		Name:     firstName + " " + lastName,
+		Email:    email,
+		Password: hashedPassword,
+		Userrole: userRole,
+		Status:   status,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create user: %v", err)
+	}
 
 	switch userRole {
 	case "student":
@@ -71,25 +71,28 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 		return fmt.Errorf("failed to create user-specific record: %v", err)
 	}
 
-	if userRole != "admin" {
-		err = s.notifyAdminOfNewSignUp(ctx, queries, user.Userid, userRole)
-		if err != nil {
-			return fmt.Errorf("failed to notify admin: %v", err)
-		}
-	}
-
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	err = utils.SendWelcomeEmail(email, firstName)
-	if err != nil {
-		fmt.Printf("Failed to send welcome email: %v\n", err)
-	}
+	// Move these operations to background tasks
+	go func() {
+		if userRole != "admin" {
+			ctx := context.Background()
+			queries := models.New(s.db)
+			if err := s.notifyAdminOfNewSignUp(ctx, queries, user.Userid, userRole); err != nil {
+				log.Printf("Failed to notify admin of new signup: %v", err)
+			}
+		}
+		if err := utils.SendWelcomeEmail(email, firstName); err != nil {
+			log.Printf("Failed to send welcome email: %v", err)
+		}
+	}()
 
 	return nil
 }
 
+// Update the notifyAdminOfNewSignUp function to accept a db connection
 func (s *SignUpService) notifyAdminOfNewSignUp(ctx context.Context, queries *models.Queries, userID int32, userRole string) error {
 	message := fmt.Sprintf("New %s user signed up and needs approval", userRole)
 	_, err := queries.CreateNotification(ctx, models.CreateNotificationParams{

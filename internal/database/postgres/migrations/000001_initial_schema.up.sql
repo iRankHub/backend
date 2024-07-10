@@ -53,7 +53,24 @@ CREATE TABLE NotificationPreferences (
     InAppNotifications BOOLEAN DEFAULT TRUE
 );
 
--- Update trigger for Users table
+-- Create Indexes
+CREATE INDEX IF NOT EXISTS idx_users_email ON Users(Email);
+CREATE INDEX IF NOT EXISTS idx_users_status ON Users(Status);
+CREATE INDEX IF NOT EXISTS idx_users_biometric_token ON Users(biometric_token);
+CREATE INDEX IF NOT EXISTS idx_users_reset_token ON Users(reset_token);
+
+CREATE INDEX IF NOT EXISTS idx_schools_contactpersonid ON Schools(ContactPersonID);
+CREATE INDEX IF NOT EXISTS idx_schools_contactemail ON Schools(ContactEmail);
+
+CREATE INDEX IF NOT EXISTS idx_students_email ON Students(Email);
+CREATE INDEX IF NOT EXISTS idx_students_schoolid ON Students(SchoolID);
+CREATE INDEX IF NOT Exists idx_students_userid ON Students(UserID);
+
+CREATE INDEX IF NOT EXISTS idx_volunteers_userid ON Volunteers(UserID);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_userid ON Notifications(UserID);
+
+-- Create Triggers
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
