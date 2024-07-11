@@ -30,6 +30,7 @@ func NewTournamentServer(db *sql.DB) (tournament_management.TournamentServiceSer
 	}, nil
 }
 
+
 func (s *tournamentServer) CreateLeague(ctx context.Context, req *tournament_management.CreateLeagueRequest) (*tournament_management.CreateLeagueResponse, error) {
 	league, err := s.leagueService.CreateLeague(ctx, req)
 	if err != nil {
@@ -69,12 +70,12 @@ func (s *tournamentServer) UpdateLeague(ctx context.Context, req *tournament_man
 }
 
 func (s *tournamentServer) DeleteLeague(ctx context.Context, req *tournament_management.DeleteLeagueRequest) (*tournament_management.DeleteLeagueResponse, error) {
-	err := s.leagueService.DeleteLeague(ctx, req)
+	success, err := s.leagueService.DeleteLeague(ctx, req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to delete league: %v", err)
 	}
 	return &tournament_management.DeleteLeagueResponse{
-		Success: true,
+		Success: success,
 		Message: "League deleted successfully",
 	}, nil
 }

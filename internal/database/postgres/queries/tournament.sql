@@ -12,6 +12,12 @@ VALUES ($1, $2, $3);
 INSERT INTO InternationalLeagueDetails (LeagueID, Continent, Country)
 VALUES ($1, $2, $3);
 
+-- name: GetLocalLeagueDetails :one
+SELECT * FROM LocalLeagueDetails WHERE LeagueID = $1;
+
+-- name: GetInternationalLeagueDetails :one
+SELECT * FROM InternationalLeagueDetails WHERE LeagueID = $1;
+
 -- name: GetLeagueByID :one
 SELECT l.*,
        COALESCE(lld.Province, ild.Continent) AS detail1,

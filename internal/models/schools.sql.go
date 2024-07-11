@@ -128,6 +128,119 @@ func (q *Queries) GetSchoolByUserID(ctx context.Context, contactpersonid int32) 
 	return i, err
 }
 
+const getSchoolsByCountry = `-- name: GetSchoolsByCountry :many
+SELECT schoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schooltype FROM Schools
+WHERE Country = $1
+`
+
+func (q *Queries) GetSchoolsByCountry(ctx context.Context, country sql.NullString) ([]School, error) {
+	rows, err := q.db.QueryContext(ctx, getSchoolsByCountry, country)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []School{}
+	for rows.Next() {
+		var i School
+		if err := rows.Scan(
+			&i.Schoolid,
+			&i.Schoolname,
+			&i.Address,
+			&i.Country,
+			&i.Province,
+			&i.District,
+			&i.Contactpersonid,
+			&i.Contactemail,
+			&i.Schooltype,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSchoolsByDistrict = `-- name: GetSchoolsByDistrict :many
+SELECT schoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schooltype FROM Schools
+WHERE District = $1
+`
+
+func (q *Queries) GetSchoolsByDistrict(ctx context.Context, district sql.NullString) ([]School, error) {
+	rows, err := q.db.QueryContext(ctx, getSchoolsByDistrict, district)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []School{}
+	for rows.Next() {
+		var i School
+		if err := rows.Scan(
+			&i.Schoolid,
+			&i.Schoolname,
+			&i.Address,
+			&i.Country,
+			&i.Province,
+			&i.District,
+			&i.Contactpersonid,
+			&i.Contactemail,
+			&i.Schooltype,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSchoolsByProvinceOrCountry = `-- name: GetSchoolsByProvinceOrCountry :many
+SELECT schoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schooltype FROM Schools WHERE Province = $1 OR Country = $1
+`
+
+func (q *Queries) GetSchoolsByProvinceOrCountry(ctx context.Context, province sql.NullString) ([]School, error) {
+	rows, err := q.db.QueryContext(ctx, getSchoolsByProvinceOrCountry, province)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []School{}
+	for rows.Next() {
+		var i School
+		if err := rows.Scan(
+			&i.Schoolid,
+			&i.Schoolname,
+			&i.Address,
+			&i.Country,
+			&i.Province,
+			&i.District,
+			&i.Contactpersonid,
+			&i.Contactemail,
+			&i.Schooltype,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateSchool = `-- name: UpdateSchool :one
 UPDATE Schools
 SET SchoolName = $2, Address = $3, Country = $4, Province = $5, District = $6, ContactPersonID = $7, ContactEmail = $8, SchoolType = $9

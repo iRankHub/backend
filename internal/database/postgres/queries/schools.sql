@@ -9,6 +9,17 @@ SELECT * FROM Schools WHERE ContactPersonID = $1;
 SELECT * FROM Schools
 WHERE ContactEmail = $1;
 
+-- name: GetSchoolsByDistrict :many
+SELECT * FROM Schools
+WHERE District = $1;
+
+-- name: GetSchoolsByCountry :many
+SELECT * FROM Schools
+WHERE Country = $1;
+
+-- name: GetSchoolsByProvinceOrCountry :many
+SELECT * FROM Schools WHERE Province = $1 OR Country = $1;
+
 -- name: CreateSchool :one
 INSERT INTO Schools (SchoolName, Address, Country, Province, District, ContactPersonID, ContactEmail, SchoolType)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)

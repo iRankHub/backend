@@ -167,6 +167,17 @@ func (q *Queries) DeleteTournamentFormatByID(ctx context.Context, formatid int32
 	return err
 }
 
+const getInternationalLeagueDetails = `-- name: GetInternationalLeagueDetails :one
+SELECT leagueid, continent, country FROM InternationalLeagueDetails WHERE LeagueID = $1
+`
+
+func (q *Queries) GetInternationalLeagueDetails(ctx context.Context, leagueid int32) (Internationalleaguedetail, error) {
+	row := q.db.QueryRowContext(ctx, getInternationalLeagueDetails, leagueid)
+	var i Internationalleaguedetail
+	err := row.Scan(&i.Leagueid, &i.Continent, &i.Country)
+	return i, err
+}
+
 const getLeagueByID = `-- name: GetLeagueByID :one
 SELECT l.leagueid, l.name, l.leaguetype,
        COALESCE(lld.Province, ild.Continent) AS detail1,
@@ -195,6 +206,17 @@ func (q *Queries) GetLeagueByID(ctx context.Context, leagueid int32) (GetLeagueB
 		&i.Detail1,
 		&i.Detail2,
 	)
+	return i, err
+}
+
+const getLocalLeagueDetails = `-- name: GetLocalLeagueDetails :one
+SELECT leagueid, province, district FROM LocalLeagueDetails WHERE LeagueID = $1
+`
+
+func (q *Queries) GetLocalLeagueDetails(ctx context.Context, leagueid int32) (Localleaguedetail, error) {
+	row := q.db.QueryRowContext(ctx, getLocalLeagueDetails, leagueid)
+	var i Localleaguedetail
+	err := row.Scan(&i.Leagueid, &i.Province, &i.District)
 	return i, err
 }
 
