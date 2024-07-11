@@ -337,6 +337,145 @@ Demo Data:
 ```
 ## Tournament Management API
 
+### CreateLeague
+
+Endpoint: `TournamentService.CreateLeague`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "name": "National Debate League",
+  "leagueType": "LEAGUE_TYPE_NATIONAL",
+  "leagueDetails": {
+    "nationalDetails": {
+      "country": "United States"
+    }
+  }
+}
+```
+
+### GetLeague
+
+Endpoint: `TournamentService.GetLeague`
+
+Request:
+```json
+{
+  "leagueId": 1
+}
+```
+
+### ListLeagues
+
+Endpoint: `TournamentService.ListLeagues`
+
+Request:
+```json
+{
+  "pageSize": 10,
+  "pageToken": 0
+}
+```
+
+### UpdateLeague
+
+Endpoint: `TournamentService.UpdateLeague`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "leagueId": 1,
+  "name": "Updated National Debate League",
+  "leagueType": "LEAGUE_TYPE_NATIONAL",
+  "leagueDetails": {
+    "nationalDetails": {
+      "country": "United States"
+    }
+  }
+}
+```
+
+### DeleteLeague
+
+Endpoint: `TournamentService.DeleteLeague`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "leagueId": 1
+}
+```
+
+## Tournament Format Management API
+
+### CreateTournamentFormat
+
+Endpoint: `TournamentService.CreateTournamentFormat`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "formatName": "British Parliamentary",
+  "description": "A globally recognized debate format",
+  "speakersPerTeam": 2
+}
+```
+
+### GetTournamentFormat
+
+Endpoint: `TournamentService.GetTournamentFormat`
+
+Request:
+```json
+{
+  "formatId": 1
+}
+```
+
+### ListTournamentFormats
+
+Endpoint: `TournamentService.ListTournamentFormats`
+
+Request:
+```json
+{
+  "pageSize": 10,
+  "pageToken": 0
+}
+```
+
+### UpdateTournamentFormat
+
+Endpoint: `TournamentService.UpdateTournamentFormat`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "formatId": 1,
+  "formatName": "Updated British Parliamentary",
+  "description": "An updated globally recognized debate format",
+  "speakersPerTeam": 2
+}
+```
+
+### DeleteTournamentFormat
+
+Endpoint: `TournamentService.DeleteTournamentFormat`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "formatId": 1
+}
+```
+
+
 ### CreateTournament
 
 Endpoint: `TournamentService.CreateTournament`
@@ -419,23 +558,37 @@ Request:
 
 ## Testing Tournament Management Features
 
-To test the tournament management features:
+To test the tournament management features, including leagues and formats:
 
 1. Use the `Login` endpoint to authenticate as an admin and receive a token.
 2. Use the token in the metadata for subsequent authenticated requests.
 3. Test the following scenarios:
 
-   a. Tournament Creation and Invitation:
-   - Use `CreateTournament` to create a new tournament.
+   a. League Management:
+   - Use `CreateLeague` to create a new league.
+   - Use `GetLeague` to retrieve the created league details.
+   - Use `ListLeagues` to get a list of leagues.
+   - Use `UpdateLeague` to modify a league's details.
+   - Use `DeleteLeague` to remove a league (ensure it's not associated with any tournaments first).
+
+   b. Tournament Format Management:
+   - Use `CreateTournamentFormat` to create a new tournament format.
+   - Use `GetTournamentFormat` to retrieve the created format details.
+   - Use `ListTournamentFormats` to get a list of formats.
+   - Use `UpdateTournamentFormat` to modify a format's details.
+   - Use `DeleteTournamentFormat` to remove a format (ensure it's not associated with any tournaments first).
+
+   c. Tournament Creation and Invitation:
+   - Use `CreateTournament` to create a new tournament, using the IDs of the created league and format.
    - Verify that invitation emails are sent to relevant schools (check your email service or logs).
    - Use `GetTournament` to retrieve the created tournament details.
 
-   b. Tournament Listing and Updates:
+   d. Tournament Listing and Updates:
    - Use `ListTournaments` to get a list of tournaments.
    - Use `UpdateTournament` to modify a tournament's details.
    - Use `GetTournament` again to verify the changes.
 
-   c. Tournament Deletion:
+   e. Tournament Deletion:
    - Use `DeleteTournament` to remove a tournament.
    - Attempt to `GetTournament` for the deleted tournament (should fail).
 
@@ -444,7 +597,9 @@ To test the tournament management features:
 Remember to include the authentication token in the metadata for each request:
 - Key: `authorization`
 - Value: `Bearer <token_received_from_login>`
-  
+
+Note: When testing deletion operations, ensure that you're not deleting entities that are still referenced by others (e.g., don't delete a league or format that's still used by an active tournament).
+
 ## Testing with Postman
 
 To test the API endpoints using Postman:
