@@ -335,7 +335,116 @@ Demo Data:
   "biometricToken": "token_here"
 }
 ```
+## Tournament Management API
 
+### CreateTournament
+
+Endpoint: `TournamentService.CreateTournament`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "name": "Summer Debate Championship",
+  "startDate": "2023-07-15T09:00:00Z",
+  "endDate": "2023-07-17T18:00:00Z",
+  "location": "City Convention Center",
+  "formatId": 1,
+  "leagueId": 2,
+  "numberOfPreliminaryRounds": 4,
+  "numberOfEliminationRounds": 2,
+  "judgesPerDebatePreliminary": 3,
+  "judgesPerDebateElimination": 5,
+  "tournamentFee": 100.00
+}
+```
+
+### GetTournament
+
+Endpoint: `TournamentService.GetTournament`
+
+Request:
+```json
+{
+  "tournamentId": 1
+}
+```
+
+### ListTournaments
+
+Endpoint: `TournamentService.ListTournaments`
+
+Request:
+```json
+{
+  "pageSize": 10,
+  "pageToken": 0
+}
+```
+
+### UpdateTournament
+
+Endpoint: `TournamentService.UpdateTournament`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "tournamentId": 1,
+  "name": "Updated Summer Debate Championship",
+  "startDate": "2023-07-16T09:00:00Z",
+  "endDate": "2023-07-18T18:00:00Z",
+  "location": "Updated City Convention Center",
+  "formatId": 2,
+  "leagueId": 3,
+  "numberOfPreliminaryRounds": 5,
+  "numberOfEliminationRounds": 3,
+  "judgesPerDebatePreliminary": 4,
+  "judgesPerDebateElimination": 6,
+  "tournamentFee": 120.00
+}
+```
+
+### DeleteTournament
+
+Endpoint: `TournamentService.DeleteTournament`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "tournamentId": 1
+}
+```
+
+## Testing Tournament Management Features
+
+To test the tournament management features:
+
+1. Use the `Login` endpoint to authenticate as an admin and receive a token.
+2. Use the token in the metadata for subsequent authenticated requests.
+3. Test the following scenarios:
+
+   a. Tournament Creation and Invitation:
+   - Use `CreateTournament` to create a new tournament.
+   - Verify that invitation emails are sent to relevant schools (check your email service or logs).
+   - Use `GetTournament` to retrieve the created tournament details.
+
+   b. Tournament Listing and Updates:
+   - Use `ListTournaments` to get a list of tournaments.
+   - Use `UpdateTournament` to modify a tournament's details.
+   - Use `GetTournament` again to verify the changes.
+
+   c. Tournament Deletion:
+   - Use `DeleteTournament` to remove a tournament.
+   - Attempt to `GetTournament` for the deleted tournament (should fail).
+
+4. For each test, verify that the appropriate email notifications are sent (tournament creation confirmation, invitations).
+
+Remember to include the authentication token in the metadata for each request:
+- Key: `authorization`
+- Value: `Bearer <token_received_from_login>`
+  
 ## Testing with Postman
 
 To test the API endpoints using Postman:
