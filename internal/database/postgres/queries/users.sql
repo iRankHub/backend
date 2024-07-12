@@ -6,6 +6,22 @@ WHERE UserID = $1 AND deleted_at IS NULL;
 SELECT * FROM Users
 WHERE Email = $1 AND deleted_at IS NULL;
 
+-- name: GetUserByEmailOrIDebateID :one
+SELECT u.*,
+       s.iDebateStudentID,
+       sch.iDebateSchoolID,
+       v.iDebateVolunteerID
+FROM Users u
+LEFT JOIN Students s ON u.UserID = s.UserID
+LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
+LEFT JOIN Volunteers v ON u.UserID = v.UserID
+WHERE u.Email = $1
+   OR s.iDebateStudentID = $1
+   OR sch.iDebateSchoolID = $1
+   OR v.iDebateVolunteerID = $1
+AND u.deleted_at IS NULL
+LIMIT 1;
+
 -- name: GetUserEmailAndNameByID :one
 SELECT UserID, Email, Name, Password, UserRole FROM Users WHERE UserID = $1;
 

@@ -70,7 +70,7 @@ Demo Data:
 
 ```json
 {
-  "email": "user@example.com",
+  "email_or_id": "user@example.com",
   "password": "password123"
 }
 ```

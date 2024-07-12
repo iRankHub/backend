@@ -90,16 +90,16 @@ func (s *authServer) SignUp(ctx context.Context, req *authentication.SignUpReque
 }
 
 func (s *authServer) Login(ctx context.Context, req *authentication.LoginRequest) (*authentication.LoginResponse, error) {
-	user, err := s.loginService.Login(ctx, req.Email, req.Password)
-	if err != nil {
-		if err.Error() == "two factor authentication required" {
-			return &authentication.LoginResponse{Success: false, RequireTwoFactor: true}, nil
-		}
-		if err.Error() == "password reset required" {
-			return &authentication.LoginResponse{Success: false, RequirePasswordReset: true, Message: "A password reset email has been sent to your account."}, nil
-		}
-		return &authentication.LoginResponse{Success: false, Message: "Invalid email or password"}, nil
-	}
+    user, err := s.loginService.Login(ctx, req.EmailOrId, req.Password)
+    if err != nil {
+        if err.Error() == "two factor authentication required" {
+            return &authentication.LoginResponse{Success: false, RequireTwoFactor: true}, nil
+        }
+        if err.Error() == "password reset required" {
+            return &authentication.LoginResponse{Success: false, RequirePasswordReset: true, Message: "A password reset email has been sent to your account."}, nil
+        }
+        return &authentication.LoginResponse{Success: false, Message: "Invalid email/ID or password"}, nil
+    }
 
 	if user.Status.Valid && user.Status.String == "pending" {
 		token, err := utils.GenerateToken(user.Userid, user.Userrole, user.Email)

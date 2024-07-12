@@ -38,6 +38,11 @@ type Communication struct {
 	Timestamp       time.Time `json:"timestamp"`
 }
 
+type Countrycode struct {
+	Countryname string `json:"countryname"`
+	Isocode     string `json:"isocode"`
+}
+
 type Debate struct {
 	Debateid     int32        `json:"debateid"`
 	Roundid      int32        `json:"roundid"`

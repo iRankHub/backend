@@ -205,6 +205,78 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	return i, err
 }
 
+const getUserByEmailOrIDebateID = `-- name: GetUserByEmailOrIDebateID :one
+SELECT u.userid, u.webauthnuserid, u.name, u.email, u.password, u.userrole, u.status, u.verificationstatus, u.deactivatedat, u.two_factor_secret, u.two_factor_enabled, u.failed_login_attempts, u.last_login_attempt, u.last_logout, u.reset_token, u.reset_token_expires, u.created_at, u.updated_at, u.deleted_at,
+       s.iDebateStudentID,
+       sch.iDebateSchoolID,
+       v.iDebateVolunteerID
+FROM Users u
+LEFT JOIN Students s ON u.UserID = s.UserID
+LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
+LEFT JOIN Volunteers v ON u.UserID = v.UserID
+WHERE u.Email = $1
+   OR s.iDebateStudentID = $1
+   OR sch.iDebateSchoolID = $1
+   OR v.iDebateVolunteerID = $1
+AND u.deleted_at IS NULL
+LIMIT 1
+`
+
+type GetUserByEmailOrIDebateIDRow struct {
+	Userid              int32          `json:"userid"`
+	Webauthnuserid      []byte         `json:"webauthnuserid"`
+	Name                string         `json:"name"`
+	Email               string         `json:"email"`
+	Password            string         `json:"password"`
+	Userrole            string         `json:"userrole"`
+	Status              sql.NullString `json:"status"`
+	Verificationstatus  sql.NullBool   `json:"verificationstatus"`
+	Deactivatedat       sql.NullTime   `json:"deactivatedat"`
+	TwoFactorSecret     sql.NullString `json:"two_factor_secret"`
+	TwoFactorEnabled    sql.NullBool   `json:"two_factor_enabled"`
+	FailedLoginAttempts sql.NullInt32  `json:"failed_login_attempts"`
+	LastLoginAttempt    sql.NullTime   `json:"last_login_attempt"`
+	LastLogout          sql.NullTime   `json:"last_logout"`
+	ResetToken          sql.NullString `json:"reset_token"`
+	ResetTokenExpires   sql.NullTime   `json:"reset_token_expires"`
+	CreatedAt           sql.NullTime   `json:"created_at"`
+	UpdatedAt           sql.NullTime   `json:"updated_at"`
+	DeletedAt           sql.NullTime   `json:"deleted_at"`
+	Idebatestudentid    sql.NullString `json:"idebatestudentid"`
+	Idebateschoolid     sql.NullString `json:"idebateschoolid"`
+	Idebatevolunteerid  sql.NullString `json:"idebatevolunteerid"`
+}
+
+func (q *Queries) GetUserByEmailOrIDebateID(ctx context.Context, email string) (GetUserByEmailOrIDebateIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserByEmailOrIDebateID, email)
+	var i GetUserByEmailOrIDebateIDRow
+	err := row.Scan(
+		&i.Userid,
+		&i.Webauthnuserid,
+		&i.Name,
+		&i.Email,
+		&i.Password,
+		&i.Userrole,
+		&i.Status,
+		&i.Verificationstatus,
+		&i.Deactivatedat,
+		&i.TwoFactorSecret,
+		&i.TwoFactorEnabled,
+		&i.FailedLoginAttempts,
+		&i.LastLoginAttempt,
+		&i.LastLogout,
+		&i.ResetToken,
+		&i.ResetTokenExpires,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.Idebatestudentid,
+		&i.Idebateschoolid,
+		&i.Idebatevolunteerid,
+	)
+	return i, err
+}
+
 const getUserByID = `-- name: GetUserByID :one
 SELECT userid, webauthnuserid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at FROM Users
 WHERE UserID = $1 AND deleted_at IS NULL

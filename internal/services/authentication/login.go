@@ -23,47 +23,70 @@ func NewLoginService(db *sql.DB, twoFactorService *TwoFactorService, recoverySer
 	}
 }
 
-func (s *LoginService) Login(ctx context.Context, email, password string) (*models.User, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start transaction: %v", err)
-	}
-	defer tx.Rollback()
+func (s *LoginService) Login(ctx context.Context, emailOrId, password string) (*models.User, error) {
+    tx, err := s.db.BeginTx(ctx, nil)
+    if err != nil {
+        return nil, fmt.Errorf("failed to start transaction: %v", err)
+    }
+    defer tx.Rollback()
 
-	queries := models.New(tx)
+    queries := models.New(tx)
 
-	user, err := queries.GetUserByEmail(ctx, email)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("invalid email or password")
-		}
-		return nil, fmt.Errorf("failed to retrieve user: %v", err)
-	}
+    userRow, err := queries.GetUserByEmailOrIDebateID(ctx, emailOrId)
+    if err != nil {
+        if err == sql.ErrNoRows {
+            return nil, fmt.Errorf("invalid email/ID or password")
+        }
+        return nil, fmt.Errorf("failed to retrieve user: %v", err)
+    }
 
-	err = queries.UpdateLastLoginAttempt(ctx, user.Userid)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update last login attempt: %v", err)
-	}
+    // Convert GetUserByEmailOrIDebateIDRow to User
+    user := &models.User{
+        Userid:               userRow.Userid,
+        Webauthnuserid:       userRow.Webauthnuserid,
+        Name:                 userRow.Name,
+        Email:                userRow.Email,
+        Password:             userRow.Password,
+        Userrole:             userRow.Userrole,
+        Status:               userRow.Status,
+        Verificationstatus:   userRow.Verificationstatus,
+        Deactivatedat:        userRow.Deactivatedat,
+        TwoFactorSecret:      userRow.TwoFactorSecret,
+        TwoFactorEnabled:     userRow.TwoFactorEnabled,
+        FailedLoginAttempts:  userRow.FailedLoginAttempts,
+        LastLoginAttempt:     userRow.LastLoginAttempt,
+        LastLogout:           userRow.LastLogout,
+        ResetToken:           userRow.ResetToken,
+        ResetTokenExpires:    userRow.ResetTokenExpires,
+        CreatedAt:            userRow.CreatedAt,
+        UpdatedAt:            userRow.UpdatedAt,
+        DeletedAt:            userRow.DeletedAt,
+    }
 
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %v", err)
-	}
+    err = queries.UpdateLastLoginAttempt(ctx, user.Userid)
+    if err != nil {
+        return nil, fmt.Errorf("failed to update last login attempt: %v", err)
+    }
 
-	err = utils.ComparePasswords(user.Password, password)
-	if err != nil {
-		handleErr := s.HandleFailedLoginAttempt(ctx, &user)
-		if handleErr != nil {
-			return &user, handleErr
-		}
-		return nil, fmt.Errorf("invalid email or password")
-	}
+    if err := tx.Commit(); err != nil {
+        return nil, fmt.Errorf("failed to commit transaction: %v", err)
+    }
 
-	err = s.HandleSuccessfulLogin(ctx, user.Userid)
-	if err != nil {
-		return nil, fmt.Errorf("failed to handle successful login: %v", err)
-	}
+    err = utils.ComparePasswords(user.Password, password)
+    if err != nil {
+        handleErr := s.HandleFailedLoginAttempt(ctx, user)
+        if handleErr != nil {
+            return user, handleErr
+        }
+        return nil, fmt.Errorf("invalid email/ID or password")
+    }
 
-	return &user, nil
+    err = s.HandleSuccessfulLogin(ctx, user.Userid)
+    if err != nil {
+        return nil, fmt.Errorf("failed to handle successful login: %v", err)
+    }
+
+    return user, nil
 }
 
 func (s *LoginService) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
