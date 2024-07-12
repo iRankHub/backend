@@ -31,9 +31,8 @@ service TournamentService {
 
 // Enum definitions
 enum LeagueType {
-  LEAGUE_TYPE_UNSPECIFIED = 0;
-  LEAGUE_TYPE_LOCAL = 1;
-  LEAGUE_TYPE_INTERNATIONAL = 2;
+  local = 0;
+  international = 1;
 }
 
 // Message definitions

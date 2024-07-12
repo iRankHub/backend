@@ -389,10 +389,11 @@ Request:
 ```json
 {
   "name": "National Debate League",
-  "leagueType": "LEAGUE_TYPE_NATIONAL",
-  "leagueDetails": {
-    "nationalDetails": {
-      "country": "United States"
+  "league_type": "international",
+  "league_details": {
+    "international_details": {
+      "continent":"North America",
+      "country": "United States of America"
     }
   },
   "token": "your_auth_token_here"
@@ -406,7 +407,7 @@ Endpoint: `TournamentService.GetLeague`
 Request:
 ```json
 {
-  "leagueId": 1,
+  "league_id": 1,
   "token": "your_auth_token_here"
 }
 ```
@@ -418,8 +419,8 @@ Endpoint: `TournamentService.ListLeagues`
 Request:
 ```json
 {
-  "pageSize": 10,
-  "pageToken": 0,
+  "page_size": 10,
+  "page_token": 0,
   "token": "your_auth_token_here"
 }
 ```
@@ -432,12 +433,13 @@ Authorization: Admin only
 Request:
 ```json
 {
-  "leagueId": 1,
+  "league_id": 1,
   "name": "Updated National Debate League",
-  "leagueType": "LEAGUE_TYPE_NATIONAL",
-  "leagueDetails": {
-    "nationalDetails": {
-      "country": "United States"
+  "league_type": "local",
+  "league_details": {
+    "local_details": {
+      "province":"East",
+      "country": "Rwanda"
     }
   },
   "token": "your_auth_token_here"
@@ -452,7 +454,7 @@ Authorization: Admin only
 Request:
 ```json
 {
-  "leagueId": 1,
+  "league_id": 1,
   "token": "your_auth_token_here"
 }
 ```
@@ -467,9 +469,9 @@ Authorization: Admin only
 Request:
 ```json
 {
-  "formatName": "British Parliamentary",
+  "format_name": "British Parliamentary",
   "description": "A globally recognized debate format",
-  "speakersPerTeam": 2,
+  "speakers_per_team": 2,
   "token": "your_auth_token_here"
 }
 ```
@@ -481,7 +483,7 @@ Endpoint: `TournamentService.GetTournamentFormat`
 Request:
 ```json
 {
-  "formatId": 1,
+  "format_id": 1,
   "token": "your_auth_token_here"
 }
 ```
@@ -493,8 +495,8 @@ Endpoint: `TournamentService.ListTournamentFormats`
 Request:
 ```json
 {
-  "pageSize": 10,
-  "pageToken": 0,
+  "page_size": 10,
+  "page_token": 0,
   "token": "your_auth_token_here"
 }
 ```
@@ -507,10 +509,10 @@ Authorization: Admin only
 Request:
 ```json
 {
-  "formatId": 1,
-  "formatName": "Updated British Parliamentary",
+  "format_id": 1,
+  "format_name": "Updated British Parliamentary",
   "description": "An updated globally recognized debate format",
-  "speakersPerTeam": 2,
+  "speakers_per_team": 2,
   "token": "your_auth_token_here"
 }
 ```
@@ -523,7 +525,7 @@ Authorization: Admin only
 Request:
 ```json
 {
-  "formatId": 1,
+  "format_id": 1,
   "token": "your_auth_token_here"
 }
 ```
