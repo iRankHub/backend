@@ -123,11 +123,15 @@ CREATE TABLE Tournaments (
     deleted_at TIMESTAMP
 );
 
+CREATE TABLE CountryCodes (
+    CountryName VARCHAR(255) PRIMARY KEY,
+    IsoCode CHAR(3) NOT NULL UNIQUE
+);
 
 -- Create Schools table
 CREATE TABLE Schools (
    SchoolID SERIAL PRIMARY KEY,
-   iDebateSchoolID VARCHAR(15) UNIQUE,
+   iDebateSchoolID VARCHAR(35) UNIQUE,
    SchoolName VARCHAR(255) NOT NULL,
    Address VARCHAR(255) NOT NULL,
    Country VARCHAR(255),
@@ -331,7 +335,7 @@ CREATE TABLE StudentTransfers (
 -- Create Indexes
 CREATE INDEX IF NOT EXISTS idx_users_email ON Users(Email);
 CREATE INDEX IF NOT EXISTS idx_users_status ON Users(Status);
-CREATE INDEX IF NOT EXISTS idx_users_biometric_token ON Users(biometric_token);
+
 CREATE INDEX IF NOT EXISTS idx_users_reset_token ON Users(reset_token);
 
 CREATE INDEX IF NOT EXISTS idx_schools_contactpersonid ON Schools(ContactPersonID);
@@ -344,6 +348,258 @@ CREATE INDEX IF NOT EXISTS idx_students_userid ON Students(UserID);
 CREATE INDEX IF NOT EXISTS idx_volunteers_userid ON Volunteers(UserID);
 
 CREATE INDEX IF NOT EXISTS idx_notifications_userid ON Notifications(UserID);
+
+INSERT INTO CountryCodes (IsoCode, CountryName) VALUES
+('AFG', 'Afghanistan'),
+('ALA', 'Aland Islands'),
+('ALB', 'Albania'),
+('DZA', 'Algeria'),
+('ASM', 'American Samoa'),
+('AND', 'Andorra'),
+('AGO', 'Angola'),
+('AIA', 'Anguilla'),
+('ATA', 'Antarctica'),
+('ATG', 'Antigua and Barbuda'),
+('ARG', 'Argentina'),
+('ARM', 'Armenia'),
+('ABW', 'Aruba'),
+('AUS', 'Australia'),
+('AUT', 'Austria'),
+('AZE', 'Azerbaijan'),
+('BHS', 'Bahamas'),
+('BHR', 'Bahrain'),
+('BGD', 'Bangladesh'),
+('BRB', 'Barbados'),
+('BLR', 'Belarus'),
+('BEL', 'Belgium'),
+('BLZ', 'Belize'),
+('BEN', 'Benin'),
+('BMU', 'Bermuda'),
+('BTN', 'Bhutan'),
+('BOL', 'Bolivia'),
+('BES', 'Bonaire, Sint Eustatius and Saba'),
+('BIH', 'Bosnia and Herzegovina'),
+('BWA', 'Botswana'),
+('BVT', 'Bouvet Island'),
+('BRA', 'Brazil'),
+('IOT', 'British Indian Ocean Territory'),
+('BRN', 'Brunei Darussalam'),
+('BGR', 'Bulgaria'),
+('BFA', 'Burkina Faso'),
+('BDI', 'Burundi'),
+('KHM', 'Cambodia'),
+('CMR', 'Cameroon'),
+('CAN', 'Canada'),
+('CPV', 'Cape Verde'),
+('CYM', 'Cayman Islands'),
+('CAF', 'Central African Republic'),
+('TCD', 'Chad'),
+('CHL', 'Chile'),
+('CHN', 'China'),
+('CXR', 'Christmas Island'),
+('CCK', 'Cocos (Keeling) Islands'),
+('COL', 'Colombia'),
+('COM', 'Comoros'),
+('COG', 'Congo'),
+('COD', 'Congo, The Democratic Republic of'),
+('COK', 'Cook Islands'),
+('CRI', 'Costa Rica'),
+('CIV', 'Cote d''Ivoire'),
+('HRV', 'Croatia'),
+('CUB', 'Cuba'),
+('CUW', 'Curaçao'),
+('CYP', 'Cyprus'),
+('CZE', 'Czechia'),
+('DNK', 'Denmark'),
+('DJI', 'Djibouti'),
+('DMA', 'Dominica'),
+('DOM', 'Dominican Republic'),
+('ECU', 'Ecuador'),
+('EGY', 'Egypt'),
+('SLV', 'El Salvador'),
+('GNQ', 'Equatorial Guinea'),
+('ERI', 'Eritrea'),
+('EST', 'Estonia'),
+('ETH', 'Ethiopia'),
+('FLK', 'Falkland Islands (Malvinas)'),
+('FRO', 'Faroe Islands'),
+('FJI', 'Fiji'),
+('FIN', 'Finland'),
+('FRA', 'France'),
+('GUF', 'French Guiana'),
+('PYF', 'French Polynesia'),
+('ATF', 'French Southern Territories'),
+('GAB', 'Gabon'),
+('GMB', 'Gambia'),
+('GEO', 'Georgia'),
+('DEU', 'Germany'),
+('GHA', 'Ghana'),
+('GIB', 'Gibraltar'),
+('GRC', 'Greece'),
+('GRL', 'Greenland'),
+('GRD', 'Grenada'),
+('GLP', 'Guadeloupe'),
+('GUM', 'Guam'),
+('GTM', 'Guatemala'),
+('GGY', 'Guernsey'),
+('GIN', 'Guinea'),
+('GNB', 'Guinea-Bissau'),
+('GUY', 'Guyana'),
+('HTI', 'Haiti'),
+('HMD', 'Heard and Mc Donald Islands'),
+('VAT', 'Holy See (Vatican City State)'),
+('HND', 'Honduras'),
+('HKG', 'Hong Kong'),
+('HUN', 'Hungary'),
+('ISL', 'Iceland'),
+('IND', 'India'),
+('IDN', 'Indonesia'),
+('IRN', 'Iran, Islamic Republic of'),
+('IRQ', 'Iraq'),
+('IRL', 'Ireland'),
+('IMN', 'Isle of Man'),
+('ISR', 'Israel'),
+('ITA', 'Italy'),
+('JAM', 'Jamaica'),
+('JPN', 'Japan'),
+('JEY', 'Jersey'),
+('JOR', 'Jordan'),
+('KAZ', 'Kazakstan'),
+('KEN', 'Kenya'),
+('KIR', 'Kiribati'),
+('PRK', 'Korea, Democratic People''s Republic of'),
+('KOR', 'Korea, Republic of'),
+('XKX', 'Kosovo'),
+('KWT', 'Kuwait'),
+('KGZ', 'Kyrgyzstan'),
+('LAO', 'Lao, People''s Democratic Republic'),
+('LVA', 'Latvia'),
+('LBN', 'Lebanon'),
+('LSO', 'Lesotho'),
+('LBR', 'Liberia'),
+('LBY', 'Libyan Arab Jamahiriya'),
+('LIE', 'Liechtenstein'),
+('LTU', 'Lithuania'),
+('LUX', 'Luxembourg'),
+('MAC', 'Macao'),
+('MKD', 'Macedonia, The Former Yugoslav Republic Of'),
+('MDG', 'Madagascar'),
+('MWI', 'Malawi'),
+('MYS', 'Malaysia'),
+('MDV', 'Maldives'),
+('MLI', 'Mali'),
+('MLT', 'Malta'),
+('MHL', 'Marshall Islands'),
+('MTQ', 'Martinique'),
+('MRT', 'Mauritania'),
+('MUS', 'Mauritius'),
+('MYT', 'Mayotte'),
+('MEX', 'Mexico'),
+('FSM', 'Micronesia, Federated States of'),
+('MDA', 'Moldova, Republic of'),
+('MCO', 'Monaco'),
+('MNG', 'Mongolia'),
+('MNE', 'Montenegro'),
+('MSR', 'Montserrat'),
+('MAR', 'Morocco'),
+('MOZ', 'Mozambique'),
+('MMR', 'Myanmar'),
+('NAM', 'Namibia'),
+('NRU', 'Nauru'),
+('NPL', 'Nepal'),
+('NLD', 'Netherlands'),
+('NCL', 'New Caledonia'),
+('NZL', 'New Zealand'),
+('NIC', 'Nicaragua'),
+('NER', 'Niger'),
+('NGA', 'Nigeria'),
+('NIU', 'Niue'),
+('NFK', 'Norfolk Island'),
+('MNP', 'Northern Mariana Islands'),
+('NOR', 'Norway'),
+('OMN', 'Oman'),
+('PAK', 'Pakistan'),
+('PLW', 'Palau'),
+('PSE', 'Palestinian Territory, Occupied'),
+('PAN', 'Panama'),
+('PNG', 'Papua New Guinea'),
+('PRY', 'Paraguay'),
+('PER', 'Peru'),
+('PHL', 'Philippines'),
+('PCN', 'Pitcairn'),
+('POL', 'Poland'),
+('PRT', 'Portugal'),
+('PRI', 'Puerto Rico'),
+('QAT', 'Qatar'),
+('SRB', 'Republic of Serbia'),
+('REU', 'Reunion'),
+('ROU', 'Romania'),
+('RUS', 'Russia Federation'),
+('RWA', 'Rwanda'),
+('BLM', 'Saint Barthélemy'),
+('SHN', 'Saint Helena'),
+('KNA', 'Saint Kitts & Nevis'),
+('LCA', 'Saint Lucia'),
+('MAF', 'Saint Martin'),
+('SPM', 'Saint Pierre and Miquelon'),
+('VCT', 'Saint Vincent and the Grenadines'),
+('WSM', 'Samoa'),
+('SMR', 'San Marino'),
+('STP', 'Sao Tome and Principe'),
+('SAU', 'Saudi Arabia'),
+('SEN', 'Senegal'),
+('SYC', 'Seychelles'),
+('SLE', 'Sierra Leone'),
+('SGP', 'Singapore'),
+('SXM', 'Sint Maarten'),
+('SVK', 'Slovakia'),
+('SVN', 'Slovenia'),
+('SLB', 'Solomon Islands'),
+('SOM', 'Somalia'),
+('ZAF', 'South Africa'),
+('SGS', 'South Georgia & The South Sandwich Islands'),
+('SSD', 'South Sudan'),
+('ESP', 'Spain'),
+('LKA', 'Sri Lanka'),
+('SDN', 'Sudan'),
+('SUR', 'Suriname'),
+('SJM', 'Svalbard and Jan Mayen'),
+('SWZ', 'Swaziland'),
+('SWE', 'Sweden'),
+('CHE', 'Switzerland'),
+('SYR', 'Syrian Arab Republic'),
+('TWN', 'Taiwan, Province of China'),
+('TJK', 'Tajikistan'),
+('TZA', 'Tanzania, United Republic of'),
+('THA', 'Thailand'),
+('TLS', 'Timor-Leste'),
+('TGO', 'Togo'),
+('TKL', 'Tokelau'),
+('TON', 'Tonga'),
+('TTO', 'Trinidad and Tobago'),
+('TUN', 'Tunisia'),
+('TUR', 'Turkey'),
+('TKM', 'Turkmenistan'),
+('TCA', 'Turks and Caicos Islands'),
+('TUV', 'Tuvalu'),
+('UGA', 'Uganda'),
+('UKR', 'Ukraine'),
+('ARE', 'United Arab Emirates'),
+('GBR', 'United Kingdom'),
+('USA', 'United States of America'),
+('UMI', 'United States Minor Outlying Islands'),
+('URY', 'Uruguay'),
+('UZB', 'Uzbekistan'),
+('VUT', 'Vanuatu'),
+('VEN', 'Venezuela'),
+('VNM', 'Vietnam'),
+('VGB', 'Virgin Islands, British'),
+('VIR', 'Virgin Islands, U.S.'),
+('WLF', 'Wallis and Futuna'),
+('ESH', 'Western Sahara'),
+('YEM', 'Yemen'),
+('ZMB', 'Zambia'),
+('ZWE', 'Zimbabwe');
 
 -- Create Triggers
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -365,25 +621,43 @@ EXECUTE FUNCTION update_updated_at();
 CREATE OR REPLACE FUNCTION generate_idebate_school_id()
 RETURNS trigger AS $$
 DECLARE
-    province_letter CHAR(1);
+    country_code CHAR(3);
+    province_code CHAR(2);
     district_letter CHAR(1);
-    category_letters CHAR(2);
+    type_letters CHAR(2);
     random_number INT;
 BEGIN
-    -- Set province letter
-    CASE
-        WHEN NEW.Province ILIKE 'East%' THEN province_letter := 'E';
-        WHEN NEW.Province ILIKE 'West%' THEN province_letter := 'W';
-        WHEN NEW.Province ILIKE 'South%' THEN province_letter := 'S';
-        WHEN NEW.Province ILIKE 'North%' THEN province_letter := 'N';
-        WHEN NEW.Province ILIKE 'Kigali%' THEN province_letter := 'K';
-        ELSE province_letter := 'X'; -- For unknown province
-    END CASE;
+    -- Look up the country code
+    SELECT IsoCode INTO country_code
+    FROM CountryCodes
+    WHERE CountryName ILIKE NEW.Country
+    LIMIT 1;
+
+    -- If no matching country found, use 'XXX'
+    IF country_code IS NULL THEN
+        country_code := 'XXX';
+    END IF;
+
+    -- Set province code
+    IF country_code = 'RWA' THEN
+        -- For Rwanda, use single letter province codes
+        CASE
+            WHEN NEW.Province ILIKE 'East%' THEN province_code := 'E';
+            WHEN NEW.Province ILIKE 'West%' THEN province_code := 'W';
+            WHEN NEW.Province ILIKE 'South%' THEN province_code := 'S';
+            WHEN NEW.Province ILIKE 'North%' THEN province_code := 'N';
+            WHEN NEW.Province ILIKE 'Kigali%' THEN province_code := 'K';
+            ELSE province_code := 'X'; -- For unknown province in Rwanda
+        END CASE;
+    ELSE
+        -- For other countries, use first two letters of the province
+        province_code := UPPER(LEFT(NEW.Province, 2));
+    END IF;
 
     -- Set district letter (first letter of district name)
     district_letter := UPPER(LEFT(NEW.District, 1));
 
-    -- Set category letters based on SchoolType
+    -- Set type letters based on SchoolType
     CASE
         WHEN NEW.SchoolType = 'Private' THEN type_letters := 'PV';
         WHEN NEW.SchoolType = 'Public' THEN type_letters := 'PB';
@@ -396,19 +670,17 @@ BEGIN
     random_number := floor(random() * 99999 + 1);
 
     -- Combine all parts to form the ID
-    NEW.iDebateSchoolID := province_letter || '-' || district_letter || '-' || type_letters || '-' || LPAD(random_number::TEXT, 5, '0');
+    NEW.iDebateSchoolID := country_code || '-' || province_code || '-' || district_letter || '-' || type_letters || '-' || LPAD(random_number::TEXT, 5, '0');
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-
 -- Create a trigger to automatically generate iDebate School ID
-CREATE TRIGGER set_idebate_school_id
+CREATE OR REPLACE TRIGGER set_idebate_school_id
 BEFORE INSERT ON Schools
 FOR EACH ROW
 EXECUTE FUNCTION generate_idebate_school_id();
-
 
 
 
