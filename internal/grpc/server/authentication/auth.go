@@ -6,14 +6,18 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-webauthn/webauthn/webauthn"
+
 	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
 	services "github.com/iRankHub/backend/internal/services/authentication"
 	"github.com/iRankHub/backend/internal/utils"
+
 )
 
 type authServer struct {
 	authentication.UnimplementedAuthServiceServer
 	db               *sql.DB
+	webauthn        *webauthn.WebAuthn
 	loginService     *services.LoginService
 	signUpService    *services.SignUpService
 	twoFactorService *services.TwoFactorService
@@ -22,20 +26,32 @@ type authServer struct {
 }
 
 func NewAuthServer(db *sql.DB) (authentication.AuthServiceServer, error) {
-	twoFactorService := services.NewTwoFactorService(db)
-	recoveryService := services.NewRecoveryService(db)
-	biometricService := services.NewBiometricService(db)
-	loginService := services.NewLoginService(db, twoFactorService, recoveryService)
-	signUpService := services.NewSignUpService(db)
+    wconfig := &webauthn.Config{
+        RPDisplayName: "iRankHub",
+        RPID:          "localhost", // TODO: Change this to actual domain in production
+        RPOrigin:      "http://localhost:3000", // TODO: Change this to origin url in production
+    }
 
-	return &authServer{
-		db:               db,
-		loginService:     loginService,
-		signUpService:    signUpService,
-		twoFactorService: twoFactorService,
-		recoveryService:  recoveryService,
-		biometricService: biometricService,
-	}, nil
+    w, err := webauthn.New(wconfig)
+    if err != nil {
+        return nil, fmt.Errorf("failed to create WebAuthn: %v", err)
+    }
+
+    twoFactorService := services.NewTwoFactorService(db)
+    recoveryService := services.NewRecoveryService(db)
+    biometricService := services.NewBiometricService(db, w)
+    loginService := services.NewLoginService(db, twoFactorService, recoveryService)
+    signUpService := services.NewSignUpService(db)
+
+    return &authServer{
+        db:               db,
+        webauthn:         w,
+        loginService:     loginService,
+        signUpService:    signUpService,
+        twoFactorService: twoFactorService,
+        recoveryService:  recoveryService,
+        biometricService: biometricService,
+    }, nil
 }
 
 
@@ -229,49 +245,81 @@ func (s *authServer) ResetPassword(ctx context.Context, req *authentication.Rese
 	return &authentication.ResetPasswordResponse{Success: true}, nil
 }
 
-func (s *authServer) EnableBiometricLogin(ctx context.Context, req *authentication.EnableBiometricLoginRequest) (*authentication.EnableBiometricLoginResponse, error) {
-	token, err := s.biometricService.EnableBiometricLogin(ctx, req.UserID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to enable biometric login: %v", err)
-	}
+func (s *authServer) BeginWebAuthnRegistration(ctx context.Context, req *authentication.BeginWebAuthnRegistrationRequest) (*authentication.BeginWebAuthnRegistrationResponse, error) {
+    // Verify the token
+    claims, err := utils.ValidateToken(req.Token)
+    if err != nil {
+        return nil, fmt.Errorf("invalid token: %v", err)
+    }
 
-	return &authentication.EnableBiometricLoginResponse{BiometricToken: token}, nil
+    userID := int32(claims["user_id"].(float64))
+    if userID != req.UserID {
+        return nil, fmt.Errorf("unauthorized: token does not match user ID")
+    }
+
+    options, err := s.biometricService.BeginRegistration(ctx, req.UserID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to begin WebAuthn registration: %v", err)
+    }
+
+    return &authentication.BeginWebAuthnRegistrationResponse{
+        Options: options,
+    }, nil
 }
 
-func (s *authServer) BiometricLogin(ctx context.Context, req *authentication.BiometricLoginRequest) (*authentication.LoginResponse, error) {
-	user, err := s.biometricService.VerifyBiometricToken(ctx, req.BiometricToken)
-	if err != nil {
-		// If VerifyBiometricToken fails, we don't have a user to pass to HandleFailedLoginAttempt
-		// We should handle this case differently
-		return nil, fmt.Errorf("failed to verify biometric token: %v", err)
-	}
+func (s *authServer) FinishWebAuthnRegistration(ctx context.Context, req *authentication.FinishWebAuthnRegistrationRequest) (*authentication.FinishWebAuthnRegistrationResponse, error) {
+    // Verify the token
+    claims, err := utils.ValidateToken(req.Token)
+    if err != nil {
+        return nil, fmt.Errorf("invalid token: %v", err)
+    }
 
-	err = s.loginService.HandleFailedLoginAttempt(ctx, user)
-	if err != nil {
-		if err.Error() == "two factor authentication required" {
-			return &authentication.LoginResponse{Success: false, RequireTwoFactor: true}, nil
-		}
-		if err.Error() == "password reset required" {
-			return &authentication.LoginResponse{Success: false, RequirePasswordReset: true, Message: "A password reset email has been sent to your account."}, nil
-		}
-		return nil, fmt.Errorf("login attempt failed: %v", err)
-	}
+    userID := int32(claims["user_id"].(float64))
+    if userID != req.UserID {
+        return nil, fmt.Errorf("unauthorized: token does not match user ID")
+    }
 
-	err = s.loginService.HandleSuccessfulLogin(ctx, user.Userid)
-	if err != nil {
-		return nil, err
-	}
+    err = s.biometricService.FinishRegistration(ctx, req.UserID, req.Credential)
+    if err != nil {
+        return nil, fmt.Errorf("failed to finish WebAuthn registration: %v", err)
+    }
 
-	token, err := utils.GenerateToken(user.Userid, user.Userrole, user.Email)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate token: %v", err)
-	}
+    return &authentication.FinishWebAuthnRegistrationResponse{
+        Success: true,
+    }, nil
+}
 
-	return &authentication.LoginResponse{
-		Success:  true,
-		Token:    token,
-		UserRole: user.Userrole,
-		UserID:   user.Userid,
-		Message:  "Login Successful",
-	}, nil
+func (s *authServer) BeginWebAuthnLogin(ctx context.Context, req *authentication.BeginWebAuthnLoginRequest) (*authentication.BeginWebAuthnLoginResponse, error) {
+    options, err := s.biometricService.BeginLogin(ctx, req.Email)
+    if err != nil {
+        return nil, fmt.Errorf("failed to begin WebAuthn login: %v", err)
+    }
+
+    return &authentication.BeginWebAuthnLoginResponse{
+        Options: options,
+    }, nil
+}
+
+func (s *authServer) FinishWebAuthnLogin(ctx context.Context, req *authentication.FinishWebAuthnLoginRequest) (*authentication.FinishWebAuthnLoginResponse, error) {
+    err := s.biometricService.FinishLogin(ctx, req.Email, req.Credential)
+    if err != nil {
+        return nil, fmt.Errorf("failed to finish WebAuthn login: %v", err)
+    }
+
+    // Get user information
+    user, err := s.loginService.GetUserByEmail(ctx, req.Email)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get user information: %v", err)
+    }
+
+    // Generate token
+    token, err := utils.GenerateToken(user.Userid, user.Userrole, user.Email)
+    if err != nil {
+        return nil, fmt.Errorf("failed to generate token: %v", err)
+    }
+
+    return &authentication.FinishWebAuthnLoginResponse{
+        Success: true,
+        Token:   token,
+    }, nil
 }

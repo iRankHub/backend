@@ -14,5 +14,11 @@ WHERE UserID = $1
 RETURNING *;
 
 -- name: DeleteUserProfile :exec
-DELETE FROM UserProfiles
-WHERE UserID = $1;
+WITH deleted_profile AS (
+    DELETE FROM UserProfiles
+    WHERE UserProfiles.UserID = $1
+    RETURNING UserProfiles.UserID
+)
+UPDATE Users
+SET deleted_at = CURRENT_TIMESTAMP
+WHERE Users.UserID = (SELECT UserID FROM deleted_profile);

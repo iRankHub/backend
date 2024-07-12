@@ -60,8 +60,14 @@ func (q *Queries) CreateUserProfile(ctx context.Context, arg CreateUserProfilePa
 }
 
 const deleteUserProfile = `-- name: DeleteUserProfile :exec
-DELETE FROM UserProfiles
-WHERE UserID = $1
+WITH deleted_profile AS (
+    DELETE FROM UserProfiles
+    WHERE UserProfiles.UserID = $1
+    RETURNING UserProfiles.UserID
+)
+UPDATE Users
+SET deleted_at = CURRENT_TIMESTAMP
+WHERE Users.UserID = (SELECT UserID FROM deleted_profile)
 `
 
 func (q *Queries) DeleteUserProfile(ctx context.Context, userid int32) error {

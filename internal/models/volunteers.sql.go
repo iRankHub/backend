@@ -13,7 +13,7 @@ import (
 const createVolunteer = `-- name: CreateVolunteer :one
 INSERT INTO Volunteers (FirstName, LastName, DateOfBirth, Role, GraduateYear, Password, SafeGuardCertificate, UserID)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING volunteerid, firstname, lastname, dateofbirth, role, graduateyear, password, safeguardcertificate, userid
+RETURNING volunteerid, idebatevolunteerid, firstname, lastname, dateofbirth, role, graduateyear, password, safeguardcertificate, userid
 `
 
 type CreateVolunteerParams struct {
@@ -41,6 +41,7 @@ func (q *Queries) CreateVolunteer(ctx context.Context, arg CreateVolunteerParams
 	var i Volunteer
 	err := row.Scan(
 		&i.Volunteerid,
+		&i.Idebatevolunteerid,
 		&i.Firstname,
 		&i.Lastname,
 		&i.Dateofbirth,
@@ -64,7 +65,7 @@ func (q *Queries) DeleteVolunteer(ctx context.Context, volunteerid int32) error 
 }
 
 const getVolunteerByID = `-- name: GetVolunteerByID :one
-SELECT volunteerid, firstname, lastname, dateofbirth, role, graduateyear, password, safeguardcertificate, userid FROM Volunteers
+SELECT volunteerid, idebatevolunteerid, firstname, lastname, dateofbirth, role, graduateyear, password, safeguardcertificate, userid FROM Volunteers
 WHERE VolunteerID = $1
 `
 
@@ -73,6 +74,7 @@ func (q *Queries) GetVolunteerByID(ctx context.Context, volunteerid int32) (Volu
 	var i Volunteer
 	err := row.Scan(
 		&i.Volunteerid,
+		&i.Idebatevolunteerid,
 		&i.Firstname,
 		&i.Lastname,
 		&i.Dateofbirth,
@@ -89,7 +91,7 @@ const updateVolunteer = `-- name: UpdateVolunteer :one
 UPDATE Volunteers
 SET FirstName = $2, LastName = $3, DateOfBirth = $4, Role = $5, GraduateYear = $6, Password = $7, SafeGuardCertificate = $8
 WHERE VolunteerID = $1
-RETURNING volunteerid, firstname, lastname, dateofbirth, role, graduateyear, password, safeguardcertificate, userid
+RETURNING volunteerid, idebatevolunteerid, firstname, lastname, dateofbirth, role, graduateyear, password, safeguardcertificate, userid
 `
 
 type UpdateVolunteerParams struct {
@@ -117,6 +119,7 @@ func (q *Queries) UpdateVolunteer(ctx context.Context, arg UpdateVolunteerParams
 	var i Volunteer
 	err := row.Scan(
 		&i.Volunteerid,
+		&i.Idebatevolunteerid,
 		&i.Firstname,
 		&i.Lastname,
 		&i.Dateofbirth,

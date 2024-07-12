@@ -77,13 +77,27 @@ UPDATE Users SET reset_token = $2, reset_token_expires = $3 WHERE UserID = $1;
 -- name: ClearResetToken :exec
 UPDATE Users SET reset_token = NULL, reset_token_expires = NULL WHERE UserID = $1;
 
--- name: SetBiometricToken :exec
-UPDATE Users SET biometric_token = $2 WHERE UserID = $1;
+-- name: GetUserForWebAuthn :one
+SELECT UserID, WebAuthnUserID, Email, Name FROM Users WHERE UserID = $1;
 
--- name: GetUserByBiometricToken :one
-SELECT * FROM Users
-WHERE biometric_token = $1 AND deleted_at IS NULL
-LIMIT 1;
+-- name: GetUserForWebAuthnByEmail :one
+SELECT UserID, WebAuthnUserID, Email, Name FROM Users WHERE Email = $1;
+
+-- name: GetWebAuthnCredentials :many
+SELECT CredentialID, PublicKey, AttestationType, AAGUID, SignCount
+FROM WebAuthnCredentials WHERE UserID = $1;
+
+-- name: StoreWebAuthnSessionData :exec
+INSERT INTO WebAuthnSessionData (UserID, SessionData)
+VALUES ($1, $2)
+ON CONFLICT (UserID) DO UPDATE SET SessionData = $2;
+
+-- name: GetWebAuthnSessionData :one
+SELECT SessionData FROM WebAuthnSessionData WHERE UserID = $1;
+
+-- name: StoreWebAuthnCredential :exec
+INSERT INTO WebAuthnCredentials (UserID, CredentialID, PublicKey, AttestationType, AAGUID, SignCount)
+VALUES ($1, $2, $3, $4, $5, $6);
 
 -- name: GetUserByResetToken :one
 SELECT * FROM Users

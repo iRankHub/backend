@@ -66,6 +66,30 @@ func (s *LoginService) Login(ctx context.Context, email, password string) (*mode
 	return &user, nil
 }
 
+func (s *LoginService) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
+    tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+    if err != nil {
+        return nil, fmt.Errorf("failed to start transaction: %v", err)
+    }
+    defer tx.Rollback()
+
+    queries := models.New(tx)
+
+    user, err := queries.GetUserByEmail(ctx, email)
+    if err != nil {
+        if err == sql.ErrNoRows {
+            return nil, fmt.Errorf("user not found")
+        }
+        return nil, fmt.Errorf("failed to retrieve user: %v", err)
+    }
+
+    if err := tx.Commit(); err != nil {
+        return nil, fmt.Errorf("failed to commit transaction: %v", err)
+    }
+
+    return &user, nil
+}
+
 func (s *LoginService) HandleFailedLoginAttempt(ctx context.Context, user *models.User) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

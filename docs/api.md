@@ -311,11 +311,11 @@ Demo Data:
 }
 ```
 
-### Enable Biometric Login
+### Begin WebAuthn Registration
 
-Endpoint: `AuthService.EnableBiometricLogin`
+Endpoint: `AuthService.BeginWebAuthnRegistration`
 
-Description: Enable biometric login for a user account.
+Description: Begin the WebAuthn registration process for a user account. Requires authentication.
 
 Demo Data:
 ```json
@@ -325,7 +325,48 @@ Demo Data:
 }
 ```
 
-### Biometric Login
+### Finish WebAuthn Registration
+
+Endpoint: `AuthService.FinishWebAuthnRegistration`
+
+Description: Complete the WebAuthn registration process for a user account. Requires authentication.
+
+Demo Data:
+```json
+{
+  "userID": 1,
+  "token": "your_auth_token_here",
+  "credential": "base64_encoded_credential_data"
+}
+```
+
+### Begin WebAuthn Login
+
+Endpoint: `AuthService.BeginWebAuthnLogin`
+
+Description: Begin the WebAuthn login process for a user account.
+
+Demo Data:
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+### Finish WebAuthn Login
+
+Endpoint: `AuthService.FinishWebAuthnLogin`
+
+Description: Complete the WebAuthn login process for a user account.
+
+Demo Data:
+```json
+{
+  "email": "user@example.com",
+  "credential": "base64_encoded_credential_data"
+}
+```
+
 
 Endpoint: `AuthService.BiometricLogin`
 

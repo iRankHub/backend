@@ -1,6 +1,7 @@
 -- Create Users table first as it's referenced by many other tables
 CREATE TABLE Users (
    UserID SERIAL PRIMARY KEY,
+   WebAuthnUserID BYTEA UNIQUE,
    Name VARCHAR(255) NOT NULL,
    Email VARCHAR(255) UNIQUE NOT NULL,
    Password VARCHAR(255) NOT NULL,
@@ -15,10 +16,27 @@ CREATE TABLE Users (
    last_logout TIMESTAMP,
    reset_token VARCHAR(64),
    reset_token_expires TIMESTAMP,
-   biometric_token VARCHAR(64),
    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
    deleted_at TIMESTAMP
+);
+
+-- Biometric Credentials Table
+CREATE TABLE WebAuthnCredentials (
+    ID SERIAL PRIMARY KEY,
+    UserID INTEGER NOT NULL REFERENCES Users(UserID),
+    CredentialID BYTEA NOT NULL,
+    PublicKey BYTEA NOT NULL,
+    AttestationType VARCHAR(255) NOT NULL,
+    AAGUID BYTEA NOT NULL,
+    SignCount BIGINT NOT NULL,
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Biometric Session Data
+CREATE TABLE WebAuthnSessionData (
+    UserID INTEGER PRIMARY KEY REFERENCES Users(UserID),
+    SessionData BYTEA NOT NULL
 );
 
 -- Create UserProfiles table
@@ -109,6 +127,7 @@ CREATE TABLE Tournaments (
 -- Create Schools table
 CREATE TABLE Schools (
    SchoolID SERIAL PRIMARY KEY,
+   iDebateSchoolID VARCHAR(15) UNIQUE,
    SchoolName VARCHAR(255) NOT NULL,
    Address VARCHAR(255) NOT NULL,
    Country VARCHAR(255),
@@ -116,12 +135,13 @@ CREATE TABLE Schools (
    District VARCHAR(255),
    ContactPersonID INTEGER NOT NULL REFERENCES Users(UserID),
    ContactEmail VARCHAR(255) NOT NULL UNIQUE,
-   SchoolType VARCHAR(50) NOT NULL
+   SchoolType VARCHAR(50) NOT NULL CHECK (SchoolType IN ('Private', 'Public', 'Government Aided', 'International'))
 );
 
 -- Create Students table
 CREATE TABLE Students (
    StudentID SERIAL PRIMARY KEY,
+   iDebateStudentID VARCHAR(20) UNIQUE,
    FirstName VARCHAR(255) NOT NULL,
    LastName VARCHAR(255) NOT NULL,
    Grade VARCHAR(10) NOT NULL,
@@ -150,6 +170,7 @@ CREATE TABLE TeamMembers (
 -- Create Volunteers table
 CREATE TABLE Volunteers (
    VolunteerID SERIAL PRIMARY KEY,
+   iDebateVolunteerID VARCHAR(20) UNIQUE,
    FirstName VARCHAR(255) NOT NULL,
    LastName VARCHAR(255) NOT NULL,
    DateOfBirth DATE,
@@ -222,7 +243,8 @@ CREATE TABLE Ballots (
 CREATE TABLE TournamentCoordinators (
    CoordinatorID SERIAL PRIMARY KEY,
    VolunteerID INTEGER NOT NULL REFERENCES Volunteers(VolunteerID),
-   TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID)
+   TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
+   AssignedDate DATE NOT NULL DEFAULT CURRENT_DATE
 );
 
 -- Create Schedules table
@@ -336,3 +358,96 @@ CREATE TRIGGER update_users_updated_at
 BEFORE UPDATE ON Users
 FOR EACH ROW
 EXECUTE FUNCTION update_updated_at();
+
+-- functions and triggers to handle the Idebate IDs generation
+
+-- function to generate the school ID
+CREATE OR REPLACE FUNCTION generate_idebate_school_id()
+RETURNS trigger AS $$
+DECLARE
+    province_letter CHAR(1);
+    district_letter CHAR(1);
+    category_letters CHAR(2);
+    random_number INT;
+BEGIN
+    -- Set province letter
+    CASE
+        WHEN NEW.Province ILIKE 'East%' THEN province_letter := 'E';
+        WHEN NEW.Province ILIKE 'West%' THEN province_letter := 'W';
+        WHEN NEW.Province ILIKE 'South%' THEN province_letter := 'S';
+        WHEN NEW.Province ILIKE 'North%' THEN province_letter := 'N';
+        WHEN NEW.Province ILIKE 'Kigali%' THEN province_letter := 'K';
+        ELSE province_letter := 'X'; -- For unknown province
+    END CASE;
+
+    -- Set district letter (first letter of district name)
+    district_letter := UPPER(LEFT(NEW.District, 1));
+
+    -- Set category letters based on SchoolType
+    CASE
+        WHEN NEW.SchoolType = 'Private' THEN type_letters := 'PV';
+        WHEN NEW.SchoolType = 'Public' THEN type_letters := 'PB';
+        WHEN NEW.SchoolType = 'Government Aided' THEN type_letters := 'GA';
+        WHEN NEW.SchoolType = 'International' THEN type_letters := 'IN';
+        ELSE type_letters := 'OT'; -- For other types (shouldn't occur due to CHECK constraint)
+    END CASE;
+
+    -- Generate random number (1 to 99999)
+    random_number := floor(random() * 99999 + 1);
+
+    -- Combine all parts to form the ID
+    NEW.iDebateSchoolID := province_letter || '-' || district_letter || '-' || type_letters || '-' || LPAD(random_number::TEXT, 5, '0');
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- Create a trigger to automatically generate iDebate School ID
+CREATE TRIGGER set_idebate_school_id
+BEFORE INSERT ON Schools
+FOR EACH ROW
+EXECUTE FUNCTION generate_idebate_school_id();
+
+
+
+
+-- function to create IDs for Volunteers
+
+CREATE SEQUENCE idebate_volunteer_id_seq START 1;
+
+CREATE OR REPLACE FUNCTION generate_idebate_volunteer_id()
+RETURNS trigger AS $$
+BEGIN
+  NEW.iDebateVolunteerID := 'VOLU' || LPAD(NEXTVAL('idebate_volunteer_id_seq')::TEXT, 6, '0');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- triggers to execute the function of volunteer_id before the insertion of the rest column details.
+
+CREATE TRIGGER set_idebate_volunteer_id
+BEFORE INSERT ON Volunteers
+FOR EACH ROW
+EXECUTE FUNCTION generate_idebate_volunteer_id();
+
+
+
+-- For Students
+CREATE SEQUENCE idebate_student_id_seq START 1;
+
+CREATE OR REPLACE FUNCTION generate_idebate_student_id()
+RETURNS trigger AS $$
+BEGIN
+  NEW.iDebateStudentID := 'STUD' || LPAD(NEXTVAL('idebate_student_id_seq')::TEXT, 6, '0');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- trigger to execute the function before insertion .
+
+CREATE TRIGGER set_idebate_student_id
+BEFORE INSERT ON Students
+FOR EACH ROW
+EXECUTE FUNCTION generate_idebate_student_id();
