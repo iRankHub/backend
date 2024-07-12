@@ -20,6 +20,9 @@ WHERE Country = $1;
 -- name: GetSchoolsByProvinceOrCountry :many
 SELECT * FROM Schools WHERE Province = $1 OR Country = $1;
 
+-- name: GetSchoolAddressByUserID :one
+SELECT Address FROM Schools WHERE ContactPersonID = $1;
+
 -- name: CreateSchool :one
 INSERT INTO Schools (SchoolName, Address, Country, Province, District, ContactPersonID, ContactEmail, SchoolType)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)

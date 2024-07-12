@@ -77,6 +77,7 @@ message EnableTwoFactorResponse {
 message VerifyTwoFactorRequest {
   int32 userID = 1;
   string code = 2;
+  string token = 3;
 }
 
 message VerifyTwoFactorResponse {

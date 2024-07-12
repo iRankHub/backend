@@ -7,6 +7,7 @@ import (
 
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
+
 )
 
 type UserManagementService struct {
@@ -83,6 +84,7 @@ func (s *UserManagementService) ApproveUser(ctx context.Context, token string, u
 
 	queries := models.New(tx)
 
+	// Update user status
 	err = queries.UpdateUserStatus(ctx, models.UpdateUserStatusParams{
 		Userid: userID,
 		Status: sql.NullString{String: "approved", Valid: true},
@@ -91,22 +93,26 @@ func (s *UserManagementService) ApproveUser(ctx context.Context, token string, u
 		return fmt.Errorf("failed to update user status: %v", err)
 	}
 
-	user, err := queries.GetUserByID(ctx, userID)
+	// Retrieve only the required user fields
+	user, err := queries.GetUserEmailAndNameByID(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("failed to get user details: %v", err)
 	}
 
 	var address sql.NullString
 	if user.Userrole == "school" {
-		school, err := queries.GetSchoolByUserID(ctx, userID)
+		// Retrieve only the school address
+		schoolAddress, err := queries.GetSchoolAddressByUserID(ctx, userID)
 		if err != nil {
 			return fmt.Errorf("failed to get school details: %v", err)
 		}
-		address = sql.NullString{String: school.Address, Valid: true}
+		address = sql.NullString{String: schoolAddress, Valid: true}
 	}
 
+	// Create user profile
 	_, err = queries.CreateUserProfile(ctx, models.CreateUserProfileParams{
 		Userid:         user.Userid,
+		Password:       user.Password,
 		Address:        address,
 		Phone:          sql.NullString{},
 		Bio:            sql.NullString{},
@@ -120,10 +126,13 @@ func (s *UserManagementService) ApproveUser(ctx context.Context, token string, u
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	err = utils.SendApprovalNotification(user.Email, user.Name)
-	if err != nil {
-		fmt.Printf("Failed to send approval notification: %v\n", err)
-	}
+	// Send approval notification asynchronously
+	go func() {
+		err := utils.SendApprovalNotification(user.Email, user.Name)
+		if err != nil {
+			fmt.Printf("Failed to send approval notification: %v\n", err)
+		}
+	}()
 
 	return nil
 }
@@ -169,7 +178,7 @@ func (s *UserManagementService) RejectUser(ctx context.Context, token string, us
 	return nil
 }
 
-func (s *UserManagementService) UpdateUserProfile(ctx context.Context, token string, userID int32, name, email, address, phone, bio string, profilePicture []byte) error {
+func (s *UserManagementService) UpdateUserProfile(ctx context.Context, token string, userID int32, name, email, password, address, phone, bio string, profilePicture []byte) error {
 	claims, err := utils.ValidateToken(token)
 	if err != nil {
 		return fmt.Errorf("invalid token: %v", err)
@@ -192,6 +201,7 @@ func (s *UserManagementService) UpdateUserProfile(ctx context.Context, token str
 		Userid:         userID,
 		Name:           name,
 		Email:          email,
+		Password:       password,
 		Address:        sql.NullString{String: address, Valid: address != ""},
 		Phone:          sql.NullString{String: phone, Valid: phone != ""},
 		Bio:            sql.NullString{String: bio, Valid: bio != ""},
@@ -199,6 +209,10 @@ func (s *UserManagementService) UpdateUserProfile(ctx context.Context, token str
 	})
 	if err != nil {
 		return fmt.Errorf("failed to update user profile: %v", err)
+	}
+
+	if password != "" {
+		utils.InvalidateToken(token)
 	}
 
 	if err := tx.Commit(); err != nil {

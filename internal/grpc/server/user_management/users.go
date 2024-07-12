@@ -107,7 +107,7 @@ func (s *userManagementServer) RejectUser(ctx context.Context, req *user_managem
 }
 
 func (s *userManagementServer) UpdateUserProfile(ctx context.Context, req *user_management.UpdateUserProfileRequest) (*user_management.UpdateUserProfileResponse, error) {
-	err := s.userManagementService.UpdateUserProfile(ctx, req.Token, req.UserID, req.Name, req.Email, req.Address, req.Phone, req.Bio, req.ProfilePicture)
+	err := s.userManagementService.UpdateUserProfile(ctx, req.Token, req.UserID, req.Name, req.Email, req.Password, req.Address, req.Phone, req.Bio, req.ProfilePicture)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to update user profile: %v", err)
 	}

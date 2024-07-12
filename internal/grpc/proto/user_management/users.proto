@@ -111,10 +111,11 @@ message UpdateUserProfileRequest {
   int32 userID = 2;
   string name = 3;
   string email = 4;
-  string address = 5;
-  string phone = 6;
-  string bio = 7;
-  bytes profilePicture = 8;
+  string password = 5;
+  string address = 6;
+  string phone = 7;
+  string bio = 8;
+  bytes profilePicture = 9;
 }
 
 message UpdateUserProfileResponse {

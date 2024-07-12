@@ -63,6 +63,17 @@ func (q *Queries) DeleteSchool(ctx context.Context, schoolid int32) error {
 	return err
 }
 
+const getSchoolAddressByUserID = `-- name: GetSchoolAddressByUserID :one
+SELECT Address FROM Schools WHERE ContactPersonID = $1
+`
+
+func (q *Queries) GetSchoolAddressByUserID(ctx context.Context, contactpersonid int32) (string, error) {
+	row := q.db.QueryRowContext(ctx, getSchoolAddressByUserID, contactpersonid)
+	var address string
+	err := row.Scan(&address)
+	return address, err
+}
+
 const getSchoolByContactEmail = `-- name: GetSchoolByContactEmail :one
 SELECT schoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schooltype FROM Schools
 WHERE ContactEmail = $1

@@ -7,8 +7,9 @@ import (
 	"encoding/base32"
 	"fmt"
 
-	"github.com/iRankHub/backend/internal/models"
 	"github.com/pquerna/otp/totp"
+
+	"github.com/iRankHub/backend/internal/models"
 )
 
 type TwoFactorService struct {

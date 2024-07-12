@@ -18,6 +18,7 @@ SELECT * FROM LocalLeagueDetails WHERE LeagueID = $1;
 -- name: GetInternationalLeagueDetails :one
 SELECT * FROM InternationalLeagueDetails WHERE LeagueID = $1;
 
+
 -- name: GetLeagueByID :one
 SELECT l.*,
        COALESCE(lld.Province, ild.Continent) AS detail1,
@@ -25,7 +26,7 @@ SELECT l.*,
 FROM Leagues l
 LEFT JOIN LocalLeagueDetails lld ON l.LeagueID = lld.LeagueID
 LEFT JOIN InternationalLeagueDetails ild ON l.LeagueID = ild.LeagueID
-WHERE l.LeagueID = $1;
+WHERE l.LeagueID = $1 AND l.deleted_at IS NULL;
 
 -- name: ListLeaguesPaginated :many
 SELECT l.*,
@@ -34,6 +35,7 @@ SELECT l.*,
 FROM Leagues l
 LEFT JOIN LocalLeagueDetails lld ON l.LeagueID = lld.LeagueID
 LEFT JOIN InternationalLeagueDetails ild ON l.LeagueID = ild.LeagueID
+WHERE l.deleted_at IS NULL
 ORDER BY l.LeagueID
 LIMIT $1 OFFSET $2;
 
@@ -54,7 +56,9 @@ SET Continent = $2, Country = $3
 WHERE LeagueID = $1;
 
 -- name: DeleteLeagueByID :exec
-DELETE FROM Leagues WHERE LeagueID = $1;
+UPDATE Leagues
+SET deleted_at = CURRENT_TIMESTAMP
+WHERE LeagueID = $1;
 
 -- Tournament Format Queries
 -- name: CreateTournamentFormat :one
@@ -63,10 +67,12 @@ VALUES ($1, $2, $3)
 RETURNING *;
 
 -- name: GetTournamentFormatByID :one
-SELECT * FROM TournamentFormats WHERE FormatID = $1;
+SELECT * FROM TournamentFormats
+WHERE FormatID = $1 AND deleted_at IS NULL;
 
 -- name: ListTournamentFormatsPaginated :many
 SELECT * FROM TournamentFormats
+WHERE deleted_at IS NULL
 ORDER BY FormatID
 LIMIT $1 OFFSET $2;
 
@@ -77,7 +83,9 @@ WHERE FormatID = $1
 RETURNING *;
 
 -- name: DeleteTournamentFormatByID :exec
-DELETE FROM TournamentFormats WHERE FormatID = $1;
+UPDATE TournamentFormats
+SET deleted_at = CURRENT_TIMESTAMP
+WHERE FormatID = $1;
 
 -- Tournament Queries
 -- name: CreateTournamentEntry :one
@@ -96,7 +104,7 @@ JOIN Leagues l ON t.LeagueID = l.LeagueID
 LEFT JOIN LocalLeagueDetails lld ON l.LeagueID = lld.LeagueID
 LEFT JOIN InternationalLeagueDetails ild ON l.LeagueID = ild.LeagueID
 LEFT JOIN TournamentCoordinators tc ON t.TournamentID = tc.TournamentID
-WHERE t.TournamentID = $1;
+WHERE t.TournamentID = $1 AND t.deleted_at IS NULL;
 
 -- name: ListTournamentsPaginated :many
 SELECT t.*, tf.*, l.*,
@@ -109,6 +117,7 @@ JOIN Leagues l ON t.LeagueID = l.LeagueID
 LEFT JOIN LocalLeagueDetails lld ON l.LeagueID = lld.LeagueID
 LEFT JOIN InternationalLeagueDetails ild ON l.LeagueID = ild.LeagueID
 LEFT JOIN TournamentCoordinators tc ON t.TournamentID = tc.TournamentID
+WHERE t.deleted_at IS NULL
 ORDER BY t.TournamentID
 LIMIT $1 OFFSET $2;
 
@@ -119,4 +128,6 @@ WHERE TournamentID = $1
 RETURNING *;
 
 -- name: DeleteTournamentByID :exec
-DELETE FROM Tournaments WHERE TournamentID = $1;
+UPDATE Tournaments
+SET deleted_at = CURRENT_TIMESTAMP
+WHERE TournamentID = $1;

@@ -1,10 +1,13 @@
 -- name: GetUserByID :one
 SELECT * FROM Users
-WHERE UserID = $1;
+WHERE UserID = $1 AND deleted_at IS NULL;
 
 -- name: GetUserByEmail :one
 SELECT * FROM Users
-WHERE Email = $1;
+WHERE Email = $1 AND deleted_at IS NULL;
+
+-- name: GetUserEmailAndNameByID :one
+SELECT UserID, Email, Name, Password, UserRole FROM Users WHERE UserID = $1;
 
 -- name: CreateUser :one
 INSERT INTO Users (Name, Email, Password, UserRole, Status)
@@ -24,11 +27,11 @@ WHERE UserID = $1;
 
 -- name: GetPendingUsers :many
 SELECT * FROM Users
-WHERE Status = 'pending';
+WHERE Status = 'pending' AND deleted_at IS NULL;
 
 -- name: GetUsersByStatus :many
 SELECT * FROM Users
-WHERE Status = $1;
+WHERE Status = $1 AND deleted_at IS NULL;
 
 -- name: UpdateUserPassword :exec
 UPDATE Users
@@ -36,7 +39,8 @@ SET Password = $2
 WHERE UserID = $1;
 
 -- name: DeleteUser :exec
-DELETE FROM Users
+UPDATE Users
+SET deleted_at = CURRENT_TIMESTAMP
 WHERE UserID = $1;
 
 -- name: UpdateUserTwoFactorSecret :exec
@@ -46,7 +50,9 @@ UPDATE Users SET two_factor_secret = $2 WHERE UserID = $1;
 UPDATE Users SET two_factor_enabled = TRUE WHERE UserID = $1;
 
 -- name: DisableTwoFactor :exec
-UPDATE Users SET two_factor_enabled = FALSE WHERE UserID = $1;
+UPDATE Users
+SET two_factor_enabled = FALSE, two_factor_secret = NULL
+WHERE UserID = $1;
 
 -- name: UpdateLastLoginAttempt :exec
 UPDATE Users SET last_login_attempt = NOW() WHERE UserID = $1;
@@ -75,13 +81,18 @@ UPDATE Users SET reset_token = NULL, reset_token_expires = NULL WHERE UserID = $
 UPDATE Users SET biometric_token = $2 WHERE UserID = $1;
 
 -- name: GetUserByBiometricToken :one
-SELECT * FROM Users WHERE biometric_token = $1 LIMIT 1;
+SELECT * FROM Users
+WHERE biometric_token = $1 AND deleted_at IS NULL
+LIMIT 1;
 
 -- name: GetUserByResetToken :one
-SELECT * FROM Users WHERE reset_token = $1 AND reset_token_expires > NOW() LIMIT 1;
+SELECT * FROM Users
+WHERE reset_token = $1 AND reset_token_expires > NOW() AND deleted_at IS NULL
+LIMIT 1;
 
 -- name: GetUserWithAuthDetails :one
-SELECT * FROM Users WHERE UserID = $1;
+SELECT * FROM Users
+WHERE UserID = $1 AND deleted_at IS NULL;
 
 -- name: DeactivateAccount :exec
 UPDATE Users

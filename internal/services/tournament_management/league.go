@@ -19,7 +19,7 @@ func NewLeagueService(db *sql.DB) *LeagueService {
 }
 
 func (s *LeagueService) CreateLeague(ctx context.Context, req *tournament_management.CreateLeagueRequest) (*tournament_management.League, error) {
-	if err := s.validateAdminRole(ctx); err != nil {
+	if err := s.validateAdminRole(req.GetToken()); err != nil {
 		return nil, err
 	}
 
@@ -71,6 +71,9 @@ func (s *LeagueService) CreateLeague(ctx context.Context, req *tournament_manage
 }
 
 func (s *LeagueService) GetLeague(ctx context.Context, req *tournament_management.GetLeagueRequest) (*tournament_management.League, error) {
+	if err := s.validateAuthentication(req.GetToken()); err != nil {
+		return nil, err
+	}
 	queries := models.New(s.db)
 
 	league, err := queries.GetLeagueByID(ctx, req.GetLeagueId())
@@ -104,6 +107,9 @@ func (s *LeagueService) GetLeague(ctx context.Context, req *tournament_managemen
 }
 
 func (s *LeagueService) ListLeagues(ctx context.Context, req *tournament_management.ListLeaguesRequest) (*tournament_management.ListLeaguesResponse, error) {
+	if err := s.validateAuthentication(req.GetToken()); err != nil {
+		return nil, err
+	}
 	queries := models.New(s.db)
 
 	leagues, err := queries.ListLeaguesPaginated(ctx, models.ListLeaguesPaginatedParams{
@@ -148,7 +154,7 @@ func (s *LeagueService) ListLeagues(ctx context.Context, req *tournament_managem
 }
 
 func (s *LeagueService) UpdateLeague(ctx context.Context, req *tournament_management.UpdateLeagueRequest) (*tournament_management.League, error) {
-	if err := s.validateAdminRole(ctx); err != nil {
+	if err := s.validateAdminRole(req.GetToken()); err != nil {
 		return nil, err
 	}
 
@@ -201,7 +207,7 @@ func (s *LeagueService) UpdateLeague(ctx context.Context, req *tournament_manage
 }
 
 func (s *LeagueService) DeleteLeague(ctx context.Context, req *tournament_management.DeleteLeagueRequest) (bool, error) {
-	if err := s.validateAdminRole(ctx); err != nil {
+	if err := s.validateAdminRole(req.GetToken()); err != nil {
 		return false, err
 	}
 
@@ -215,15 +221,18 @@ func (s *LeagueService) DeleteLeague(ctx context.Context, req *tournament_manage
 	return true, nil
 }
 
-func (s *LeagueService) validateAdminRole(ctx context.Context) error {
-	token, ok := ctx.Value("token").(string)
-	if !ok {
-		return fmt.Errorf("token not found in context")
+func (s *LeagueService) validateAuthentication(token string) error {
+	_, err := utils.ValidateToken(token)
+	if err != nil {
+		return fmt.Errorf("authentication failed: %v", err)
 	}
+	return nil
+}
 
+func (s *LeagueService) validateAdminRole(token string) error {
 	claims, err := utils.ValidateToken(token)
 	if err != nil {
-		return fmt.Errorf("failed to validate token: %v", err)
+		return fmt.Errorf("authentication failed: %v", err)
 	}
 
 	userRole, ok := claims["user_role"].(string)

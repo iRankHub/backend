@@ -17,7 +17,8 @@ CREATE TABLE Users (
    reset_token_expires TIMESTAMP,
    biometric_token VARCHAR(64),
    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+   deleted_at TIMESTAMP
 );
 
 -- Create UserProfiles table
@@ -27,6 +28,7 @@ CREATE TABLE UserProfiles (
    Name VARCHAR(255) NOT NULL,
    UserRole VARCHAR(50) NOT NULL,
    Email VARCHAR(255) NOT NULL,
+   Password VARCHAR(255) NOT NULL,
    Address VARCHAR(255),
    Phone VARCHAR(20),
    Bio TEXT,
@@ -60,14 +62,16 @@ CREATE TABLE TournamentFormats (
    FormatID SERIAL PRIMARY KEY,
    FormatName VARCHAR(255) NOT NULL,
    Description TEXT,
-   SpeakersPerTeam INTEGER NOT NULL
+   SpeakersPerTeam INTEGER NOT NULL,
+   deleted_at TIMESTAMP
 );
 
 -- Create Leagues table
 CREATE TABLE Leagues (
     LeagueID SERIAL PRIMARY KEY,
     Name VARCHAR(255) NOT NULL,
-    LeagueType VARCHAR(50) NOT NULL CHECK (LeagueType IN ('local', 'international'))
+    LeagueType VARCHAR(50) NOT NULL CHECK (LeagueType IN ('local', 'international')),
+    deleted_at TIMESTAMP
 );
 
 -- Create LocalLeagueDetails table
@@ -97,7 +101,8 @@ CREATE TABLE Tournaments (
     NumberOfEliminationRounds INTEGER NOT NULL,
     JudgesPerDebatePreliminary INTEGER NOT NULL,
     JudgesPerDebateElimination INTEGER NOT NULL,
-    TournamentFee DECIMAL(10, 2) NOT NULL
+    TournamentFee DECIMAL(10, 2) NOT NULL,
+    deleted_at TIMESTAMP
 );
 
 

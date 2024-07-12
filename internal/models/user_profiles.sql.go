@@ -11,9 +11,9 @@ import (
 )
 
 const createUserProfile = `-- name: CreateUserProfile :one
-INSERT INTO UserProfiles (UserID, Name, UserRole, Email, VerificationStatus, Address, Phone, Bio, ProfilePicture)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING profileid, userid, name, userrole, email, address, phone, bio, profilepicture, verificationstatus
+INSERT INTO UserProfiles (UserID, Name, UserRole, Email, Password, VerificationStatus, Address, Phone, Bio, ProfilePicture)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING profileid, userid, name, userrole, email, password, address, phone, bio, profilepicture, verificationstatus
 `
 
 type CreateUserProfileParams struct {
@@ -21,6 +21,7 @@ type CreateUserProfileParams struct {
 	Name               string         `json:"name"`
 	Userrole           string         `json:"userrole"`
 	Email              string         `json:"email"`
+	Password           string         `json:"password"`
 	Verificationstatus sql.NullBool   `json:"verificationstatus"`
 	Address            sql.NullString `json:"address"`
 	Phone              sql.NullString `json:"phone"`
@@ -34,6 +35,7 @@ func (q *Queries) CreateUserProfile(ctx context.Context, arg CreateUserProfilePa
 		arg.Name,
 		arg.Userrole,
 		arg.Email,
+		arg.Password,
 		arg.Verificationstatus,
 		arg.Address,
 		arg.Phone,
@@ -47,6 +49,7 @@ func (q *Queries) CreateUserProfile(ctx context.Context, arg CreateUserProfilePa
 		&i.Name,
 		&i.Userrole,
 		&i.Email,
+		&i.Password,
 		&i.Address,
 		&i.Phone,
 		&i.Bio,
@@ -67,7 +70,7 @@ func (q *Queries) DeleteUserProfile(ctx context.Context, userid int32) error {
 }
 
 const getUserProfile = `-- name: GetUserProfile :one
-SELECT profileid, userid, name, userrole, email, address, phone, bio, profilepicture, verificationstatus FROM UserProfiles
+SELECT profileid, userid, name, userrole, email, password, address, phone, bio, profilepicture, verificationstatus FROM UserProfiles
 WHERE UserID = $1
 `
 
@@ -80,6 +83,7 @@ func (q *Queries) GetUserProfile(ctx context.Context, userid int32) (Userprofile
 		&i.Name,
 		&i.Userrole,
 		&i.Email,
+		&i.Password,
 		&i.Address,
 		&i.Phone,
 		&i.Bio,
@@ -91,9 +95,9 @@ func (q *Queries) GetUserProfile(ctx context.Context, userid int32) (Userprofile
 
 const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE UserProfiles
-SET Name = $2, UserRole = $3, Email = $4, VerificationStatus = $5, Address = $6, Phone = $7, Bio = $8, ProfilePicture = $9
+SET Name = $2, UserRole = $3, Email = $4, Password = $5, VerificationStatus = $6, Address = $7, Phone = $8, Bio = $9, ProfilePicture = $10
 WHERE UserID = $1
-RETURNING profileid, userid, name, userrole, email, address, phone, bio, profilepicture, verificationstatus
+RETURNING profileid, userid, name, userrole, email, password, address, phone, bio, profilepicture, verificationstatus
 `
 
 type UpdateUserProfileParams struct {
@@ -101,6 +105,7 @@ type UpdateUserProfileParams struct {
 	Name               string         `json:"name"`
 	Userrole           string         `json:"userrole"`
 	Email              string         `json:"email"`
+	Password           string         `json:"password"`
 	Verificationstatus sql.NullBool   `json:"verificationstatus"`
 	Address            sql.NullString `json:"address"`
 	Phone              sql.NullString `json:"phone"`
@@ -114,6 +119,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		arg.Name,
 		arg.Userrole,
 		arg.Email,
+		arg.Password,
 		arg.Verificationstatus,
 		arg.Address,
 		arg.Phone,
@@ -127,6 +133,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.Name,
 		&i.Userrole,
 		&i.Email,
+		&i.Password,
 		&i.Address,
 		&i.Phone,
 		&i.Bio,

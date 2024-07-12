@@ -22,7 +22,7 @@ func NewTournamentService(db *sql.DB) *TournamentService {
 }
 
 func (s *TournamentService) CreateTournament(ctx context.Context, req *tournament_management.CreateTournamentRequest) (*tournament_management.Tournament, error) {
-	claims, err := s.validateAdminRole(ctx)
+	claims, err := s.validateAdminRole(req.GetToken())
 	if err != nil {
 		return nil, err
 	}
@@ -108,6 +108,9 @@ go func() {
 }
 
 func (s *TournamentService) GetTournament(ctx context.Context, req *tournament_management.GetTournamentRequest) (*tournament_management.Tournament, error) {
+	if err := s.validateAuthentication(req.GetToken()); err != nil {
+		return nil, err
+	}
 	queries := models.New(s.db)
 	tournament, err := queries.GetTournamentByID(ctx, req.GetTournamentId())
 	if err != nil {
@@ -118,6 +121,9 @@ func (s *TournamentService) GetTournament(ctx context.Context, req *tournament_m
 }
 
 func (s *TournamentService) ListTournaments(ctx context.Context, req *tournament_management.ListTournamentsRequest) (*tournament_management.ListTournamentsResponse, error) {
+	if err := s.validateAuthentication(req.GetToken()); err != nil {
+		return nil, err
+	}
 	queries := models.New(s.db)
 	tournaments, err := queries.ListTournamentsPaginated(ctx, models.ListTournamentsPaginatedParams{
 		Limit:  int32(req.GetPageSize()),
@@ -156,7 +162,7 @@ func tournamentPaginatedRowToProto(t models.ListTournamentsPaginatedRow) *tourna
 }
 
 func (s *TournamentService) UpdateTournament(ctx context.Context, req *tournament_management.UpdateTournamentRequest) (*tournament_management.Tournament, error) {
-	_, err := s.validateAdminRole(ctx)
+	_, err := s.validateAdminRole(req.GetToken())
 	if err != nil {
 		return nil, err
 	}
@@ -184,10 +190,11 @@ func (s *TournamentService) UpdateTournament(ctx context.Context, req *tournamen
 }
 
 func (s *TournamentService) DeleteTournament(ctx context.Context, req *tournament_management.DeleteTournamentRequest) error {
-	_, err := s.validateAdminRole(ctx)
+	_, err := s.validateAdminRole(req.GetToken())
 	if err != nil {
 		return err
 	}
+
 
 	queries := models.New(s.db)
 	err = queries.DeleteTournamentByID(ctx, req.GetTournamentId())
@@ -198,15 +205,18 @@ func (s *TournamentService) DeleteTournament(ctx context.Context, req *tournamen
 	return nil
 }
 
-func (s *TournamentService) validateAdminRole(ctx context.Context) (map[string]interface{}, error) {
-	token, ok := ctx.Value("token").(string)
-	if !ok {
-		return nil, fmt.Errorf("token not found in context")
+func (s *TournamentService) validateAuthentication(token string) error {
+	_, err := utils.ValidateToken(token)
+	if err != nil {
+		return fmt.Errorf("authentication failed: %v", err)
 	}
+	return nil
+}
 
+func (s *TournamentService) validateAdminRole(token string) (map[string]interface{}, error) {
 	claims, err := utils.ValidateToken(token)
 	if err != nil {
-		return nil, fmt.Errorf("failed to validate token: %v", err)
+		return nil, fmt.Errorf("authentication failed: %v", err)
 	}
 
 	userRole, ok := claims["user_role"].(string)

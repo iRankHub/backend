@@ -87,15 +87,18 @@ message CreateLeagueRequest {
     LocalLeagueDetails local_details = 3;
     InternationalLeagueDetails international_details = 4;
   }
+  string token = 5;
 }
 
 message GetLeagueRequest {
   int32 league_id = 1;
+  string token = 2;
 }
 
 message ListLeaguesRequest {
   int32 page_size = 1;
   int32 page_token = 2;
+  string token = 3;
 }
 
 message UpdateLeagueRequest {
@@ -106,25 +109,30 @@ message UpdateLeagueRequest {
     LocalLeagueDetails local_details = 4;
     InternationalLeagueDetails international_details = 5;
   }
+  string token = 6;
 }
 
 message DeleteLeagueRequest {
   int32 league_id = 1;
+  string token = 2;
 }
 
 message CreateTournamentFormatRequest {
   string format_name = 1;
   string description = 2;
   int32 speakers_per_team = 3;
+  string token = 4;
 }
 
 message GetTournamentFormatRequest {
   int32 format_id = 1;
+  string token = 2;
 }
 
 message ListTournamentFormatsRequest {
   int32 page_size = 1;
   int32 page_token = 2;
+  string token = 3;
 }
 
 message UpdateTournamentFormatRequest {
@@ -132,10 +140,12 @@ message UpdateTournamentFormatRequest {
   string format_name = 2;
   string description = 3;
   int32 speakers_per_team = 4;
+  string token = 5;
 }
 
 message DeleteTournamentFormatRequest {
   int32 format_id = 1;
+  string token = 2;
 }
 
 message CreateTournamentRequest {
@@ -150,15 +160,18 @@ message CreateTournamentRequest {
   int32 judges_per_debate_preliminary = 9;
   int32 judges_per_debate_elimination = 10;
   double tournament_fee = 11;
+  string token = 12;
 }
 
 message GetTournamentRequest {
   int32 tournament_id = 1;
+  string token = 2;
 }
 
 message ListTournamentsRequest {
   int32 page_size = 1;
   int32 page_token = 2;
+  string token = 3;
 }
 
 message UpdateTournamentRequest {
@@ -174,10 +187,12 @@ message UpdateTournamentRequest {
   int32 judges_per_debate_preliminary = 10;
   int32 judges_per_debate_elimination = 11;
   double tournament_fee = 12;
+  string token = 13;
 }
 
 message DeleteTournamentRequest {
   int32 tournament_id = 1;
+  string token = 2;
 }
 
 // Response messages

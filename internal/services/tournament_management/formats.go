@@ -19,7 +19,7 @@ func NewFormatService(db *sql.DB) *FormatService {
 }
 
 func (s *FormatService) CreateTournamentFormat(ctx context.Context, req *tournament_management.CreateTournamentFormatRequest) (*tournament_management.TournamentFormat, error) {
-	if err := s.validateAdminRole(ctx); err != nil {
+	if err := s.validateAdminRole(req.GetToken()); err != nil {
 		return nil, err
 	}
 
@@ -52,6 +52,9 @@ func (s *FormatService) CreateTournamentFormat(ctx context.Context, req *tournam
 }
 
 func (s *FormatService) GetTournamentFormat(ctx context.Context, req *tournament_management.GetTournamentFormatRequest) (*tournament_management.TournamentFormat, error) {
+	if err := s.validateAuthentication(req.GetToken()); err != nil {
+		return nil, err
+	}
 	queries := models.New(s.db)
 	format, err := queries.GetTournamentFormatByID(ctx, int32(req.GetFormatId()))
 	if err != nil {
@@ -67,6 +70,9 @@ func (s *FormatService) GetTournamentFormat(ctx context.Context, req *tournament
 }
 
 func (s *FormatService) ListTournamentFormats(ctx context.Context, req *tournament_management.ListTournamentFormatsRequest) (*tournament_management.ListTournamentFormatsResponse, error) {
+	if err := s.validateAuthentication(req.GetToken()); err != nil {
+		return nil, err
+	}
 	queries := models.New(s.db)
 	formats, err := queries.ListTournamentFormatsPaginated(ctx, models.ListTournamentFormatsPaginatedParams{
 		Limit:  req.GetPageSize(),
@@ -93,7 +99,7 @@ func (s *FormatService) ListTournamentFormats(ctx context.Context, req *tourname
 }
 
 func (s *FormatService) UpdateTournamentFormat(ctx context.Context, req *tournament_management.UpdateTournamentFormatRequest) (*tournament_management.TournamentFormat, error) {
-	if err := s.validateAdminRole(ctx); err != nil {
+	if err := s.validateAdminRole(req.GetToken()); err != nil {
 		return nil, err
 	}
 
@@ -127,7 +133,7 @@ func (s *FormatService) UpdateTournamentFormat(ctx context.Context, req *tournam
 }
 
 func (s *FormatService) DeleteTournamentFormat(ctx context.Context, req *tournament_management.DeleteTournamentFormatRequest) error {
-	if err := s.validateAdminRole(ctx); err != nil {
+	if err := s.validateAdminRole(req.GetToken()); err != nil {
 		return err
 	}
 
@@ -150,15 +156,18 @@ func (s *FormatService) DeleteTournamentFormat(ctx context.Context, req *tournam
 	return nil
 }
 
-func (s *FormatService) validateAdminRole(ctx context.Context) error {
-	token, ok := ctx.Value("token").(string)
-	if !ok {
-		return fmt.Errorf("token not found in context")
+func (s *FormatService) validateAuthentication(token string) error {
+	_, err := utils.ValidateToken(token)
+	if err != nil {
+		return fmt.Errorf("authentication failed: %v", err)
 	}
+	return nil
+}
 
+func (s *FormatService) validateAdminRole(token string) error {
 	claims, err := utils.ValidateToken(token)
 	if err != nil {
-		return fmt.Errorf("failed to validate token: %v", err)
+		return fmt.Errorf("authentication failed: %v", err)
 	}
 
 	userRole, ok := claims["user_role"].(string)

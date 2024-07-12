@@ -2,14 +2,13 @@ package server
 
 import (
 	"context"
-	"crypto/ed25519"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
 	services "github.com/iRankHub/backend/internal/services/authentication"
 	"github.com/iRankHub/backend/internal/utils"
-
 )
 
 type authServer struct {
@@ -20,18 +19,9 @@ type authServer struct {
 	twoFactorService *services.TwoFactorService
 	recoveryService  *services.RecoveryService
 	biometricService *services.BiometricService
-	privateKey       ed25519.PrivateKey
 }
 
 func NewAuthServer(db *sql.DB) (authentication.AuthServiceServer, error) {
-	privateKey, publicKey, err := utils.GeneratePasetoKeyPair()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate PASETO key pair: %v", err)
-	}
-
-	// Set the public key for token validation
-	utils.SetPublicKey(publicKey)
-
 	twoFactorService := services.NewTwoFactorService(db)
 	recoveryService := services.NewRecoveryService(db)
 	biometricService := services.NewBiometricService(db)
@@ -45,7 +35,6 @@ func NewAuthServer(db *sql.DB) (authentication.AuthServiceServer, error) {
 		twoFactorService: twoFactorService,
 		recoveryService:  recoveryService,
 		biometricService: biometricService,
-		privateKey:       privateKey,
 	}, nil
 }
 
@@ -72,14 +61,16 @@ func (s *authServer) SignUp(ctx context.Context, req *authentication.SignUpReque
 		return nil, err
 	}
 
-	var message string
+	var message, status string
 	if req.UserRole == "admin" {
 		message = "Admin account created successfully. You can now log in to the system."
+		status = "approved"
 	} else {
 		message = "Sign-up successful. Please wait for admin approval."
+		status = "pending"
 	}
 
-	return &authentication.SignUpResponse{Success: true, Message: message}, nil
+	return &authentication.SignUpResponse{Success: true, Message: message, Status: status}, nil
 }
 
 func (s *authServer) Login(ctx context.Context, req *authentication.LoginRequest) (*authentication.LoginResponse, error) {
@@ -94,25 +85,33 @@ func (s *authServer) Login(ctx context.Context, req *authentication.LoginRequest
 		return &authentication.LoginResponse{Success: false, Message: "Invalid email or password"}, nil
 	}
 
-    if user.Status.Valid && user.Status.String == "pending" {
-        token, err := utils.GenerateToken(user.Userid, user.Userrole, s.privateKey)
-        if err != nil {
-            return nil, fmt.Errorf("failed to generate token: %v", err)
-        }
-        return &authentication.LoginResponse{
-            Success:  true,
-            Token:    token,
-            UserRole: user.Userrole,
-            UserID:   user.Userid,
-            Message:  "Your account is pending approval. You will be logged out in 20 seconds.",
-        }, nil
-    }
+	if user.Status.Valid && user.Status.String == "pending" {
+		token, err := utils.GenerateToken(user.Userid, user.Userrole, user.Email)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate token: %v", err)
+		}
 
-    if user.Status.Valid && user.Status.String == "rejected" {
-        return &authentication.LoginResponse{Success: false, Message: "Your account has been rejected."}, nil
-    }
+		// Invalidate the token after 20 seconds
+		go func() {
+			time.Sleep(20 * time.Second)
+			utils.InvalidateToken(token)
+		}()
 
-	token, err := utils.GenerateToken(user.Userid, user.Userrole, s.privateKey)
+		return &authentication.LoginResponse{
+			Success:  true,
+			Token:    token,
+			UserRole: user.Userrole,
+			UserID:   user.Userid,
+			Message:  "Your account is pending approval. You will be logged out in 20 seconds.",
+			Status:   user.Status.String,
+		}, nil
+	}
+
+	if user.Status.Valid && user.Status.String == "rejected" {
+		return &authentication.LoginResponse{Success: false, Message: "Your account has been rejected."}, nil
+	}
+
+	token, err := utils.GenerateToken(user.Userid, user.Userrole, user.Email)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token: %v", err)
 	}
@@ -123,7 +122,7 @@ func (s *authServer) Login(ctx context.Context, req *authentication.LoginRequest
 		UserRole: user.Userrole,
 		UserID:   user.Userid,
 		Message:  "Login successful",
-		Status: user.Status.String,
+		Status:   user.Status.String,
 	}, nil
 }
 
@@ -172,12 +171,24 @@ func (s *authServer) EnableTwoFactor(ctx context.Context, req *authentication.En
 }
 
 func (s *authServer) VerifyTwoFactor(ctx context.Context, req *authentication.VerifyTwoFactorRequest) (*authentication.VerifyTwoFactorResponse, error) {
-    success, err := s.twoFactorService.VerifyAndEnableTwoFactor(ctx, req.UserID, req.Code)
-    if err != nil {
-        return nil, fmt.Errorf("failed to verify and enable two-factor authentication: %v", err)
-    }
+	// Validate the token
+	claims, err := utils.ValidateToken(req.Token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate token: %v", err)
+	}
 
-    return &authentication.VerifyTwoFactorResponse{Success: success}, nil
+	// Check if the token belongs to the user
+	userID := int32(claims["user_id"].(float64))
+	if userID != req.UserID {
+		return nil, fmt.Errorf("token does not belong to the user")
+	}
+
+	success, err := s.twoFactorService.VerifyAndEnableTwoFactor(ctx, req.UserID, req.Code)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify and enable two-factor authentication: %v", err)
+	}
+
+	return &authentication.VerifyTwoFactorResponse{Success: success}, nil
 }
 
 func (s *authServer) DisableTwoFactor(ctx context.Context, req *authentication.DisableTwoFactorRequest) (*authentication.DisableTwoFactorResponse, error) {
@@ -228,39 +239,39 @@ func (s *authServer) EnableBiometricLogin(ctx context.Context, req *authenticati
 }
 
 func (s *authServer) BiometricLogin(ctx context.Context, req *authentication.BiometricLoginRequest) (*authentication.LoginResponse, error) {
-    user, err := s.biometricService.VerifyBiometricToken(ctx, req.BiometricToken)
-    if err != nil {
-        // If VerifyBiometricToken fails, we don't have a user to pass to HandleFailedLoginAttempt
-        // We should handle this case differently
-        return nil, fmt.Errorf("failed to verify biometric token: %v", err)
-    }
+	user, err := s.biometricService.VerifyBiometricToken(ctx, req.BiometricToken)
+	if err != nil {
+		// If VerifyBiometricToken fails, we don't have a user to pass to HandleFailedLoginAttempt
+		// We should handle this case differently
+		return nil, fmt.Errorf("failed to verify biometric token: %v", err)
+	}
 
-    err = s.loginService.HandleFailedLoginAttempt(ctx, user)
-    if err != nil {
-        if err.Error() == "two factor authentication required" {
-            return &authentication.LoginResponse{Success: false, RequireTwoFactor: true}, nil
-        }
-        if err.Error() == "password reset required" {
-            return &authentication.LoginResponse{Success: false, RequirePasswordReset: true, Message: "A password reset email has been sent to your account."}, nil
-        }
-        return nil, fmt.Errorf("login attempt failed: %v", err)
-    }
+	err = s.loginService.HandleFailedLoginAttempt(ctx, user)
+	if err != nil {
+		if err.Error() == "two factor authentication required" {
+			return &authentication.LoginResponse{Success: false, RequireTwoFactor: true}, nil
+		}
+		if err.Error() == "password reset required" {
+			return &authentication.LoginResponse{Success: false, RequirePasswordReset: true, Message: "A password reset email has been sent to your account."}, nil
+		}
+		return nil, fmt.Errorf("login attempt failed: %v", err)
+	}
 
-    err = s.loginService.HandleSuccessfulLogin(ctx, user.Userid)
-    if err != nil {
-        return nil, err
-    }
+	err = s.loginService.HandleSuccessfulLogin(ctx, user.Userid)
+	if err != nil {
+		return nil, err
+	}
 
-    token, err := utils.GenerateToken(user.Userid, user.Userrole, s.privateKey)
-    if err != nil {
-        return nil, fmt.Errorf("failed to generate token: %v", err)
-    }
+	token, err := utils.GenerateToken(user.Userid, user.Userrole, user.Email)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate token: %v", err)
+	}
 
-    return &authentication.LoginResponse{
-        Success:  true,
-        Token:    token,
-        UserRole: user.Userrole,
-        UserID:   user.Userid,
-        Message:"Login Successful",
-    }, nil
+	return &authentication.LoginResponse{
+		Success:  true,
+		Token:    token,
+		UserRole: user.Userrole,
+		UserID:   user.Userid,
+		Message:  "Login Successful",
+	}, nil
 }

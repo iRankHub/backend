@@ -99,7 +99,8 @@ Demo Data:
 ```json
 {
   "userID": 1,
-  "code": "123456"
+  "code": "123456",
+  "token": "your_auth_token_here"
 }
 ```
 
@@ -246,7 +247,7 @@ To test the user management features:
 
 1. Start by creating a new user using the `SignUp` endpoint.
 2. Use the `Login` endpoint to authenticate and receive a token.
-3. Use the token in the metadata for subsequent authenticated requests.
+3. Include the token in the request body for subsequent authenticated requests.
 4. Test the following scenarios:
 
    a. Pending User Approval:
@@ -278,9 +279,9 @@ To test the two-factor authentication flow:
 2. Use the `EnableTwoFactor` endpoint with the obtained token to enable 2FA for the user.
 3. The response will include a secret and a QR code URL. Use an authenticator app to scan the QR code or manually enter the secret.
 4. Generate a 2FA code using the authenticator app.
-5. Use the `VerifyTwoFactor` endpoint with the generated code to verify and complete the 2FA setup.
+5. Use the `VerifyTwoFactor` endpoint with the generated code and the token to verify and complete the 2FA setup.
 6. For subsequent logins, the `Login` endpoint will return `requireTwoFactor: true` if 2FA is enabled.
-7. Provide the 2FA code using the `VerifyTwoFactor` endpoint to complete the login process.
+7. Provide the 2FA code and the token using the `VerifyTwoFactor` endpoint to complete the login process.
 8. To disable 2FA, use the `DisableTwoFactor` endpoint with a valid authentication token.
 
 ### Request Password Reset
@@ -319,7 +320,8 @@ Description: Enable biometric login for a user account.
 Demo Data:
 ```json
 {
-  "userID": 1
+  "userID": 1,
+  "token": "your_auth_token_here"
 }
 ```
 
@@ -351,7 +353,8 @@ Request:
     "nationalDetails": {
       "country": "United States"
     }
-  }
+  },
+  "token": "your_auth_token_here"
 }
 ```
 
@@ -362,7 +365,8 @@ Endpoint: `TournamentService.GetLeague`
 Request:
 ```json
 {
-  "leagueId": 1
+  "leagueId": 1,
+  "token": "your_auth_token_here"
 }
 ```
 
@@ -374,7 +378,8 @@ Request:
 ```json
 {
   "pageSize": 10,
-  "pageToken": 0
+  "pageToken": 0,
+  "token": "your_auth_token_here"
 }
 ```
 
@@ -393,7 +398,8 @@ Request:
     "nationalDetails": {
       "country": "United States"
     }
-  }
+  },
+  "token": "your_auth_token_here"
 }
 ```
 
@@ -405,7 +411,8 @@ Authorization: Admin only
 Request:
 ```json
 {
-  "leagueId": 1
+  "leagueId": 1,
+  "token": "your_auth_token_here"
 }
 ```
 
@@ -421,7 +428,8 @@ Request:
 {
   "formatName": "British Parliamentary",
   "description": "A globally recognized debate format",
-  "speakersPerTeam": 2
+  "speakersPerTeam": 2,
+  "token": "your_auth_token_here"
 }
 ```
 
@@ -432,7 +440,8 @@ Endpoint: `TournamentService.GetTournamentFormat`
 Request:
 ```json
 {
-  "formatId": 1
+  "formatId": 1,
+  "token": "your_auth_token_here"
 }
 ```
 
@@ -444,7 +453,8 @@ Request:
 ```json
 {
   "pageSize": 10,
-  "pageToken": 0
+  "pageToken": 0,
+  "token": "your_auth_token_here"
 }
 ```
 
@@ -459,7 +469,8 @@ Request:
   "formatId": 1,
   "formatName": "Updated British Parliamentary",
   "description": "An updated globally recognized debate format",
-  "speakersPerTeam": 2
+  "speakersPerTeam": 2,
+  "token": "your_auth_token_here"
 }
 ```
 
@@ -471,7 +482,8 @@ Authorization: Admin only
 Request:
 ```json
 {
-  "formatId": 1
+  "formatId": 1,
+  "token": "your_auth_token_here"
 }
 ```
 
@@ -494,7 +506,8 @@ Request:
   "numberOfEliminationRounds": 2,
   "judgesPerDebatePreliminary": 3,
   "judgesPerDebateElimination": 5,
-  "tournamentFee": 100.00
+  "tournamentFee": 100.00,
+  "token": "your_auth_token_here"
 }
 ```
 
@@ -505,7 +518,8 @@ Endpoint: `TournamentService.GetTournament`
 Request:
 ```json
 {
-  "tournamentId": 1
+  "tournamentId": 1,
+  "token": "your_auth_token_here"
 }
 ```
 
@@ -517,7 +531,8 @@ Request:
 ```json
 {
   "pageSize": 10,
-  "pageToken": 0
+  "pageToken": 0,
+  "token": "your_auth_token_here"
 }
 ```
 
@@ -540,7 +555,8 @@ Request:
   "numberOfEliminationRounds": 3,
   "judgesPerDebatePreliminary": 4,
   "judgesPerDebateElimination": 6,
-  "tournamentFee": 120.00
+  "tournamentFee": 120.00,
+  "token": "your_auth_token_here"
 }
 ```
 
@@ -552,7 +568,8 @@ Authorization: Admin only
 Request:
 ```json
 {
-  "tournamentId": 1
+  "tournamentId": 1,
+  "token": "your_auth_token_here"
 }
 ```
 
@@ -561,7 +578,7 @@ Request:
 To test the tournament management features, including leagues and formats:
 
 1. Use the `Login` endpoint to authenticate as an admin and receive a token.
-2. Use the token in the metadata for subsequent authenticated requests.
+2. Include the token in the request body for subsequent authenticated requests.
 3. Test the following scenarios:
 
    a. League Management:
@@ -594,9 +611,9 @@ To test the tournament management features, including leagues and formats:
 
 4. For each test, verify that the appropriate email notifications are sent (tournament creation confirmation, invitations).
 
-Remember to include the authentication token in the metadata for each request:
-- Key: `authorization`
-- Value: `Bearer <token_received_from_login>`
+Remember to include the authentication token in the request body for each request:
+- Key: `token`
+- Value: `<token_received_from_login>`
 
 Note: When testing deletion operations, ensure that you're not deleting entities that are still referenced by others (e.g., don't delete a league or format that's still used by an active tournament).
 
@@ -607,17 +624,14 @@ To test the API endpoints using Postman:
 1. Set up a new gRPC request in Postman.
 2. Use `localhost:10000` as the server URL (Envoy proxy address).
 3. Import the `.proto` file into Postman and select the desired method.
-4. Input the appropriate demo data in the "Message" tab.
-5. For authenticated requests, add the token to the metadata:
-   - Key: `authorization`
-   - Value: `Bearer <token_received_from_login>`
-6. Click "Invoke" to send the request.
+4. Input the appropriate demo data in the "Message" tab, including the `token` field for authenticated requests.
+5. Click "Invoke" to send the request.
 
 ### Testing Flow
 
 1. Start by using the SignUp endpoint to create a new user.
 2. Use the Login endpoint to authenticate and receive a token.
-3. Use the token in the metadata for subsequent authenticated requests.
+3. Include the token in the request body for subsequent authenticated requests.
 4. Test other endpoints as needed, ensuring to use the correct user ID and token.
 
 ## Error Handling

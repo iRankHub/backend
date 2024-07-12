@@ -22,7 +22,7 @@ func (q *Queries) ClearResetToken(ctx context.Context, userid int32) error {
 const createUser = `-- name: CreateUser :one
 INSERT INTO Users (Name, Email, Password, UserRole, Status)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING userid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, biometric_token, created_at, updated_at
+RETURNING userid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, biometric_token, created_at, updated_at, deleted_at
 `
 
 type CreateUserParams struct {
@@ -61,6 +61,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.BiometricToken,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
@@ -77,7 +78,8 @@ func (q *Queries) DeactivateAccount(ctx context.Context, userid int32) error {
 }
 
 const deleteUser = `-- name: DeleteUser :exec
-DELETE FROM Users
+UPDATE Users
+SET deleted_at = CURRENT_TIMESTAMP
 WHERE UserID = $1
 `
 
@@ -87,7 +89,9 @@ func (q *Queries) DeleteUser(ctx context.Context, userid int32) error {
 }
 
 const disableTwoFactor = `-- name: DisableTwoFactor :exec
-UPDATE Users SET two_factor_enabled = FALSE WHERE UserID = $1
+UPDATE Users
+SET two_factor_enabled = FALSE, two_factor_secret = NULL
+WHERE UserID = $1
 `
 
 func (q *Queries) DisableTwoFactor(ctx context.Context, userid int32) error {
@@ -122,8 +126,8 @@ func (q *Queries) GetAccountStatus(ctx context.Context, userid int32) (string, e
 }
 
 const getPendingUsers = `-- name: GetPendingUsers :many
-SELECT userid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, biometric_token, created_at, updated_at FROM Users
-WHERE Status = 'pending'
+SELECT userid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, biometric_token, created_at, updated_at, deleted_at FROM Users
+WHERE Status = 'pending' AND deleted_at IS NULL
 `
 
 func (q *Queries) GetPendingUsers(ctx context.Context) ([]User, error) {
@@ -154,6 +158,7 @@ func (q *Queries) GetPendingUsers(ctx context.Context) ([]User, error) {
 			&i.BiometricToken,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -169,7 +174,9 @@ func (q *Queries) GetPendingUsers(ctx context.Context) ([]User, error) {
 }
 
 const getUserByBiometricToken = `-- name: GetUserByBiometricToken :one
-SELECT userid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, biometric_token, created_at, updated_at FROM Users WHERE biometric_token = $1 LIMIT 1
+SELECT userid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, biometric_token, created_at, updated_at, deleted_at FROM Users
+WHERE biometric_token = $1 AND deleted_at IS NULL
+LIMIT 1
 `
 
 func (q *Queries) GetUserByBiometricToken(ctx context.Context, biometricToken sql.NullString) (User, error) {
@@ -194,13 +201,14 @@ func (q *Queries) GetUserByBiometricToken(ctx context.Context, biometricToken sq
 		&i.BiometricToken,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT userid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, biometric_token, created_at, updated_at FROM Users
-WHERE Email = $1
+SELECT userid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, biometric_token, created_at, updated_at, deleted_at FROM Users
+WHERE Email = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -225,13 +233,14 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.BiometricToken,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT userid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, biometric_token, created_at, updated_at FROM Users
-WHERE UserID = $1
+SELECT userid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, biometric_token, created_at, updated_at, deleted_at FROM Users
+WHERE UserID = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, userid int32) (User, error) {
@@ -256,12 +265,15 @@ func (q *Queries) GetUserByID(ctx context.Context, userid int32) (User, error) {
 		&i.BiometricToken,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getUserByResetToken = `-- name: GetUserByResetToken :one
-SELECT userid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, biometric_token, created_at, updated_at FROM Users WHERE reset_token = $1 AND reset_token_expires > NOW() LIMIT 1
+SELECT userid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, biometric_token, created_at, updated_at, deleted_at FROM Users
+WHERE reset_token = $1 AND reset_token_expires > NOW() AND deleted_at IS NULL
+LIMIT 1
 `
 
 func (q *Queries) GetUserByResetToken(ctx context.Context, resetToken sql.NullString) (User, error) {
@@ -286,12 +298,39 @@ func (q *Queries) GetUserByResetToken(ctx context.Context, resetToken sql.NullSt
 		&i.BiometricToken,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getUserEmailAndNameByID = `-- name: GetUserEmailAndNameByID :one
+SELECT UserID, Email, Name, Password, UserRole FROM Users WHERE UserID = $1
+`
+
+type GetUserEmailAndNameByIDRow struct {
+	Userid   int32  `json:"userid"`
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+	Userrole string `json:"userrole"`
+}
+
+func (q *Queries) GetUserEmailAndNameByID(ctx context.Context, userid int32) (GetUserEmailAndNameByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserEmailAndNameByID, userid)
+	var i GetUserEmailAndNameByIDRow
+	err := row.Scan(
+		&i.Userid,
+		&i.Email,
+		&i.Name,
+		&i.Password,
+		&i.Userrole,
 	)
 	return i, err
 }
 
 const getUserWithAuthDetails = `-- name: GetUserWithAuthDetails :one
-SELECT userid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, biometric_token, created_at, updated_at FROM Users WHERE UserID = $1
+SELECT userid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, biometric_token, created_at, updated_at, deleted_at FROM Users
+WHERE UserID = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetUserWithAuthDetails(ctx context.Context, userid int32) (User, error) {
@@ -316,13 +355,14 @@ func (q *Queries) GetUserWithAuthDetails(ctx context.Context, userid int32) (Use
 		&i.BiometricToken,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }
 
 const getUsersByStatus = `-- name: GetUsersByStatus :many
-SELECT userid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, biometric_token, created_at, updated_at FROM Users
-WHERE Status = $1
+SELECT userid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, biometric_token, created_at, updated_at, deleted_at FROM Users
+WHERE Status = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetUsersByStatus(ctx context.Context, status sql.NullString) ([]User, error) {
@@ -353,6 +393,7 @@ func (q *Queries) GetUsersByStatus(ctx context.Context, status sql.NullString) (
 			&i.BiometricToken,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -457,7 +498,7 @@ const updateUser = `-- name: UpdateUser :one
 UPDATE Users
 SET Name = $2, Email = $3, Password = $4, UserRole = $5, VerificationStatus = $6, Status = $7
 WHERE UserID = $1
-RETURNING userid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, biometric_token, created_at, updated_at
+RETURNING userid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, biometric_token, created_at, updated_at, deleted_at
 `
 
 type UpdateUserParams struct {
@@ -500,6 +541,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.BiometricToken,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletedAt,
 	)
 	return i, err
 }

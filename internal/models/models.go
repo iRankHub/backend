@@ -72,9 +72,10 @@ type Judgereview struct {
 }
 
 type League struct {
-	Leagueid   int32  `json:"leagueid"`
-	Name       string `json:"name"`
-	Leaguetype string `json:"leaguetype"`
+	Leagueid   int32        `json:"leagueid"`
+	Name       string       `json:"name"`
+	Leaguetype string       `json:"leaguetype"`
+	DeletedAt  sql.NullTime `json:"deleted_at"`
 }
 
 type Localleaguedetail struct {
@@ -206,6 +207,7 @@ type Tournament struct {
 	Judgesperdebatepreliminary int32         `json:"judgesperdebatepreliminary"`
 	Judgesperdebateelimination int32         `json:"judgesperdebateelimination"`
 	Tournamentfee              string        `json:"tournamentfee"`
+	DeletedAt                  sql.NullTime  `json:"deleted_at"`
 }
 
 type Tournamentcoordinator struct {
@@ -219,6 +221,7 @@ type Tournamentformat struct {
 	Formatname      string         `json:"formatname"`
 	Description     sql.NullString `json:"description"`
 	Speakersperteam int32          `json:"speakersperteam"`
+	DeletedAt       sql.NullTime   `json:"deleted_at"`
 }
 
 type User struct {
@@ -240,6 +243,7 @@ type User struct {
 	BiometricToken      sql.NullString `json:"biometric_token"`
 	CreatedAt           sql.NullTime   `json:"created_at"`
 	UpdatedAt           sql.NullTime   `json:"updated_at"`
+	DeletedAt           sql.NullTime   `json:"deleted_at"`
 }
 
 type Userprofile struct {
@@ -248,6 +252,7 @@ type Userprofile struct {
 	Name               string         `json:"name"`
 	Userrole           string         `json:"userrole"`
 	Email              string         `json:"email"`
+	Password           string         `json:"password"`
 	Address            sql.NullString `json:"address"`
 	Phone              sql.NullString `json:"phone"`
 	Bio                sql.NullString `json:"bio"`
