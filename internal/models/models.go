@@ -6,6 +6,7 @@ package models
 
 import (
 	"database/sql"
+	"encoding/json"
 	"time"
 )
 
@@ -55,12 +56,6 @@ type Debate struct {
 	Status       string       `json:"status"`
 }
 
-type Internationalleaguedetail struct {
-	Leagueid  int32          `json:"leagueid"`
-	Continent sql.NullString `json:"continent"`
-	Country   sql.NullString `json:"country"`
-}
-
 type Judgeassignment struct {
 	Assignmentid int32 `json:"assignmentid"`
 	Volunteerid  int32 `json:"volunteerid"`
@@ -77,16 +72,11 @@ type Judgereview struct {
 }
 
 type League struct {
-	Leagueid   int32        `json:"leagueid"`
-	Name       string       `json:"name"`
-	Leaguetype string       `json:"leaguetype"`
-	DeletedAt  sql.NullTime `json:"deleted_at"`
-}
-
-type Localleaguedetail struct {
-	Leagueid int32          `json:"leagueid"`
-	Province sql.NullString `json:"province"`
-	District sql.NullString `json:"district"`
+	Leagueid   int32           `json:"leagueid"`
+	Name       string          `json:"name"`
+	Leaguetype string          `json:"leaguetype"`
+	Details    json.RawMessage `json:"details"`
+	DeletedAt  sql.NullTime    `json:"deleted_at"`
 }
 
 type Notification struct {

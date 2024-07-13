@@ -156,24 +156,23 @@ func (s *UserManagementService) RejectUser(ctx context.Context, token string, us
 
 	queries := models.New(tx)
 
-	user, err := queries.GetUserByID(ctx, userID)
+	// Combines get user and update status operations
+	user, err := queries.RejectAndGetUser(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("failed to get user details: %v", err)
-	}
-
-	err = queries.DeleteUser(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("failed to delete user: %v", err)
+		return fmt.Errorf("failed to reject user: %v", err)
 	}
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	err = utils.SendRejectionNotification(user.Email, user.Name)
-	if err != nil {
-		fmt.Printf("Failed to send rejection notification: %v\n", err)
-	}
+	// Send email notification asynchronously
+	go func() {
+		err := utils.SendRejectionNotification(user.Email, user.Name)
+		if err != nil {
+			fmt.Printf("Failed to send rejection notification: %v\n", err)
+		}
+	}()
 
 	return nil
 }

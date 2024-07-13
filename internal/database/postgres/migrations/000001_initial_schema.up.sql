@@ -89,22 +89,10 @@ CREATE TABLE Leagues (
     LeagueID SERIAL PRIMARY KEY,
     Name VARCHAR(255) NOT NULL,
     LeagueType VARCHAR(50) NOT NULL CHECK (LeagueType IN ('local', 'international')),
+    Details JSONB NOT NULL DEFAULT '{}',
     deleted_at TIMESTAMP
 );
 
--- Create LocalLeagueDetails table
-CREATE TABLE LocalLeagueDetails (
-    LeagueID INTEGER PRIMARY KEY REFERENCES Leagues(LeagueID),
-    Province VARCHAR(255),
-    District VARCHAR(255)
-);
-
--- Create InternationalLeagueDetails table
-CREATE TABLE InternationalLeagueDetails (
-    LeagueID INTEGER PRIMARY KEY REFERENCES Leagues(LeagueID),
-    Continent VARCHAR(255),
-    Country VARCHAR(255)
-);
 
 -- Create Tournaments table
 CREATE TABLE Tournaments (

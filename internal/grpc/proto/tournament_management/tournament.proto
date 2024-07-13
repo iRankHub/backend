@@ -36,24 +36,21 @@ enum LeagueType {
 }
 
 // Message definitions
+message LocalDetails {
+  repeated string provinces = 1;
+  repeated string districts = 2;
+}
+
+message InternationalDetails {
+  repeated string continents = 1;
+  repeated string countries = 2;
+}
+
 message League {
   int32 league_id = 1;
   string name = 2;
   LeagueType league_type = 3;
-  oneof league_details {
-    LocalLeagueDetails local_details = 4;
-    InternationalLeagueDetails international_details = 5;
-  }
-}
-
-message LocalLeagueDetails {
-  string province = 1;
-  string district = 2;
-}
-
-message InternationalLeagueDetails {
-  string continent = 1;
-  string country = 2;
+  string details = 4;
 }
 
 message TournamentFormat {
@@ -83,8 +80,8 @@ message CreateLeagueRequest {
   string name = 1;
   LeagueType league_type = 2;
   oneof league_details {
-    LocalLeagueDetails local_details = 3;
-    InternationalLeagueDetails international_details = 4;
+    LocalDetails local_details = 3;
+    InternationalDetails international_details = 4;
   }
   string token = 5;
 }
@@ -105,8 +102,8 @@ message UpdateLeagueRequest {
   string name = 2;
   LeagueType league_type = 3;
   oneof league_details {
-    LocalLeagueDetails local_details = 4;
-    InternationalLeagueDetails international_details = 5;
+    LocalDetails local_details = 4;
+    InternationalDetails international_details = 5;
   }
   string token = 6;
 }

@@ -49,6 +49,12 @@ WHERE Status = 'pending' AND deleted_at IS NULL;
 SELECT * FROM Users
 WHERE Status = $1 AND deleted_at IS NULL;
 
+-- name: RejectAndGetUser :one
+UPDATE Users
+SET Status = 'rejected', deleted_at = CURRENT_TIMESTAMP
+WHERE UserID = $1 AND deleted_at IS NULL
+RETURNING *;
+
 -- name: UpdateUserPassword :exec
 UPDATE Users
 SET Password = $2

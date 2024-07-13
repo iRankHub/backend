@@ -75,7 +75,7 @@ func (s *tournamentServer) DeleteLeague(ctx context.Context, req *tournament_man
 		return nil, status.Errorf(codes.Internal, "Failed to delete league: %v", err)
 	}
 	return &tournament_management.DeleteLeagueResponse{
-		Success: success,
+		Success: success.Success,
 		Message: "League deleted successfully",
 	}, nil
 }

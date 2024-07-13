@@ -1,59 +1,24 @@
 -- League Queries
 -- name: CreateLeague :one
-INSERT INTO Leagues (Name, LeagueType)
-VALUES ($1, $2)
+INSERT INTO Leagues (Name, LeagueType, Details)
+VALUES ($1, $2, $3)
 RETURNING *;
-
--- name: CreateLocalLeagueDetails :exec
-INSERT INTO LocalLeagueDetails (LeagueID, Province, District)
-VALUES ($1, $2, $3);
-
--- name: CreateInternationalLeagueDetails :exec
-INSERT INTO InternationalLeagueDetails (LeagueID, Continent, Country)
-VALUES ($1, $2, $3);
-
--- name: GetLocalLeagueDetails :one
-SELECT * FROM LocalLeagueDetails WHERE LeagueID = $1;
-
--- name: GetInternationalLeagueDetails :one
-SELECT * FROM InternationalLeagueDetails WHERE LeagueID = $1;
-
 
 -- name: GetLeagueByID :one
-SELECT l.*,
-       COALESCE(lld.Province, ild.Continent) AS detail1,
-       COALESCE(lld.District, ild.Country) AS detail2
-FROM Leagues l
-LEFT JOIN LocalLeagueDetails lld ON l.LeagueID = lld.LeagueID
-LEFT JOIN InternationalLeagueDetails ild ON l.LeagueID = ild.LeagueID
-WHERE l.LeagueID = $1 AND l.deleted_at IS NULL;
+SELECT * FROM Leagues
+WHERE LeagueID = $1 AND deleted_at IS NULL;
 
 -- name: ListLeaguesPaginated :many
-SELECT l.*,
-       COALESCE(lld.Province, ild.Continent) AS detail1,
-       COALESCE(lld.District, ild.Country) AS detail2
-FROM Leagues l
-LEFT JOIN LocalLeagueDetails lld ON l.LeagueID = lld.LeagueID
-LEFT JOIN InternationalLeagueDetails ild ON l.LeagueID = ild.LeagueID
-WHERE l.deleted_at IS NULL
-ORDER BY l.LeagueID
+SELECT * FROM Leagues
+WHERE deleted_at IS NULL
+ORDER BY LeagueID
 LIMIT $1 OFFSET $2;
 
--- name: UpdateLeagueDetails :one
+-- name: UpdateLeague :one
 UPDATE Leagues
-SET Name = $2, LeagueType = $3
+SET Name = $2, LeagueType = $3, Details = $4
 WHERE LeagueID = $1
 RETURNING *;
-
--- name: UpdateLocalLeagueDetailsInfo :exec
-UPDATE LocalLeagueDetails
-SET Province = $2, District = $3
-WHERE LeagueID = $1;
-
--- name: UpdateInternationalLeagueDetailsInfo :exec
-UPDATE InternationalLeagueDetails
-SET Continent = $2, Country = $3
-WHERE LeagueID = $1;
 
 -- name: DeleteLeagueByID :exec
 UPDATE Leagues
@@ -94,28 +59,18 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 RETURNING *;
 
 -- name: GetTournamentByID :one
-SELECT t.*, tf.*, l.*,
-       COALESCE(lld.Province, ild.Continent) AS league_detail1,
-       COALESCE(lld.District, ild.Country) AS league_detail2,
-       tc.VolunteerID as CoordinatorID
+SELECT t.*, tf.*, l.*
 FROM Tournaments t
 JOIN TournamentFormats tf ON t.FormatID = tf.FormatID
 JOIN Leagues l ON t.LeagueID = l.LeagueID
-LEFT JOIN LocalLeagueDetails lld ON l.LeagueID = lld.LeagueID
-LEFT JOIN InternationalLeagueDetails ild ON l.LeagueID = ild.LeagueID
 LEFT JOIN TournamentCoordinators tc ON t.TournamentID = tc.TournamentID
 WHERE t.TournamentID = $1 AND t.deleted_at IS NULL;
 
 -- name: ListTournamentsPaginated :many
-SELECT t.*, tf.*, l.*,
-       COALESCE(lld.Province, ild.Continent) AS league_detail1,
-       COALESCE(lld.District, ild.Country) AS league_detail2,
-       tc.VolunteerID as CoordinatorID
+SELECT t.*, tf.*, l.*
 FROM Tournaments t
 JOIN TournamentFormats tf ON t.FormatID = tf.FormatID
 JOIN Leagues l ON t.LeagueID = l.LeagueID
-LEFT JOIN LocalLeagueDetails lld ON l.LeagueID = lld.LeagueID
-LEFT JOIN InternationalLeagueDetails ild ON l.LeagueID = ild.LeagueID
 LEFT JOIN TournamentCoordinators tc ON t.TournamentID = tc.TournamentID
 WHERE t.deleted_at IS NULL
 ORDER BY t.TournamentID

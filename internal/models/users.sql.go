@@ -569,6 +569,40 @@ func (q *Queries) ReactivateAccount(ctx context.Context, userid int32) error {
 	return err
 }
 
+const rejectAndGetUser = `-- name: RejectAndGetUser :one
+UPDATE Users
+SET Status = 'rejected', deleted_at = CURRENT_TIMESTAMP
+WHERE UserID = $1 AND deleted_at IS NULL
+RETURNING userid, webauthnuserid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at
+`
+
+func (q *Queries) RejectAndGetUser(ctx context.Context, userid int32) (User, error) {
+	row := q.db.QueryRowContext(ctx, rejectAndGetUser, userid)
+	var i User
+	err := row.Scan(
+		&i.Userid,
+		&i.Webauthnuserid,
+		&i.Name,
+		&i.Email,
+		&i.Password,
+		&i.Userrole,
+		&i.Status,
+		&i.Verificationstatus,
+		&i.Deactivatedat,
+		&i.TwoFactorSecret,
+		&i.TwoFactorEnabled,
+		&i.FailedLoginAttempts,
+		&i.LastLoginAttempt,
+		&i.LastLogout,
+		&i.ResetToken,
+		&i.ResetTokenExpires,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const resetFailedLoginAttempts = `-- name: ResetFailedLoginAttempts :exec
 UPDATE Users SET failed_login_attempts = 0 WHERE UserID = $1
 `

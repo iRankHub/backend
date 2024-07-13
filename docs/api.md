@@ -378,7 +378,7 @@ Demo Data:
   "biometricToken": "token_here"
 }
 ```
-## Tournament Management API
+## League Management API
 
 ### CreateLeague
 
@@ -392,8 +392,8 @@ Request:
   "league_type": "international",
   "league_details": {
     "international_details": {
-      "continent":"North America",
-      "country": "United States of America"
+      "continents": ["North America"],
+      "countries": ["United States of America"]
     }
   },
   "token": "your_auth_token_here"
@@ -438,8 +438,8 @@ Request:
   "league_type": "local",
   "league_details": {
     "local_details": {
-      "province":"East",
-      "country": "Rwanda"
+      "provinces": ["East"],
+      "districts": ["Kigali"]
     }
   },
   "token": "your_auth_token_here"
@@ -530,7 +530,7 @@ Request:
 }
 ```
 
-
+## Tournament Management API
 ### CreateTournament
 
 Endpoint: `TournamentService.CreateTournament`

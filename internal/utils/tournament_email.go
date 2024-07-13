@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/smtp"
 	"time"
@@ -82,84 +83,97 @@ func sendTournamentEmail(to, subject, body string) error {
 }
 
 func SendTournamentInvitations(ctx context.Context, tournament models.Tournament, league models.League, format models.Tournamentformat, queries *models.Queries) error {
-	schools, err := fetchRelevantSchools(ctx, queries, league)
-	if err != nil {
-		return fmt.Errorf("failed to fetch relevant schools: %v", err)
-	}
+    schools, err := fetchRelevantSchools(ctx, queries, league)
+    if err != nil {
+        return fmt.Errorf("failed to fetch relevant schools: %v", err)
+    }
 
-	subject := fmt.Sprintf("Invitation to %s Tournament", tournament.Name)
-	emailContent := prepareTournamentEmailContent(tournament, league, format)
+    subject := fmt.Sprintf("Invitation to %s Tournament", tournament.Name)
+    emailContent := prepareTournamentEmailContent(tournament, league, format)
 
-	batchSize := 50
-	for i := 0; i < len(schools); i += batchSize {
-		end := i + batchSize
-		if end > len(schools) {
-			end = len(schools)
-		}
+    batchSize := 50
+    for i := 0; i < len(schools); i += batchSize {
+        end := i + batchSize
+        if end > len(schools) {
+            end = len(schools)
+        }
 
-		batch := schools[i:end]
-		for _, school := range batch {
-			err := sendTournamentEmail(school.Contactemail, subject, emailContent)
-			if err != nil {
-				fmt.Printf("Failed to send invitation to %s: %v\n", school.Contactemail, err)
-			}
-		}
+        batch := schools[i:end]
+        for _, school := range batch {
+            err := sendTournamentEmail(school.Contactemail, subject, emailContent)
+            if err != nil {
+                fmt.Printf("Failed to send invitation to %s: %v\n", school.Contactemail, err)
+            }
+        }
 
-		time.Sleep(5 * time.Second)
-	}
+        time.Sleep(5 * time.Second)
+    }
 
-	return nil
+    return nil
 }
 
 func fetchRelevantSchools(ctx context.Context, queries *models.Queries, league models.League) ([]models.School, error) {
-	var schools []models.School
-	var err error
-	var searchTerm string
+    var schools []models.School
+    var err error
 
-	if league.Leaguetype == "LEAGUE_TYPE_LOCAL" {
-		localDetails, err := queries.GetLocalLeagueDetails(ctx, league.Leagueid)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get local league details: %v", err)
-		}
-		searchTerm = localDetails.Province.String
-	} else if league.Leaguetype == "LEAGUE_TYPE_INTERNATIONAL" {
-		internationalDetails, err := queries.GetInternationalLeagueDetails(ctx, league.Leagueid)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get international league details: %v", err)
-		}
-		searchTerm = internationalDetails.Country.String
-	}
+    var leagueDetails map[string]interface{}
+    err = json.Unmarshal(league.Details, &leagueDetails)
+    if err != nil {
+        return nil, fmt.Errorf("failed to unmarshal league details: %v", err)
+    }
 
-	if searchTerm != "" {
-		nullSearchTerm := sql.NullString{String: searchTerm, Valid: true}
-		schools, err = queries.GetSchoolsByProvinceOrCountry(ctx, nullSearchTerm)
+    var searchTerms []string
+    if league.Leaguetype == "LOCAL" {
+        if provinces, ok := leagueDetails["provinces"].([]interface{}); ok {
+            for _, province := range provinces {
+                if provinceStr, ok := province.(string); ok {
+                    searchTerms = append(searchTerms, provinceStr)
+                }
+            }
+        }
+    } else if league.Leaguetype == "INTERNATIONAL" {
+        if countries, ok := leagueDetails["countries"].([]interface{}); ok {
+            for _, country := range countries {
+                if countryStr, ok := country.(string); ok {
+                    searchTerms = append(searchTerms, countryStr)
+                }
+            }
+        }
+    }
+
+	for _, searchTerm := range searchTerms {
+		schoolsBatch, err := queries.GetSchoolsByProvinceOrCountry(ctx, sql.NullString{
+			String: searchTerm,
+			Valid: true,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to get schools: %v", err)
 		}
+		schools = append(schools, schoolsBatch...)
 	}
 
-	return schools, nil
+    return schools, nil
 }
 
 func prepareTournamentEmailContent(tournament models.Tournament, league models.League, format models.Tournamentformat) string {
-	content := fmt.Sprintf(`
-		<p>Dear School Administrator,</p>
-		<p>We are excited to invite you to participate in the upcoming tournament:</p>
-		<h2>%s</h2>
-		<p><strong>League:</strong> %s</p>
-		<p><strong>Format:</strong> %s</p>
-		<p><strong>Location:</strong> %s</p>
-		<p><strong>Dates:</strong> %s to %s</p>
-		<p><strong>Tournament Fee:</strong> $%s</p>
-		<p>We look forward to your participation in this exciting event!</p>
-		<p>For more information or to register, please log in to your iRankHub account.</p>
-		<p>Best regards,<br>The iRankHub Team</p>
-	`, tournament.Name, league.Name, format.Formatname, tournament.Location,
-		tournament.Startdate.Format("Jan 2, 2006"),
-		tournament.Enddate.Format("Jan 2, 2006"),
-		tournament.Tournamentfee)
+    content := fmt.Sprintf(`
+        <p>Dear School Administrator,</p>
+        <p>We are excited to invite you to participate in the upcoming tournament:</p>
+        <h2>%s</h2>
+        <p><strong>League:</strong> %s</p>
+        <p><strong>Format:</strong> %s</p>
+        <p><strong>Location:</strong> %s</p>
+        <p><strong>Dates:</strong> %s to %s</p>
+        <p><strong>Tournament Fee:</strong> $%.s</p>
+        <p>We look forward to your participation in this exciting event!</p>
+        <p>For more information or to register, please log in to your iRankHub account.</p>
+        <p>Best regards,<br>The iRankHub Team</p>
+    `, tournament.Name, league.Name, format.Formatname, tournament.Location,
+        tournament.Startdate.Format("Jan 2, 2006"),
+        tournament.Enddate.Format("Jan 2, 2006"),
+        tournament.Tournamentfee)
 
-	return getTournamentEmailTemplate("Tournament Invitation", content)
+    return getTournamentEmailTemplate("Tournament Invitation", content)
 }
 
 func SendTournamentCreationConfirmation(to, name, tournamentName string) error {

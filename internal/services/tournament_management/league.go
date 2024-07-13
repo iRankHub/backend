@@ -1,244 +1,220 @@
 package services
 
 import (
-	"context"
-	"database/sql"
-	"fmt"
+    "context"
+    "database/sql"
+    "encoding/json"
+    "fmt"
 
-	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
-	"github.com/iRankHub/backend/internal/models"
-	"github.com/iRankHub/backend/internal/utils"
+    "github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
+    "github.com/iRankHub/backend/internal/models"
+    "github.com/iRankHub/backend/internal/utils"
 )
 
 type LeagueService struct {
-	db *sql.DB
+    db *sql.DB
 }
 
 func NewLeagueService(db *sql.DB) *LeagueService {
-	return &LeagueService{db: db}
+    return &LeagueService{db: db}
 }
 
 func (s *LeagueService) CreateLeague(ctx context.Context, req *tournament_management.CreateLeagueRequest) (*tournament_management.League, error) {
-	if err := s.validateAdminRole(req.GetToken()); err != nil {
-		return nil, err
-	}
+    if err := s.validateAdminRole(req.GetToken()); err != nil {
+        return nil, err
+    }
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start transaction: %v", err)
-	}
-	defer tx.Rollback()
+    tx, err := s.db.BeginTx(ctx, nil)
+    if err != nil {
+        return nil, fmt.Errorf("failed to start transaction: %v", err)
+    }
+    defer tx.Rollback()
 
-	queries := models.New(tx)
+    queries := models.New(tx)
 
-	league, err := queries.CreateLeague(ctx, models.CreateLeagueParams{
-		Name:       req.GetName(),
-		Leaguetype: req.GetLeagueType().String(),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create league: %v", err)
-	}
+    details := make(map[string]interface{})
+    switch req.GetLeagueDetails().(type) {
+    case *tournament_management.CreateLeagueRequest_LocalDetails:
+        localDetails := req.GetLocalDetails()
+        details["provinces"] = localDetails.GetProvinces()
+        details["districts"] = localDetails.GetDistricts()
+    case *tournament_management.CreateLeagueRequest_InternationalDetails:
+        internationalDetails := req.GetInternationalDetails()
+        details["continents"] = internationalDetails.GetContinents()
+        details["countries"] = internationalDetails.GetCountries()
+    }
 
-	switch req.GetLeagueDetails().(type) {
-	case *tournament_management.CreateLeagueRequest_LocalDetails:
-		localDetails := req.GetLocalDetails()
-		err = queries.CreateLocalLeagueDetails(ctx, models.CreateLocalLeagueDetailsParams{
-			Leagueid: league.Leagueid,
-			Province: sql.NullString{String: localDetails.GetProvince(), Valid: localDetails.GetProvince() != ""},
-			District: sql.NullString{String: localDetails.GetDistrict(), Valid: localDetails.GetDistrict() != ""},
-		})
-	case *tournament_management.CreateLeagueRequest_InternationalDetails:
-		internationalDetails := req.GetInternationalDetails()
-		err = queries.CreateInternationalLeagueDetails(ctx, models.CreateInternationalLeagueDetailsParams{
-			Leagueid:  league.Leagueid,
-			Continent: sql.NullString{String: internationalDetails.GetContinent(), Valid: internationalDetails.GetContinent() != ""},
-			Country:   sql.NullString{String: internationalDetails.GetCountry(), Valid: internationalDetails.GetCountry() != ""},
-		})
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to create league details: %v", err)
-	}
+    detailsJSON, err := json.Marshal(details)
+    if err != nil {
+        return nil, fmt.Errorf("failed to marshal details: %v", err)
+    }
 
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %v", err)
-	}
+    league, err := queries.CreateLeague(ctx, models.CreateLeagueParams{
+        Name:       req.GetName(),
+        Leaguetype: req.GetLeagueType().String(),
+        Details:    detailsJSON,
+    })
+    if err != nil {
+        return nil, fmt.Errorf("failed to create league: %v", err)
+    }
 
-	return &tournament_management.League{
-		LeagueId:   league.Leagueid,
-		Name:       league.Name,
-		LeagueType: tournament_management.LeagueType(tournament_management.LeagueType_value[league.Leaguetype]),
-	}, nil
+    if err := tx.Commit(); err != nil {
+        return nil, fmt.Errorf("failed to commit transaction: %v", err)
+    }
+
+    return &tournament_management.League{
+        LeagueId:   league.Leagueid,
+        Name:       league.Name,
+        LeagueType: tournament_management.LeagueType(tournament_management.LeagueType_value[league.Leaguetype]),
+        Details:    string(league.Details),
+    }, nil
 }
 
 func (s *LeagueService) GetLeague(ctx context.Context, req *tournament_management.GetLeagueRequest) (*tournament_management.League, error) {
-	if err := s.validateAuthentication(req.GetToken()); err != nil {
-		return nil, err
-	}
-	queries := models.New(s.db)
+    if err := s.validateAuthentication(req.GetToken()); err != nil {
+        return nil, err
+    }
+    queries := models.New(s.db)
 
-	league, err := queries.GetLeagueByID(ctx, req.GetLeagueId())
-	if err != nil {
-		return nil, fmt.Errorf("failed to get league: %v", err)
-	}
+    league, err := queries.GetLeagueByID(ctx, req.GetLeagueId())
+    if err != nil {
+        return nil, fmt.Errorf("failed to get league: %v", err)
+    }
 
-	leagueResponse := &tournament_management.League{
-		LeagueId:   league.Leagueid,
-		Name:       league.Name,
-		LeagueType: tournament_management.LeagueType(tournament_management.LeagueType_value[league.Leaguetype]),
-	}
+    var detailsMap map[string]interface{}
+    err = json.Unmarshal(league.Details, &detailsMap)
+    if err != nil {
+        return nil, fmt.Errorf("failed to unmarshal league details: %v", err)
+    }
 
-	if league.Leaguetype == "LEAGUE_TYPE_LOCAL" {
-		leagueResponse.LeagueDetails = &tournament_management.League_LocalDetails{
-			LocalDetails: &tournament_management.LocalLeagueDetails{
-				Province: league.Detail1.String,
-				District: league.Detail2.String,
-			},
-		}
-	} else if league.Leaguetype == "LEAGUE_TYPE_INTERNATIONAL" {
-		leagueResponse.LeagueDetails = &tournament_management.League_InternationalDetails{
-			InternationalDetails: &tournament_management.InternationalLeagueDetails{
-				Continent: league.Detail1.String,
-				Country:   league.Detail2.String,
-			},
-		}
-	}
+    leagueResponse := &tournament_management.League{
+        LeagueId:   league.Leagueid,
+        Name:       league.Name,
+        LeagueType: tournament_management.LeagueType(tournament_management.LeagueType_value[league.Leaguetype]),
+        Details:    string(league.Details),
+    }
 
-	return leagueResponse, nil
+    return leagueResponse, nil
 }
 
 func (s *LeagueService) ListLeagues(ctx context.Context, req *tournament_management.ListLeaguesRequest) (*tournament_management.ListLeaguesResponse, error) {
-	if err := s.validateAuthentication(req.GetToken()); err != nil {
-		return nil, err
-	}
-	queries := models.New(s.db)
+    if err := s.validateAuthentication(req.GetToken()); err != nil {
+        return nil, err
+    }
+    queries := models.New(s.db)
 
-	leagues, err := queries.ListLeaguesPaginated(ctx, models.ListLeaguesPaginatedParams{
-		Limit:  int32(req.GetPageSize()),
-		Offset: int32(req.GetPageToken()),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list leagues: %v", err)
-	}
+    leagues, err := queries.ListLeaguesPaginated(ctx, models.ListLeaguesPaginatedParams{
+        Limit:  int32(req.GetPageSize()),
+        Offset: int32(req.GetPageToken()),
+    })
+    if err != nil {
+        return nil, fmt.Errorf("failed to list leagues: %v", err)
+    }
 
-	leagueResponses := make([]*tournament_management.League, len(leagues))
-	for i, league := range leagues {
-		leagueResponse := &tournament_management.League{
-			LeagueId:   league.Leagueid,
-			Name:       league.Name,
-			LeagueType: tournament_management.LeagueType(tournament_management.LeagueType_value[league.Leaguetype]),
-		}
+    leagueResponses := make([]*tournament_management.League, len(leagues))
+    for i, league := range leagues {
+        leagueResponses[i] = &tournament_management.League{
+            LeagueId:   league.Leagueid,
+            Name:       league.Name,
+            LeagueType: tournament_management.LeagueType(tournament_management.LeagueType_value[league.Leaguetype]),
+            Details:    string(league.Details),
+        }
+    }
 
-		if league.Leaguetype == "LEAGUE_TYPE_LOCAL" {
-			leagueResponse.LeagueDetails = &tournament_management.League_LocalDetails{
-				LocalDetails: &tournament_management.LocalLeagueDetails{
-					Province: league.Detail1.String,
-					District: league.Detail2.String,
-				},
-			}
-		} else if league.Leaguetype == "LEAGUE_TYPE_INTERNATIONAL" {
-			leagueResponse.LeagueDetails = &tournament_management.League_InternationalDetails{
-				InternationalDetails: &tournament_management.InternationalLeagueDetails{
-					Continent: league.Detail1.String,
-					Country:   league.Detail2.String,
-				},
-			}
-		}
-
-		leagueResponses[i] = leagueResponse
-	}
-
-	return &tournament_management.ListLeaguesResponse{
-		Leagues:       leagueResponses,
-		NextPageToken: int32(req.GetPageToken()) + int32(req.GetPageSize()),
-	}, nil
+    return &tournament_management.ListLeaguesResponse{
+        Leagues:       leagueResponses,
+        NextPageToken: int32(req.GetPageToken()) + int32(req.GetPageSize()),
+    }, nil
 }
 
 func (s *LeagueService) UpdateLeague(ctx context.Context, req *tournament_management.UpdateLeagueRequest) (*tournament_management.League, error) {
-	if err := s.validateAdminRole(req.GetToken()); err != nil {
-		return nil, err
-	}
+    if err := s.validateAdminRole(req.GetToken()); err != nil {
+        return nil, err
+    }
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start transaction: %v", err)
-	}
-	defer tx.Rollback()
+    tx, err := s.db.BeginTx(ctx, nil)
+    if err != nil {
+        return nil, fmt.Errorf("failed to start transaction: %v", err)
+    }
+    defer tx.Rollback()
 
-	queries := models.New(tx)
+    queries := models.New(tx)
 
-	updatedLeague, err := queries.UpdateLeagueDetails(ctx, models.UpdateLeagueDetailsParams{
-		Leagueid:   req.GetLeagueId(),
-		Name:       req.GetName(),
-		Leaguetype: req.GetLeagueType().String(),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to update league details: %v", err)
-	}
+    details := make(map[string]interface{})
+    switch req.GetLeagueDetails().(type) {
+    case *tournament_management.UpdateLeagueRequest_LocalDetails:
+        localDetails := req.GetLocalDetails()
+        details["provinces"] = localDetails.GetProvinces()
+        details["districts"] = localDetails.GetDistricts()
+    case *tournament_management.UpdateLeagueRequest_InternationalDetails:
+        internationalDetails := req.GetInternationalDetails()
+        details["continents"] = internationalDetails.GetContinents()
+        details["countries"] = internationalDetails.GetCountries()
+    }
 
-	switch req.GetLeagueDetails().(type) {
-	case *tournament_management.UpdateLeagueRequest_LocalDetails:
-		localDetails := req.GetLocalDetails()
-		err = queries.UpdateLocalLeagueDetailsInfo(ctx, models.UpdateLocalLeagueDetailsInfoParams{
-			Leagueid: req.GetLeagueId(),
-			Province: sql.NullString{String: localDetails.GetProvince(), Valid: localDetails.GetProvince() != ""},
-			District: sql.NullString{String: localDetails.GetDistrict(), Valid: localDetails.GetDistrict() != ""},
-		})
-	case *tournament_management.UpdateLeagueRequest_InternationalDetails:
-		internationalDetails := req.GetInternationalDetails()
-		err = queries.UpdateInternationalLeagueDetailsInfo(ctx, models.UpdateInternationalLeagueDetailsInfoParams{
-			Leagueid:  req.GetLeagueId(),
-			Continent: sql.NullString{String: internationalDetails.GetContinent(), Valid: internationalDetails.GetContinent() != ""},
-			Country:   sql.NullString{String: internationalDetails.GetCountry(), Valid: internationalDetails.GetCountry() != ""},
-		})
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to update league details: %v", err)
-	}
+    detailsJSON, err := json.Marshal(details)
+    if err != nil {
+        return nil, fmt.Errorf("failed to marshal details: %v", err)
+    }
 
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %v", err)
-	}
+    updatedLeague, err := queries.UpdateLeague(ctx, models.UpdateLeagueParams{
+        Leagueid:   req.GetLeagueId(),
+        Name:       req.GetName(),
+        Leaguetype: req.GetLeagueType().String(),
+        Details:    detailsJSON,
+    })
+    if err != nil {
+        return nil, fmt.Errorf("failed to update league: %v", err)
+    }
 
-	return &tournament_management.League{
-		LeagueId:   updatedLeague.Leagueid,
-		Name:       updatedLeague.Name,
-		LeagueType: tournament_management.LeagueType(tournament_management.LeagueType_value[updatedLeague.Leaguetype]),
-	}, nil
+    if err := tx.Commit(); err != nil {
+        return nil, fmt.Errorf("failed to commit transaction: %v", err)
+    }
+
+    return &tournament_management.League{
+        LeagueId:   updatedLeague.Leagueid,
+        Name:       updatedLeague.Name,
+        LeagueType: tournament_management.LeagueType(tournament_management.LeagueType_value[updatedLeague.Leaguetype]),
+        Details:    string(updatedLeague.Details),
+    }, nil
 }
 
-func (s *LeagueService) DeleteLeague(ctx context.Context, req *tournament_management.DeleteLeagueRequest) (bool, error) {
-	if err := s.validateAdminRole(req.GetToken()); err != nil {
-		return false, err
-	}
+func (s *LeagueService) DeleteLeague(ctx context.Context, req *tournament_management.DeleteLeagueRequest) (*tournament_management.DeleteLeagueResponse, error) {
+    if err := s.validateAdminRole(req.GetToken()); err != nil {
+        return nil, err
+    }
 
-	queries := models.New(s.db)
+    queries := models.New(s.db)
 
-	err := queries.DeleteLeagueByID(ctx, req.GetLeagueId())
-	if err != nil {
-		return false, fmt.Errorf("failed to delete league: %v", err)
-	}
+    err := queries.DeleteLeagueByID(ctx, req.GetLeagueId())
+    if err != nil {
+        return nil, fmt.Errorf("failed to delete league: %v", err)
+    }
 
-	return true, nil
+    return &tournament_management.DeleteLeagueResponse{
+        Success: true,
+        Message: "League deleted successfully",
+    }, nil
 }
 
 func (s *LeagueService) validateAuthentication(token string) error {
-	_, err := utils.ValidateToken(token)
-	if err != nil {
-		return fmt.Errorf("authentication failed: %v", err)
-	}
-	return nil
+    _, err := utils.ValidateToken(token)
+    if err != nil {
+        return fmt.Errorf("authentication failed: %v", err)
+    }
+    return nil
 }
 
 func (s *LeagueService) validateAdminRole(token string) error {
-	claims, err := utils.ValidateToken(token)
-	if err != nil {
-		return fmt.Errorf("authentication failed: %v", err)
-	}
+    claims, err := utils.ValidateToken(token)
+    if err != nil {
+        return fmt.Errorf("authentication failed: %v", err)
+    }
 
-	userRole, ok := claims["user_role"].(string)
-	if !ok || userRole != "admin" {
-		return fmt.Errorf("unauthorized: only admins can perform this action")
-	}
+    userRole, ok := claims["user_role"].(string)
+    if !ok || userRole != "admin" {
+        return fmt.Errorf("unauthorized: only admins can perform this action")
+    }
 
-	return nil
+    return nil
 }
