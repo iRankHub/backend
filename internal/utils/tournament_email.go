@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/iRankHub/backend/internal/models"
+
 )
 
 func init() {
@@ -123,7 +124,7 @@ func fetchRelevantSchools(ctx context.Context, queries *models.Queries, league m
     }
 
     var searchTerms []string
-    if league.Leaguetype == "LOCAL" {
+    if league.Leaguetype == "local" {
         if provinces, ok := leagueDetails["provinces"].([]interface{}); ok {
             for _, province := range provinces {
                 if provinceStr, ok := province.(string); ok {
@@ -131,7 +132,7 @@ func fetchRelevantSchools(ctx context.Context, queries *models.Queries, league m
                 }
             }
         }
-    } else if league.Leaguetype == "INTERNATIONAL" {
+    } else if league.Leaguetype == "international" {
         if countries, ok := leagueDetails["countries"].([]interface{}); ok {
             for _, country := range countries {
                 if countryStr, ok := country.(string); ok {
