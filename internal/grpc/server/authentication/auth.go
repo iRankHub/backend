@@ -9,15 +9,15 @@ import (
 	"github.com/go-webauthn/webauthn/webauthn"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
+	"github.com/iRankHub/backend/internal/models"
 	services "github.com/iRankHub/backend/internal/services/authentication"
 	"github.com/iRankHub/backend/internal/utils"
-
 )
 
 type authServer struct {
 	authentication.UnimplementedAuthServiceServer
 	db               *sql.DB
-	webauthn        *webauthn.WebAuthn
+	webauthn         *webauthn.WebAuthn
 	loginService     *services.LoginService
 	signUpService    *services.SignUpService
 	twoFactorService *services.TwoFactorService
@@ -41,7 +41,7 @@ func NewAuthServer(db *sql.DB) (authentication.AuthServiceServer, error) {
     recoveryService := services.NewRecoveryService(db)
     biometricService := services.NewBiometricService(db, w)
     loginService := services.NewLoginService(db, twoFactorService, recoveryService)
-    signUpService := services.NewSignUpService(db)
+    signUpService := services.NewSignUpService(db, twoFactorService)
 
     return &authServer{
         db:               db,
@@ -93,16 +93,87 @@ func (s *authServer) Login(ctx context.Context, req *authentication.LoginRequest
     user, err := s.loginService.Login(ctx, req.EmailOrId, req.Password)
     if err != nil {
         if err.Error() == "two factor authentication required" {
-            return &authentication.LoginResponse{Success: false, RequireTwoFactor: true}, nil
+            err := s.twoFactorService.GenerateTwoFactorOTP(ctx, req.EmailOrId)
+            if err != nil {
+                return nil, fmt.Errorf("failed to generate two-factor OTP: %v", err)
+            }
+            return &authentication.LoginResponse{
+                Success: false,
+                RequireTwoFactor: true,
+                Message: "Two-factor authentication required. An OTP has been sent to your email.",
+            }, nil
         }
         if err.Error() == "password reset required" {
-            return &authentication.LoginResponse{Success: false, RequirePasswordReset: true, Message: "A password reset email has been sent to your account."}, nil
+            return &authentication.LoginResponse{
+                Success: false,
+                RequirePasswordReset: true,
+                Message: "A password reset email has been sent to your account.",
+            }, nil
         }
         return &authentication.LoginResponse{Success: false, Message: "Invalid email/ID or password"}, nil
     }
 
+    return s.generateSuccessfulLoginResponse(user)
+}
+
+func (s *authServer) Logout(ctx context.Context, req *authentication.LogoutRequest) (*authentication.LogoutResponse, error) {
+	// Validate the token
+	claims, err := utils.ValidateToken(req.Token)
+	if err != nil {
+		return nil, fmt.Errorf("invalid token: %v", err)
+	}
+
+	userID := int32(claims["user_id"].(float64))
+	if userID != req.UserID {
+		return nil, fmt.Errorf("unauthorized: token does not match user ID")
+	}
+
+	// Invalidate the token
+	utils.InvalidateToken(req.Token)
+
+	return &authentication.LogoutResponse{
+		Success: true,
+		Message: "Logged out successfully",
+	}, nil
+}
+
+func (s *authServer) GenerateTwoFactorOTP(ctx context.Context, req *authentication.GenerateTwoFactorOTPRequest) (*authentication.GenerateTwoFactorOTPResponse, error) {
+    err := s.twoFactorService.GenerateTwoFactorOTP(ctx, req.Email)
+    if err != nil {
+        return nil, fmt.Errorf("failed to generate two-factor OTP: %v", err)
+    }
+
+    return &authentication.GenerateTwoFactorOTPResponse{
+        Success: true,
+        Message: "Two-factor authentication OTP sent. Please check your email.",
+    }, nil
+}
+
+func (s *authServer) VerifyTwoFactor(ctx context.Context, req *authentication.VerifyTwoFactorRequest) (*authentication.LoginResponse, error) {
+	success, err := s.twoFactorService.VerifyTwoFactor(ctx, req.Email, req.Code)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify two-factor authentication: %v", err)
+	}
+
+	if !success {
+		return &authentication.LoginResponse{
+			Success: false,
+			Message: "Failed to verify two-factor authentication code.",
+		}, nil
+	}
+
+	// If 2FA verification is successful, complete the login process
+	user, err := s.loginService.GetUserByEmail(ctx, req.Email)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user information: %v", err)
+	}
+
+	return s.generateSuccessfulLoginResponse(user)
+}
+
+func (s *authServer) generateSuccessfulLoginResponse(user *models.User) (*authentication.LoginResponse, error) {
 	if user.Status.Valid && user.Status.String == "pending" {
-		token, err := utils.GenerateToken(user.Userid, user.Userrole, user.Email)
+		token, err := utils.GenerateToken(user.Userid, user.Name, user.Userrole, user.Email)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate token: %v", err)
 		}
@@ -127,7 +198,7 @@ func (s *authServer) Login(ctx context.Context, req *authentication.LoginRequest
 		return &authentication.LoginResponse{Success: false, Message: "Your account has been rejected."}, nil
 	}
 
-	token, err := utils.GenerateToken(user.Userid, user.Userrole, user.Email)
+	token, err := utils.GenerateToken(user.Userid, user.Name, user.Userrole, user.Email)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token: %v", err)
 	}
@@ -142,90 +213,6 @@ func (s *authServer) Login(ctx context.Context, req *authentication.LoginRequest
 	}, nil
 }
 
-func (s *authServer) Logout(ctx context.Context, req *authentication.LogoutRequest) (*authentication.LogoutResponse, error) {
-	// Validate the token
-	claims, err := utils.ValidateToken(req.Token)
-	if err != nil {
-		return nil, fmt.Errorf("invalid token: %v", err)
-	}
-
-	userID := int32(claims["user_id"].(float64))
-	if userID != req.UserID {
-		return nil, fmt.Errorf("unauthorized: token does not match user ID")
-	}
-
-	// Invalidate the token
-	utils.InvalidateToken(req.Token)
-
-	return &authentication.LogoutResponse{
-		Success: true,
-		Message: "Logged out successfully",
-	}, nil
-}
-
-func (s *authServer) EnableTwoFactor(ctx context.Context, req *authentication.EnableTwoFactorRequest) (*authentication.EnableTwoFactorResponse, error) {
-    // Verify the token
-    claims, err := utils.ValidateToken(req.Token)
-    if err != nil {
-        return nil, fmt.Errorf("invalid token: %v", err)
-    }
-
-    userID := int32(claims["user_id"].(float64))
-    if userID != req.UserID {
-        return nil, fmt.Errorf("unauthorized: token does not match user ID")
-    }
-
-    secret, qrCode, err := s.twoFactorService.EnableTwoFactor(ctx, req.UserID)
-    if err != nil {
-        return nil, fmt.Errorf("failed to enable two-factor authentication: %v", err)
-    }
-
-    return &authentication.EnableTwoFactorResponse{
-        Secret: secret,
-        QrCode: qrCode,
-    }, nil
-}
-
-func (s *authServer) VerifyTwoFactor(ctx context.Context, req *authentication.VerifyTwoFactorRequest) (*authentication.VerifyTwoFactorResponse, error) {
-	// Validate the token
-	claims, err := utils.ValidateToken(req.Token)
-	if err != nil {
-		return nil, fmt.Errorf("failed to validate token: %v", err)
-	}
-
-	// Check if the token belongs to the user
-	userID := int32(claims["user_id"].(float64))
-	if userID != req.UserID {
-		return nil, fmt.Errorf("token does not belong to the user")
-	}
-
-	success, err := s.twoFactorService.VerifyAndEnableTwoFactor(ctx, req.UserID, req.Code)
-	if err != nil {
-		return nil, fmt.Errorf("failed to verify and enable two-factor authentication: %v", err)
-	}
-
-	return &authentication.VerifyTwoFactorResponse{Success: success}, nil
-}
-
-func (s *authServer) DisableTwoFactor(ctx context.Context, req *authentication.DisableTwoFactorRequest) (*authentication.DisableTwoFactorResponse, error) {
-    // Verify the token
-    claims, err := utils.ValidateToken(req.Token)
-    if err != nil {
-        return nil, fmt.Errorf("invalid token: %v", err)
-    }
-
-    userID := int32(claims["user_id"].(float64))
-    if userID != req.UserID {
-        return nil, fmt.Errorf("unauthorized: token does not match user ID")
-    }
-
-    err = s.twoFactorService.DisableTwoFactor(ctx, req.UserID)
-    if err != nil {
-        return nil, fmt.Errorf("failed to disable two-factor authentication: %v", err)
-    }
-
-    return &authentication.DisableTwoFactorResponse{Success: true}, nil
-}
 
 func (s *authServer) RequestPasswordReset(ctx context.Context, req *authentication.PasswordResetRequest) (*authentication.PasswordResetResponse, error) {
 	err := s.recoveryService.RequestPasswordReset(ctx, req.Email)
@@ -313,7 +300,7 @@ func (s *authServer) FinishWebAuthnLogin(ctx context.Context, req *authenticatio
     }
 
     // Generate token
-    token, err := utils.GenerateToken(user.Userid, user.Userrole, user.Email)
+    token, err := utils.GenerateToken(user.Userid, user.Name, user.Userrole, user.Email)
     if err != nil {
         return nil, fmt.Errorf("failed to generate token: %v", err)
     }

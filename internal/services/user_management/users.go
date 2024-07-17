@@ -112,6 +112,9 @@ func (s *UserManagementService) ApproveUser(ctx context.Context, token string, u
 	// Create user profile
 	_, err = queries.CreateUserProfile(ctx, models.CreateUserProfileParams{
 		Userid:         user.Userid,
+		Name:           user.Name,
+		Userrole:       user.Userrole,
+		Email:          user.Email,
 		Password:       user.Password,
 		Address:        address,
 		Phone:          sql.NullString{},

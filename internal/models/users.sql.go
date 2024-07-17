@@ -88,26 +88,6 @@ func (q *Queries) DeleteUser(ctx context.Context, userid int32) error {
 	return err
 }
 
-const disableTwoFactor = `-- name: DisableTwoFactor :exec
-UPDATE Users
-SET two_factor_enabled = FALSE, two_factor_secret = NULL
-WHERE UserID = $1
-`
-
-func (q *Queries) DisableTwoFactor(ctx context.Context, userid int32) error {
-	_, err := q.db.ExecContext(ctx, disableTwoFactor, userid)
-	return err
-}
-
-const enableTwoFactor = `-- name: EnableTwoFactor :exec
-UPDATE Users SET two_factor_enabled = TRUE WHERE UserID = $1
-`
-
-func (q *Queries) EnableTwoFactor(ctx context.Context, userid int32) error {
-	_, err := q.db.ExecContext(ctx, enableTwoFactor, userid)
-	return err
-}
-
 const getAccountStatus = `-- name: GetAccountStatus :one
 SELECT
     CASE
@@ -214,10 +194,10 @@ FROM Users u
 LEFT JOIN Students s ON u.UserID = s.UserID
 LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
 LEFT JOIN Volunteers v ON u.UserID = v.UserID
-WHERE u.Email = $1
+WHERE (u.Email = $1
    OR s.iDebateStudentID = $1
    OR sch.iDebateSchoolID = $1
-   OR v.iDebateVolunteerID = $1
+   OR v.iDebateVolunteerID = $1)
 AND u.deleted_at IS NULL
 LIMIT 1
 `
@@ -669,6 +649,22 @@ func (q *Queries) StoreWebAuthnSessionData(ctx context.Context, arg StoreWebAuth
 	return err
 }
 
+const updateAndEnableTwoFactor = `-- name: UpdateAndEnableTwoFactor :exec
+UPDATE Users
+SET two_factor_secret = $2, two_factor_enabled = TRUE
+WHERE UserID = $1
+`
+
+type UpdateAndEnableTwoFactorParams struct {
+	Userid          int32          `json:"userid"`
+	TwoFactorSecret sql.NullString `json:"two_factor_secret"`
+}
+
+func (q *Queries) UpdateAndEnableTwoFactor(ctx context.Context, arg UpdateAndEnableTwoFactorParams) error {
+	_, err := q.db.ExecContext(ctx, updateAndEnableTwoFactor, arg.Userid, arg.TwoFactorSecret)
+	return err
+}
+
 const updateLastLoginAttempt = `-- name: UpdateLastLoginAttempt :exec
 UPDATE Users SET last_login_attempt = NOW() WHERE UserID = $1
 `
@@ -775,19 +771,5 @@ type UpdateUserStatusParams struct {
 
 func (q *Queries) UpdateUserStatus(ctx context.Context, arg UpdateUserStatusParams) error {
 	_, err := q.db.ExecContext(ctx, updateUserStatus, arg.Userid, arg.Status)
-	return err
-}
-
-const updateUserTwoFactorSecret = `-- name: UpdateUserTwoFactorSecret :exec
-UPDATE Users SET two_factor_secret = $2 WHERE UserID = $1
-`
-
-type UpdateUserTwoFactorSecretParams struct {
-	Userid          int32          `json:"userid"`
-	TwoFactorSecret sql.NullString `json:"two_factor_secret"`
-}
-
-func (q *Queries) UpdateUserTwoFactorSecret(ctx context.Context, arg UpdateUserTwoFactorSecretParams) error {
-	_, err := q.db.ExecContext(ctx, updateUserTwoFactorSecret, arg.Userid, arg.TwoFactorSecret)
 	return err
 }

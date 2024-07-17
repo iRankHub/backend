@@ -679,7 +679,7 @@ CREATE SEQUENCE idebate_volunteer_id_seq START 1;
 CREATE OR REPLACE FUNCTION generate_idebate_volunteer_id()
 RETURNS trigger AS $$
 BEGIN
-  NEW.iDebateVolunteerID := 'VOLU' || LPAD(NEXTVAL('idebate_volunteer_id_seq')::TEXT, 6, '0');
+  NEW.iDebateVolunteerID := 'VOL' || LPAD(NEXTVAL('idebate_volunteer_id_seq')::TEXT, 6, '0');
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

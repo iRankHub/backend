@@ -7,9 +7,8 @@ package auth;
 service AuthService {
   rpc SignUp(SignUpRequest) returns (SignUpResponse) {}
   rpc Login(LoginRequest) returns (LoginResponse) {}
-  rpc EnableTwoFactor(EnableTwoFactorRequest) returns (EnableTwoFactorResponse) {}
-  rpc VerifyTwoFactor(VerifyTwoFactorRequest) returns (VerifyTwoFactorResponse) {}
-  rpc DisableTwoFactor(DisableTwoFactorRequest) returns (DisableTwoFactorResponse) {}
+  rpc GenerateTwoFactorOTP(GenerateTwoFactorOTPRequest) returns (GenerateTwoFactorOTPResponse) {}
+  rpc VerifyTwoFactor(VerifyTwoFactorRequest) returns (LoginResponse) {}
   rpc RequestPasswordReset(PasswordResetRequest) returns (PasswordResetResponse) {}
   rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse) {}
   rpc BeginWebAuthnRegistration(BeginWebAuthnRegistrationRequest) returns (BeginWebAuthnRegistrationResponse) {}
@@ -66,33 +65,18 @@ message LoginResponse {
   string status = 8;
 }
 
-message EnableTwoFactorRequest {
-  int32 userID = 1;
-  string token = 2;
+message GenerateTwoFactorOTPRequest {
+  string email = 1;
 }
 
-message EnableTwoFactorResponse {
-  string secret = 1;
-  string qrCode = 2;
+message GenerateTwoFactorOTPResponse {
+  bool success = 1;
+  string message = 2;
 }
 
 message VerifyTwoFactorRequest {
-  int32 userID = 1;
+  string email = 1;
   string code = 2;
-  string token = 3;
-}
-
-message VerifyTwoFactorResponse {
-  bool success = 1;
-}
-
-message DisableTwoFactorRequest {
-  int32 userID = 1;
-  string token = 2;
-}
-
-message DisableTwoFactorResponse {
-  bool success = 1;
 }
 
 message PasswordResetRequest {

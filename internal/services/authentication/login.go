@@ -4,23 +4,24 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
 )
 
 type LoginService struct {
-	db               *sql.DB
-	twoFactorService *TwoFactorService
-	recoveryService  *RecoveryService
+    db               *sql.DB
+    twoFactorService *TwoFactorService
+    recoveryService  *RecoveryService
 }
 
 func NewLoginService(db *sql.DB, twoFactorService *TwoFactorService, recoveryService *RecoveryService) *LoginService {
-	return &LoginService{
-		db:               db,
-		twoFactorService: twoFactorService,
-		recoveryService:  recoveryService,
-	}
+    return &LoginService{
+        db:               db,
+        twoFactorService: twoFactorService,
+        recoveryService:  recoveryService,
+    }
 }
 
 func (s *LoginService) Login(ctx context.Context, emailOrId, password string) (*models.User, error) {
@@ -76,9 +77,13 @@ func (s *LoginService) Login(ctx context.Context, emailOrId, password string) (*
     if err != nil {
         handleErr := s.HandleFailedLoginAttempt(ctx, user)
         if handleErr != nil {
-            return user, handleErr
+            return nil, handleErr
         }
         return nil, fmt.Errorf("invalid email/ID or password")
+    }
+
+    if user.TwoFactorEnabled.Valid && user.TwoFactorEnabled.Bool {
+        return nil, fmt.Errorf("two factor authentication required")
     }
 
     err = s.HandleSuccessfulLogin(ctx, user.Userid)
@@ -114,46 +119,45 @@ func (s *LoginService) GetUserByEmail(ctx context.Context, email string) (*model
 }
 
 func (s *LoginService) HandleFailedLoginAttempt(ctx context.Context, user *models.User) error {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to start transaction: %v", err)
-	}
-	defer tx.Rollback()
+    tx, err := s.db.BeginTx(ctx, nil)
+    if err != nil {
+        return fmt.Errorf("failed to start transaction: %v", err)
+    }
+    defer tx.Rollback()
 
-	queries := models.New(tx)
+    queries := models.New(tx)
 
-	err = queries.IncrementFailedLoginAttempts(ctx, user.Userid)
-	if err != nil {
-		return fmt.Errorf("failed to update login attempts: %v", err)
-	}
+    err = queries.IncrementFailedLoginAttempts(ctx, user.Userid)
+    if err != nil {
+        return fmt.Errorf("failed to update login attempts: %v", err)
+    }
 
-	updatedUser, err := queries.GetUserByID(ctx, user.Userid)
-	if err != nil {
-		return fmt.Errorf("failed to get updated user info: %v", err)
-	}
+    updatedUser, err := queries.GetUserByID(ctx, user.Userid)
+    if err != nil {
+        return fmt.Errorf("failed to get updated user info: %v", err)
+    }
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %v", err)
-	}
+    if err := tx.Commit(); err != nil {
+        return fmt.Errorf("failed to commit transaction: %v", err)
+    }
 
-	if updatedUser.FailedLoginAttempts.Int32 >= 4 {
-		if updatedUser.TwoFactorEnabled.Valid && updatedUser.TwoFactorEnabled.Bool {
-			return fmt.Errorf("two factor authentication required")
-		} else {
-			// Do this asynchronously
-			go func() {
-				err := s.recoveryService.ForcedPasswordReset(context.Background(), updatedUser.Email)
-				if err != nil {
-					fmt.Printf("failed to initiate forced password reset: %v\n", err)
-				}
-			}()
-			return fmt.Errorf("password reset required")
-		}
-	}
+    if updatedUser.FailedLoginAttempts.Int32 >= 4 {
+        if updatedUser.TwoFactorEnabled.Valid && updatedUser.TwoFactorEnabled.Bool {
+            return fmt.Errorf("two factor authentication required")
+        } else {
+            // Do this asynchronously
+            go func() {
+                err := s.recoveryService.ForcedPasswordReset(context.Background(), updatedUser.Email)
+                if err != nil {
+                    log.Printf("failed to initiate forced password reset: %v\n", err)
+                }
+            }()
+            return fmt.Errorf("password reset required")
+        }
+    }
 
-	return nil
+    return nil
 }
-
 func (s *LoginService) HandleSuccessfulLogin(ctx context.Context, userID int32) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

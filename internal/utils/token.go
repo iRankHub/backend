@@ -55,12 +55,13 @@ func InitializeTokenConfig() error {
 	return nil
 }
 
-func GenerateToken(userID int32, userRole, userEmail string) (string, error) {
+func GenerateToken(userID int32, userName, userRole, userEmail string) (string, error) {
 	maker := paseto.NewV2()
 
 	claims := map[string]interface{}{
 		"user_id":    userID,
-		"user_role":  userRole,
+		"user_name":  userName,
+		"user_role":  userRole,  // This should be "admin" for admin users
 		"user_email": userEmail,
 		"exp":        time.Now().Add(time.Hour * 168).Unix(), // Token expires in 7 days
 	}

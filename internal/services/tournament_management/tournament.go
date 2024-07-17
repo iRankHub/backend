@@ -27,11 +27,11 @@ func (s *TournamentService) CreateTournament(ctx context.Context, req *tournamen
 		return nil, err
 	}
 
-	creatorEmail, ok := claims["email"].(string)
+	creatorEmail, ok := claims["user_email"].(string)
 	if !ok {
 		return nil, fmt.Errorf("failed to get creator email from token")
 	}
-	creatorName, ok := claims["name"].(string)
+	creatorName, ok := claims["user_name"].(string)
 	if !ok {
 		return nil, fmt.Errorf("failed to get creator name from token")
 	}

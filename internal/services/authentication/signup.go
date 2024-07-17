@@ -13,11 +13,12 @@ import (
 )
 
 type SignUpService struct {
-	db *sql.DB
+	db               *sql.DB
+	twoFactorService *TwoFactorService
 }
 
-func NewSignUpService(db *sql.DB) *SignUpService {
-	return &SignUpService{db: db}
+func NewSignUpService(db *sql.DB, twoFactorService *TwoFactorService) *SignUpService {
+	return &SignUpService{db: db, twoFactorService: twoFactorService}
 }
 
 func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, password, userRole string, additionalInfo map[string]interface{}) error {
@@ -54,6 +55,20 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 		return fmt.Errorf("failed to create user: %v", err)
 	}
 
+	// Enable two-factor authentication by default
+	secret, err := s.twoFactorService.GenerateSecret()
+	if err != nil {
+		return fmt.Errorf("failed to generate two-factor secret: %v", err)
+	}
+
+	err = queries.UpdateAndEnableTwoFactor(ctx, models.UpdateAndEnableTwoFactorParams{
+		Userid:          user.Userid,
+		TwoFactorSecret: sql.NullString{String: secret, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update and enable two-factor authentication: %v", err)
+	}
+
 	switch userRole {
 	case "student":
 		err = s.createStudentRecord(ctx, queries, user.Userid, firstName, lastName, email, hashedPassword, additionalInfo)
@@ -62,7 +77,7 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 	case "volunteer":
 		err = s.createVolunteerRecord(ctx, queries, user.Userid, firstName, lastName, hashedPassword, additionalInfo)
 	case "admin":
-		// No additional record needed for admin
+		err = s.createAdminProfile(ctx, queries, user.Userid, firstName+" "+lastName, email, userRole)
 	default:
 		return fmt.Errorf("invalid user role")
 	}
@@ -75,26 +90,42 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	// This go routine run in the background as to not impact performance
+	// These go routines run in the background as to not impact performance
 	go func() {
 		if userRole == "admin" {
 			if err := utils.SendAdminWelcomeEmail(email, firstName); err != nil {
 				log.Printf("Failed to send admin welcome email: %v", err)
 			}
 		} else {
-			if userRole != "admin" {
-				ctx := context.Background()
-				queries := models.New(s.db)
-				if err := s.notifyAdminOfNewSignUp(ctx, queries, user.Userid, userRole); err != nil {
-					log.Printf("Failed to notify admin of new signup: %v", err)
-				}
-			}
 			if err := utils.SendWelcomeEmail(email, firstName); err != nil {
 				log.Printf("Failed to send welcome email: %v", err)
+			}
+
+			ctx := context.Background()
+			queries := models.New(s.db)
+			if err := s.notifyAdminOfNewSignUp(ctx, queries, user.Userid, userRole); err != nil {
+				log.Printf("Failed to notify admin of new signup: %v", err)
 			}
 		}
 	}()
 
+	return nil
+}
+
+func (s *SignUpService) createAdminProfile(ctx context.Context, queries *models.Queries, userID int32, name, email string, userRole string) error {
+	_, err := queries.CreateUserProfile(ctx, models.CreateUserProfileParams{
+		Userid:         userID,
+		Name:           name,
+		Userrole:       userRole,
+		Email:          email,
+		Address:        sql.NullString{},
+		Phone:          sql.NullString{},
+		Bio:            sql.NullString{},
+		Profilepicture: nil,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create admin profile: %v", err)
+	}
 	return nil
 }
 

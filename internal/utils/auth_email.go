@@ -131,3 +131,19 @@ func SendForcedPasswordResetEmail(to, resetToken string) error {
 	body := getAuthEmailTemplate("Security Alert: Forced Password Reset", content)
 	return sendAuthEmail(to, subject, body)
 }
+
+func SendTwoFactorOTPEmail(to, otp string) error {
+	subject := "Security Verification: Action Required"
+	content := fmt.Sprintf(`
+		<p>Hello,</p>
+		<p>We hope this email finds you well. We're reaching out because we've detected some unusual activity on your iRankHub account. As a precautionary measure, we need to verify your identity before proceeding.</p>
+		<p>Please use the following One-Time Password (OTP) to confirm it's really you:</p>
+		<h2 style="font-size: 24px; color: #4CAF50; text-align: center;">%s</h2>
+		<p>This OTP will be valid for the next 15 minutes.</p>
+		<p>Your account security is our top priority.</p>
+		<p>Thank you for your cooperation in keeping your account safe.</p>
+		<p>Best regards,<br>The iRankHub Security Team</p>
+	`, otp)
+	body := getAuthEmailTemplate("Security Verification Required", content)
+	return sendAuthEmail(to, subject, body)
+}

@@ -21,9 +21,8 @@ const _ = grpc.SupportPackageIsVersion8
 const (
 	AuthService_SignUp_FullMethodName                     = "/auth.AuthService/SignUp"
 	AuthService_Login_FullMethodName                      = "/auth.AuthService/Login"
-	AuthService_EnableTwoFactor_FullMethodName            = "/auth.AuthService/EnableTwoFactor"
+	AuthService_GenerateTwoFactorOTP_FullMethodName       = "/auth.AuthService/GenerateTwoFactorOTP"
 	AuthService_VerifyTwoFactor_FullMethodName            = "/auth.AuthService/VerifyTwoFactor"
-	AuthService_DisableTwoFactor_FullMethodName           = "/auth.AuthService/DisableTwoFactor"
 	AuthService_RequestPasswordReset_FullMethodName       = "/auth.AuthService/RequestPasswordReset"
 	AuthService_ResetPassword_FullMethodName              = "/auth.AuthService/ResetPassword"
 	AuthService_BeginWebAuthnRegistration_FullMethodName  = "/auth.AuthService/BeginWebAuthnRegistration"
@@ -39,9 +38,8 @@ const (
 type AuthServiceClient interface {
 	SignUp(ctx context.Context, in *SignUpRequest, opts ...grpc.CallOption) (*SignUpResponse, error)
 	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
-	EnableTwoFactor(ctx context.Context, in *EnableTwoFactorRequest, opts ...grpc.CallOption) (*EnableTwoFactorResponse, error)
-	VerifyTwoFactor(ctx context.Context, in *VerifyTwoFactorRequest, opts ...grpc.CallOption) (*VerifyTwoFactorResponse, error)
-	DisableTwoFactor(ctx context.Context, in *DisableTwoFactorRequest, opts ...grpc.CallOption) (*DisableTwoFactorResponse, error)
+	GenerateTwoFactorOTP(ctx context.Context, in *GenerateTwoFactorOTPRequest, opts ...grpc.CallOption) (*GenerateTwoFactorOTPResponse, error)
+	VerifyTwoFactor(ctx context.Context, in *VerifyTwoFactorRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 	RequestPasswordReset(ctx context.Context, in *PasswordResetRequest, opts ...grpc.CallOption) (*PasswordResetResponse, error)
 	ResetPassword(ctx context.Context, in *ResetPasswordRequest, opts ...grpc.CallOption) (*ResetPasswordResponse, error)
 	BeginWebAuthnRegistration(ctx context.Context, in *BeginWebAuthnRegistrationRequest, opts ...grpc.CallOption) (*BeginWebAuthnRegistrationResponse, error)
@@ -79,30 +77,20 @@ func (c *authServiceClient) Login(ctx context.Context, in *LoginRequest, opts ..
 	return out, nil
 }
 
-func (c *authServiceClient) EnableTwoFactor(ctx context.Context, in *EnableTwoFactorRequest, opts ...grpc.CallOption) (*EnableTwoFactorResponse, error) {
+func (c *authServiceClient) GenerateTwoFactorOTP(ctx context.Context, in *GenerateTwoFactorOTPRequest, opts ...grpc.CallOption) (*GenerateTwoFactorOTPResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(EnableTwoFactorResponse)
-	err := c.cc.Invoke(ctx, AuthService_EnableTwoFactor_FullMethodName, in, out, cOpts...)
+	out := new(GenerateTwoFactorOTPResponse)
+	err := c.cc.Invoke(ctx, AuthService_GenerateTwoFactorOTP_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *authServiceClient) VerifyTwoFactor(ctx context.Context, in *VerifyTwoFactorRequest, opts ...grpc.CallOption) (*VerifyTwoFactorResponse, error) {
+func (c *authServiceClient) VerifyTwoFactor(ctx context.Context, in *VerifyTwoFactorRequest, opts ...grpc.CallOption) (*LoginResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(VerifyTwoFactorResponse)
+	out := new(LoginResponse)
 	err := c.cc.Invoke(ctx, AuthService_VerifyTwoFactor_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *authServiceClient) DisableTwoFactor(ctx context.Context, in *DisableTwoFactorRequest, opts ...grpc.CallOption) (*DisableTwoFactorResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DisableTwoFactorResponse)
-	err := c.cc.Invoke(ctx, AuthService_DisableTwoFactor_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -185,9 +173,8 @@ func (c *authServiceClient) Logout(ctx context.Context, in *LogoutRequest, opts 
 type AuthServiceServer interface {
 	SignUp(context.Context, *SignUpRequest) (*SignUpResponse, error)
 	Login(context.Context, *LoginRequest) (*LoginResponse, error)
-	EnableTwoFactor(context.Context, *EnableTwoFactorRequest) (*EnableTwoFactorResponse, error)
-	VerifyTwoFactor(context.Context, *VerifyTwoFactorRequest) (*VerifyTwoFactorResponse, error)
-	DisableTwoFactor(context.Context, *DisableTwoFactorRequest) (*DisableTwoFactorResponse, error)
+	GenerateTwoFactorOTP(context.Context, *GenerateTwoFactorOTPRequest) (*GenerateTwoFactorOTPResponse, error)
+	VerifyTwoFactor(context.Context, *VerifyTwoFactorRequest) (*LoginResponse, error)
 	RequestPasswordReset(context.Context, *PasswordResetRequest) (*PasswordResetResponse, error)
 	ResetPassword(context.Context, *ResetPasswordRequest) (*ResetPasswordResponse, error)
 	BeginWebAuthnRegistration(context.Context, *BeginWebAuthnRegistrationRequest) (*BeginWebAuthnRegistrationResponse, error)
@@ -208,14 +195,11 @@ func (UnimplementedAuthServiceServer) SignUp(context.Context, *SignUpRequest) (*
 func (UnimplementedAuthServiceServer) Login(context.Context, *LoginRequest) (*LoginResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Login not implemented")
 }
-func (UnimplementedAuthServiceServer) EnableTwoFactor(context.Context, *EnableTwoFactorRequest) (*EnableTwoFactorResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method EnableTwoFactor not implemented")
+func (UnimplementedAuthServiceServer) GenerateTwoFactorOTP(context.Context, *GenerateTwoFactorOTPRequest) (*GenerateTwoFactorOTPResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateTwoFactorOTP not implemented")
 }
-func (UnimplementedAuthServiceServer) VerifyTwoFactor(context.Context, *VerifyTwoFactorRequest) (*VerifyTwoFactorResponse, error) {
+func (UnimplementedAuthServiceServer) VerifyTwoFactor(context.Context, *VerifyTwoFactorRequest) (*LoginResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VerifyTwoFactor not implemented")
-}
-func (UnimplementedAuthServiceServer) DisableTwoFactor(context.Context, *DisableTwoFactorRequest) (*DisableTwoFactorResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DisableTwoFactor not implemented")
 }
 func (UnimplementedAuthServiceServer) RequestPasswordReset(context.Context, *PasswordResetRequest) (*PasswordResetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RequestPasswordReset not implemented")
@@ -287,20 +271,20 @@ func _AuthService_Login_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AuthService_EnableTwoFactor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(EnableTwoFactorRequest)
+func _AuthService_GenerateTwoFactorOTP_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GenerateTwoFactorOTPRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServiceServer).EnableTwoFactor(ctx, in)
+		return srv.(AuthServiceServer).GenerateTwoFactorOTP(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AuthService_EnableTwoFactor_FullMethodName,
+		FullMethod: AuthService_GenerateTwoFactorOTP_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).EnableTwoFactor(ctx, req.(*EnableTwoFactorRequest))
+		return srv.(AuthServiceServer).GenerateTwoFactorOTP(ctx, req.(*GenerateTwoFactorOTPRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -319,24 +303,6 @@ func _AuthService_VerifyTwoFactor_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AuthServiceServer).VerifyTwoFactor(ctx, req.(*VerifyTwoFactorRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _AuthService_DisableTwoFactor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DisableTwoFactorRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AuthServiceServer).DisableTwoFactor(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: AuthService_DisableTwoFactor_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).DisableTwoFactor(ctx, req.(*DisableTwoFactorRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -483,16 +449,12 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AuthService_Login_Handler,
 		},
 		{
-			MethodName: "EnableTwoFactor",
-			Handler:    _AuthService_EnableTwoFactor_Handler,
+			MethodName: "GenerateTwoFactorOTP",
+			Handler:    _AuthService_GenerateTwoFactorOTP_Handler,
 		},
 		{
 			MethodName: "VerifyTwoFactor",
 			Handler:    _AuthService_VerifyTwoFactor_Handler,
-		},
-		{
-			MethodName: "DisableTwoFactor",
-			Handler:    _AuthService_DisableTwoFactor_Handler,
 		},
 		{
 			MethodName: "RequestPasswordReset",

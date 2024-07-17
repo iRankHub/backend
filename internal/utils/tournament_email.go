@@ -125,10 +125,10 @@ func fetchRelevantSchools(ctx context.Context, queries *models.Queries, league m
 
     var searchTerms []string
     if league.Leaguetype == "local" {
-        if provinces, ok := leagueDetails["provinces"].([]interface{}); ok {
-            for _, province := range provinces {
-                if provinceStr, ok := province.(string); ok {
-                    searchTerms = append(searchTerms, provinceStr)
+        if districts, ok := leagueDetails["districts"].([]interface{}); ok {
+            for _, district := range districts {
+                if districtStr, ok := district.(string); ok {
+                    searchTerms = append(searchTerms, districtStr)
                 }
             }
         }

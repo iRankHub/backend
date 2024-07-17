@@ -15,10 +15,10 @@ FROM Users u
 LEFT JOIN Students s ON u.UserID = s.UserID
 LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
 LEFT JOIN Volunteers v ON u.UserID = v.UserID
-WHERE u.Email = $1
+WHERE (u.Email = $1
    OR s.iDebateStudentID = $1
    OR sch.iDebateSchoolID = $1
-   OR v.iDebateVolunteerID = $1
+   OR v.iDebateVolunteerID = $1)
 AND u.deleted_at IS NULL
 LIMIT 1;
 
@@ -65,15 +65,9 @@ UPDATE Users
 SET deleted_at = CURRENT_TIMESTAMP
 WHERE UserID = $1;
 
--- name: UpdateUserTwoFactorSecret :exec
-UPDATE Users SET two_factor_secret = $2 WHERE UserID = $1;
-
--- name: EnableTwoFactor :exec
-UPDATE Users SET two_factor_enabled = TRUE WHERE UserID = $1;
-
--- name: DisableTwoFactor :exec
+-- name: UpdateAndEnableTwoFactor :exec
 UPDATE Users
-SET two_factor_enabled = FALSE, two_factor_secret = NULL
+SET two_factor_secret = $2, two_factor_enabled = TRUE
 WHERE UserID = $1;
 
 -- name: UpdateLastLoginAttempt :exec

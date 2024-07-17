@@ -39,7 +39,7 @@ Demo Data:
   "userRole": "school",
   "schoolName": "Springfield High",
   "address": "KK 123 St",
-  "country": "USA",
+  "country": "United States of America",
   "province": "Illinois",
   "district": "Springfield",
   "contactEmail": "contact@springfieldhigh.edu",
@@ -74,18 +74,28 @@ Demo Data:
   "password": "password123"
 }
 ```
+Note: The login process now has two steps when 2FA is enabled:
+1. Initial login attempt with email/ID and password
+2. If 2FA is required, use the `VerifyTwoFactor` endpoint to complete the authentication
 
-### Enable Two-Factor Authentication
+### Generate Two-Factor Authentication OTP
 
-Endpoint: `AuthService.EnableTwoFactor`
+Endpoint: `AuthService.GenerateTwoFactorOTP`
 
-Description: Enable 2FA for a user account. Requires authentication.
+Description: Generate and send a new 2FA OTP to the user's email. This can be used when setting up 2FA or when the user needs a new OTP.
 
 Demo Data:
 ```json
 {
-  "userID": 1,
-  "token": "your_auth_token_here"
+  "email": "user@example.com"
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "message": "Two-factor authentication OTP sent. Please check your email."
 }
 ```
 
@@ -93,28 +103,21 @@ Demo Data:
 
 Endpoint: `AuthService.VerifyTwoFactor`
 
-Description: Verify the 2FA code provided by the user.
+Description: Verify the 2FA code provided by the user. This is used during the login process when 2FA is required.
 
 Demo Data:
 ```json
 {
-  "userID": 1,
-  "code": "123456",
-  "token": "your_auth_token_here"
+  "email": "user@example.com",
+  "code": "123456"
 }
 ```
 
-### Disable Two-Factor Authentication
-
-Endpoint: `AuthService.DisableTwoFactor`
-
-Description: Disable 2FA for a user account. Requires authentication.
-
-Demo Data:
+Response:
 ```json
 {
-  "userID": 1,
-  "token": "your_auth_token_here"
+  "success": true,
+  "message": "Two-factor authentication verified successfully."
 }
 ```
 ## User Management API
