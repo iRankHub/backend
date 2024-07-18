@@ -73,7 +73,7 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 	case "student":
 		err = s.createStudentRecord(ctx, queries, user.Userid, firstName, lastName, email, hashedPassword, additionalInfo)
 	case "school":
-		err = s.createSchoolRecord(ctx, queries, user.Userid, additionalInfo)
+		err = s.createSchoolRecord(ctx, queries, user.Userid, email, additionalInfo)
 	case "volunteer":
 		err = s.createVolunteerRecord(ctx, queries, user.Userid, firstName, lastName, hashedPassword, additionalInfo)
 	case "admin":
@@ -176,54 +176,54 @@ func (s *SignUpService) createStudentRecord(ctx context.Context, queries *models
 	return nil
 }
 
-func (s *SignUpService) createSchoolRecord(ctx context.Context, queries *models.Queries, userID int32, additionalInfo map[string]interface{}) error {
+func (s *SignUpService) createSchoolRecord(ctx context.Context, queries *models.Queries, userID int32, email string, additionalInfo map[string]interface{}) error {
+    schoolName, ok := additionalInfo["schoolName"].(string)
+    if !ok || schoolName == "" {
+        return fmt.Errorf("school name is missing or invalid")
+    }
 
-	schoolName, ok := additionalInfo["schoolName"].(string)
-	if !ok || schoolName == "" {
-		return fmt.Errorf("school name is missing or invalid")
-	}
+    address, ok := additionalInfo["address"].(string)
+    if !ok || address == "" {
+        return fmt.Errorf("address is missing or invalid")
+    }
 
-	address, ok := additionalInfo["address"].(string)
-	if !ok || address == "" {
-		return fmt.Errorf("address is missing or invalid")
-	}
+    country, ok := additionalInfo["country"].(string)
+    if !ok || country == "" {
+        return fmt.Errorf("country is missing or invalid")
+    }
 
-	country, ok := additionalInfo["country"].(string)
-	if !ok || country == "" {
-		return fmt.Errorf("country is missing or invalid")
-	}
+    province, ok := additionalInfo["province"].(string)
+    if !ok || province == "" {
+        return fmt.Errorf("province is missing or invalid")
+    }
 
-	province, ok := additionalInfo["province"].(string)
-	if !ok || province == "" {
-		return fmt.Errorf("province is missing or invalid")
-	}
+    district, ok := additionalInfo["district"].(string)
+    if !ok || district == "" {
+        return fmt.Errorf("district is missing or invalid")
+    }
 
-	district, ok := additionalInfo["district"].(string)
-	if !ok || district == "" {
-		return fmt.Errorf("district is missing or invalid")
-	}
+    contactEmail, ok := additionalInfo["contactEmail"].(string)
+    if !ok || contactEmail == "" {
+        return fmt.Errorf("contact email is missing or invalid")
+    }
 
-	contactEmail, ok := additionalInfo["contactEmail"].(string)
-	if !ok || contactEmail == "" {
-		return fmt.Errorf("contact email is missing or invalid")
-	}
+    schoolType, ok := additionalInfo["schoolType"].(string)
+    if !ok || schoolType == "" {
+        return fmt.Errorf("school type is missing or invalid")
+    }
 
-	schoolType, ok := additionalInfo["schoolType"].(string)
-	if !ok || schoolType == "" {
-		return fmt.Errorf("school type is missing or invalid")
-	}
-
-	_, err := queries.CreateSchool(ctx, models.CreateSchoolParams{
-		Schoolname:      schoolName,
-		Address:         address,
-		Country:         sql.NullString{String: country, Valid: true},
-		Province:        sql.NullString{String: province, Valid: true},
-		District:        sql.NullString{String: district, Valid: true},
-		Contactpersonid: userID,
-		Contactemail:    contactEmail,
-		Schooltype:      schoolType,
-	})
-	return err
+    _, err := queries.CreateSchool(ctx, models.CreateSchoolParams{
+        Schoolname:      schoolName,
+        Address:         address,
+        Country:         sql.NullString{String: country, Valid: true},
+        Province:        sql.NullString{String: province, Valid: true},
+        District:        sql.NullString{String: district, Valid: true},
+        Contactpersonid: userID,
+        Contactemail:    contactEmail,
+        Schoolemail:     email,
+        Schooltype:      schoolType,
+    })
+    return err
 }
 
 func (s *SignUpService) createVolunteerRecord(ctx context.Context, queries *models.Queries, userID int32, firstName, lastName, hashedPassword string, additionalInfo map[string]interface{}) error {
