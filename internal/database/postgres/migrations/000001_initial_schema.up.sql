@@ -325,6 +325,8 @@ CREATE TABLE StudentTransfers (
 CREATE INDEX IF NOT EXISTS idx_users_email ON Users(Email);
 CREATE INDEX IF NOT EXISTS idx_users_status ON Users(Status);
 
+CREATE INDEX IF NOT EXISTS idx_users_email_password ON Users(Email, Password);
+
 CREATE INDEX IF NOT EXISTS idx_users_reset_token ON Users(reset_token);
 
 CREATE INDEX IF NOT EXISTS idx_schools_contactpersonid ON Schools(ContactPersonID);

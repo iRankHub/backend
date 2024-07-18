@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -69,6 +71,11 @@ func main() {
 			log.Fatalf("Failed to start Envoy Proxy: %v", err)
 		}
 	}()
+
+    // Start the profiling server
+    go func() {
+        log.Println(http.ListenAndServe("localhost:6060", nil))
+    }()
 
 	// Start the gRPC server
 	if err := server.StartGRPCServer(db); err != nil {

@@ -185,24 +185,36 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	return i, err
 }
 
-const getUserByEmailOrIDebateID = `-- name: GetUserByEmailOrIDebateID :one
+const getUserByEmailOrIDebateIDAndUpdateLoginAttempt = `-- name: GetUserByEmailOrIDebateIDAndUpdateLoginAttempt :one
+WITH updated_user AS (
+    UPDATE Users u
+    SET last_login_attempt = NOW()
+    WHERE u.UserID IN (
+        SELECT u.UserID
+        FROM Users u
+        LEFT JOIN Students s ON u.UserID = s.UserID
+        LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
+        LEFT JOIN Volunteers v ON u.UserID = v.UserID
+        WHERE (u.Email = $1
+           OR s.iDebateStudentID = $1
+           OR sch.iDebateSchoolID = $1
+           OR v.iDebateVolunteerID = $1)
+        AND u.deleted_at IS NULL
+        LIMIT 1
+    )
+    RETURNING userid, webauthnuserid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at
+)
 SELECT u.userid, u.webauthnuserid, u.name, u.email, u.password, u.userrole, u.status, u.verificationstatus, u.deactivatedat, u.two_factor_secret, u.two_factor_enabled, u.failed_login_attempts, u.last_login_attempt, u.last_logout, u.reset_token, u.reset_token_expires, u.created_at, u.updated_at, u.deleted_at,
        s.iDebateStudentID,
        sch.iDebateSchoolID,
        v.iDebateVolunteerID
-FROM Users u
+FROM updated_user u
 LEFT JOIN Students s ON u.UserID = s.UserID
 LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
 LEFT JOIN Volunteers v ON u.UserID = v.UserID
-WHERE (u.Email = $1
-   OR s.iDebateStudentID = $1
-   OR sch.iDebateSchoolID = $1
-   OR v.iDebateVolunteerID = $1)
-AND u.deleted_at IS NULL
-LIMIT 1
 `
 
-type GetUserByEmailOrIDebateIDRow struct {
+type GetUserByEmailOrIDebateIDAndUpdateLoginAttemptRow struct {
 	Userid              int32          `json:"userid"`
 	Webauthnuserid      []byte         `json:"webauthnuserid"`
 	Name                string         `json:"name"`
@@ -227,9 +239,9 @@ type GetUserByEmailOrIDebateIDRow struct {
 	Idebatevolunteerid  sql.NullString `json:"idebatevolunteerid"`
 }
 
-func (q *Queries) GetUserByEmailOrIDebateID(ctx context.Context, email string) (GetUserByEmailOrIDebateIDRow, error) {
-	row := q.db.QueryRowContext(ctx, getUserByEmailOrIDebateID, email)
-	var i GetUserByEmailOrIDebateIDRow
+func (q *Queries) GetUserByEmailOrIDebateIDAndUpdateLoginAttempt(ctx context.Context, email string) (GetUserByEmailOrIDebateIDAndUpdateLoginAttemptRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserByEmailOrIDebateIDAndUpdateLoginAttempt, email)
+	var i GetUserByEmailOrIDebateIDAndUpdateLoginAttemptRow
 	err := row.Scan(
 		&i.Userid,
 		&i.Webauthnuserid,
@@ -526,16 +538,39 @@ func (q *Queries) GetWebAuthnSessionData(ctx context.Context, userid int32) ([]b
 	return sessiondata, err
 }
 
-const incrementFailedLoginAttempts = `-- name: IncrementFailedLoginAttempts :exec
+const incrementAndGetFailedLoginAttempts = `-- name: IncrementAndGetFailedLoginAttempts :one
 UPDATE Users
 SET failed_login_attempts = failed_login_attempts + 1,
     last_login_attempt = NOW()
 WHERE UserID = $1
+RETURNING userid, webauthnuserid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at
 `
 
-func (q *Queries) IncrementFailedLoginAttempts(ctx context.Context, userid int32) error {
-	_, err := q.db.ExecContext(ctx, incrementFailedLoginAttempts, userid)
-	return err
+func (q *Queries) IncrementAndGetFailedLoginAttempts(ctx context.Context, userid int32) (User, error) {
+	row := q.db.QueryRowContext(ctx, incrementAndGetFailedLoginAttempts, userid)
+	var i User
+	err := row.Scan(
+		&i.Userid,
+		&i.Webauthnuserid,
+		&i.Name,
+		&i.Email,
+		&i.Password,
+		&i.Userrole,
+		&i.Status,
+		&i.Verificationstatus,
+		&i.Deactivatedat,
+		&i.TwoFactorSecret,
+		&i.TwoFactorEnabled,
+		&i.FailedLoginAttempts,
+		&i.LastLoginAttempt,
+		&i.LastLogout,
+		&i.ResetToken,
+		&i.ResetTokenExpires,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
 }
 
 const reactivateAccount = `-- name: ReactivateAccount :exec
@@ -662,15 +697,6 @@ type UpdateAndEnableTwoFactorParams struct {
 
 func (q *Queries) UpdateAndEnableTwoFactor(ctx context.Context, arg UpdateAndEnableTwoFactorParams) error {
 	_, err := q.db.ExecContext(ctx, updateAndEnableTwoFactor, arg.Userid, arg.TwoFactorSecret)
-	return err
-}
-
-const updateLastLoginAttempt = `-- name: UpdateLastLoginAttempt :exec
-UPDATE Users SET last_login_attempt = NOW() WHERE UserID = $1
-`
-
-func (q *Queries) UpdateLastLoginAttempt(ctx context.Context, userid int32) error {
-	_, err := q.db.ExecContext(ctx, updateLastLoginAttempt, userid)
 	return err
 }
 

@@ -6,21 +6,33 @@ WHERE UserID = $1 AND deleted_at IS NULL;
 SELECT * FROM Users
 WHERE Email = $1 AND deleted_at IS NULL;
 
--- name: GetUserByEmailOrIDebateID :one
+-- name: GetUserByEmailOrIDebateIDAndUpdateLoginAttempt :one
+WITH updated_user AS (
+    UPDATE Users u
+    SET last_login_attempt = NOW()
+    WHERE u.UserID IN (
+        SELECT u.UserID
+        FROM Users u
+        LEFT JOIN Students s ON u.UserID = s.UserID
+        LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
+        LEFT JOIN Volunteers v ON u.UserID = v.UserID
+        WHERE (u.Email = $1
+           OR s.iDebateStudentID = $1
+           OR sch.iDebateSchoolID = $1
+           OR v.iDebateVolunteerID = $1)
+        AND u.deleted_at IS NULL
+        LIMIT 1
+    )
+    RETURNING *
+)
 SELECT u.*,
        s.iDebateStudentID,
        sch.iDebateSchoolID,
        v.iDebateVolunteerID
-FROM Users u
+FROM updated_user u
 LEFT JOIN Students s ON u.UserID = s.UserID
 LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
-LEFT JOIN Volunteers v ON u.UserID = v.UserID
-WHERE (u.Email = $1
-   OR s.iDebateStudentID = $1
-   OR sch.iDebateSchoolID = $1
-   OR v.iDebateVolunteerID = $1)
-AND u.deleted_at IS NULL
-LIMIT 1;
+LEFT JOIN Volunteers v ON u.UserID = v.UserID;
 
 -- name: GetUserEmailAndNameByID :one
 SELECT UserID, Email, Name, Password, UserRole FROM Users WHERE UserID = $1;
@@ -70,19 +82,18 @@ UPDATE Users
 SET two_factor_secret = $2, two_factor_enabled = TRUE
 WHERE UserID = $1;
 
--- name: UpdateLastLoginAttempt :exec
-UPDATE Users SET last_login_attempt = NOW() WHERE UserID = $1;
+-- name: IncrementAndGetFailedLoginAttempts :one
+UPDATE Users
+SET failed_login_attempts = failed_login_attempts + 1,
+    last_login_attempt = NOW()
+WHERE UserID = $1
+RETURNING *;
 
 -- name: UpdateLastLogout :exec
 UPDATE Users
 SET last_logout = $2
 WHERE UserID = $1;
 
--- name: IncrementFailedLoginAttempts :exec
-UPDATE Users
-SET failed_login_attempts = failed_login_attempts + 1,
-    last_login_attempt = NOW()
-WHERE UserID = $1;
 
 -- name: ResetFailedLoginAttempts :exec
 UPDATE Users SET failed_login_attempts = 0 WHERE UserID = $1;

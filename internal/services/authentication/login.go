@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
@@ -25,6 +26,11 @@ func NewLoginService(db *sql.DB, twoFactorService *TwoFactorService, recoverySer
 }
 
 func (s *LoginService) Login(ctx context.Context, emailOrId, password string) (*models.User, error) {
+    start := time.Now()
+    defer func() {
+        log.Printf("Total login time: %v", time.Since(start))
+    }()
+
     tx, err := s.db.BeginTx(ctx, nil)
     if err != nil {
         return nil, fmt.Errorf("failed to start transaction: %v", err)
@@ -33,14 +39,15 @@ func (s *LoginService) Login(ctx context.Context, emailOrId, password string) (*
 
     queries := models.New(tx)
 
-    userRow, err := queries.GetUserByEmailOrIDebateID(ctx, emailOrId)
+    getUserStart := time.Now()
+    userRow, err := queries.GetUserByEmailOrIDebateIDAndUpdateLoginAttempt(ctx, emailOrId)
+    log.Printf("GetUserByEmailOrIDebateIDAndUpdateLoginAttempt time: %v", time.Since(getUserStart))
     if err != nil {
         if err == sql.ErrNoRows {
             return nil, fmt.Errorf("invalid email/ID or password")
         }
         return nil, fmt.Errorf("failed to retrieve user: %v", err)
     }
-
     // Convert GetUserByEmailOrIDebateIDRow to User
     user := &models.User{
         Userid:               userRow.Userid,
@@ -64,16 +71,13 @@ func (s *LoginService) Login(ctx context.Context, emailOrId, password string) (*
         DeletedAt:            userRow.DeletedAt,
     }
 
-    err = queries.UpdateLastLoginAttempt(ctx, user.Userid)
-    if err != nil {
-        return nil, fmt.Errorf("failed to update last login attempt: %v", err)
-    }
-
     if err := tx.Commit(); err != nil {
         return nil, fmt.Errorf("failed to commit transaction: %v", err)
     }
 
+    compareStart := time.Now()
     err = utils.ComparePasswords(user.Password, password)
+    log.Printf("ComparePasswords time: %v", time.Since(compareStart))
     if err != nil {
         handleErr := s.HandleFailedLoginAttempt(ctx, user)
         if handleErr != nil {
@@ -119,33 +123,22 @@ func (s *LoginService) GetUserByEmail(ctx context.Context, email string) (*model
 }
 
 func (s *LoginService) HandleFailedLoginAttempt(ctx context.Context, user *models.User) error {
-    tx, err := s.db.BeginTx(ctx, nil)
+    start := time.Now()
+    defer func() {
+        log.Printf("HandleFailedLoginAttempt time: %v", time.Since(start))
+    }()
+
+    queries := models.New(s.db)
+
+    updatedUser, err := queries.IncrementAndGetFailedLoginAttempts(ctx, user.Userid)
     if err != nil {
-        return fmt.Errorf("failed to start transaction: %v", err)
-    }
-    defer tx.Rollback()
-
-    queries := models.New(tx)
-
-    err = queries.IncrementFailedLoginAttempts(ctx, user.Userid)
-    if err != nil {
-        return fmt.Errorf("failed to update login attempts: %v", err)
-    }
-
-    updatedUser, err := queries.GetUserByID(ctx, user.Userid)
-    if err != nil {
-        return fmt.Errorf("failed to get updated user info: %v", err)
-    }
-
-    if err := tx.Commit(); err != nil {
-        return fmt.Errorf("failed to commit transaction: %v", err)
+        return fmt.Errorf("failed to update and get login attempts: %v", err)
     }
 
     if updatedUser.FailedLoginAttempts.Int32 >= 4 {
         if updatedUser.TwoFactorEnabled.Valid && updatedUser.TwoFactorEnabled.Bool {
             return fmt.Errorf("two factor authentication required")
         } else {
-            // Do this asynchronously
             go func() {
                 err := s.recoveryService.ForcedPasswordReset(context.Background(), updatedUser.Email)
                 if err != nil {
@@ -158,6 +151,7 @@ func (s *LoginService) HandleFailedLoginAttempt(ctx context.Context, user *model
 
     return nil
 }
+
 func (s *LoginService) HandleSuccessfulLogin(ctx context.Context, userID int32) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
