@@ -5,8 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
-
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"time"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
 	"github.com/iRankHub/backend/internal/models"
@@ -48,10 +47,20 @@ func (s *TournamentService) CreateTournament(ctx context.Context, req *tournamen
 	qtx := queries.WithTx(tx)
 
 	// Create the tournament
-	tournament, err := qtx.CreateTournamentEntry(ctx, models.CreateTournamentEntryParams{
-		Name:                       req.GetName(),
-		Startdate:                  req.GetStartDate().AsTime(),
-		Enddate:                    req.GetEndDate().AsTime(),
+	startDate, err := time.Parse("2006-01-02 15:04", req.GetStartDate())
+    if err != nil {
+        return nil, fmt.Errorf("invalid start date format: %v", err)
+    }
+
+    endDate, err := time.Parse("2006-01-02 15:04", req.GetEndDate())
+    if err != nil {
+        return nil, fmt.Errorf("invalid end date format: %v", err)
+    }
+
+    tournament, err := qtx.CreateTournamentEntry(ctx, models.CreateTournamentEntryParams{
+        Name:                       req.GetName(),
+        Startdate:                  startDate,
+        Enddate:                    endDate,
 		Location:                   req.GetLocation(),
 		Formatid:                   req.GetFormatId(),
 		Leagueid:                   sql.NullInt32{Int32: req.GetLeagueId(), Valid: true},
@@ -86,6 +95,7 @@ leagueForInvitation := models.League{
 	Leagueid:   league.Leagueid,
 	Name:       league.Name,
 	Leaguetype: league.Leaguetype,
+	Details:    league.Details,
 }
 
 // Send tournament invitations
@@ -148,8 +158,8 @@ func tournamentPaginatedRowToProto(t models.ListTournamentsPaginatedRow) *tourna
 	return &tournament_management.Tournament{
 		TournamentId:               t.Tournamentid,
 		Name:                       t.Name,
-		StartDate:                  timestamppb.New(t.Startdate),
-		EndDate:                    timestamppb.New(t.Enddate),
+		StartDate:                  t.Startdate.Format("2006-01-02 15:04"),
+		EndDate:                    t.Enddate.Format("2006-01-02 15:04"),
 		Location:                   t.Location,
 		FormatId:                   t.Formatid,
 		LeagueId:                   t.Leagueid.Int32,
@@ -167,12 +177,22 @@ func (s *TournamentService) UpdateTournament(ctx context.Context, req *tournamen
 		return nil, err
 	}
 
+	startDate, err := time.Parse("2006-01-02 15:04", req.GetStartDate())
+	if err != nil {
+		return nil, fmt.Errorf("invalid start date format: %v", err)
+	}
+
+	endDate, err := time.Parse("2006-01-02 15:04", req.GetEndDate())
+	if err != nil {
+		return nil, fmt.Errorf("invalid end date format: %v", err)
+	}
+
 	queries := models.New(s.db)
 	updatedTournament, err := queries.UpdateTournamentDetails(ctx, models.UpdateTournamentDetailsParams{
 		Tournamentid:               req.GetTournamentId(),
 		Name:                       req.GetName(),
-		Startdate:                  req.GetStartDate().AsTime(),
-		Enddate:                    req.GetEndDate().AsTime(),
+		Startdate:                  startDate,
+		Enddate:                    endDate,
 		Location:                   req.GetLocation(),
 		Formatid:                   req.GetFormatId(),
 		Leagueid:                   sql.NullInt32{Int32: req.GetLeagueId(), Valid: true},
@@ -228,11 +248,11 @@ func (s *TournamentService) validateAdminRole(token string) (map[string]interfac
 }
 
 func tournamentModelToProto(t models.Tournament) *tournament_management.Tournament {
-	return &tournament_management.Tournament{
-		TournamentId:               t.Tournamentid,
-		Name:                       t.Name,
-		StartDate:                  timestamppb.New(t.Startdate),
-		EndDate:                    timestamppb.New(t.Enddate),
+    return &tournament_management.Tournament{
+        TournamentId:               t.Tournamentid,
+        Name:                       t.Name,
+        StartDate:                  t.Startdate.Format("2006-01-02 15:04"),
+        EndDate:                    t.Enddate.Format("2006-01-02 15:04"),
 		Location:                   t.Location,
 		FormatId:                   t.Formatid,
 		LeagueId:                   t.Leagueid.Int32,
@@ -245,11 +265,11 @@ func tournamentModelToProto(t models.Tournament) *tournament_management.Tourname
 }
 
 func tournamentRowToProto(t models.GetTournamentByIDRow) *tournament_management.Tournament {
-	return &tournament_management.Tournament{
-		TournamentId:               t.Tournamentid,
-		Name:                       t.Name,
-		StartDate:                  timestamppb.New(t.Startdate),
-		EndDate:                    timestamppb.New(t.Enddate),
+    return &tournament_management.Tournament{
+        TournamentId:               t.Tournamentid,
+        Name:                       t.Name,
+        StartDate:                  t.Startdate.Format("2006-01-02 15:04"),
+        EndDate:                    t.Enddate.Format("2006-01-02 15:04"),
 		Location:                   t.Location,
 		FormatId:                   t.Formatid,
 		LeagueId:                   t.Leagueid.Int32,

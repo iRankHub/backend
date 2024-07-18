@@ -146,6 +146,7 @@ type School struct {
 	District        sql.NullString `json:"district"`
 	Contactpersonid int32          `json:"contactpersonid"`
 	Contactemail    string         `json:"contactemail"`
+	Schoolemail     string         `json:"schoolemail"`
 	Schooltype      string         `json:"schooltype"`
 }
 

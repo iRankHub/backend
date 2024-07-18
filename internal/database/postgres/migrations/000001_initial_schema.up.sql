@@ -127,6 +127,7 @@ CREATE TABLE Schools (
    District VARCHAR(255),
    ContactPersonID INTEGER NOT NULL REFERENCES Users(UserID),
    ContactEmail VARCHAR(255) NOT NULL UNIQUE,
+   SchoolEmail VARCHAR(255) NOT NULL UNIQUE,
    SchoolType VARCHAR(50) NOT NULL CHECK (SchoolType IN ('Private', 'Public', 'Government Aided', 'International'))
 );
 

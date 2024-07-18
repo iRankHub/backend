@@ -393,11 +393,9 @@ Request:
 {
   "name": "National Debate League",
   "league_type": "international",
-  "league_details": {
-    "international_details": {
-      "continents": ["North America"],
-      "countries": ["United States of America"]
-    }
+  "international_details": {
+    "continents": ["North America"],
+    "countries": ["United States of America"]
   },
   "token": "your_auth_token_here"
 }
@@ -439,11 +437,9 @@ Request:
   "league_id": 1,
   "name": "Updated National Debate League",
   "league_type": "local",
-  "league_details": {
-    "local_details": {
-      "provinces": ["East"],
-      "districts": ["Kigali"]
-    }
+  "local_details": {
+    "provinces": ["East"],
+    "districts": ["Kigali"]
   },
   "token": "your_auth_token_here"
 }
@@ -543,16 +539,16 @@ Request:
 ```json
 {
   "name": "Summer Debate Championship",
-  "startDate": "2023-07-15T09:00:00Z",
-  "endDate": "2023-07-17T18:00:00Z",
+  "start_date": "2023-07-15 09:00",
+  "end_date": "2023-07-17 18:00",
   "location": "City Convention Center",
-  "formatId": 1,
-  "leagueId": 2,
-  "numberOfPreliminaryRounds": 4,
-  "numberOfEliminationRounds": 2,
-  "judgesPerDebatePreliminary": 3,
-  "judgesPerDebateElimination": 5,
-  "tournamentFee": 100.00,
+  "format_id": 1,
+  "league_id": 1,
+  "number_of_preliminary_rounds": 4,
+  "number_of_elimination_rounds": 2,
+  "judges_per_debate_preliminary": 3,
+  "judges_per_debate_elimination": 5,
+  "tournament_fee": 100.00,
   "token": "your_auth_token_here"
 }
 ```

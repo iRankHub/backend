@@ -24,13 +24,13 @@ SELECT * FROM Schools WHERE Province = $1 OR Country = $1;
 SELECT Address FROM Schools WHERE ContactPersonID = $1;
 
 -- name: CreateSchool :one
-INSERT INTO Schools (SchoolName, Address, Country, Province, District, ContactPersonID, ContactEmail, SchoolType)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO Schools (SchoolName, Address, Country, Province, District, ContactPersonID, ContactEmail, SchoolEmail, SchoolType)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
 -- name: UpdateSchool :one
 UPDATE Schools
-SET SchoolName = $2, Address = $3, Country = $4, Province = $5, District = $6, ContactPersonID = $7, ContactEmail = $8, SchoolType = $9
+SET SchoolName = $2, Address = $3, Country = $4, Province = $5, District = $6, ContactPersonID = $7, ContactEmail = $8, SchoolEmail = $9, SchoolType = $10
 WHERE SchoolID = $1
 RETURNING *;
 
