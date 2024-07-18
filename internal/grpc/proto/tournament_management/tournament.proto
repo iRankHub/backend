@@ -4,9 +4,6 @@ package tournament_management;
 
 option go_package = "github.com/iRankHub/backend/internal/grpc/proto/tournament_management";
 
-import "google/protobuf/timestamp.proto";
-import "google/api/annotations.proto";
-import "google/api/field_behavior.proto";
 
 
 service TournamentService {
@@ -66,8 +63,8 @@ message TournamentFormat {
 message Tournament {
   int32 tournament_id = 1;
   string name = 2;
-  google.protobuf.Timestamp start_date = 3 [(google.api.field_behavior) = REQUIRED];
-  google.protobuf.Timestamp end_date = 4 [(google.api.field_behavior) = REQUIRED];
+  string start_date = 3;
+  string end_date = 4;
   string location = 5;
   int32 format_id = 6;
   int32 league_id = 7;
@@ -149,8 +146,8 @@ message DeleteTournamentFormatRequest {
 
 message CreateTournamentRequest {
   string name = 1;
-  string start_date = 2 [(google.api.field_behavior) = REQUIRED];
-  string end_date = 3 [(google.api.field_behavior) = REQUIRED];
+  string start_date = 2;
+  string end_date = 3;
   string location = 4;
   int32 format_id = 5;
   int32 league_id = 6;
@@ -176,8 +173,8 @@ message ListTournamentsRequest {
 message UpdateTournamentRequest {
   int32 tournament_id = 1;
   string name = 2;
-  google.protobuf.Timestamp start_date = 3;
-  google.protobuf.Timestamp end_date = 4;
+  string start_date = 3;
+  string end_date = 4;
   string location = 5;
   int32 format_id = 6;
   int32 league_id = 7;

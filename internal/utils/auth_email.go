@@ -79,7 +79,7 @@ func sendAuthEmail(to, subject, body string) error {
 func SendWelcomeEmail(to, name string) error {
 	subject := "Welcome to iRankHub"
 	content := fmt.Sprintf(`
-		<p>Welcome to iRankHub, %s!</p>
+		<p>Dear, %s!</p>
 		<p>Thank you for signing up. Your account is currently pending approval.</p>
 		<p>You will receive another email once your account has been reviewed.</p>
 		<p>Best regards,<br>The iRankHub Team</p>
@@ -91,7 +91,7 @@ func SendWelcomeEmail(to, name string) error {
 func SendAdminWelcomeEmail(to, name string) error {
 	subject := "Welcome to iRankHub - Admin Account"
 	content := fmt.Sprintf(`
-		<p>Welcome to iRankHub, %s!</p>
+		<p>Dear, %s!</p>
 		<p>Your admin account has been successfully created and is ready to use.</p>
 		<p>You can now log in to the admin dashboard and start managing the platform.</p>
 		<p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>

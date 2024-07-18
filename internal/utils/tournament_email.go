@@ -101,9 +101,10 @@ func SendTournamentInvitations(ctx context.Context, tournament models.Tournament
 
         batch := schools[i:end]
         for _, school := range batch {
+            // Send to contact email
             err := sendTournamentEmail(school.Contactemail, subject, emailContent)
             if err != nil {
-                fmt.Printf("Failed to send invitation to %s: %v\n", school.Contactemail, err)
+                fmt.Printf("Failed to send invitation to contact email %s: %v\n", school.Contactemail, err)
             }
         }
 
@@ -117,48 +118,51 @@ func fetchRelevantSchools(ctx context.Context, queries *models.Queries, league m
     var schools []models.School
     var err error
 
-    var leagueDetails map[string]interface{}
-    err = json.Unmarshal(league.Details, &leagueDetails)
-    if err != nil {
-        return nil, fmt.Errorf("failed to unmarshal league details: %v", err)
+    var leagueDetails struct {
+        Districts []string `json:"districts,omitempty"`
+        Countries []string `json:"countries,omitempty"`
+    }
+
+    if len(league.Details) > 0 {
+        err = json.Unmarshal(league.Details, &leagueDetails)
+        if err != nil {
+            return nil, fmt.Errorf("failed to unmarshal league details: %v", err)
+        }
+    } else {
+        return nil, fmt.Errorf("league details are empty")
     }
 
     var searchTerms []string
     if league.Leaguetype == "local" {
-        if districts, ok := leagueDetails["districts"].([]interface{}); ok {
-            for _, district := range districts {
-                if districtStr, ok := district.(string); ok {
-                    searchTerms = append(searchTerms, districtStr)
-                }
-            }
-        }
+        searchTerms = append(searchTerms, leagueDetails.Districts...)
     } else if league.Leaguetype == "international" {
-        if countries, ok := leagueDetails["countries"].([]interface{}); ok {
-            for _, country := range countries {
-                if countryStr, ok := country.(string); ok {
-                    searchTerms = append(searchTerms, countryStr)
-                }
-            }
-        }
+        searchTerms = append(searchTerms, leagueDetails.Countries...)
     }
 
-	for _, searchTerm := range searchTerms {
-		schoolsBatch, err := queries.GetSchoolsByProvinceOrCountry(ctx, sql.NullString{
-			String: searchTerm,
-			Valid: true,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to get schools: %v", err)
-		}
-		schools = append(schools, schoolsBatch...)
-	}
+    if len(searchTerms) == 0 {
+        return nil, fmt.Errorf("no valid search terms found in league details")
+    }
+
+    for _, searchTerm := range searchTerms {
+        var schoolsBatch []models.School
+        nullSearchTerm := sql.NullString{String: searchTerm, Valid: true}
+        if league.Leaguetype == "local" {
+            schoolsBatch, err = queries.GetSchoolsByDistrict(ctx, nullSearchTerm)
+        } else {
+            schoolsBatch, err = queries.GetSchoolsByCountry(ctx, nullSearchTerm)
+        }
+        if err != nil {
+            return nil, fmt.Errorf("failed to get schools: %v", err)
+        }
+        schools = append(schools, schoolsBatch...)
+    }
 
     return schools, nil
 }
 
 func prepareTournamentEmailContent(tournament models.Tournament, league models.League, format models.Tournamentformat) string {
     content := fmt.Sprintf(`
-        <p>Dear School Administrator,</p>
+        <p>Dear School Representative,</p>
         <p>We are excited to invite you to participate in the upcoming tournament:</p>
         <h2>%s</h2>
         <p><strong>League:</strong> %s</p>
