@@ -1,0 +1,144 @@
+syntax = "proto3";
+
+option go_package = "github.com/iRankHub/backend/internal/grpc/proto/authentication";
+
+package auth;
+
+service AuthService {
+  rpc SignUp(SignUpRequest) returns (SignUpResponse) {}
+  rpc Login(LoginRequest) returns (LoginResponse) {}
+  rpc GenerateTwoFactorOTP(GenerateTwoFactorOTPRequest) returns (GenerateTwoFactorOTPResponse) {}
+  rpc VerifyTwoFactor(VerifyTwoFactorRequest) returns (LoginResponse) {}
+  rpc RequestPasswordReset(PasswordResetRequest) returns (PasswordResetResponse) {}
+  rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse) {}
+  rpc BeginWebAuthnRegistration(BeginWebAuthnRegistrationRequest) returns (BeginWebAuthnRegistrationResponse) {}
+  rpc FinishWebAuthnRegistration(FinishWebAuthnRegistrationRequest) returns (FinishWebAuthnRegistrationResponse) {}
+  rpc BeginWebAuthnLogin(BeginWebAuthnLoginRequest) returns (BeginWebAuthnLoginResponse) {}
+  rpc FinishWebAuthnLogin(FinishWebAuthnLoginRequest) returns (FinishWebAuthnLoginResponse) {}
+  rpc Logout(LogoutRequest) returns (LogoutResponse) {}
+}
+
+message SignUpRequest {
+  string firstName = 1;
+  string lastName = 2;
+  string email = 3;
+  string password = 4;
+  string userRole = 5;
+  string dateOfBirth = 6;
+  int32 schoolID = 7;
+  string schoolName = 8;
+  string address = 9;
+  string country = 10;
+  string province = 11;
+  string district = 12;
+  string schoolType = 13;
+  string contactPersonName = 14;
+  string contactPersonNumber = 15;
+  string contactEmail = 16;
+  string nationalID = 17;
+  string schoolAttended = 18;
+  int32 graduationYear = 19;
+  string roleInterestedIn = 20;
+  bool safeguardingCertificate = 21;
+  string grade = 22;
+}
+
+message SignUpResponse {
+  bool success = 1;
+  string message = 2;
+  string status = 3;
+}
+
+message LoginRequest {
+  string email_or_id = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  bool success = 1;
+  string token = 2;
+  string userRole = 3;
+  int32 userID = 4;
+  bool require_two_factor = 5;
+  bool require_password_reset = 6;
+  string message = 7;
+  string status = 8;
+}
+
+message GenerateTwoFactorOTPRequest {
+  string email = 1;
+}
+
+message GenerateTwoFactorOTPResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message VerifyTwoFactorRequest {
+  string email = 1;
+  string code = 2;
+}
+
+message PasswordResetRequest {
+  string email = 1;
+}
+
+message PasswordResetResponse {
+  bool success = 1;
+}
+
+message ResetPasswordRequest {
+  string token = 1;
+  string newPassword = 2;
+}
+
+message ResetPasswordResponse {
+  bool success = 1;
+}
+
+message BeginWebAuthnRegistrationRequest {
+  string token = 1;
+  int32 userID = 2;
+}
+
+message BeginWebAuthnRegistrationResponse {
+  bytes options = 1;
+}
+
+message FinishWebAuthnRegistrationRequest {
+  string token = 1;
+  int32 userID = 2;
+  bytes credential = 3;
+}
+
+message FinishWebAuthnRegistrationResponse {
+  bool success = 1;
+}
+
+message BeginWebAuthnLoginRequest {
+  string email = 1;
+}
+
+message BeginWebAuthnLoginResponse {
+  bytes options = 1;
+}
+
+message FinishWebAuthnLoginRequest {
+  string email = 1;
+  bytes credential = 2;
+}
+
+message FinishWebAuthnLoginResponse {
+  bool success = 1;
+  string token = 2;
+}
+
+message LogoutRequest {
+  int32 userID = 1;
+  string token = 2;
+}
+
+message LogoutResponse {
+  bool success = 1;
+  string message = 2;
+}

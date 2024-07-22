@@ -1,0 +1,259 @@
+syntax = "proto3";
+
+package tournament_management;
+
+option go_package = "github.com/iRankHub/backend/internal/grpc/proto/tournament_management";
+
+
+
+service TournamentService {
+  // League operations
+  rpc CreateLeague(CreateLeagueRequest) returns (CreateLeagueResponse);
+  rpc GetLeague(GetLeagueRequest) returns (GetLeagueResponse);
+  rpc ListLeagues(ListLeaguesRequest) returns (ListLeaguesResponse);
+  rpc UpdateLeague(UpdateLeagueRequest) returns (UpdateLeagueResponse);
+  rpc DeleteLeague(DeleteLeagueRequest) returns (DeleteLeagueResponse);
+
+  // Tournament Format operations
+  rpc CreateTournamentFormat(CreateTournamentFormatRequest) returns (CreateTournamentFormatResponse);
+  rpc GetTournamentFormat(GetTournamentFormatRequest) returns (GetTournamentFormatResponse);
+  rpc ListTournamentFormats(ListTournamentFormatsRequest) returns (ListTournamentFormatsResponse);
+  rpc UpdateTournamentFormat(UpdateTournamentFormatRequest) returns (UpdateTournamentFormatResponse);
+  rpc DeleteTournamentFormat(DeleteTournamentFormatRequest) returns (DeleteTournamentFormatResponse);
+
+  // Tournament operations
+  rpc CreateTournament(CreateTournamentRequest) returns (CreateTournamentResponse);
+  rpc GetTournament(GetTournamentRequest) returns (GetTournamentResponse);
+  rpc ListTournaments(ListTournamentsRequest) returns (ListTournamentsResponse);
+  rpc UpdateTournament(UpdateTournamentRequest) returns (UpdateTournamentResponse);
+  rpc DeleteTournament(DeleteTournamentRequest) returns (DeleteTournamentResponse);
+}
+
+// Enum definitions
+enum LeagueType {
+  local = 0;
+  international = 1;
+}
+
+// Message definitions
+message LocalDetails {
+  repeated string provinces = 1;
+  repeated string districts = 2;
+}
+
+message InternationalDetails {
+  repeated string continents = 1;
+  repeated string countries = 2;
+}
+
+message League {
+  int32 league_id = 1;
+  string name = 2;
+  LeagueType league_type = 3;
+  string details = 4;
+}
+
+message TournamentFormat {
+  int32 format_id = 1;
+  string format_name = 2;
+  string description = 3;
+  int32 speakers_per_team = 4;
+}
+
+message Tournament {
+  int32 tournament_id = 1;
+  string name = 2;
+  string start_date = 3;
+  string end_date = 4;
+  string location = 5;
+  int32 format_id = 6;
+  int32 league_id = 7;
+  int32 number_of_preliminary_rounds = 8;
+  int32 number_of_elimination_rounds = 9;
+  int32 judges_per_debate_preliminary = 10;
+  int32 judges_per_debate_elimination = 11;
+  double tournament_fee = 12;
+}
+
+// Request messages
+message CreateLeagueRequest {
+  string name = 1;
+  LeagueType league_type = 2;
+  oneof league_details {
+    LocalDetails local_details = 3;
+    InternationalDetails international_details = 4;
+  }
+  string token = 5;
+}
+
+message GetLeagueRequest {
+  int32 league_id = 1;
+  string token = 2;
+}
+
+message ListLeaguesRequest {
+  int32 page_size = 1;
+  int32 page_token = 2;
+  string token = 3;
+}
+
+message UpdateLeagueRequest {
+  int32 league_id = 1;
+  string name = 2;
+  LeagueType league_type = 3;
+  oneof league_details {
+    LocalDetails local_details = 4;
+    InternationalDetails international_details = 5;
+  }
+  string token = 6;
+}
+
+message DeleteLeagueRequest {
+  int32 league_id = 1;
+  string token = 2;
+}
+
+message CreateTournamentFormatRequest {
+  string format_name = 1;
+  string description = 2;
+  int32 speakers_per_team = 3;
+  string token = 4;
+}
+
+message GetTournamentFormatRequest {
+  int32 format_id = 1;
+  string token = 2;
+}
+
+message ListTournamentFormatsRequest {
+  int32 page_size = 1;
+  int32 page_token = 2;
+  string token = 3;
+}
+
+message UpdateTournamentFormatRequest {
+  int32 format_id = 1;
+  string format_name = 2;
+  string description = 3;
+  int32 speakers_per_team = 4;
+  string token = 5;
+}
+
+message DeleteTournamentFormatRequest {
+  int32 format_id = 1;
+  string token = 2;
+}
+
+message CreateTournamentRequest {
+  string name = 1;
+  string start_date = 2;
+  string end_date = 3;
+  string location = 4;
+  int32 format_id = 5;
+  int32 league_id = 6;
+  int32 number_of_preliminary_rounds = 7;
+  int32 number_of_elimination_rounds = 8;
+  int32 judges_per_debate_preliminary = 9;
+  int32 judges_per_debate_elimination = 10;
+  double tournament_fee = 11;
+  string token = 12;
+}
+
+message GetTournamentRequest {
+  int32 tournament_id = 1;
+  string token = 2;
+}
+
+message ListTournamentsRequest {
+  int32 page_size = 1;
+  int32 page_token = 2;
+  string token = 3;
+}
+
+message UpdateTournamentRequest {
+  int32 tournament_id = 1;
+  string name = 2;
+  string start_date = 3;
+  string end_date = 4;
+  string location = 5;
+  int32 format_id = 6;
+  int32 league_id = 7;
+  int32 number_of_preliminary_rounds = 8;
+  int32 number_of_elimination_rounds = 9;
+  int32 judges_per_debate_preliminary = 10;
+  int32 judges_per_debate_elimination = 11;
+  double tournament_fee = 12;
+  string token = 13;
+}
+
+message DeleteTournamentRequest {
+  int32 tournament_id = 1;
+  string token = 2;
+}
+
+// Response messages
+message CreateLeagueResponse {
+  League league = 1;
+}
+
+message GetLeagueResponse {
+  League league = 1;
+}
+
+message ListLeaguesResponse {
+  repeated League leagues = 1;
+  int32 next_page_token = 2;
+}
+
+message UpdateLeagueResponse {
+  League league = 1;
+}
+
+message DeleteLeagueResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message CreateTournamentFormatResponse {
+  TournamentFormat format = 1;
+}
+
+message GetTournamentFormatResponse {
+  TournamentFormat format = 1;
+}
+
+message ListTournamentFormatsResponse {
+  repeated TournamentFormat formats = 1;
+  int32 next_page_token = 2;
+}
+
+message UpdateTournamentFormatResponse {
+  TournamentFormat format = 1;
+}
+
+message DeleteTournamentFormatResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message CreateTournamentResponse {
+  Tournament tournament = 1;
+}
+
+message GetTournamentResponse {
+  Tournament tournament = 1;
+}
+
+message ListTournamentsResponse {
+  repeated Tournament tournaments = 1;
+  int32 next_page_token = 2;
+}
+
+message UpdateTournamentResponse {
+  Tournament tournament = 1;
+}
+
+message DeleteTournamentResponse {
+  bool success = 1;
+  string message = 2;
+}
