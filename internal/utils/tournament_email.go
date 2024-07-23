@@ -22,7 +22,7 @@ func init() {
 	viper.AutomaticEnv()
 }
 
-func getTournamentEmailTemplate(title, content string) string {
+func getTournamentEmailTemplate(content string) string {
 	logoURL := viper.GetString("LOGO_URL")
 	if logoURL == "" {
 		logoURL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSy1c8yfmVvRgCThDUvkJTmpTrV92ANV7iSRQ&s"
@@ -55,12 +55,11 @@ func getTournamentEmailTemplate(title, content string) string {
 		<body>
 			<div class="container">
 				<img src="%s" alt="iRankHub Logo" class="logo">
-				<h1>%s</h1>
 				%s
 			</div>
 		</body>
 		</html>
-	`, logoURL, title, content)
+	`, logoURL, content)
 }
 
 func sendTournamentEmail(to, subject, body string) error {
@@ -137,7 +136,7 @@ func SendTournamentInvitations(ctx context.Context, tournament models.Tournament
         batch := volunteers[i:end]
         for _, volunteer := range batch {
             volunteerEmailContent := prepareVolunteerEmailContent(volunteer, tournament, league, format)
-            body := getTournamentEmailTemplate("Tournament Judging Invitation", volunteerEmailContent)
+            body := getTournamentEmailTemplate(volunteerEmailContent)
 
             // The volunteer's email is stored in the Users table
             user, err := queries.GetUserByID(context.Background(), volunteer.Userid)
@@ -172,7 +171,7 @@ func SendTournamentCreationConfirmation(to, name, tournamentName string) error {
 		<p>If you need to make any changes or have any questions, please don't hesitate to use the tournament management tools or contact our support team.</p>
 		<p>Best regards,<br>The iRankHub Team</p>
 	`, name, tournamentName)
-	body := getTournamentEmailTemplate("Tournament Created", content)
+	body := getTournamentEmailTemplate(content)
 	return sendTournamentEmail(to, subject, body)
 }
 
@@ -223,7 +222,7 @@ func prepareTournamentEmailContent(school models.School, tournament models.Tourn
         dateTimeInfo,
         currencySymbol, tournament.Tournamentfee)
 
-    return getTournamentEmailTemplate("Tournament Invitation", content)
+    return getTournamentEmailTemplate(content)
 }
 
 func fetchRelevantSchools(ctx context.Context, queries *models.Queries, league models.League) ([]models.School, error) {
