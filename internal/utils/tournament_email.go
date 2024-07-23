@@ -89,10 +89,17 @@ func SendTournamentInvitations(ctx context.Context, tournament models.Tournament
         return fmt.Errorf("failed to fetch relevant schools: %v", err)
     }
 
-    subject := fmt.Sprintf("Invitation to %s Tournament", tournament.Name)
-    emailContent := prepareTournamentEmailContent(tournament, league, format)
+    volunteers, err := queries.GetAllVolunteers(ctx)
+    if err != nil {
+        return fmt.Errorf("failed to fetch volunteers: %v", err)
+    }
+
+    schoolSubject := fmt.Sprintf("Invitation to %s Tournament", tournament.Name)
 
     batchSize := 50
+    delay := 5 * time.Second
+
+    // Send invitations to schools in batches
     for i := 0; i < len(schools); i += batchSize {
         end := i + batchSize
         if end > len(schools) {
@@ -101,17 +108,121 @@ func SendTournamentInvitations(ctx context.Context, tournament models.Tournament
 
         batch := schools[i:end]
         for _, school := range batch {
+            schoolEmailContent := prepareTournamentEmailContent(school, tournament, league, format)
+
             // Send to contact email
-            err := sendTournamentEmail(school.Contactemail, subject, emailContent)
+            err := sendTournamentEmail(school.Contactemail, schoolSubject, schoolEmailContent)
             if err != nil {
-                fmt.Printf("Failed to send invitation to contact email %s: %v\n", school.Contactemail, err)
+                fmt.Printf("Failed to send invitation to contact email %s for school %s: %v\n", school.Contactemail, school.Schoolname, err)
+            }
+
+            // Send to school email
+            err = sendTournamentEmail(school.Schoolemail, schoolSubject, schoolEmailContent)
+            if err != nil {
+                fmt.Printf("Failed to send invitation to school email %s for school %s: %v\n", school.Schoolemail, school.Schoolname, err)
             }
         }
 
-        time.Sleep(5 * time.Second)
+        time.Sleep(delay)
+    }
+
+    // Send invitations to volunteers in batches
+    for i := 0; i < len(volunteers); i += batchSize {
+        end := i + batchSize
+        if end > len(volunteers) {
+            end = len(volunteers)
+        }
+
+        batch := volunteers[i:end]
+        for _, volunteer := range batch {
+            volunteerEmailContent := prepareVolunteerEmailContent(volunteer, tournament, league, format)
+            body := getTournamentEmailTemplate("Tournament Judging Invitation", volunteerEmailContent)
+
+            // The volunteer's email is stored in the Users table
+            user, err := queries.GetUserByID(context.Background(), volunteer.Userid)
+            if err != nil {
+                fmt.Printf("Failed to get email for volunteer ID %d: %v\n", volunteer.Volunteerid, err)
+                continue
+            }
+
+            err = sendTournamentEmail(user.Email, volunteerSubject, body)
+            if err != nil {
+                volunteerID := "unknown"
+                if volunteer.Idebatevolunteerid.Valid {
+                    volunteerID = volunteer.Idebatevolunteerid.String
+                }
+                fmt.Printf("Failed to send invitation to volunteer ID %d (iDebate ID: %s): %v\n", volunteer.Volunteerid, volunteerID, err)
+            }
+        }
+
+        time.Sleep(delay)
     }
 
     return nil
+}
+
+func SendTournamentCreationConfirmation(to, name, tournamentName string) error {
+	subject := "Tournament Created Successfully"
+	content := fmt.Sprintf(`
+		<p>Dear %s,</p>
+		<p>We are pleased to inform you that the tournament "%s" has been successfully created in iRankHub.</p>
+		<p>Invitations have been sent to eligible schools based on the league settings.</p>
+		<p>You can now manage this tournament through your iRankHub dashboard.</p>
+		<p>If you need to make any changes or have any questions, please don't hesitate to use the tournament management tools or contact our support team.</p>
+		<p>Best regards,<br>The iRankHub Team</p>
+	`, name, tournamentName)
+	body := getTournamentEmailTemplate("Tournament Created", content)
+	return sendTournamentEmail(to, subject, body)
+}
+
+func prepareVolunteerEmailContent(volunteer models.Volunteer, tournament models.Tournament, league models.League, format models.Tournamentformat) string {
+    dateTimeInfo := formatDateTimeRange(tournament.Startdate, tournament.Enddate)
+
+    content := fmt.Sprintf(`
+        <p>Dear %s %s,</p>
+        <p>We are pleased to invite you to participate as a judge in the upcoming tournament:</p>
+        <h2>%s</h2>
+        <p><strong>League:</strong> %s</p>
+        <p><strong>Format:</strong> %s</p>
+        <p><strong>Location:</strong> %s</p>
+        <p><strong>Date and Time:</strong> %s</p>
+        <p>Your participation as a judge is important to the success of this tournament. We value your commitment to fair play and your willingness to contribute to the debate community.</p>
+        <p>Please log in to your iRankHub account to confirm your availability and see more details about the event. If you need any guidance or have questions about the judging process, we're here to help.</p>
+        <p>Thank you for your dedication to supporting young debaters. Your involvement makes a real difference!</p>
+        <p>Best regards,<br>The iRankHub Team</p>
+    `, volunteer.Firstname, volunteer.Lastname, tournament.Name, league.Name, format.Formatname, tournament.Location,
+        dateTimeInfo)
+
+    return content
+}
+
+func prepareTournamentEmailContent(school models.School, tournament models.Tournament, league models.League, format models.Tournamentformat) string {
+    var currencySymbol string
+    if league.Leaguetype == "local" {
+        currencySymbol = "RWF"
+    } else {
+        currencySymbol = "$"
+    }
+
+    dateTimeInfo := formatDateTimeRange(tournament.Startdate, tournament.Enddate)
+
+    content := fmt.Sprintf(`
+        <p>Dear %s,</p>
+        <p>We are excited to invite %s to participate in the upcoming tournament:</p>
+        <h2>%s</h2>
+        <p><strong>League:</strong> %s</p>
+        <p><strong>Format:</strong> %s</p>
+        <p><strong>Location:</strong> %s</p>
+        <p><strong>Date and Time:</strong> %s</p>
+        <p><strong>Tournament Fee:</strong> %s%s</p>
+        <p>We look forward to your participation in this exciting event!</p>
+        <p>For more information or to register, please log in to your iRankHub account.</p>
+        <p>Best regards,<br>The iRankHub Team</p>
+    `, school.Schoolname, school.Schoolname, tournament.Name, league.Name, format.Formatname, tournament.Location,
+        dateTimeInfo,
+        currencySymbol, tournament.Tournamentfee)
+
+    return getTournamentEmailTemplate("Tournament Invitation", content)
 }
 
 func fetchRelevantSchools(ctx context.Context, queries *models.Queries, league models.League) ([]models.School, error) {
@@ -160,49 +271,19 @@ func fetchRelevantSchools(ctx context.Context, queries *models.Queries, league m
     return schools, nil
 }
 
-func prepareTournamentEmailContent(tournament models.Tournament, league models.League, format models.Tournamentformat) string {
-    // Determine the currency symbol based on the league type
-    var currencySymbol string
-    if league.Leaguetype == "local" {
-        currencySymbol = "RWF"
-    } else {
-        currencySymbol = "$"
+func formatDateTimeRange(start, end time.Time) string {
+    if start.Year() == end.Year() && start.Month() == end.Month() && start.Day() == end.Day() {
+        // Same day
+        return fmt.Sprintf("%s, %s from %s to %s",
+            start.Weekday(),
+            start.Format("January 2, 2006"),
+            start.Format("15:04"),
+            end.Format("15:04"))
     }
-
-    // Format for date and time
-    dateTimeFormat := "Jan 2, 2006 at 15:04"
-
-    content := fmt.Sprintf(`
-        <p>Dear School Representative,</p>
-        <p>We are excited to invite you to participate in the upcoming tournament:</p>
-        <h2>%s</h2>
-        <p><strong>League:</strong> %s</p>
-        <p><strong>Format:</strong> %s</p>
-        <p><strong>Location:</strong> %s</p>
-        <p><strong>Starts:</strong> %s</p>
-        <p><strong>Ends:</strong> %s</p>
-        <p><strong>Tournament Fee:</strong> %s%s</p>
-        <p>We look forward to your participation in this exciting event!</p>
-        <p>For more information or to register, please log in to your iRankHub account.</p>
-        <p>Best regards,<br>The iRankHub Team</p>
-    `, tournament.Name, league.Name, format.Formatname, tournament.Location,
-        tournament.Startdate.Format(dateTimeFormat),
-        tournament.Enddate.Format(dateTimeFormat),
-        currencySymbol, tournament.Tournamentfee)
-
-    return getTournamentEmailTemplate("Tournament Invitation", content)
-}
-
-func SendTournamentCreationConfirmation(to, name, tournamentName string) error {
-	subject := "Tournament Created Successfully"
-	content := fmt.Sprintf(`
-		<p>Dear %s,</p>
-		<p>We are pleased to inform you that the tournament "%s" has been successfully created in iRankHub.</p>
-		<p>Invitations have been sent to eligible schools based on the league settings.</p>
-		<p>You can now manage this tournament through your iRankHub dashboard.</p>
-		<p>If you need to make any changes or have any questions, please don't hesitate to use the tournament management tools or contact our support team.</p>
-		<p>Best regards,<br>The iRankHub Team</p>
-	`, name, tournamentName)
-	body := getTournamentEmailTemplate("Tournament Created", content)
-	return sendTournamentEmail(to, subject, body)
+    // Different days
+    return fmt.Sprintf("%s, %s to %s, %s",
+        start.Weekday(),
+        start.Format("January 2, 2006 at 15:04"),
+        end.Weekday(),
+        end.Format("January 2, 2006 at 15:04"))
 }

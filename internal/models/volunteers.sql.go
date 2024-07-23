@@ -64,6 +64,44 @@ func (q *Queries) DeleteVolunteer(ctx context.Context, volunteerid int32) error 
 	return err
 }
 
+const getAllVolunteers = `-- name: GetAllVolunteers :many
+SELECT volunteerid, idebatevolunteerid, firstname, lastname, dateofbirth, role, graduateyear, password, safeguardcertificate, userid FROM Volunteers
+`
+
+func (q *Queries) GetAllVolunteers(ctx context.Context) ([]Volunteer, error) {
+	rows, err := q.db.QueryContext(ctx, getAllVolunteers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Volunteer{}
+	for rows.Next() {
+		var i Volunteer
+		if err := rows.Scan(
+			&i.Volunteerid,
+			&i.Idebatevolunteerid,
+			&i.Firstname,
+			&i.Lastname,
+			&i.Dateofbirth,
+			&i.Role,
+			&i.Graduateyear,
+			&i.Password,
+			&i.Safeguardcertificate,
+			&i.Userid,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getVolunteerByID = `-- name: GetVolunteerByID :one
 SELECT volunteerid, idebatevolunteerid, firstname, lastname, dateofbirth, role, graduateyear, password, safeguardcertificate, userid FROM Volunteers
 WHERE VolunteerID = $1

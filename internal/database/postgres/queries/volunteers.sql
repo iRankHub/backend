@@ -2,6 +2,9 @@
 SELECT * FROM Volunteers
 WHERE VolunteerID = $1;
 
+-- name: GetAllVolunteers :many
+SELECT * FROM Volunteers;
+
 -- name: CreateVolunteer :one
 INSERT INTO Volunteers (FirstName, LastName, DateOfBirth, Role, GraduateYear, Password, SafeGuardCertificate, UserID)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)

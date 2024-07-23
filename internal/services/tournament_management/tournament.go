@@ -10,6 +10,7 @@ import (
 	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
+
 )
 
 type TournamentService struct {
@@ -48,19 +49,19 @@ func (s *TournamentService) CreateTournament(ctx context.Context, req *tournamen
 
 	// Create the tournament
 	startDate, err := time.Parse("2006-01-02 15:04", req.GetStartDate())
-    if err != nil {
-        return nil, fmt.Errorf("invalid start date format: %v", err)
-    }
+	if err != nil {
+		return nil, fmt.Errorf("invalid start date format: %v", err)
+	}
 
-    endDate, err := time.Parse("2006-01-02 15:04", req.GetEndDate())
-    if err != nil {
-        return nil, fmt.Errorf("invalid end date format: %v", err)
-    }
+	endDate, err := time.Parse("2006-01-02 15:04", req.GetEndDate())
+	if err != nil {
+		return nil, fmt.Errorf("invalid end date format: %v", err)
+	}
 
-    tournament, err := qtx.CreateTournamentEntry(ctx, models.CreateTournamentEntryParams{
-        Name:                       req.GetName(),
-        Startdate:                  startDate,
-        Enddate:                    endDate,
+	tournament, err := qtx.CreateTournamentEntry(ctx, models.CreateTournamentEntryParams{
+		Name:                       req.GetName(),
+		Startdate:                  startDate,
+		Enddate:                    endDate,
 		Location:                   req.GetLocation(),
 		Formatid:                   req.GetFormatId(),
 		Leagueid:                   sql.NullInt32{Int32: req.GetLeagueId(), Valid: true},
@@ -90,21 +91,21 @@ func (s *TournamentService) CreateTournament(ctx context.Context, req *tournamen
 		return nil, fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-// Convert GetLeagueByIDRow to League
-leagueForInvitation := models.League{
-	Leagueid:   league.Leagueid,
-	Name:       league.Name,
-	Leaguetype: league.Leaguetype,
-	Details:    league.Details,
-}
-
-// Send tournament invitations
-go func() {
-	err := utils.SendTournamentInvitations(context.Background(), tournament, leagueForInvitation, format, queries)
-	if err != nil {
-		fmt.Printf("Failed to send tournament invitations: %v\n", err)
+	// Convert GetLeagueByIDRow to League
+	leagueForInvitation := models.League{
+		Leagueid:   league.Leagueid,
+		Name:       league.Name,
+		Leaguetype: league.Leaguetype,
+		Details:    league.Details,
 	}
-}()
+
+	// Send tournament invitations to schools and volunteers
+	go func() {
+		err := utils.SendTournamentInvitations(context.Background(), tournament, leagueForInvitation, format, queries)
+		if err != nil {
+			fmt.Printf("Failed to send tournament invitations: %v\n", err)
+		}
+	}()
 
 	// Send confirmation email to the tournament creator
 	go func() {
