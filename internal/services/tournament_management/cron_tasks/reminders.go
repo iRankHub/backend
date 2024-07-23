@@ -43,38 +43,13 @@ func (s *ReminderService) SendReminders() {
 		return
 	}
 
-	for _, invitation := range invitations {
-		if err := s.processInvitation(ctx, queries, invitation); err != nil {
-			log.Printf("Failed to process invitation %d: %v\n", invitation.Invitationid, err)
-		}
+	if err := emails.SendReminderEmails(ctx, invitations, queries); err != nil {
+		log.Printf("Failed to send reminder emails: %v\n", err)
 	}
 }
 
-func (s *ReminderService) processInvitation(ctx context.Context, queries *models.Queries, invitation models.TournamentInvitation) error {
-	tournament, err := queries.GetTournamentByID(ctx, invitation.Tournamentid)
-	if err != nil {
-		return fmt.Errorf("failed to get tournament details: %v", err)
-	}
 
-	daysUntilTournament := int(tournament.Startdate.Sub(time.Now()).Hours() / 24)
-
-	if !s.shouldSendReminder(daysUntilTournament) {
-		return nil
-	}
-
-	recipient, recipientType, err := s.getRecipientInfo(ctx, queries, invitation)
-	if err != nil {
-		return err
-	}
-
-	if err := emails.SendReminderEmail(recipient, recipientType, tournament.Name, daysUntilTournament, invitation.Status, invitation.Invitationid); err != nil {
-		return fmt.Errorf("failed to send reminder email: %v", err)
-	}
-
-	return s.updateReminderSentTimestamp(ctx, queries, invitation.Invitationid)
-}
-
-func (s *ReminderService) getRecipientInfo(ctx context.Context, queries *models.Queries, invitation models.TournamentInvitation) (string, string, error) {
+func (s *ReminderService) getRecipientInfo(ctx context.Context, queries *models.Queries, invitation models.Tournamentinvitation) (string, string, error) {
 	if invitation.Schoolid.Valid {
 		school, err := queries.GetSchoolByID(ctx, invitation.Schoolid.Int32)
 		if err != nil {
@@ -118,12 +93,25 @@ func (s *ReminderService) updateReminderSentTimestamp(ctx context.Context, queri
 	return nil
 }
 
-func (s *ReminderService) shouldSendReminder(daysUntilTournament int) bool {
-	reminderDays := []int{180, 150, 120, 90, 60, 30, 20, 15, 10, 5, 3, 0}
-	for _, day := range reminderDays {
-		if daysUntilTournament == day {
-			return true
+func (s *ReminderService) getShouldSendReminder(timeUntilTournament time.Duration, invitationStatus string, isSchool bool) string {
+	days := int(timeUntilTournament.Hours() / 24)
+	hours := int(timeUntilTournament.Hours()) % 24
+
+	if isSchool {
+		if days == 3 && hours == 0 && invitationStatus == "pending" {
+			return "school_accept"
+		}
+		if days == 2 && hours == 7 && invitationStatus == "accepted" {
+			return "school_revoke"
+		}
+	} else {
+		if days == 2 && hours == 0 && invitationStatus == "pending" {
+			return "volunteer_accept"
+		}
+		if days == 2 && hours == 0 && invitationStatus == "accepted" {
+			return "volunteer_revoke"
 		}
 	}
-	return false
+
+	return "none"
 }

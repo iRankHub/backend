@@ -90,7 +90,7 @@ WHERE TournamentID = $1;
 
 -- name: CreateInvitation :one
 INSERT INTO TournamentInvitations (TournamentID, SchoolID, VolunteerID, Status)
-VALUES ($1, $2, $3, 'pending')
+VALUES ($1, $2, $3, $4)
 RETURNING *;
 
 -- name: UpdateInvitationStatus :exec

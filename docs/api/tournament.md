@@ -232,9 +232,73 @@ Request:
 }
 ```
 
-## Testing Tournament Management Features
+## Invitation Management API
 
-To test the tournament management features, including leagues and formats:
+### AcceptInvitation
+
+Endpoint: `InvitationService.AcceptInvitation`
+
+Request:
+```json
+{
+  "invitation_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+### DeclineInvitation
+
+Endpoint: `InvitationService.DeclineInvitation`
+
+Request:
+```json
+{
+  "invitation_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+### RegisterTeam
+
+Endpoint: `InvitationService.RegisterTeam`
+
+Request:
+```json
+{
+  "invitation_id": 1,
+  "team_name": "Debate Masters",
+  "token": "your_auth_token_here"
+}
+```
+
+### AddTeamMember
+
+Endpoint: `InvitationService.AddTeamMember`
+
+Request:
+```json
+{
+  "team_id": 1,
+  "student_id": 101,
+  "token": "your_auth_token_here"
+}
+```
+
+### GetInvitationStatus
+
+Endpoint: `InvitationService.GetInvitationStatus`
+
+Request:
+```json
+{
+  "invitation_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+## Testing Tournament Management and Invitation Features
+
+To test the tournament management and invitation features, including leagues, formats, and invitations:
 
 1. Use the `Login` endpoint to authenticate as an admin and receive a token.
 2. Include the token in the request body for subsequent authenticated requests.
@@ -256,7 +320,7 @@ To test the tournament management features, including leagues and formats:
 
    c. Tournament Creation and Invitation:
    - Use `CreateTournament` to create a new tournament, using the IDs of the created league and format.
-   - Verify that invitation emails are sent to relevant schools (check your email service or logs).
+   - Verify that invitation emails are sent to relevant schools and volunteers (check your email service or logs).
    - Use `GetTournament` to retrieve the created tournament details.
 
    d. Tournament Listing and Updates:
@@ -264,14 +328,25 @@ To test the tournament management features, including leagues and formats:
    - Use `UpdateTournament` to modify a tournament's details.
    - Use `GetTournament` again to verify the changes.
 
-   e. Tournament Deletion:
+   e. Invitation Management:
+   - Use `AcceptInvitation` to accept an invitation for a school or volunteer.
+   - Use `DeclineInvitation` to decline an invitation.
+   - Use `RegisterTeam` to register a team for an accepted school invitation.
+   - Use `AddTeamMember` to add a student to a registered team.
+   - Use `GetInvitationStatus` to check the status of an invitation and its registered teams.
+
+   f. Tournament Deletion:
    - Use `DeleteTournament` to remove a tournament.
    - Attempt to `GetTournament` for the deleted tournament (should fail).
 
-4. For each test, verify that the appropriate email notifications are sent (tournament creation confirmation, invitations).
+4. For each test, verify that the appropriate email notifications are sent (tournament creation confirmation, invitations, reminders).
+
+5. Test the reminder system:
+   - Create a tournament with a future date.
+   - Verify that the reminder cron job is scheduled.
+   - Manually trigger the reminder job or wait for it to run automatically.
+   - Check that reminder emails are sent at appropriate intervals before the tournament.
 
 Remember to include the authentication token in the request body for each request:
 - Key: `token`
 - Value: `<token_received_from_login>`
-
-Note: When testing deletion operations, ensure that you're not deleting entities that are still referenced by others (e.g., don't delete a league or format that's still used by an active tournament).

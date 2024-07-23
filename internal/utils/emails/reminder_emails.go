@@ -19,37 +19,25 @@ func init() {
 	viper.AutomaticEnv()
 }
 
-func SendReminderEmails(ctx context.Context, invitations []models.TournamentInvitation, queries *models.Queries) error {
+func SendReminderEmails(ctx context.Context, invitations []models.Tournamentinvitation, queries *models.Queries) error {
 	var errors []error
+	batchSize := 50
+	delay := 5 * time.Second
 
-	for _, invitation := range invitations {
-		tournament, err := queries.GetTournamentByID(ctx, invitation.Tournamentid)
-		if err != nil {
-			errors = append(errors, fmt.Errorf("failed to get tournament details for invitation %d: %v", invitation.Invitationid, err))
-			continue
+	for i := 0; i < len(invitations); i += batchSize {
+		end := i + batchSize
+		if end > len(invitations) {
+			end = len(invitations)
 		}
 
-		timeUntilTournament := tournament.Startdate.Sub(time.Now())
-		reminderType := getShouldSendReminder(timeUntilTournament, invitation.Status, invitation.Schoolid.Valid)
-
-		if reminderType == "none" {
-			continue
+		batch := invitations[i:end]
+		for _, invitation := range batch {
+			if err := sendSingleReminderEmail(ctx, invitation, queries); err != nil {
+				errors = append(errors, fmt.Errorf("failed to send reminder email for invitation %d: %v", invitation.Invitationid, err))
+			}
 		}
 
-		recipient, recipientType, err := getRecipientInfo(ctx, queries, invitation)
-		if err != nil {
-			errors = append(errors, fmt.Errorf("failed to get recipient info for invitation %d: %v", invitation.Invitationid, err))
-			continue
-		}
-
-		subject := fmt.Sprintf("Reminder: %s Tournament", tournament.Name)
-		content := prepareReminderEmailContent(recipientType, tournament.Name, timeUntilTournament, invitation.Status, invitation.Invitationid, reminderType)
-		body := GetEmailTemplate(content)
-
-		err = SendEmail(recipient, subject, body)
-		if err != nil {
-			errors = append(errors, fmt.Errorf("failed to send reminder email for invitation %d: %v", invitation.Invitationid, err))
-		}
+		time.Sleep(delay)
 	}
 
 	if len(errors) > 0 {
@@ -57,6 +45,31 @@ func SendReminderEmails(ctx context.Context, invitations []models.TournamentInvi
 	}
 
 	return nil
+}
+
+func sendSingleReminderEmail(ctx context.Context, invitation models.Tournamentinvitation, queries *models.Queries) error {
+	tournament, err := queries.GetTournamentByID(ctx, invitation.Tournamentid)
+	if err != nil {
+		return fmt.Errorf("failed to get tournament details: %v", err)
+	}
+
+	timeUntilTournament := tournament.Startdate.Sub(time.Now())
+	reminderType := getShouldSendReminder(timeUntilTournament, invitation.Status, invitation.Schoolid.Valid)
+
+	if reminderType == "none" {
+		return nil
+	}
+
+	recipient, recipientType, err := getRecipientInfo(ctx, queries, invitation)
+	if err != nil {
+		return err
+	}
+
+	subject := fmt.Sprintf("Reminder: %s Tournament", tournament.Name)
+	content := prepareReminderEmailContent(recipientType, tournament.Name, timeUntilTournament, invitation.Status, invitation.Invitationid, reminderType)
+	body := GetEmailTemplate(content)
+
+	return SendEmail(recipient, subject, body)
 }
 
 func prepareReminderEmailContent(recipientType, tournamentName string, timeUntilTournament time.Duration, invitationStatus string, invitationID int32, reminderType string) string {
@@ -122,38 +135,7 @@ func prepareReminderEmailContent(recipientType, tournamentName string, timeUntil
 	return content
 }
 
-
-// SendSingleReminderEmail sends a reminder email for a single invitation
-func SendSingleReminderEmail(ctx context.Context, invitation models.TournamentInvitation, queries *models.Queries) error {
-	tournament, err := queries.GetTournamentByID(ctx, invitation.Tournamentid)
-	if err != nil {
-		return fmt.Errorf("failed to get tournament details: %v", err)
-	}
-
-	daysUntilTournament := int(tournament.Startdate.Sub(time.Now()).Hours() / 24)
-
-	if !ShouldSendReminder(daysUntilTournament) {
-		return nil
-	}
-
-	recipient, recipientType, err := getRecipientInfo(ctx, queries, invitation)
-	if err != nil {
-		return err
-	}
-
-	subject := fmt.Sprintf("Reminder: %s Tournament", tournament.Name)
-	content := prepareReminderEmailContent(recipientType, tournament.Name, daysUntilTournament, invitation.Status, invitation.Invitationid)
-	body := GetEmailTemplate(content)
-
-	err = SendEmail(recipient, subject, body)
-	if err != nil {
-		return fmt.Errorf("failed to send reminder email: %v", err)
-	}
-
-	return nil
-}
-
-func getRecipientInfo(ctx context.Context, queries *models.Queries, invitation models.TournamentInvitation) (string, string, error) {
+func getRecipientInfo(ctx context.Context, queries *models.Queries, invitation models.Tournamentinvitation) (string, string, error) {
 	if invitation.Schoolid.Valid {
 		school, err := queries.GetSchoolByID(ctx, invitation.Schoolid.Int32)
 		if err != nil {
@@ -197,7 +179,8 @@ func getShouldSendReminder(timeUntilTournament time.Duration, invitationStatus s
 	return "none"
 }
 
-// ShouldSendReminder checks if a reminder should be sent based on days until tournament
+// Utility functions
+
 func ShouldSendReminder(daysUntilTournament int) bool {
 	reminderDays := []int{180, 150, 120, 90, 60, 30, 20, 15, 10, 5, 3, 0}
 	for _, day := range reminderDays {

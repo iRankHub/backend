@@ -29,7 +29,7 @@ func (q *Queries) AddTeamMember(ctx context.Context, arg AddTeamMemberParams) er
 
 const createInvitation = `-- name: CreateInvitation :one
 INSERT INTO TournamentInvitations (TournamentID, SchoolID, VolunteerID, Status)
-VALUES ($1, $2, $3, 'pending')
+VALUES ($1, $2, $3, $4)
 RETURNING invitationid, tournamentid, schoolid, volunteerid, status, invitedat, remindersentat, respondedat
 `
 
@@ -37,10 +37,16 @@ type CreateInvitationParams struct {
 	Tournamentid int32         `json:"tournamentid"`
 	Schoolid     sql.NullInt32 `json:"schoolid"`
 	Volunteerid  sql.NullInt32 `json:"volunteerid"`
+	Status       string        `json:"status"`
 }
 
 func (q *Queries) CreateInvitation(ctx context.Context, arg CreateInvitationParams) (Tournamentinvitation, error) {
-	row := q.db.QueryRowContext(ctx, createInvitation, arg.Tournamentid, arg.Schoolid, arg.Volunteerid)
+	row := q.db.QueryRowContext(ctx, createInvitation,
+		arg.Tournamentid,
+		arg.Schoolid,
+		arg.Volunteerid,
+		arg.Status,
+	)
 	var i Tournamentinvitation
 	err := row.Scan(
 		&i.Invitationid,

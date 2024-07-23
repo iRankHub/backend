@@ -82,11 +82,10 @@ func (s *TournamentService) CreateTournament(ctx context.Context, req *tournamen
 		return nil, fmt.Errorf("failed to fetch tournament format: %v", err)
 	}
 
-	invitationIDs, err := s.createInvitations(ctx, queries, tournament.Tournamentid, league.Leagueid)
+	err = s.createInvitations(ctx, queries, tournament.Tournamentid, league.Leagueid)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create invitations: %v", err)
 	}
-
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %v", err)
 	}
@@ -238,44 +237,40 @@ func (s *TournamentService) DeleteTournament(ctx context.Context, req *tournamen
 	}, nil
 }
 
-func (s *TournamentService) createInvitations(ctx context.Context, queries *models.Queries, tournamentID int32, leagueID int32) ([]int32, error) {
-	var invitationIDs []int32
-
+func (s *TournamentService) createInvitations(ctx context.Context, queries *models.Queries, tournamentID int32, leagueID int32) error {
 	schools, err := queries.GetSchoolsByLeague(ctx, leagueID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch schools for league %d: %v", leagueID, err)
+		return fmt.Errorf("failed to fetch schools for league %d: %v", leagueID, err)
 	}
 
 	for _, school := range schools {
-		invitation, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
+		_, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
 			Tournamentid: tournamentID,
 			Schoolid:     sql.NullInt32{Int32: school.Schoolid, Valid: true},
 			Status:       "pending",
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to create invitation for school %d: %v", school.Schoolid, err)
+			return fmt.Errorf("failed to create invitation for school %d: %v", school.Schoolid, err)
 		}
-		invitationIDs = append(invitationIDs, invitation.Invitationid)
 	}
 
 	volunteers, err := queries.GetAllVolunteers(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch volunteers: %v", err)
+		return fmt.Errorf("failed to fetch volunteers: %v", err)
 	}
 
 	for _, volunteer := range volunteers {
-		invitation, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
+		_, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
 			Tournamentid: tournamentID,
 			Volunteerid:  sql.NullInt32{Int32: volunteer.Volunteerid, Valid: true},
 			Status:       "pending",
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to create invitation for volunteer %d: %v", volunteer.Volunteerid, err)
+			return fmt.Errorf("failed to create invitation for volunteer %d: %v", volunteer.Volunteerid, err)
 		}
-		invitationIDs = append(invitationIDs, invitation.Invitationid)
 	}
 
-	return invitationIDs, nil
+	return nil
 }
 
 func (s *TournamentService) validateAuthentication(token string) error {
