@@ -14,7 +14,7 @@ import (
 	"github.com/iRankHub/backend/envoy"
 	"github.com/iRankHub/backend/internal/config"
 	"github.com/iRankHub/backend/internal/grpc/server"
-
+	"github.com/iRankHub/backend/internal/utils"
 )
 
 func main() {
@@ -53,6 +53,15 @@ func main() {
 		log.Fatalf("Failed to run database migrations: %v", err)
 	}
 	log.Println("Successfully ran database migrations")
+
+		// Initialize the token configuration
+	err = utils.InitializeTokenConfig()
+	if err != nil {
+		log.Fatalf("Failed to initialize token configuration: %v", err)
+	}
+
+	// Start the token cleanup goroutine
+	utils.StartTokenCleanup()
 
 	// Start the Envoy Proxy server
 	go func() {

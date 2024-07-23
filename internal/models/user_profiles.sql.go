@@ -13,7 +13,7 @@ import (
 const createUserProfile = `-- name: CreateUserProfile :one
 INSERT INTO UserProfiles (UserID, Name, UserRole, Email, VerificationStatus, Address, Phone, Bio, ProfilePicture)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING profileid, userid, name, userrole, email, address, phone, bio, profilepicture, verificationstatus
+RETURNING profileid, userid, name, userrole, email, password, address, phone, bio, profilepicture, verificationstatus
 `
 
 type CreateUserProfileParams struct {
@@ -47,6 +47,7 @@ func (q *Queries) CreateUserProfile(ctx context.Context, arg CreateUserProfilePa
 		&i.Name,
 		&i.Userrole,
 		&i.Email,
+		&i.Password,
 		&i.Address,
 		&i.Phone,
 		&i.Bio,
@@ -67,7 +68,7 @@ func (q *Queries) DeleteUserProfile(ctx context.Context, userid int32) error {
 }
 
 const getUserProfile = `-- name: GetUserProfile :one
-SELECT profileid, userid, name, userrole, email, address, phone, bio, profilepicture, verificationstatus FROM UserProfiles
+SELECT profileid, userid, name, userrole, email, password, address, phone, bio, profilepicture, verificationstatus FROM UserProfiles
 WHERE UserID = $1
 `
 
@@ -80,6 +81,7 @@ func (q *Queries) GetUserProfile(ctx context.Context, userid int32) (Userprofile
 		&i.Name,
 		&i.Userrole,
 		&i.Email,
+		&i.Password,
 		&i.Address,
 		&i.Phone,
 		&i.Bio,
@@ -93,7 +95,7 @@ const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE UserProfiles
 SET Name = $2, UserRole = $3, Email = $4, VerificationStatus = $5, Address = $6, Phone = $7, Bio = $8, ProfilePicture = $9
 WHERE UserID = $1
-RETURNING profileid, userid, name, userrole, email, address, phone, bio, profilepicture, verificationstatus
+RETURNING profileid, userid, name, userrole, email, password, address, phone, bio, profilepicture, verificationstatus
 `
 
 type UpdateUserProfileParams struct {
@@ -127,6 +129,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.Name,
 		&i.Userrole,
 		&i.Email,
+		&i.Password,
 		&i.Address,
 		&i.Phone,
 		&i.Bio,

@@ -2,51 +2,56 @@ package server
 
 import (
 	"context"
-	"crypto/ed25519"
 	"database/sql"
 	"fmt"
+	"time"
+
+	"github.com/go-webauthn/webauthn/webauthn"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
+	"github.com/iRankHub/backend/internal/models"
 	services "github.com/iRankHub/backend/internal/services/authentication"
 	"github.com/iRankHub/backend/internal/utils"
-
 )
 
 type authServer struct {
 	authentication.UnimplementedAuthServiceServer
 	db               *sql.DB
+	webauthn         *webauthn.WebAuthn
 	loginService     *services.LoginService
 	signUpService    *services.SignUpService
 	twoFactorService *services.TwoFactorService
 	recoveryService  *services.RecoveryService
 	biometricService *services.BiometricService
-	privateKey       ed25519.PrivateKey
 }
 
 func NewAuthServer(db *sql.DB) (authentication.AuthServiceServer, error) {
-	privateKey, publicKey, err := utils.GeneratePasetoKeyPair()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate PASETO key pair: %v", err)
-	}
+    wconfig := &webauthn.Config{
+        RPDisplayName: "iRankHub",
+        RPID:          "localhost", // TODO: Change this to actual domain in production
+        RPOrigin:      "http://localhost:3000", // TODO: Change this to origin url in production
+    }
 
-	// Set the public key for token validation
-	utils.SetPublicKey(publicKey)
+    w, err := webauthn.New(wconfig)
+    if err != nil {
+        return nil, fmt.Errorf("failed to create WebAuthn: %v", err)
+    }
 
-	twoFactorService := services.NewTwoFactorService(db)
-	recoveryService := services.NewRecoveryService(db)
-	biometricService := services.NewBiometricService(db)
-	loginService := services.NewLoginService(db, twoFactorService, recoveryService)
-	signUpService := services.NewSignUpService(db)
+    twoFactorService := services.NewTwoFactorService(db)
+    recoveryService := services.NewRecoveryService(db)
+    biometricService := services.NewBiometricService(db, w)
+    loginService := services.NewLoginService(db, twoFactorService, recoveryService)
+    signUpService := services.NewSignUpService(db)
 
-	return &authServer{
-		db:               db,
-		loginService:     loginService,
-		signUpService:    signUpService,
-		twoFactorService: twoFactorService,
-		recoveryService:  recoveryService,
-		biometricService: biometricService,
-		privateKey:       privateKey,
-	}, nil
+    return &authServer{
+        db:               db,
+        webauthn:         w,
+        loginService:     loginService,
+        signUpService:    signUpService,
+        twoFactorService: twoFactorService,
+        recoveryService:  recoveryService,
+        biometricService: biometricService,
+    }, nil
 }
 
 
@@ -72,59 +77,43 @@ func (s *authServer) SignUp(ctx context.Context, req *authentication.SignUpReque
 		return nil, err
 	}
 
-	var message string
+	var message, status string
 	if req.UserRole == "admin" {
 		message = "Admin account created successfully. You can now log in to the system."
+		status = "approved"
 	} else {
 		message = "Sign-up successful. Please wait for admin approval."
+		status = "pending"
 	}
 
-	return &authentication.SignUpResponse{Success: true, Message: message}, nil
+	return &authentication.SignUpResponse{Success: true, Message: message, Status: status}, nil
 }
 
 func (s *authServer) Login(ctx context.Context, req *authentication.LoginRequest) (*authentication.LoginResponse, error) {
-	user, err := s.loginService.Login(ctx, req.Email, req.Password)
-	if err != nil {
-		if err.Error() == "two factor authentication required" {
-			return &authentication.LoginResponse{Success: false, RequireTwoFactor: true}, nil
-		}
-		if err.Error() == "password reset required" {
-			return &authentication.LoginResponse{Success: false, RequirePasswordReset: true, Message: "A password reset email has been sent to your account."}, nil
-		}
-		return &authentication.LoginResponse{Success: false, Message: "Invalid email or password"}, nil
-	}
-
-    if user.Status.Valid && user.Status.String == "pending" {
-        token, err := utils.GenerateToken(user.Userid, user.Userrole, s.privateKey)
-        if err != nil {
-            return nil, fmt.Errorf("failed to generate token: %v", err)
+    user, err := s.loginService.Login(ctx, req.EmailOrId, req.Password)
+    if err != nil {
+        if err.Error() == "two factor authentication required" {
+            err := s.twoFactorService.GenerateTwoFactorOTP(ctx, req.EmailOrId)
+            if err != nil {
+                return nil, fmt.Errorf("failed to generate two-factor OTP: %v", err)
+            }
+            return &authentication.LoginResponse{
+                Success: false,
+                RequireTwoFactor: true,
+                Message: "Two-factor authentication required. An OTP has been sent to your email.",
+            }, nil
         }
-        return &authentication.LoginResponse{
-            Success:  true,
-            Token:    token,
-            UserRole: user.Userrole,
-            UserID:   user.Userid,
-            Message:  "Your account is pending approval. You will be logged out in 20 seconds.",
-        }, nil
+        if err.Error() == "password reset required" {
+            return &authentication.LoginResponse{
+                Success: false,
+                RequirePasswordReset: true,
+                Message: "A password reset email has been sent to your account.",
+            }, nil
+        }
+        return &authentication.LoginResponse{Success: false, Message: "Invalid email/ID or password"}, nil
     }
 
-    if user.Status.Valid && user.Status.String == "rejected" {
-        return &authentication.LoginResponse{Success: false, Message: "Your account has been rejected."}, nil
-    }
-
-	token, err := utils.GenerateToken(user.Userid, user.Userrole, s.privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate token: %v", err)
-	}
-
-	return &authentication.LoginResponse{
-		Success:  true,
-		Token:    token,
-		UserRole: user.Userrole,
-		UserID:   user.Userid,
-		Message:  "Login successful",
-		Status: user.Status.String,
-	}, nil
+    return s.generateSuccessfulLoginResponse(user)
 }
 
 func (s *authServer) Logout(ctx context.Context, req *authentication.LogoutRequest) (*authentication.LogoutResponse, error) {
@@ -148,57 +137,82 @@ func (s *authServer) Logout(ctx context.Context, req *authentication.LogoutReque
 	}, nil
 }
 
-func (s *authServer) EnableTwoFactor(ctx context.Context, req *authentication.EnableTwoFactorRequest) (*authentication.EnableTwoFactorResponse, error) {
-    // Verify the token
-    claims, err := utils.ValidateToken(req.Token)
+func (s *authServer) GenerateTwoFactorOTP(ctx context.Context, req *authentication.GenerateTwoFactorOTPRequest) (*authentication.GenerateTwoFactorOTPResponse, error) {
+    err := s.twoFactorService.GenerateTwoFactorOTP(ctx, req.Email)
     if err != nil {
-        return nil, fmt.Errorf("invalid token: %v", err)
+        return nil, fmt.Errorf("failed to generate two-factor OTP: %v", err)
     }
 
-    userID := int32(claims["user_id"].(float64))
-    if userID != req.UserID {
-        return nil, fmt.Errorf("unauthorized: token does not match user ID")
-    }
-
-    secret, qrCode, err := s.twoFactorService.EnableTwoFactor(ctx, req.UserID)
-    if err != nil {
-        return nil, fmt.Errorf("failed to enable two-factor authentication: %v", err)
-    }
-
-    return &authentication.EnableTwoFactorResponse{
-        Secret: secret,
-        QrCode: qrCode,
+    return &authentication.GenerateTwoFactorOTPResponse{
+        Success: true,
+        Message: "Two-factor authentication OTP sent. Please check your email.",
     }, nil
 }
 
-func (s *authServer) VerifyTwoFactor(ctx context.Context, req *authentication.VerifyTwoFactorRequest) (*authentication.VerifyTwoFactorResponse, error) {
-    success, err := s.twoFactorService.VerifyAndEnableTwoFactor(ctx, req.UserID, req.Code)
-    if err != nil {
-        return nil, fmt.Errorf("failed to verify and enable two-factor authentication: %v", err)
-    }
+func (s *authServer) VerifyTwoFactor(ctx context.Context, req *authentication.VerifyTwoFactorRequest) (*authentication.LoginResponse, error) {
+	success, err := s.twoFactorService.VerifyTwoFactor(ctx, req.Email, req.Code)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify two-factor authentication: %v", err)
+	}
 
-    return &authentication.VerifyTwoFactorResponse{Success: success}, nil
+	if !success {
+		return &authentication.LoginResponse{
+			Success: false,
+			Message: "Failed to verify two-factor authentication code.",
+		}, nil
+	}
+
+	// If 2FA verification is successful, complete the login process
+	user, err := s.loginService.GetUserByEmail(ctx, req.Email)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user information: %v", err)
+	}
+
+	return s.generateSuccessfulLoginResponse(user)
 }
 
-func (s *authServer) DisableTwoFactor(ctx context.Context, req *authentication.DisableTwoFactorRequest) (*authentication.DisableTwoFactorResponse, error) {
-    // Verify the token
-    claims, err := utils.ValidateToken(req.Token)
-    if err != nil {
-        return nil, fmt.Errorf("invalid token: %v", err)
-    }
+func (s *authServer) generateSuccessfulLoginResponse(user *models.User) (*authentication.LoginResponse, error) {
+	if user.Status.Valid && user.Status.String == "pending" {
+		token, err := utils.GenerateToken(user.Userid, user.Name, user.Userrole, user.Email)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate token: %v", err)
+		}
 
-    userID := int32(claims["user_id"].(float64))
-    if userID != req.UserID {
-        return nil, fmt.Errorf("unauthorized: token does not match user ID")
-    }
+		// Invalidate the token after 20 seconds
+		go func() {
+			time.Sleep(20 * time.Second)
+			utils.InvalidateToken(token)
+		}()
 
-    err = s.twoFactorService.DisableTwoFactor(ctx, req.UserID)
-    if err != nil {
-        return nil, fmt.Errorf("failed to disable two-factor authentication: %v", err)
-    }
+		return &authentication.LoginResponse{
+			Success:  true,
+			Token:    token,
+			UserRole: user.Userrole,
+			UserID:   user.Userid,
+			Message:  "Your account is pending approval. You will be logged out in 20 seconds.",
+			Status:   user.Status.String,
+		}, nil
+	}
 
-    return &authentication.DisableTwoFactorResponse{Success: true}, nil
+	if user.Status.Valid && user.Status.String == "rejected" {
+		return &authentication.LoginResponse{Success: false, Message: "Your account has been rejected."}, nil
+	}
+
+	token, err := utils.GenerateToken(user.Userid, user.Name, user.Userrole, user.Email)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate token: %v", err)
+	}
+
+	return &authentication.LoginResponse{
+		Success:  true,
+		Token:    token,
+		UserRole: user.Userrole,
+		UserID:   user.Userid,
+		Message:  "Login successful",
+		Status:   user.Status.String,
+	}, nil
 }
+
 
 func (s *authServer) RequestPasswordReset(ctx context.Context, req *authentication.PasswordResetRequest) (*authentication.PasswordResetResponse, error) {
 	err := s.recoveryService.RequestPasswordReset(ctx, req.Email)
@@ -218,49 +232,81 @@ func (s *authServer) ResetPassword(ctx context.Context, req *authentication.Rese
 	return &authentication.ResetPasswordResponse{Success: true}, nil
 }
 
-func (s *authServer) EnableBiometricLogin(ctx context.Context, req *authentication.EnableBiometricLoginRequest) (*authentication.EnableBiometricLoginResponse, error) {
-	token, err := s.biometricService.EnableBiometricLogin(ctx, req.UserID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to enable biometric login: %v", err)
-	}
+func (s *authServer) BeginWebAuthnRegistration(ctx context.Context, req *authentication.BeginWebAuthnRegistrationRequest) (*authentication.BeginWebAuthnRegistrationResponse, error) {
+    // Verify the token
+    claims, err := utils.ValidateToken(req.Token)
+    if err != nil {
+        return nil, fmt.Errorf("invalid token: %v", err)
+    }
 
-	return &authentication.EnableBiometricLoginResponse{BiometricToken: token}, nil
+    userID := int32(claims["user_id"].(float64))
+    if userID != req.UserID {
+        return nil, fmt.Errorf("unauthorized: token does not match user ID")
+    }
+
+    options, err := s.biometricService.BeginRegistration(ctx, req.UserID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to begin WebAuthn registration: %v", err)
+    }
+
+    return &authentication.BeginWebAuthnRegistrationResponse{
+        Options: options,
+    }, nil
 }
 
-func (s *authServer) BiometricLogin(ctx context.Context, req *authentication.BiometricLoginRequest) (*authentication.LoginResponse, error) {
-    user, err := s.biometricService.VerifyBiometricToken(ctx, req.BiometricToken)
+func (s *authServer) FinishWebAuthnRegistration(ctx context.Context, req *authentication.FinishWebAuthnRegistrationRequest) (*authentication.FinishWebAuthnRegistrationResponse, error) {
+    // Verify the token
+    claims, err := utils.ValidateToken(req.Token)
     if err != nil {
-        // If VerifyBiometricToken fails, we don't have a user to pass to HandleFailedLoginAttempt
-        // We should handle this case differently
-        return nil, fmt.Errorf("failed to verify biometric token: %v", err)
+        return nil, fmt.Errorf("invalid token: %v", err)
     }
 
-    err = s.loginService.HandleFailedLoginAttempt(ctx, user)
-    if err != nil {
-        if err.Error() == "two factor authentication required" {
-            return &authentication.LoginResponse{Success: false, RequireTwoFactor: true}, nil
-        }
-        if err.Error() == "password reset required" {
-            return &authentication.LoginResponse{Success: false, RequirePasswordReset: true, Message: "A password reset email has been sent to your account."}, nil
-        }
-        return nil, fmt.Errorf("login attempt failed: %v", err)
+    userID := int32(claims["user_id"].(float64))
+    if userID != req.UserID {
+        return nil, fmt.Errorf("unauthorized: token does not match user ID")
     }
 
-    err = s.loginService.HandleSuccessfulLogin(ctx, user.Userid)
+    err = s.biometricService.FinishRegistration(ctx, req.UserID, req.Credential)
     if err != nil {
-        return nil, err
+        return nil, fmt.Errorf("failed to finish WebAuthn registration: %v", err)
     }
 
-    token, err := utils.GenerateToken(user.Userid, user.Userrole, s.privateKey)
+    return &authentication.FinishWebAuthnRegistrationResponse{
+        Success: true,
+    }, nil
+}
+
+func (s *authServer) BeginWebAuthnLogin(ctx context.Context, req *authentication.BeginWebAuthnLoginRequest) (*authentication.BeginWebAuthnLoginResponse, error) {
+    options, err := s.biometricService.BeginLogin(ctx, req.Email)
+    if err != nil {
+        return nil, fmt.Errorf("failed to begin WebAuthn login: %v", err)
+    }
+
+    return &authentication.BeginWebAuthnLoginResponse{
+        Options: options,
+    }, nil
+}
+
+func (s *authServer) FinishWebAuthnLogin(ctx context.Context, req *authentication.FinishWebAuthnLoginRequest) (*authentication.FinishWebAuthnLoginResponse, error) {
+    err := s.biometricService.FinishLogin(ctx, req.Email, req.Credential)
+    if err != nil {
+        return nil, fmt.Errorf("failed to finish WebAuthn login: %v", err)
+    }
+
+    // Get user information
+    user, err := s.loginService.GetUserByEmail(ctx, req.Email)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get user information: %v", err)
+    }
+
+    // Generate token
+    token, err := utils.GenerateToken(user.Userid, user.Name, user.Userrole, user.Email)
     if err != nil {
         return nil, fmt.Errorf("failed to generate token: %v", err)
     }
 
-    return &authentication.LoginResponse{
-        Success:  true,
-        Token:    token,
-        UserRole: user.Userrole,
-        UserID:   user.Userid,
-        Message:"Login Successful",
+    return &authentication.FinishWebAuthnLoginResponse{
+        Success: true,
+        Token:   token,
     }, nil
 }

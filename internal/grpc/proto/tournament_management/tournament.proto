@@ -4,7 +4,7 @@ package tournament_management;
 
 option go_package = "github.com/iRankHub/backend/internal/grpc/proto/tournament_management";
 
-import "google/protobuf/timestamp.proto";
+
 
 service TournamentService {
   // League operations
@@ -31,30 +31,26 @@ service TournamentService {
 
 // Enum definitions
 enum LeagueType {
-  LEAGUE_TYPE_UNSPECIFIED = 0;
-  LEAGUE_TYPE_LOCAL = 1;
-  LEAGUE_TYPE_INTERNATIONAL = 2;
+  local = 0;
+  international = 1;
 }
 
 // Message definitions
+message LocalDetails {
+  repeated string provinces = 1;
+  repeated string districts = 2;
+}
+
+message InternationalDetails {
+  repeated string continents = 1;
+  repeated string countries = 2;
+}
+
 message League {
   int32 league_id = 1;
   string name = 2;
   LeagueType league_type = 3;
-  oneof league_details {
-    LocalLeagueDetails local_details = 4;
-    InternationalLeagueDetails international_details = 5;
-  }
-}
-
-message LocalLeagueDetails {
-  string province = 1;
-  string district = 2;
-}
-
-message InternationalLeagueDetails {
-  string continent = 1;
-  string country = 2;
+  string details = 4;
 }
 
 message TournamentFormat {
@@ -67,8 +63,8 @@ message TournamentFormat {
 message Tournament {
   int32 tournament_id = 1;
   string name = 2;
-  google.protobuf.Timestamp start_date = 3;
-  google.protobuf.Timestamp end_date = 4;
+  string start_date = 3;
+  string end_date = 4;
   string location = 5;
   int32 format_id = 6;
   int32 league_id = 7;
@@ -84,18 +80,21 @@ message CreateLeagueRequest {
   string name = 1;
   LeagueType league_type = 2;
   oneof league_details {
-    LocalLeagueDetails local_details = 3;
-    InternationalLeagueDetails international_details = 4;
+    LocalDetails local_details = 3;
+    InternationalDetails international_details = 4;
   }
+  string token = 5;
 }
 
 message GetLeagueRequest {
   int32 league_id = 1;
+  string token = 2;
 }
 
 message ListLeaguesRequest {
   int32 page_size = 1;
   int32 page_token = 2;
+  string token = 3;
 }
 
 message UpdateLeagueRequest {
@@ -103,28 +102,33 @@ message UpdateLeagueRequest {
   string name = 2;
   LeagueType league_type = 3;
   oneof league_details {
-    LocalLeagueDetails local_details = 4;
-    InternationalLeagueDetails international_details = 5;
+    LocalDetails local_details = 4;
+    InternationalDetails international_details = 5;
   }
+  string token = 6;
 }
 
 message DeleteLeagueRequest {
   int32 league_id = 1;
+  string token = 2;
 }
 
 message CreateTournamentFormatRequest {
   string format_name = 1;
   string description = 2;
   int32 speakers_per_team = 3;
+  string token = 4;
 }
 
 message GetTournamentFormatRequest {
   int32 format_id = 1;
+  string token = 2;
 }
 
 message ListTournamentFormatsRequest {
   int32 page_size = 1;
   int32 page_token = 2;
+  string token = 3;
 }
 
 message UpdateTournamentFormatRequest {
@@ -132,16 +136,18 @@ message UpdateTournamentFormatRequest {
   string format_name = 2;
   string description = 3;
   int32 speakers_per_team = 4;
+  string token = 5;
 }
 
 message DeleteTournamentFormatRequest {
   int32 format_id = 1;
+  string token = 2;
 }
 
 message CreateTournamentRequest {
   string name = 1;
-  google.protobuf.Timestamp start_date = 2;
-  google.protobuf.Timestamp end_date = 3;
+  string start_date = 2;
+  string end_date = 3;
   string location = 4;
   int32 format_id = 5;
   int32 league_id = 6;
@@ -150,22 +156,25 @@ message CreateTournamentRequest {
   int32 judges_per_debate_preliminary = 9;
   int32 judges_per_debate_elimination = 10;
   double tournament_fee = 11;
+  string token = 12;
 }
 
 message GetTournamentRequest {
   int32 tournament_id = 1;
+  string token = 2;
 }
 
 message ListTournamentsRequest {
   int32 page_size = 1;
   int32 page_token = 2;
+  string token = 3;
 }
 
 message UpdateTournamentRequest {
   int32 tournament_id = 1;
   string name = 2;
-  google.protobuf.Timestamp start_date = 3;
-  google.protobuf.Timestamp end_date = 4;
+  string start_date = 3;
+  string end_date = 4;
   string location = 5;
   int32 format_id = 6;
   int32 league_id = 7;
@@ -174,10 +183,12 @@ message UpdateTournamentRequest {
   int32 judges_per_debate_preliminary = 10;
   int32 judges_per_debate_elimination = 11;
   double tournament_fee = 12;
+  string token = 13;
 }
 
 message DeleteTournamentRequest {
   int32 tournament_id = 1;
+  string token = 2;
 }
 
 // Response messages

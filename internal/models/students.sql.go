@@ -13,7 +13,7 @@ import (
 const createStudent = `-- name: CreateStudent :one
 INSERT INTO Students (FirstName, LastName, Grade, DateOfBirth, Email, Password, SchoolID, UserID)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING studentid, firstname, lastname, grade, dateofbirth, email, password, schoolid, userid
+RETURNING studentid, idebatestudentid, firstname, lastname, grade, dateofbirth, email, password, schoolid, userid
 `
 
 type CreateStudentParams struct {
@@ -41,6 +41,7 @@ func (q *Queries) CreateStudent(ctx context.Context, arg CreateStudentParams) (S
 	var i Student
 	err := row.Scan(
 		&i.Studentid,
+		&i.Idebatestudentid,
 		&i.Firstname,
 		&i.Lastname,
 		&i.Grade,
@@ -64,7 +65,7 @@ func (q *Queries) DeleteStudent(ctx context.Context, studentid int32) error {
 }
 
 const getStudentByEmail = `-- name: GetStudentByEmail :one
-SELECT studentid, firstname, lastname, grade, dateofbirth, email, password, schoolid, userid FROM Students
+SELECT studentid, idebatestudentid, firstname, lastname, grade, dateofbirth, email, password, schoolid, userid FROM Students
 WHERE Email = $1
 `
 
@@ -73,6 +74,7 @@ func (q *Queries) GetStudentByEmail(ctx context.Context, email sql.NullString) (
 	var i Student
 	err := row.Scan(
 		&i.Studentid,
+		&i.Idebatestudentid,
 		&i.Firstname,
 		&i.Lastname,
 		&i.Grade,
@@ -86,7 +88,7 @@ func (q *Queries) GetStudentByEmail(ctx context.Context, email sql.NullString) (
 }
 
 const getStudentByID = `-- name: GetStudentByID :one
-SELECT studentid, firstname, lastname, grade, dateofbirth, email, password, schoolid, userid FROM Students
+SELECT studentid, idebatestudentid, firstname, lastname, grade, dateofbirth, email, password, schoolid, userid FROM Students
 WHERE StudentID = $1
 `
 
@@ -95,6 +97,7 @@ func (q *Queries) GetStudentByID(ctx context.Context, studentid int32) (Student,
 	var i Student
 	err := row.Scan(
 		&i.Studentid,
+		&i.Idebatestudentid,
 		&i.Firstname,
 		&i.Lastname,
 		&i.Grade,
@@ -111,7 +114,7 @@ const updateStudent = `-- name: UpdateStudent :one
 UPDATE Students
 SET FirstName = $2, LastName = $3, Grade = $4, DateOfBirth = $5, Email = $6, Password = $7, SchoolID = $8
 WHERE StudentID = $1
-RETURNING studentid, firstname, lastname, grade, dateofbirth, email, password, schoolid, userid
+RETURNING studentid, idebatestudentid, firstname, lastname, grade, dateofbirth, email, password, schoolid, userid
 `
 
 type UpdateStudentParams struct {
@@ -139,6 +142,7 @@ func (q *Queries) UpdateStudent(ctx context.Context, arg UpdateStudentParams) (S
 	var i Student
 	err := row.Scan(
 		&i.Studentid,
+		&i.Idebatestudentid,
 		&i.Firstname,
 		&i.Lastname,
 		&i.Grade,

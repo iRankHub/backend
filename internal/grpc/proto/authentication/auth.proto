@@ -7,13 +7,14 @@ package auth;
 service AuthService {
   rpc SignUp(SignUpRequest) returns (SignUpResponse) {}
   rpc Login(LoginRequest) returns (LoginResponse) {}
-  rpc EnableTwoFactor(EnableTwoFactorRequest) returns (EnableTwoFactorResponse) {}
-  rpc VerifyTwoFactor(VerifyTwoFactorRequest) returns (VerifyTwoFactorResponse) {}
-  rpc DisableTwoFactor(DisableTwoFactorRequest) returns (DisableTwoFactorResponse) {}
+  rpc GenerateTwoFactorOTP(GenerateTwoFactorOTPRequest) returns (GenerateTwoFactorOTPResponse) {}
+  rpc VerifyTwoFactor(VerifyTwoFactorRequest) returns (LoginResponse) {}
   rpc RequestPasswordReset(PasswordResetRequest) returns (PasswordResetResponse) {}
   rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse) {}
-  rpc EnableBiometricLogin(EnableBiometricLoginRequest) returns (EnableBiometricLoginResponse) {}
-  rpc BiometricLogin(BiometricLoginRequest) returns (LoginResponse) {}
+  rpc BeginWebAuthnRegistration(BeginWebAuthnRegistrationRequest) returns (BeginWebAuthnRegistrationResponse) {}
+  rpc FinishWebAuthnRegistration(FinishWebAuthnRegistrationRequest) returns (FinishWebAuthnRegistrationResponse) {}
+  rpc BeginWebAuthnLogin(BeginWebAuthnLoginRequest) returns (BeginWebAuthnLoginResponse) {}
+  rpc FinishWebAuthnLogin(FinishWebAuthnLoginRequest) returns (FinishWebAuthnLoginResponse) {}
   rpc Logout(LogoutRequest) returns (LogoutResponse) {}
 }
 
@@ -49,7 +50,7 @@ message SignUpResponse {
 }
 
 message LoginRequest {
-  string email = 1;
+  string email_or_id = 1;
   string password = 2;
 }
 
@@ -64,32 +65,18 @@ message LoginResponse {
   string status = 8;
 }
 
-message EnableTwoFactorRequest {
-  int32 userID = 1;
-  string token = 2;
+message GenerateTwoFactorOTPRequest {
+  string email = 1;
 }
 
-message EnableTwoFactorResponse {
-  string secret = 1;
-  string qrCode = 2;
+message GenerateTwoFactorOTPResponse {
+  bool success = 1;
+  string message = 2;
 }
 
 message VerifyTwoFactorRequest {
-  int32 userID = 1;
+  string email = 1;
   string code = 2;
-}
-
-message VerifyTwoFactorResponse {
-  bool success = 1;
-}
-
-message DisableTwoFactorRequest {
-  int32 userID = 1;
-  string token = 2;
-}
-
-message DisableTwoFactorResponse {
-  bool success = 1;
 }
 
 message PasswordResetRequest {
@@ -109,16 +96,41 @@ message ResetPasswordResponse {
   bool success = 1;
 }
 
-message EnableBiometricLoginRequest {
-  int32 userID = 1;
+message BeginWebAuthnRegistrationRequest {
+  string token = 1;
+  int32 userID = 2;
 }
 
-message EnableBiometricLoginResponse {
-  string biometricToken = 1;
+message BeginWebAuthnRegistrationResponse {
+  bytes options = 1;
 }
 
-message BiometricLoginRequest {
-  string biometricToken = 1;
+message FinishWebAuthnRegistrationRequest {
+  string token = 1;
+  int32 userID = 2;
+  bytes credential = 3;
+}
+
+message FinishWebAuthnRegistrationResponse {
+  bool success = 1;
+}
+
+message BeginWebAuthnLoginRequest {
+  string email = 1;
+}
+
+message BeginWebAuthnLoginResponse {
+  bytes options = 1;
+}
+
+message FinishWebAuthnLoginRequest {
+  string email = 1;
+  bytes credential = 2;
+}
+
+message FinishWebAuthnLoginResponse {
+  bool success = 1;
+  string token = 2;
 }
 
 message LogoutRequest {

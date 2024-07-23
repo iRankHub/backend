@@ -39,7 +39,7 @@ Demo Data:
   "userRole": "school",
   "schoolName": "Springfield High",
   "address": "KK 123 St",
-  "country": "USA",
+  "country": "United States of America",
   "province": "Illinois",
   "district": "Springfield",
   "contactEmail": "contact@springfieldhigh.edu",
@@ -70,22 +70,32 @@ Demo Data:
 
 ```json
 {
-  "email": "user@example.com",
+  "email_or_id": "user@example.com",
   "password": "password123"
 }
 ```
+Note: The login process now has two steps when 2FA is enabled:
+1. Initial login attempt with email/ID and password
+2. If 2FA is required, use the `VerifyTwoFactor` endpoint to complete the authentication
 
-### Enable Two-Factor Authentication
+### Generate Two-Factor Authentication OTP
 
-Endpoint: `AuthService.EnableTwoFactor`
+Endpoint: `AuthService.GenerateTwoFactorOTP`
 
-Description: Enable 2FA for a user account. Requires authentication.
+Description: Generate and send a new 2FA OTP to the user's email. This can be used when setting up 2FA or when the user needs a new OTP.
 
 Demo Data:
 ```json
 {
-  "userID": 1,
-  "token": "your_auth_token_here"
+  "email": "user@example.com"
+}
+```
+
+Response:
+```json
+{
+  "success": true,
+  "message": "Two-factor authentication OTP sent. Please check your email."
 }
 ```
 
@@ -93,27 +103,21 @@ Demo Data:
 
 Endpoint: `AuthService.VerifyTwoFactor`
 
-Description: Verify the 2FA code provided by the user.
+Description: Verify the 2FA code provided by the user. This is used during the login process when 2FA is required.
 
 Demo Data:
 ```json
 {
-  "userID": 1,
+  "email": "user@example.com",
   "code": "123456"
 }
 ```
 
-### Disable Two-Factor Authentication
-
-Endpoint: `AuthService.DisableTwoFactor`
-
-Description: Disable 2FA for a user account. Requires authentication.
-
-Demo Data:
+Response:
 ```json
 {
-  "userID": 1,
-  "token": "your_auth_token_here"
+  "success": true,
+  "message": "Two-factor authentication verified successfully."
 }
 ```
 ## User Management API
@@ -246,7 +250,7 @@ To test the user management features:
 
 1. Start by creating a new user using the `SignUp` endpoint.
 2. Use the `Login` endpoint to authenticate and receive a token.
-3. Use the token in the metadata for subsequent authenticated requests.
+3. Include the token in the request body for subsequent authenticated requests.
 4. Test the following scenarios:
 
    a. Pending User Approval:
@@ -278,9 +282,9 @@ To test the two-factor authentication flow:
 2. Use the `EnableTwoFactor` endpoint with the obtained token to enable 2FA for the user.
 3. The response will include a secret and a QR code URL. Use an authenticator app to scan the QR code or manually enter the secret.
 4. Generate a 2FA code using the authenticator app.
-5. Use the `VerifyTwoFactor` endpoint with the generated code to verify and complete the 2FA setup.
+5. Use the `VerifyTwoFactor` endpoint with the generated code and the token to verify and complete the 2FA setup.
 6. For subsequent logins, the `Login` endpoint will return `requireTwoFactor: true` if 2FA is enabled.
-7. Provide the 2FA code using the `VerifyTwoFactor` endpoint to complete the login process.
+7. Provide the 2FA code and the token using the `VerifyTwoFactor` endpoint to complete the login process.
 8. To disable 2FA, use the `DisableTwoFactor` endpoint with a valid authentication token.
 
 ### Request Password Reset
@@ -310,20 +314,62 @@ Demo Data:
 }
 ```
 
-### Enable Biometric Login
+### Begin WebAuthn Registration
 
-Endpoint: `AuthService.EnableBiometricLogin`
+Endpoint: `AuthService.BeginWebAuthnRegistration`
 
-Description: Enable biometric login for a user account.
+Description: Begin the WebAuthn registration process for a user account. Requires authentication.
 
 Demo Data:
 ```json
 {
-  "userID": 1
+  "userID": 1,
+  "token": "your_auth_token_here"
 }
 ```
 
-### Biometric Login
+### Finish WebAuthn Registration
+
+Endpoint: `AuthService.FinishWebAuthnRegistration`
+
+Description: Complete the WebAuthn registration process for a user account. Requires authentication.
+
+Demo Data:
+```json
+{
+  "userID": 1,
+  "token": "your_auth_token_here",
+  "credential": "base64_encoded_credential_data"
+}
+```
+
+### Begin WebAuthn Login
+
+Endpoint: `AuthService.BeginWebAuthnLogin`
+
+Description: Begin the WebAuthn login process for a user account.
+
+Demo Data:
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+### Finish WebAuthn Login
+
+Endpoint: `AuthService.FinishWebAuthnLogin`
+
+Description: Complete the WebAuthn login process for a user account.
+
+Demo Data:
+```json
+{
+  "email": "user@example.com",
+  "credential": "base64_encoded_credential_data"
+}
+```
+
 
 Endpoint: `AuthService.BiometricLogin`
 
@@ -335,6 +381,283 @@ Demo Data:
   "biometricToken": "token_here"
 }
 ```
+## League Management API
+
+### CreateLeague
+
+Endpoint: `TournamentService.CreateLeague`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "name": "National Debate League",
+  "league_type": "international",
+  "international_details": {
+    "continents": ["North America"],
+    "countries": ["United States of America"]
+  },
+  "token": "your_auth_token_here"
+}
+```
+
+### GetLeague
+
+Endpoint: `TournamentService.GetLeague`
+
+Request:
+```json
+{
+  "league_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+### ListLeagues
+
+Endpoint: `TournamentService.ListLeagues`
+
+Request:
+```json
+{
+  "page_size": 10,
+  "page_token": 0,
+  "token": "your_auth_token_here"
+}
+```
+
+### UpdateLeague
+
+Endpoint: `TournamentService.UpdateLeague`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "league_id": 1,
+  "name": "Updated National Debate League",
+  "league_type": "local",
+  "local_details": {
+    "provinces": ["East"],
+    "districts": ["Kigali"]
+  },
+  "token": "your_auth_token_here"
+}
+```
+
+### DeleteLeague
+
+Endpoint: `TournamentService.DeleteLeague`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "league_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+## Tournament Format Management API
+
+### CreateTournamentFormat
+
+Endpoint: `TournamentService.CreateTournamentFormat`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "format_name": "British Parliamentary",
+  "description": "A globally recognized debate format",
+  "speakers_per_team": 2,
+  "token": "your_auth_token_here"
+}
+```
+
+### GetTournamentFormat
+
+Endpoint: `TournamentService.GetTournamentFormat`
+
+Request:
+```json
+{
+  "format_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+### ListTournamentFormats
+
+Endpoint: `TournamentService.ListTournamentFormats`
+
+Request:
+```json
+{
+  "page_size": 10,
+  "page_token": 0,
+  "token": "your_auth_token_here"
+}
+```
+
+### UpdateTournamentFormat
+
+Endpoint: `TournamentService.UpdateTournamentFormat`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "format_id": 1,
+  "format_name": "Updated British Parliamentary",
+  "description": "An updated globally recognized debate format",
+  "speakers_per_team": 2,
+  "token": "your_auth_token_here"
+}
+```
+
+### DeleteTournamentFormat
+
+Endpoint: `TournamentService.DeleteTournamentFormat`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "format_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+## Tournament Management API
+### CreateTournament
+
+Endpoint: `TournamentService.CreateTournament`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "name": "Summer Debate Championship",
+  "start_date": "2023-07-15 09:00",
+  "end_date": "2023-07-17 18:00",
+  "location": "City Convention Center",
+  "format_id": 1,
+  "league_id": 1,
+  "number_of_preliminary_rounds": 4,
+  "number_of_elimination_rounds": 2,
+  "judges_per_debate_preliminary": 3,
+  "judges_per_debate_elimination": 5,
+  "tournament_fee": 100.00,
+  "token": "your_auth_token_here"
+}
+```
+
+### GetTournament
+
+Endpoint: `TournamentService.GetTournament`
+
+Request:
+```json
+{
+  "tournamentId": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+### ListTournaments
+
+Endpoint: `TournamentService.ListTournaments`
+
+Request:
+```json
+{
+  "pageSize": 10,
+  "pageToken": 0,
+  "token": "your_auth_token_here"
+}
+```
+
+### UpdateTournament
+
+Endpoint: `TournamentService.UpdateTournament`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "tournamentId": 1,
+  "name": "Updated Summer Debate Championship",
+  "startDate": "2023-07-16T09:00:00Z",
+  "endDate": "2023-07-18T18:00:00Z",
+  "location": "Updated City Convention Center",
+  "formatId": 2,
+  "leagueId": 3,
+  "numberOfPreliminaryRounds": 5,
+  "numberOfEliminationRounds": 3,
+  "judgesPerDebatePreliminary": 4,
+  "judgesPerDebateElimination": 6,
+  "tournamentFee": 120.00,
+  "token": "your_auth_token_here"
+}
+```
+
+### DeleteTournament
+
+Endpoint: `TournamentService.DeleteTournament`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "tournamentId": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+## Testing Tournament Management Features
+
+To test the tournament management features, including leagues and formats:
+
+1. Use the `Login` endpoint to authenticate as an admin and receive a token.
+2. Include the token in the request body for subsequent authenticated requests.
+3. Test the following scenarios:
+
+   a. League Management:
+   - Use `CreateLeague` to create a new league.
+   - Use `GetLeague` to retrieve the created league details.
+   - Use `ListLeagues` to get a list of leagues.
+   - Use `UpdateLeague` to modify a league's details.
+   - Use `DeleteLeague` to remove a league (ensure it's not associated with any tournaments first).
+
+   b. Tournament Format Management:
+   - Use `CreateTournamentFormat` to create a new tournament format.
+   - Use `GetTournamentFormat` to retrieve the created format details.
+   - Use `ListTournamentFormats` to get a list of formats.
+   - Use `UpdateTournamentFormat` to modify a format's details.
+   - Use `DeleteTournamentFormat` to remove a format (ensure it's not associated with any tournaments first).
+
+   c. Tournament Creation and Invitation:
+   - Use `CreateTournament` to create a new tournament, using the IDs of the created league and format.
+   - Verify that invitation emails are sent to relevant schools (check your email service or logs).
+   - Use `GetTournament` to retrieve the created tournament details.
+
+   d. Tournament Listing and Updates:
+   - Use `ListTournaments` to get a list of tournaments.
+   - Use `UpdateTournament` to modify a tournament's details.
+   - Use `GetTournament` again to verify the changes.
+
+   e. Tournament Deletion:
+   - Use `DeleteTournament` to remove a tournament.
+   - Attempt to `GetTournament` for the deleted tournament (should fail).
+
+4. For each test, verify that the appropriate email notifications are sent (tournament creation confirmation, invitations).
+
+Remember to include the authentication token in the request body for each request:
+- Key: `token`
+- Value: `<token_received_from_login>`
+
+Note: When testing deletion operations, ensure that you're not deleting entities that are still referenced by others (e.g., don't delete a league or format that's still used by an active tournament).
 
 ## Testing with Postman
 
@@ -343,17 +666,14 @@ To test the API endpoints using Postman:
 1. Set up a new gRPC request in Postman.
 2. Use `localhost:10000` as the server URL (Envoy proxy address).
 3. Import the `.proto` file into Postman and select the desired method.
-4. Input the appropriate demo data in the "Message" tab.
-5. For authenticated requests, add the token to the metadata:
-   - Key: `authorization`
-   - Value: `Bearer <token_received_from_login>`
-6. Click "Invoke" to send the request.
+4. Input the appropriate demo data in the "Message" tab, including the `token` field for authenticated requests.
+5. Click "Invoke" to send the request.
 
 ### Testing Flow
 
 1. Start by using the SignUp endpoint to create a new user.
 2. Use the Login endpoint to authenticate and receive a token.
-3. Use the token in the metadata for subsequent authenticated requests.
+3. Include the token in the request body for subsequent authenticated requests.
 4. Test other endpoints as needed, ensuring to use the correct user ID and token.
 
 ## Error Handling

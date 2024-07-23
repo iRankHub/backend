@@ -19,16 +19,17 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	AuthService_SignUp_FullMethodName               = "/auth.AuthService/SignUp"
-	AuthService_Login_FullMethodName                = "/auth.AuthService/Login"
-	AuthService_EnableTwoFactor_FullMethodName      = "/auth.AuthService/EnableTwoFactor"
-	AuthService_VerifyTwoFactor_FullMethodName      = "/auth.AuthService/VerifyTwoFactor"
-	AuthService_DisableTwoFactor_FullMethodName     = "/auth.AuthService/DisableTwoFactor"
-	AuthService_RequestPasswordReset_FullMethodName = "/auth.AuthService/RequestPasswordReset"
-	AuthService_ResetPassword_FullMethodName        = "/auth.AuthService/ResetPassword"
-	AuthService_EnableBiometricLogin_FullMethodName = "/auth.AuthService/EnableBiometricLogin"
-	AuthService_BiometricLogin_FullMethodName       = "/auth.AuthService/BiometricLogin"
-	AuthService_Logout_FullMethodName               = "/auth.AuthService/Logout"
+	AuthService_SignUp_FullMethodName                     = "/auth.AuthService/SignUp"
+	AuthService_Login_FullMethodName                      = "/auth.AuthService/Login"
+	AuthService_GenerateTwoFactorOTP_FullMethodName       = "/auth.AuthService/GenerateTwoFactorOTP"
+	AuthService_VerifyTwoFactor_FullMethodName            = "/auth.AuthService/VerifyTwoFactor"
+	AuthService_RequestPasswordReset_FullMethodName       = "/auth.AuthService/RequestPasswordReset"
+	AuthService_ResetPassword_FullMethodName              = "/auth.AuthService/ResetPassword"
+	AuthService_BeginWebAuthnRegistration_FullMethodName  = "/auth.AuthService/BeginWebAuthnRegistration"
+	AuthService_FinishWebAuthnRegistration_FullMethodName = "/auth.AuthService/FinishWebAuthnRegistration"
+	AuthService_BeginWebAuthnLogin_FullMethodName         = "/auth.AuthService/BeginWebAuthnLogin"
+	AuthService_FinishWebAuthnLogin_FullMethodName        = "/auth.AuthService/FinishWebAuthnLogin"
+	AuthService_Logout_FullMethodName                     = "/auth.AuthService/Logout"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -37,13 +38,14 @@ const (
 type AuthServiceClient interface {
 	SignUp(ctx context.Context, in *SignUpRequest, opts ...grpc.CallOption) (*SignUpResponse, error)
 	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
-	EnableTwoFactor(ctx context.Context, in *EnableTwoFactorRequest, opts ...grpc.CallOption) (*EnableTwoFactorResponse, error)
-	VerifyTwoFactor(ctx context.Context, in *VerifyTwoFactorRequest, opts ...grpc.CallOption) (*VerifyTwoFactorResponse, error)
-	DisableTwoFactor(ctx context.Context, in *DisableTwoFactorRequest, opts ...grpc.CallOption) (*DisableTwoFactorResponse, error)
+	GenerateTwoFactorOTP(ctx context.Context, in *GenerateTwoFactorOTPRequest, opts ...grpc.CallOption) (*GenerateTwoFactorOTPResponse, error)
+	VerifyTwoFactor(ctx context.Context, in *VerifyTwoFactorRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 	RequestPasswordReset(ctx context.Context, in *PasswordResetRequest, opts ...grpc.CallOption) (*PasswordResetResponse, error)
 	ResetPassword(ctx context.Context, in *ResetPasswordRequest, opts ...grpc.CallOption) (*ResetPasswordResponse, error)
-	EnableBiometricLogin(ctx context.Context, in *EnableBiometricLoginRequest, opts ...grpc.CallOption) (*EnableBiometricLoginResponse, error)
-	BiometricLogin(ctx context.Context, in *BiometricLoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
+	BeginWebAuthnRegistration(ctx context.Context, in *BeginWebAuthnRegistrationRequest, opts ...grpc.CallOption) (*BeginWebAuthnRegistrationResponse, error)
+	FinishWebAuthnRegistration(ctx context.Context, in *FinishWebAuthnRegistrationRequest, opts ...grpc.CallOption) (*FinishWebAuthnRegistrationResponse, error)
+	BeginWebAuthnLogin(ctx context.Context, in *BeginWebAuthnLoginRequest, opts ...grpc.CallOption) (*BeginWebAuthnLoginResponse, error)
+	FinishWebAuthnLogin(ctx context.Context, in *FinishWebAuthnLoginRequest, opts ...grpc.CallOption) (*FinishWebAuthnLoginResponse, error)
 	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error)
 }
 
@@ -75,30 +77,20 @@ func (c *authServiceClient) Login(ctx context.Context, in *LoginRequest, opts ..
 	return out, nil
 }
 
-func (c *authServiceClient) EnableTwoFactor(ctx context.Context, in *EnableTwoFactorRequest, opts ...grpc.CallOption) (*EnableTwoFactorResponse, error) {
+func (c *authServiceClient) GenerateTwoFactorOTP(ctx context.Context, in *GenerateTwoFactorOTPRequest, opts ...grpc.CallOption) (*GenerateTwoFactorOTPResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(EnableTwoFactorResponse)
-	err := c.cc.Invoke(ctx, AuthService_EnableTwoFactor_FullMethodName, in, out, cOpts...)
+	out := new(GenerateTwoFactorOTPResponse)
+	err := c.cc.Invoke(ctx, AuthService_GenerateTwoFactorOTP_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *authServiceClient) VerifyTwoFactor(ctx context.Context, in *VerifyTwoFactorRequest, opts ...grpc.CallOption) (*VerifyTwoFactorResponse, error) {
+func (c *authServiceClient) VerifyTwoFactor(ctx context.Context, in *VerifyTwoFactorRequest, opts ...grpc.CallOption) (*LoginResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(VerifyTwoFactorResponse)
+	out := new(LoginResponse)
 	err := c.cc.Invoke(ctx, AuthService_VerifyTwoFactor_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *authServiceClient) DisableTwoFactor(ctx context.Context, in *DisableTwoFactorRequest, opts ...grpc.CallOption) (*DisableTwoFactorResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DisableTwoFactorResponse)
-	err := c.cc.Invoke(ctx, AuthService_DisableTwoFactor_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -125,20 +117,40 @@ func (c *authServiceClient) ResetPassword(ctx context.Context, in *ResetPassword
 	return out, nil
 }
 
-func (c *authServiceClient) EnableBiometricLogin(ctx context.Context, in *EnableBiometricLoginRequest, opts ...grpc.CallOption) (*EnableBiometricLoginResponse, error) {
+func (c *authServiceClient) BeginWebAuthnRegistration(ctx context.Context, in *BeginWebAuthnRegistrationRequest, opts ...grpc.CallOption) (*BeginWebAuthnRegistrationResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(EnableBiometricLoginResponse)
-	err := c.cc.Invoke(ctx, AuthService_EnableBiometricLogin_FullMethodName, in, out, cOpts...)
+	out := new(BeginWebAuthnRegistrationResponse)
+	err := c.cc.Invoke(ctx, AuthService_BeginWebAuthnRegistration_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *authServiceClient) BiometricLogin(ctx context.Context, in *BiometricLoginRequest, opts ...grpc.CallOption) (*LoginResponse, error) {
+func (c *authServiceClient) FinishWebAuthnRegistration(ctx context.Context, in *FinishWebAuthnRegistrationRequest, opts ...grpc.CallOption) (*FinishWebAuthnRegistrationResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(LoginResponse)
-	err := c.cc.Invoke(ctx, AuthService_BiometricLogin_FullMethodName, in, out, cOpts...)
+	out := new(FinishWebAuthnRegistrationResponse)
+	err := c.cc.Invoke(ctx, AuthService_FinishWebAuthnRegistration_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) BeginWebAuthnLogin(ctx context.Context, in *BeginWebAuthnLoginRequest, opts ...grpc.CallOption) (*BeginWebAuthnLoginResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BeginWebAuthnLoginResponse)
+	err := c.cc.Invoke(ctx, AuthService_BeginWebAuthnLogin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) FinishWebAuthnLogin(ctx context.Context, in *FinishWebAuthnLoginRequest, opts ...grpc.CallOption) (*FinishWebAuthnLoginResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FinishWebAuthnLoginResponse)
+	err := c.cc.Invoke(ctx, AuthService_FinishWebAuthnLogin_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -161,13 +173,14 @@ func (c *authServiceClient) Logout(ctx context.Context, in *LogoutRequest, opts 
 type AuthServiceServer interface {
 	SignUp(context.Context, *SignUpRequest) (*SignUpResponse, error)
 	Login(context.Context, *LoginRequest) (*LoginResponse, error)
-	EnableTwoFactor(context.Context, *EnableTwoFactorRequest) (*EnableTwoFactorResponse, error)
-	VerifyTwoFactor(context.Context, *VerifyTwoFactorRequest) (*VerifyTwoFactorResponse, error)
-	DisableTwoFactor(context.Context, *DisableTwoFactorRequest) (*DisableTwoFactorResponse, error)
+	GenerateTwoFactorOTP(context.Context, *GenerateTwoFactorOTPRequest) (*GenerateTwoFactorOTPResponse, error)
+	VerifyTwoFactor(context.Context, *VerifyTwoFactorRequest) (*LoginResponse, error)
 	RequestPasswordReset(context.Context, *PasswordResetRequest) (*PasswordResetResponse, error)
 	ResetPassword(context.Context, *ResetPasswordRequest) (*ResetPasswordResponse, error)
-	EnableBiometricLogin(context.Context, *EnableBiometricLoginRequest) (*EnableBiometricLoginResponse, error)
-	BiometricLogin(context.Context, *BiometricLoginRequest) (*LoginResponse, error)
+	BeginWebAuthnRegistration(context.Context, *BeginWebAuthnRegistrationRequest) (*BeginWebAuthnRegistrationResponse, error)
+	FinishWebAuthnRegistration(context.Context, *FinishWebAuthnRegistrationRequest) (*FinishWebAuthnRegistrationResponse, error)
+	BeginWebAuthnLogin(context.Context, *BeginWebAuthnLoginRequest) (*BeginWebAuthnLoginResponse, error)
+	FinishWebAuthnLogin(context.Context, *FinishWebAuthnLoginRequest) (*FinishWebAuthnLoginResponse, error)
 	Logout(context.Context, *LogoutRequest) (*LogoutResponse, error)
 	mustEmbedUnimplementedAuthServiceServer()
 }
@@ -182,14 +195,11 @@ func (UnimplementedAuthServiceServer) SignUp(context.Context, *SignUpRequest) (*
 func (UnimplementedAuthServiceServer) Login(context.Context, *LoginRequest) (*LoginResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Login not implemented")
 }
-func (UnimplementedAuthServiceServer) EnableTwoFactor(context.Context, *EnableTwoFactorRequest) (*EnableTwoFactorResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method EnableTwoFactor not implemented")
+func (UnimplementedAuthServiceServer) GenerateTwoFactorOTP(context.Context, *GenerateTwoFactorOTPRequest) (*GenerateTwoFactorOTPResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateTwoFactorOTP not implemented")
 }
-func (UnimplementedAuthServiceServer) VerifyTwoFactor(context.Context, *VerifyTwoFactorRequest) (*VerifyTwoFactorResponse, error) {
+func (UnimplementedAuthServiceServer) VerifyTwoFactor(context.Context, *VerifyTwoFactorRequest) (*LoginResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VerifyTwoFactor not implemented")
-}
-func (UnimplementedAuthServiceServer) DisableTwoFactor(context.Context, *DisableTwoFactorRequest) (*DisableTwoFactorResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DisableTwoFactor not implemented")
 }
 func (UnimplementedAuthServiceServer) RequestPasswordReset(context.Context, *PasswordResetRequest) (*PasswordResetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RequestPasswordReset not implemented")
@@ -197,11 +207,17 @@ func (UnimplementedAuthServiceServer) RequestPasswordReset(context.Context, *Pas
 func (UnimplementedAuthServiceServer) ResetPassword(context.Context, *ResetPasswordRequest) (*ResetPasswordResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ResetPassword not implemented")
 }
-func (UnimplementedAuthServiceServer) EnableBiometricLogin(context.Context, *EnableBiometricLoginRequest) (*EnableBiometricLoginResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method EnableBiometricLogin not implemented")
+func (UnimplementedAuthServiceServer) BeginWebAuthnRegistration(context.Context, *BeginWebAuthnRegistrationRequest) (*BeginWebAuthnRegistrationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BeginWebAuthnRegistration not implemented")
 }
-func (UnimplementedAuthServiceServer) BiometricLogin(context.Context, *BiometricLoginRequest) (*LoginResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method BiometricLogin not implemented")
+func (UnimplementedAuthServiceServer) FinishWebAuthnRegistration(context.Context, *FinishWebAuthnRegistrationRequest) (*FinishWebAuthnRegistrationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FinishWebAuthnRegistration not implemented")
+}
+func (UnimplementedAuthServiceServer) BeginWebAuthnLogin(context.Context, *BeginWebAuthnLoginRequest) (*BeginWebAuthnLoginResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BeginWebAuthnLogin not implemented")
+}
+func (UnimplementedAuthServiceServer) FinishWebAuthnLogin(context.Context, *FinishWebAuthnLoginRequest) (*FinishWebAuthnLoginResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FinishWebAuthnLogin not implemented")
 }
 func (UnimplementedAuthServiceServer) Logout(context.Context, *LogoutRequest) (*LogoutResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Logout not implemented")
@@ -255,20 +271,20 @@ func _AuthService_Login_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AuthService_EnableTwoFactor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(EnableTwoFactorRequest)
+func _AuthService_GenerateTwoFactorOTP_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GenerateTwoFactorOTPRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServiceServer).EnableTwoFactor(ctx, in)
+		return srv.(AuthServiceServer).GenerateTwoFactorOTP(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AuthService_EnableTwoFactor_FullMethodName,
+		FullMethod: AuthService_GenerateTwoFactorOTP_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).EnableTwoFactor(ctx, req.(*EnableTwoFactorRequest))
+		return srv.(AuthServiceServer).GenerateTwoFactorOTP(ctx, req.(*GenerateTwoFactorOTPRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -287,24 +303,6 @@ func _AuthService_VerifyTwoFactor_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AuthServiceServer).VerifyTwoFactor(ctx, req.(*VerifyTwoFactorRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _AuthService_DisableTwoFactor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DisableTwoFactorRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AuthServiceServer).DisableTwoFactor(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: AuthService_DisableTwoFactor_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).DisableTwoFactor(ctx, req.(*DisableTwoFactorRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -345,38 +343,74 @@ func _AuthService_ResetPassword_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AuthService_EnableBiometricLogin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(EnableBiometricLoginRequest)
+func _AuthService_BeginWebAuthnRegistration_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BeginWebAuthnRegistrationRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServiceServer).EnableBiometricLogin(ctx, in)
+		return srv.(AuthServiceServer).BeginWebAuthnRegistration(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AuthService_EnableBiometricLogin_FullMethodName,
+		FullMethod: AuthService_BeginWebAuthnRegistration_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).EnableBiometricLogin(ctx, req.(*EnableBiometricLoginRequest))
+		return srv.(AuthServiceServer).BeginWebAuthnRegistration(ctx, req.(*BeginWebAuthnRegistrationRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AuthService_BiometricLogin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(BiometricLoginRequest)
+func _AuthService_FinishWebAuthnRegistration_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FinishWebAuthnRegistrationRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AuthServiceServer).BiometricLogin(ctx, in)
+		return srv.(AuthServiceServer).FinishWebAuthnRegistration(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AuthService_BiometricLogin_FullMethodName,
+		FullMethod: AuthService_FinishWebAuthnRegistration_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServiceServer).BiometricLogin(ctx, req.(*BiometricLoginRequest))
+		return srv.(AuthServiceServer).FinishWebAuthnRegistration(ctx, req.(*FinishWebAuthnRegistrationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_BeginWebAuthnLogin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BeginWebAuthnLoginRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).BeginWebAuthnLogin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_BeginWebAuthnLogin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).BeginWebAuthnLogin(ctx, req.(*BeginWebAuthnLoginRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_FinishWebAuthnLogin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FinishWebAuthnLoginRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).FinishWebAuthnLogin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_FinishWebAuthnLogin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).FinishWebAuthnLogin(ctx, req.(*FinishWebAuthnLoginRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -415,16 +449,12 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AuthService_Login_Handler,
 		},
 		{
-			MethodName: "EnableTwoFactor",
-			Handler:    _AuthService_EnableTwoFactor_Handler,
+			MethodName: "GenerateTwoFactorOTP",
+			Handler:    _AuthService_GenerateTwoFactorOTP_Handler,
 		},
 		{
 			MethodName: "VerifyTwoFactor",
 			Handler:    _AuthService_VerifyTwoFactor_Handler,
-		},
-		{
-			MethodName: "DisableTwoFactor",
-			Handler:    _AuthService_DisableTwoFactor_Handler,
 		},
 		{
 			MethodName: "RequestPasswordReset",
@@ -435,12 +465,20 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AuthService_ResetPassword_Handler,
 		},
 		{
-			MethodName: "EnableBiometricLogin",
-			Handler:    _AuthService_EnableBiometricLogin_Handler,
+			MethodName: "BeginWebAuthnRegistration",
+			Handler:    _AuthService_BeginWebAuthnRegistration_Handler,
 		},
 		{
-			MethodName: "BiometricLogin",
-			Handler:    _AuthService_BiometricLogin_Handler,
+			MethodName: "FinishWebAuthnRegistration",
+			Handler:    _AuthService_FinishWebAuthnRegistration_Handler,
+		},
+		{
+			MethodName: "BeginWebAuthnLogin",
+			Handler:    _AuthService_BeginWebAuthnLogin_Handler,
+		},
+		{
+			MethodName: "FinishWebAuthnLogin",
+			Handler:    _AuthService_FinishWebAuthnLogin_Handler,
 		},
 		{
 			MethodName: "Logout",
