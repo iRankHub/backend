@@ -12,21 +12,6 @@ import (
 	"time"
 )
 
-const addTeamMember = `-- name: AddTeamMember :exec
-INSERT INTO TeamMembers (TeamID, StudentID)
-VALUES ($1, $2)
-`
-
-type AddTeamMemberParams struct {
-	Teamid    int32 `json:"teamid"`
-	Studentid int32 `json:"studentid"`
-}
-
-func (q *Queries) AddTeamMember(ctx context.Context, arg AddTeamMemberParams) error {
-	_, err := q.db.ExecContext(ctx, addTeamMember, arg.Teamid, arg.Studentid)
-	return err
-}
-
 const createInvitation = `-- name: CreateInvitation :one
 INSERT INTO TournamentInvitations (TournamentID, SchoolID, VolunteerID, Status)
 VALUES ($1, $2, $3, $4)
