@@ -95,6 +95,7 @@ func SendTournamentInvitations(ctx context.Context, tournament models.Tournament
     }
 
     schoolSubject := fmt.Sprintf("Invitation to %s Tournament", tournament.Name)
+    volunteerSubject := fmt.Sprintf("Invitation to Judge at %s Tournament", tournament.Name)
 
     batchSize := 50
     delay := 5 * time.Second
