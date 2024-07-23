@@ -9,6 +9,7 @@ import (
 
 	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
 	services "github.com/iRankHub/backend/internal/services/tournament_management"
+
 )
 
 type tournamentServer struct {
@@ -168,12 +169,12 @@ func (s *tournamentServer) UpdateTournament(ctx context.Context, req *tournament
 }
 
 func (s *tournamentServer) DeleteTournament(ctx context.Context, req *tournament_management.DeleteTournamentRequest) (*tournament_management.DeleteTournamentResponse, error) {
-	err := s.tournamentService.DeleteTournament(ctx, req)
+	success, err := s.tournamentService.DeleteTournament(ctx, req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to delete tournament: %v", err)
 	}
 	return &tournament_management.DeleteTournamentResponse{
-		Success: true,
+		Success: success.Success,
 		Message: "Tournament deleted successfully",
 	}, nil
 }

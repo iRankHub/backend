@@ -218,6 +218,52 @@ func (q *Queries) GetSchoolsByDistrict(ctx context.Context, district sql.NullStr
 	return items, nil
 }
 
+const getSchoolsByLeague = `-- name: GetSchoolsByLeague :many
+SELECT s.schoolid, s.idebateschoolid, s.schoolname, s.address, s.country, s.province, s.district, s.contactpersonid, s.contactemail, s.schoolemail, s.schooltype
+FROM Schools s
+JOIN Leagues l ON (
+    (l.LeagueType = 'local' AND s.District = ANY(l.Details->>'districts'))
+    OR
+    (l.LeagueType = 'international' AND s.Country = ANY(l.Details->>'countries'))
+)
+WHERE l.LeagueID = $1
+`
+
+func (q *Queries) GetSchoolsByLeague(ctx context.Context, leagueid int32) ([]School, error) {
+	rows, err := q.db.QueryContext(ctx, getSchoolsByLeague, leagueid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []School{}
+	for rows.Next() {
+		var i School
+		if err := rows.Scan(
+			&i.Schoolid,
+			&i.Idebateschoolid,
+			&i.Schoolname,
+			&i.Address,
+			&i.Country,
+			&i.Province,
+			&i.District,
+			&i.Contactpersonid,
+			&i.Contactemail,
+			&i.Schoolemail,
+			&i.Schooltype,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateSchool = `-- name: UpdateSchool :one
 UPDATE Schools
 SET SchoolName = $2, Address = $3, Country = $4, Province = $5, District = $6, ContactPersonID = $7, ContactEmail = $8, SchoolEmail = $9, SchoolType = $10

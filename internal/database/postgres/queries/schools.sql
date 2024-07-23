@@ -17,6 +17,16 @@ WHERE District = $1;
 SELECT * FROM Schools
 WHERE Country = $1;
 
+-- name: GetSchoolsByLeague :many
+SELECT s.*
+FROM Schools s
+JOIN Leagues l ON (
+    (l.LeagueType = 'local' AND s.District = ANY(l.Details->>'districts'))
+    OR
+    (l.LeagueType = 'international' AND s.Country = ANY(l.Details->>'countries'))
+)
+WHERE l.LeagueID = $1;
+
 -- name: CreateSchool :one
 INSERT INTO Schools (SchoolName, Address, Country, Province, District, ContactPersonID, ContactEmail, SchoolEmail, SchoolType)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)

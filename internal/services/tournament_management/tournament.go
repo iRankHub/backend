@@ -10,6 +10,7 @@ import (
 	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
+	emails "github.com/iRankHub/backend/internal/utils/emails"
 
 )
 
@@ -36,18 +37,14 @@ func (s *TournamentService) CreateTournament(ctx context.Context, req *tournamen
 		return nil, fmt.Errorf("failed to get creator name from token")
 	}
 
-	queries := models.New(s.db)
-
-	// Start a transaction
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start transaction: %v", err)
 	}
 	defer tx.Rollback()
 
-	qtx := queries.WithTx(tx)
+	queries := models.New(s.db).WithTx(tx)
 
-	// Create the tournament
 	startDate, err := time.Parse("2006-01-02 15:04", req.GetStartDate())
 	if err != nil {
 		return nil, fmt.Errorf("invalid start date format: %v", err)
@@ -58,7 +55,7 @@ func (s *TournamentService) CreateTournament(ctx context.Context, req *tournamen
 		return nil, fmt.Errorf("invalid end date format: %v", err)
 	}
 
-	tournament, err := qtx.CreateTournamentEntry(ctx, models.CreateTournamentEntryParams{
+	tournament, err := queries.CreateTournamentEntry(ctx, models.CreateTournamentEntryParams{
 		Name:                       req.GetName(),
 		Startdate:                  startDate,
 		Enddate:                    endDate,
@@ -75,42 +72,34 @@ func (s *TournamentService) CreateTournament(ctx context.Context, req *tournamen
 		return nil, fmt.Errorf("failed to create tournament: %v", err)
 	}
 
-	// Fetch the associated league and format
-	league, err := qtx.GetLeagueByID(ctx, req.GetLeagueId())
+	league, err := queries.GetLeagueByID(ctx, req.GetLeagueId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch league: %v", err)
 	}
 
-	format, err := qtx.GetTournamentFormatByID(ctx, req.GetFormatId())
+	format, err := queries.GetTournamentFormatByID(ctx, req.GetFormatId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch tournament format: %v", err)
 	}
 
-	// Commit the transaction
+	invitationIDs, err := s.createInvitations(ctx, queries, tournament.Tournamentid, league.Leagueid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create invitations: %v", err)
+	}
+
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	// Convert GetLeagueByIDRow to League
-	leagueForInvitation := models.League{
-		Leagueid:   league.Leagueid,
-		Name:       league.Name,
-		Leaguetype: league.Leaguetype,
-		Details:    league.Details,
-	}
-
-	// Send tournament invitations to schools and volunteers
+	// Send tournament invitations and confirmation emails asynchronously
 	go func() {
-		err := utils.SendTournamentInvitations(context.Background(), tournament, leagueForInvitation, format, queries)
-		if err != nil {
+		if err := emails.SendTournamentInvitations(context.Background(), tournament, league, format, models.New(s.db)); err != nil {
 			fmt.Printf("Failed to send tournament invitations: %v\n", err)
 		}
 	}()
 
-	// Send confirmation email to the tournament creator
 	go func() {
-		err := utils.SendTournamentCreationConfirmation(creatorEmail, creatorName, tournament.Name)
-		if err != nil {
+		if err := emails.SendTournamentCreationConfirmation(creatorEmail, creatorName, tournament.Name); err != nil {
 			fmt.Printf("Failed to send tournament creation confirmation: %v\n", err)
 		}
 	}()
@@ -188,7 +177,14 @@ func (s *TournamentService) UpdateTournament(ctx context.Context, req *tournamen
 		return nil, fmt.Errorf("invalid end date format: %v", err)
 	}
 
-	queries := models.New(s.db)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start transaction: %v", err)
+	}
+	defer tx.Rollback()
+
+	queries := models.New(s.db).WithTx(tx)
+
 	updatedTournament, err := queries.UpdateTournamentDetails(ctx, models.UpdateTournamentDetailsParams{
 		Tournamentid:               req.GetTournamentId(),
 		Name:                       req.GetName(),
@@ -207,23 +203,79 @@ func (s *TournamentService) UpdateTournament(ctx context.Context, req *tournamen
 		return nil, fmt.Errorf("failed to update tournament details: %v", err)
 	}
 
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
 	return tournamentModelToProto(updatedTournament), nil
 }
 
-func (s *TournamentService) DeleteTournament(ctx context.Context, req *tournament_management.DeleteTournamentRequest) error {
+func (s *TournamentService) DeleteTournament(ctx context.Context, req *tournament_management.DeleteTournamentRequest) (*tournament_management.DeleteTournamentResponse, error) {
 	_, err := s.validateAdminRole(req.GetToken())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-
-	queries := models.New(s.db)
-	err = queries.DeleteTournamentByID(ctx, req.GetTournamentId())
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to delete tournament: %v", err)
+		return nil, fmt.Errorf("failed to start transaction: %v", err)
+	}
+	defer tx.Rollback()
+
+	queries := models.New(s.db).WithTx(tx)
+
+	if err := queries.DeleteTournamentByID(ctx, req.GetTournamentId()); err != nil {
+		return nil, fmt.Errorf("failed to delete tournament: %v", err)
 	}
 
-	return nil
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	return &tournament_management.DeleteTournamentResponse{
+		Success: true,
+		Message: "Tournament deleted successfully",
+	}, nil
+}
+
+func (s *TournamentService) createInvitations(ctx context.Context, queries *models.Queries, tournamentID int32, leagueID int32) ([]int32, error) {
+	var invitationIDs []int32
+
+	schools, err := queries.GetSchoolsByLeague(ctx, leagueID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch schools for league %d: %v", leagueID, err)
+	}
+
+	for _, school := range schools {
+		invitation, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
+			Tournamentid: tournamentID,
+			Schoolid:     sql.NullInt32{Int32: school.Schoolid, Valid: true},
+			Status:       "pending",
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create invitation for school %d: %v", school.Schoolid, err)
+		}
+		invitationIDs = append(invitationIDs, invitation.Invitationid)
+	}
+
+	volunteers, err := queries.GetAllVolunteers(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch volunteers: %v", err)
+	}
+
+	for _, volunteer := range volunteers {
+		invitation, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
+			Tournamentid: tournamentID,
+			Volunteerid:  sql.NullInt32{Int32: volunteer.Volunteerid, Valid: true},
+			Status:       "pending",
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create invitation for volunteer %d: %v", volunteer.Volunteerid, err)
+		}
+		invitationIDs = append(invitationIDs, invitation.Invitationid)
+	}
+
+	return invitationIDs, nil
 }
 
 func (s *TournamentService) validateAuthentication(token string) error {
@@ -248,12 +300,13 @@ func (s *TournamentService) validateAdminRole(token string) (map[string]interfac
 	return claims, nil
 }
 
+// Helper functions to convert between model and proto types
 func tournamentModelToProto(t models.Tournament) *tournament_management.Tournament {
-    return &tournament_management.Tournament{
-        TournamentId:               t.Tournamentid,
-        Name:                       t.Name,
-        StartDate:                  t.Startdate.Format("2006-01-02 15:04"),
-        EndDate:                    t.Enddate.Format("2006-01-02 15:04"),
+	return &tournament_management.Tournament{
+		TournamentId:               t.Tournamentid,
+		Name:                       t.Name,
+		StartDate:                  t.Startdate.Format("2006-01-02 15:04"),
+		EndDate:                    t.Enddate.Format("2006-01-02 15:04"),
 		Location:                   t.Location,
 		FormatId:                   t.Formatid,
 		LeagueId:                   t.Leagueid.Int32,
@@ -266,11 +319,11 @@ func tournamentModelToProto(t models.Tournament) *tournament_management.Tourname
 }
 
 func tournamentRowToProto(t models.GetTournamentByIDRow) *tournament_management.Tournament {
-    return &tournament_management.Tournament{
-        TournamentId:               t.Tournamentid,
-        Name:                       t.Name,
-        StartDate:                  t.Startdate.Format("2006-01-02 15:04"),
-        EndDate:                    t.Enddate.Format("2006-01-02 15:04"),
+	return &tournament_management.Tournament{
+		TournamentId:               t.Tournamentid,
+		Name:                       t.Name,
+		StartDate:                  t.Startdate.Format("2006-01-02 15:04"),
+		EndDate:                    t.Enddate.Format("2006-01-02 15:04"),
 		Location:                   t.Location,
 		FormatId:                   t.Formatid,
 		LeagueId:                   t.Leagueid.Int32,

@@ -238,6 +238,7 @@ message DeleteTournamentFormatResponse {
 
 message CreateTournamentResponse {
   Tournament tournament = 1;
+  repeated int32 invitation_ids = 2;
 }
 
 message GetTournamentResponse {

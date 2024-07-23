@@ -149,6 +149,7 @@ CREATE TABLE Teams (
    TeamID SERIAL PRIMARY KEY,
    Name VARCHAR(255) NOT NULL,
    SchoolID INTEGER NOT NULL REFERENCES Schools(SchoolID),
+   InvitationID INTEGER REFERENCES TournamentInvitations(InvitationID),
    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID)
 );
 
@@ -171,6 +172,22 @@ CREATE TABLE Volunteers (
    Password VARCHAR(255) NOT NULL,
    SafeGuardCertificate BOOLEAN DEFAULT FALSE,
    UserID INTEGER NOT NULL REFERENCES Users(UserID)
+);
+
+-- Table for tracking invitations
+CREATE TABLE TournamentInvitations (
+    InvitationID SERIAL PRIMARY KEY,
+    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
+    SchoolID INTEGER REFERENCES Schools(SchoolID),
+    VolunteerID INTEGER REFERENCES Volunteers(VolunteerID),
+    Status VARCHAR(20) NOT NULL CHECK (Status IN ('pending', 'accepted', 'declined')),
+    InvitedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ReminderSentAt TIMESTAMP,
+    RespondedAt TIMESTAMP,
+    CONSTRAINT school_or_volunteer_check CHECK (
+        (SchoolID IS NOT NULL AND VolunteerID IS NULL) OR
+        (SchoolID IS NULL AND VolunteerID IS NOT NULL)
+    )
 );
 
 -- Create Rounds table
@@ -338,6 +355,12 @@ CREATE INDEX IF NOT EXISTS idx_students_userid ON Students(UserID);
 CREATE INDEX IF NOT EXISTS idx_volunteers_userid ON Volunteers(UserID);
 
 CREATE INDEX IF NOT EXISTS idx_notifications_userid ON Notifications(UserID);
+
+CREATE INDEX IF NOT EXISTS idx_tournaments_startdate ON Tournaments(StartDate);
+CREATE INDEX IF NOT EXISTS idx_tournament_invitations_status ON TournamentInvitations(Status);
+CREATE INDEX IF NOT EXISTS idx_tournament_invitations_tournamentid ON TournamentInvitations(TournamentID);
+CREATE INDEX IF NOT EXISTS idx_teams_invitationid ON Teams(InvitationID);
+CREATE INDEX IF NOT EXISTS idx_team_members_teamid ON TeamMembers(TeamID);
 
 INSERT INTO CountryCodes (IsoCode, CountryName) VALUES
 ('AFG', 'Afghanistan'),

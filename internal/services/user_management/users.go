@@ -7,6 +7,7 @@ import (
 
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
+	email "github.com/iRankHub/backend/internal/utils/emails"
 )
 
 type UserManagementService struct {
@@ -120,7 +121,7 @@ func (s *UserManagementService) ApproveUser(ctx context.Context, token string, u
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	err = utils.SendApprovalNotification(user.Email, user.Name)
+	err = email.SendApprovalNotification(user.Email, user.Name)
 	if err != nil {
 		fmt.Printf("Failed to send approval notification: %v\n", err)
 	}
@@ -161,7 +162,7 @@ func (s *UserManagementService) RejectUser(ctx context.Context, token string, us
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	err = utils.SendRejectionNotification(user.Email, user.Name)
+	err = email.SendRejectionNotification(user.Email, user.Name)
 	if err != nil {
 		fmt.Printf("Failed to send rejection notification: %v\n", err)
 	}
@@ -276,7 +277,7 @@ func (s *UserManagementService) DeactivateAccount(ctx context.Context, token str
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	err = utils.SendAccountDeactivationNotification(user.Email, user.Name)
+	err = email.SendAccountDeactivationNotification(user.Email, user.Name)
 	if err != nil {
 		fmt.Printf("Failed to send account deactivation notification: %v\n", err)
 	}
@@ -319,7 +320,7 @@ func (s *UserManagementService) ReactivateAccount(ctx context.Context, token str
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	err = utils.SendAccountReactivationNotification(user.Email, user.Name)
+	err = email.SendAccountReactivationNotification(user.Email, user.Name)
 	if err != nil {
 		fmt.Printf("Failed to send account reactivation notification: %v\n", err)
 	}

@@ -181,10 +181,11 @@ type Studenttransfer struct {
 }
 
 type Team struct {
-	Teamid       int32  `json:"teamid"`
-	Name         string `json:"name"`
-	Schoolid     int32  `json:"schoolid"`
-	Tournamentid int32  `json:"tournamentid"`
+	Teamid       int32         `json:"teamid"`
+	Name         string        `json:"name"`
+	Schoolid     int32         `json:"schoolid"`
+	Invitationid sql.NullInt32 `json:"invitationid"`
+	Tournamentid int32         `json:"tournamentid"`
 }
 
 type Teammember struct {
@@ -221,6 +222,17 @@ type Tournamentformat struct {
 	Description     sql.NullString `json:"description"`
 	Speakersperteam int32          `json:"speakersperteam"`
 	DeletedAt       sql.NullTime   `json:"deleted_at"`
+}
+
+type Tournamentinvitation struct {
+	Invitationid   int32         `json:"invitationid"`
+	Tournamentid   int32         `json:"tournamentid"`
+	Schoolid       sql.NullInt32 `json:"schoolid"`
+	Volunteerid    sql.NullInt32 `json:"volunteerid"`
+	Status         string        `json:"status"`
+	Invitedat      time.Time     `json:"invitedat"`
+	Remindersentat sql.NullTime  `json:"remindersentat"`
+	Respondedat    sql.NullTime  `json:"respondedat"`
 }
 
 type User struct {
