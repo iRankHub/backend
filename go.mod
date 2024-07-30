@@ -20,7 +20,7 @@ require (
 	github.com/aead/poly1305 v0.0.0-20180717145839-3fee0db0b635 // indirect
 	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/docker v27.0.0+incompatible // indirect
+	github.com/docker/docker v27.1.0+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.6.0 // indirect
 	github.com/go-webauthn/x v0.1.9 // indirect
