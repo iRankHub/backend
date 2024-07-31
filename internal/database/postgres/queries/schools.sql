@@ -9,6 +9,15 @@ SELECT * FROM Schools WHERE ContactPersonID = $1;
 SELECT * FROM Schools
 WHERE ContactEmail = $1;
 
+-- name: GetSchoolsPaginated :many
+SELECT *
+FROM Schools
+ORDER BY SchoolID
+LIMIT $1 OFFSET $2;
+
+-- name: GetTotalSchoolCount :one
+SELECT COUNT(*) FROM Schools;
+
 -- name: GetSchoolsByDistrict :many
 SELECT * FROM Schools
 WHERE District = $1;
@@ -20,12 +29,11 @@ WHERE Country = $1;
 -- name: GetSchoolsByLeague :many
 SELECT s.*
 FROM Schools s
-JOIN Leagues l ON (
-    (l.LeagueType = 'local' AND s.District = ANY(l.Details->>'districts'))
+JOIN Leagues l ON l.LeagueID = $1
+WHERE
+    (l.LeagueType = 'local' AND s.District = ANY(SELECT jsonb_array_elements_text(l.Details->'districts')))
     OR
-    (l.LeagueType = 'international' AND s.Country = ANY(l.Details->>'countries'))
-)
-WHERE l.LeagueID = $1;
+    (l.LeagueType = 'international' AND s.Country = ANY(SELECT jsonb_array_elements_text(l.Details->'countries')));
 
 -- name: CreateSchool :one
 INSERT INTO Schools (SchoolName, Address, Country, Province, District, ContactPersonID, ContactEmail, SchoolEmail, SchoolType)

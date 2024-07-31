@@ -5,6 +5,15 @@ WHERE VolunteerID = $1;
 -- name: GetAllVolunteers :many
 SELECT * FROM Volunteers;
 
+-- name: GetVolunteersPaginated :many
+SELECT *
+FROM Volunteers
+ORDER BY VolunteerID
+LIMIT $1 OFFSET $2;
+
+-- name: GetTotalVolunteerCount :one
+SELECT COUNT(*) FROM Volunteers;
+
 -- name: CreateVolunteer :one
 INSERT INTO Volunteers (FirstName, LastName, DateOfBirth, Role, GraduateYear, Password, SafeGuardCertificate, UserID)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)

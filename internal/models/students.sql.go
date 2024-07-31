@@ -110,6 +110,79 @@ func (q *Queries) GetStudentByID(ctx context.Context, studentid int32) (Student,
 	return i, err
 }
 
+const getStudentsPaginated = `-- name: GetStudentsPaginated :many
+SELECT s.studentid, s.idebatestudentid, s.firstname, s.lastname, s.grade, s.dateofbirth, s.email, s.password, s.schoolid, s.userid, sch.SchoolName
+FROM Students s
+JOIN Schools sch ON s.SchoolID = sch.SchoolID
+ORDER BY s.StudentID
+LIMIT $1 OFFSET $2
+`
+
+type GetStudentsPaginatedParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+type GetStudentsPaginatedRow struct {
+	Studentid        int32          `json:"studentid"`
+	Idebatestudentid sql.NullString `json:"idebatestudentid"`
+	Firstname        string         `json:"firstname"`
+	Lastname         string         `json:"lastname"`
+	Grade            string         `json:"grade"`
+	Dateofbirth      sql.NullTime   `json:"dateofbirth"`
+	Email            sql.NullString `json:"email"`
+	Password         string         `json:"password"`
+	Schoolid         int32          `json:"schoolid"`
+	Userid           int32          `json:"userid"`
+	Schoolname       string         `json:"schoolname"`
+}
+
+func (q *Queries) GetStudentsPaginated(ctx context.Context, arg GetStudentsPaginatedParams) ([]GetStudentsPaginatedRow, error) {
+	rows, err := q.db.QueryContext(ctx, getStudentsPaginated, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetStudentsPaginatedRow{}
+	for rows.Next() {
+		var i GetStudentsPaginatedRow
+		if err := rows.Scan(
+			&i.Studentid,
+			&i.Idebatestudentid,
+			&i.Firstname,
+			&i.Lastname,
+			&i.Grade,
+			&i.Dateofbirth,
+			&i.Email,
+			&i.Password,
+			&i.Schoolid,
+			&i.Userid,
+			&i.Schoolname,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTotalStudentCount = `-- name: GetTotalStudentCount :one
+SELECT COUNT(*) FROM Students
+`
+
+func (q *Queries) GetTotalStudentCount(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getTotalStudentCount)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const updateStudent = `-- name: UpdateStudent :one
 UPDATE Students
 SET FirstName = $2, LastName = $3, Grade = $4, DateOfBirth = $5, Email = $6, Password = $7, SchoolID = $8

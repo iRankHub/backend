@@ -102,6 +102,17 @@ func (q *Queries) GetAllVolunteers(ctx context.Context) ([]Volunteer, error) {
 	return items, nil
 }
 
+const getTotalVolunteerCount = `-- name: GetTotalVolunteerCount :one
+SELECT COUNT(*) FROM Volunteers
+`
+
+func (q *Queries) GetTotalVolunteerCount(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getTotalVolunteerCount)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getVolunteerByID = `-- name: GetVolunteerByID :one
 SELECT volunteerid, idebatevolunteerid, firstname, lastname, dateofbirth, role, graduateyear, password, safeguardcertificate, userid FROM Volunteers
 WHERE VolunteerID = $1
@@ -123,6 +134,52 @@ func (q *Queries) GetVolunteerByID(ctx context.Context, volunteerid int32) (Volu
 		&i.Userid,
 	)
 	return i, err
+}
+
+const getVolunteersPaginated = `-- name: GetVolunteersPaginated :many
+SELECT volunteerid, idebatevolunteerid, firstname, lastname, dateofbirth, role, graduateyear, password, safeguardcertificate, userid
+FROM Volunteers
+ORDER BY VolunteerID
+LIMIT $1 OFFSET $2
+`
+
+type GetVolunteersPaginatedParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+func (q *Queries) GetVolunteersPaginated(ctx context.Context, arg GetVolunteersPaginatedParams) ([]Volunteer, error) {
+	rows, err := q.db.QueryContext(ctx, getVolunteersPaginated, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Volunteer{}
+	for rows.Next() {
+		var i Volunteer
+		if err := rows.Scan(
+			&i.Volunteerid,
+			&i.Idebatevolunteerid,
+			&i.Firstname,
+			&i.Lastname,
+			&i.Dateofbirth,
+			&i.Role,
+			&i.Graduateyear,
+			&i.Password,
+			&i.Safeguardcertificate,
+			&i.Userid,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateVolunteer = `-- name: UpdateVolunteer :one

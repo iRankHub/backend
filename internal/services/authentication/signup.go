@@ -33,6 +33,17 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 
 	queries := models.New(tx)
 
+	// Check if email is unique (now inside the transaction)
+	_, err = queries.GetUserByEmail(ctx, email)
+	if err == nil {
+		// User with this email already exists
+		return fmt.Errorf("email already in use")
+	} else if err != sql.ErrNoRows {
+		// An error occurred that wasn't "no rows found"
+		return fmt.Errorf("error checking email uniqueness: %v", err)
+	}
+
+
 	hashedPassword, err := utils.HashPassword(password)
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %v", err)
@@ -53,6 +64,7 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 	if err != nil {
 		return fmt.Errorf("failed to create user: %v", err)
 	}
+
 
 	switch userRole {
 	case "student":

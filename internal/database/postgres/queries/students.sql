@@ -6,6 +6,16 @@ WHERE StudentID = $1;
 SELECT * FROM Students
 WHERE Email = $1;
 
+-- name: GetStudentsPaginated :many
+SELECT s.*, sch.SchoolName
+FROM Students s
+JOIN Schools sch ON s.SchoolID = sch.SchoolID
+ORDER BY s.StudentID
+LIMIT $1 OFFSET $2;
+
+-- name: GetTotalStudentCount :one
+SELECT COUNT(*) FROM Students;
+
 -- name: CreateStudent :one
 INSERT INTO Students (FirstName, LastName, Grade, DateOfBirth, Email, Password, SchoolID, UserID)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)

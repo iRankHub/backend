@@ -112,6 +112,7 @@ CREATE TABLE Tournaments (
     Location VARCHAR(255) NOT NULL,
     FormatID INTEGER NOT NULL REFERENCES TournamentFormats(FormatID),
     LeagueID INTEGER REFERENCES Leagues(LeagueID),
+    CoordinatorID INTEGER NOT NULL REFERENCES Users(UserID),
     NumberOfPreliminaryRounds INTEGER NOT NULL,
     NumberOfEliminationRounds INTEGER NOT NULL,
     JudgesPerDebatePreliminary INTEGER NOT NULL,
@@ -235,13 +236,6 @@ CREATE TABLE Ballots (
    Team2TotalScore NUMERIC
 );
 
-CREATE TABLE TournamentCoordinators (
-   CoordinatorID SERIAL PRIMARY KEY,
-   VolunteerID INTEGER NOT NULL REFERENCES Volunteers(VolunteerID),
-   TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
-   AssignedDate DATE NOT NULL DEFAULT CURRENT_DATE
-);
-
 CREATE TABLE Schedules (
    ScheduleID SERIAL PRIMARY KEY,
    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
@@ -321,6 +315,7 @@ CREATE INDEX IF NOT EXISTS idx_students_schoolid ON Students(SchoolID);
 CREATE INDEX IF NOT EXISTS idx_students_userid ON Students(UserID);
 CREATE INDEX IF NOT EXISTS idx_volunteers_userid ON Volunteers(UserID);
 CREATE INDEX IF NOT EXISTS idx_notifications_userid ON Notifications(UserID);
+CREATE INDEX idx_tournaments_coordinator_id ON Tournaments(CoordinatorID);
 CREATE INDEX IF NOT EXISTS idx_tournaments_startdate ON Tournaments(StartDate);
 CREATE INDEX IF NOT EXISTS idx_tournament_invitations_status ON TournamentInvitations(Status);
 CREATE INDEX IF NOT EXISTS idx_tournament_invitations_tournamentid ON TournamentInvitations(TournamentID);

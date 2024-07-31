@@ -3,7 +3,6 @@ package utils
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -12,88 +11,80 @@ import (
 )
 
 func SendTournamentInvitations(ctx context.Context, tournament models.Tournament, league models.League, format models.Tournamentformat, queries *models.Queries) error {
-	schools, err := fetchRelevantSchools(ctx, queries, league)
-	if err != nil {
-		return fmt.Errorf("failed to fetch relevant schools: %v", err)
-	}
+    invitations, err := queries.GetPendingInvitations(ctx, tournament.Tournamentid)
+    if err != nil {
+        return fmt.Errorf("failed to fetch pending invitations: %v", err)
+    }
 
-	volunteers, err := queries.GetAllVolunteers(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to fetch volunteers: %v", err)
-	}
+    batchSize := 50
+    delay := 5 * time.Second
 
-	schoolSubject := fmt.Sprintf("Invitation to %s Tournament", tournament.Name)
-	volunteerSubject := fmt.Sprintf("Invitation to Judge at %s Tournament", tournament.Name)
+    var errors []error
 
-	batchSize := 50
-	delay := 5 * time.Second
+    // Process invitations in batches
+    for i := 0; i < len(invitations); i += batchSize {
+        end := i + batchSize
+        if end > len(invitations) {
+            end = len(invitations)
+        }
 
-	var errors []error
+        batch := invitations[i:end]
+        for _, invitation := range batch {
+            var subject, content string
+            var emails []string
 
-	// Send invitations to schools in batches
-	for i := 0; i < len(schools); i += batchSize {
-		end := i + batchSize
-		if end > len(schools) {
-			end = len(schools)
-		}
+            if invitation.Schoolid.Valid {
+                // This is a school invitation
+                subject = fmt.Sprintf("Invitation to %s Tournament", tournament.Name)
+                school, err := queries.GetSchoolByID(ctx, invitation.Schoolid.Int32)
+                if err != nil {
+                    errors = append(errors, fmt.Errorf("failed to get school details for invitation %d: %v", invitation.Invitationid, err))
+                    continue
+                }
+                content = prepareSchoolInvitationContent(school, tournament, league, format)
+                emails = []string{school.Contactemail, school.Schoolemail}
+            } else if invitation.Volunteerid.Valid {
+                // This is a volunteer invitation
+                subject = fmt.Sprintf("Invitation to Judge at %s Tournament", tournament.Name)
+                volunteer, err := queries.GetVolunteerByID(ctx, invitation.Volunteerid.Int32)
+                if err != nil {
+                    errors = append(errors, fmt.Errorf("failed to get volunteer details for invitation %d: %v", invitation.Invitationid, err))
+                    continue
+                }
+                user, err := queries.GetUserByID(ctx, volunteer.Userid)
+                if err != nil {
+                    errors = append(errors, fmt.Errorf("failed to get user details for volunteer %d: %v", volunteer.Volunteerid, err))
+                    continue
+                }
+                content = prepareVolunteerInvitationContent(volunteer, tournament, league, format)
+                emails = []string{user.Email}
+            }
 
-		batch := schools[i:end]
-		for _, school := range batch {
-			schoolEmailContent := prepareTournamentEmailContent(school, tournament, league, format)
+            for _, email := range emails {
+                err := SendEmail(email, subject, content)
+                if err != nil {
+                    errors = append(errors, fmt.Errorf("failed to send invitation to email %s for invitation ID %d: %v", email, invitation.Invitationid, err))
+                }
+            }
 
-			// Send to contact email
-			err := SendEmail(school.Contactemail, schoolSubject, schoolEmailContent)
-			if err != nil {
-				errors = append(errors, fmt.Errorf("failed to send invitation to contact email %s for school %s: %v", school.Contactemail, school.Schoolname, err))
-			}
+            // Update the reminder sent timestamp
+            _, err := queries.UpdateReminderSentAt(ctx, models.UpdateReminderSentAtParams{
+                Invitationid:   invitation.Invitationid,
+                Remindersentat: sql.NullTime{Time: time.Now(), Valid: true},
+            })
+            if err != nil {
+                errors = append(errors, fmt.Errorf("failed to update reminder sent timestamp for invitation %d: %v", invitation.Invitationid, err))
+            }
+        }
 
-			// Send to school email
-			err = SendEmail(school.Schoolemail, schoolSubject, schoolEmailContent)
-			if err != nil {
-				errors = append(errors, fmt.Errorf("failed to send invitation to school email %s for school %s: %v", school.Schoolemail, school.Schoolname, err))
-			}
-		}
+        time.Sleep(delay)
+    }
 
-		time.Sleep(delay)
-	}
+    if len(errors) > 0 {
+        return fmt.Errorf("encountered errors while sending tournament invitations: %v", errors)
+    }
 
-	// Send invitations to volunteers in batches
-	for i := 0; i < len(volunteers); i += batchSize {
-		end := i + batchSize
-		if end > len(volunteers) {
-			end = len(volunteers)
-		}
-
-		batch := volunteers[i:end]
-		for _, volunteer := range batch {
-			volunteerEmailContent := prepareVolunteerEmailContent(volunteer, tournament, league, format)
-			body := GetEmailTemplate(volunteerEmailContent)
-
-			// The volunteer's email is stored in the Users table
-			user, err := queries.GetUserByID(context.Background(), volunteer.Userid)
-			if err != nil {
-				errors = append(errors, fmt.Errorf("failed to get email for volunteer ID %d: %v", volunteer.Volunteerid, err))
-				continue
-			}
-
-			err = SendEmail(user.Email, volunteerSubject, body)
-			if err != nil {
-				volunteerID := "unknown"
-				if volunteer.Idebatevolunteerid.Valid {
-					volunteerID = volunteer.Idebatevolunteerid.String
-				}
-				errors = append(errors, fmt.Errorf("failed to send invitation to volunteer ID %d (iDebate ID: %s): %v", volunteer.Volunteerid, volunteerID, err))
-			}
-		}
-
-		time.Sleep(delay)
-	}
-
-	if len(errors) > 0 {
-		return fmt.Errorf("encountered errors while sending tournament invitations: %v", errors)
-	}
-
-	return nil
+    return nil
 }
 
 func SendTournamentCreationConfirmation(to, name, tournamentName string) error {
@@ -110,7 +101,45 @@ func SendTournamentCreationConfirmation(to, name, tournamentName string) error {
 	return SendEmail(to, subject, body)
 }
 
-func prepareTournamentEmailContent(school models.School, tournament models.Tournament, league models.League, format models.Tournamentformat) string {
+func SendCoordinatorAssignmentEmail(coordinator models.User, tournament models.Tournament, league models.League, format models.Tournamentformat) error {
+	subject := fmt.Sprintf("You've been assigned as coordinator for %s Tournament", tournament.Name)
+
+	dateTimeInfo := formatDateTimeRange(tournament.Startdate, tournament.Enddate)
+
+	content := fmt.Sprintf(`
+		<p>Dear %s,</p>
+		<p>We are pleased to inform you that you have been assigned as the coordinator for the following tournament:</p>
+		<h2>%s</h2>
+		<p><strong>League:</strong> %s</p>
+		<p><strong>Format:</strong> %s</p>
+		<p><strong>Location:</strong> %s</p>
+		<p><strong>Date and Time:</strong> %s</p>
+		<p><strong>Number of Preliminary Rounds:</strong> %d</p>
+		<p><strong>Number of Elimination Rounds:</strong> %d</p>
+		<p><strong>Judges per Debate (Preliminary):</strong> %d</p>
+		<p><strong>Judges per Debate (Elimination):</strong> %d</p>
+		<p><strong>Tournament Fee:</strong> %s</p>
+		<p>As the tournament coordinator, your responsibilities include:</p>
+		<ul>
+			<li>Overseeing the tournament organization and ensuring smooth operations</li>
+			<li>Managing participant registrations and team assignments</li>
+			<li>Coordinating with judges and volunteers</li>
+			<li>Handling any issues or concerns that arise during the tournament</li>
+			<li>Ensuring fair play and adherence to tournament rules</li>
+		</ul>
+		<p>Please log in to your iRankHub account for more detailed information about the tournament and your coordinator dashboard.</p>
+		<p>If you have any questions or need any assistance in your role as coordinator, please don't hesitate to contact our support team.</p>
+		<p>Thank you for your commitment to making this tournament a success!</p>
+		<p>Best regards,<br>The iRankHub Team</p>
+	`, coordinator.Name, tournament.Name, league.Name, format.Formatname, tournament.Location,
+		dateTimeInfo, tournament.Numberofpreliminaryrounds, tournament.Numberofeliminationrounds,
+		tournament.Judgesperdebatepreliminary, tournament.Judgesperdebateelimination, tournament.Tournamentfee)
+
+	body := GetEmailTemplate(content)
+	return SendEmail(coordinator.Email, subject, body)
+}
+
+func prepareSchoolInvitationContent(school models.School, tournament models.Tournament, league models.League, format models.Tournamentformat) string {
 	var currencySymbol string
 	if league.Leaguetype == "local" {
 		currencySymbol = "RWF"
@@ -147,7 +176,7 @@ func prepareTournamentEmailContent(school models.School, tournament models.Tourn
 	return GetEmailTemplate(content)
 }
 
-func prepareVolunteerEmailContent(volunteer models.Volunteer, tournament models.Tournament, league models.League, format models.Tournamentformat) string {
+func prepareVolunteerInvitationContent(volunteer models.Volunteer, tournament models.Tournament, league models.League, format models.Tournamentformat) string {
 	dateTimeInfo := formatDateTimeRange(tournament.Startdate, tournament.Enddate)
 	acceptanceDeadline := tournament.Startdate.Add(-2 * 24 * time.Hour)
 
@@ -173,51 +202,6 @@ func prepareVolunteerEmailContent(volunteer models.Volunteer, tournament models.
 	return content
 }
 
-func fetchRelevantSchools(ctx context.Context, queries *models.Queries, league models.League) ([]models.School, error) {
-	var schools []models.School
-	var err error
-
-	var leagueDetails struct {
-		Districts []string `json:"districts,omitempty"`
-		Countries []string `json:"countries,omitempty"`
-	}
-
-	if len(league.Details) > 0 {
-		err = json.Unmarshal(league.Details, &leagueDetails)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal league details: %v", err)
-		}
-	} else {
-		return nil, fmt.Errorf("league details are empty")
-	}
-
-	var searchTerms []string
-	if league.Leaguetype == "local" {
-		searchTerms = append(searchTerms, leagueDetails.Districts...)
-	} else if league.Leaguetype == "international" {
-		searchTerms = append(searchTerms, leagueDetails.Countries...)
-	}
-
-	if len(searchTerms) == 0 {
-		return nil, fmt.Errorf("no valid search terms found in league details")
-	}
-
-	for _, searchTerm := range searchTerms {
-		var schoolsBatch []models.School
-		nullSearchTerm := sql.NullString{String: searchTerm, Valid: true}
-		if league.Leaguetype == "local" {
-			schoolsBatch, err = queries.GetSchoolsByDistrict(ctx, nullSearchTerm)
-		} else {
-			schoolsBatch, err = queries.GetSchoolsByCountry(ctx, nullSearchTerm)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("failed to get schools: %v", err)
-		}
-		schools = append(schools, schoolsBatch...)
-	}
-
-	return schools, nil
-}
 
 func formatDateTimeRange(start, end time.Time) string {
 	if start.Year() == end.Year() && start.Month() == end.Month() && start.Day() == end.Day() {

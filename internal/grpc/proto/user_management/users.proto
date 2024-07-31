@@ -14,6 +14,10 @@ service UserManagementService {
   rpc DeactivateAccount(DeactivateAccountRequest) returns (DeactivateAccountResponse) {}
   rpc ReactivateAccount(ReactivateAccountRequest) returns (ReactivateAccountResponse) {}
   rpc GetAccountStatus(GetAccountStatusRequest) returns (GetAccountStatusResponse) {}
+  rpc GetCountries(GetCountriesRequest) returns (GetCountriesResponse) {}
+  rpc GetSchools(GetSchoolsRequest) returns (GetSchoolsResponse) {}
+  rpc GetStudents(GetStudentsRequest) returns (GetStudentsResponse) {}
+  rpc GetVolunteers(GetVolunteersRequest) returns (GetVolunteersResponse) {}
 }
 
 message GetPendingUsersRequest {
@@ -159,4 +163,85 @@ message GetAccountStatusRequest {
 
 message GetAccountStatusResponse {
   string status = 1;
+}
+
+message GetCountriesRequest {
+  string token = 1;
+}
+
+message GetCountriesResponse {
+  repeated Country countries = 1;
+}
+
+message Country {
+  string name = 1;
+  string code = 2;
+}
+
+message GetSchoolsRequest {
+  string token = 1;
+  int32 page = 2;
+  int32 pageSize = 3;
+}
+
+message GetSchoolsResponse {
+  repeated School schools = 1;
+  int32 totalCount = 2;
+}
+
+message School {
+  int32 schoolID = 1;
+  string name = 2;
+  string address = 3;
+  string country = 4;
+  string province = 5;
+  string district = 6;
+  string schoolType = 7;
+  string contactPersonName = 8;
+  string contactEmail = 9;
+  string schoolEmail = 10;
+}
+
+message GetStudentsRequest {
+  string token = 1;
+  int32 page = 2;
+  int32 pageSize = 3;
+}
+
+message GetStudentsResponse {
+  repeated Student students = 1;
+  int32 totalCount = 2;
+}
+
+message Student {
+  int32 studentID = 1;
+  string firstName = 2;
+  string lastName = 3;
+  string grade = 4;
+  string dateOfBirth = 5;
+  string email = 6;
+  int32 schoolID = 7;
+  string schoolName = 8;
+}
+
+message GetVolunteersRequest {
+  string token = 1;
+  int32 page = 2;
+  int32 pageSize = 3;
+}
+
+message GetVolunteersResponse {
+  repeated Volunteer volunteers = 1;
+  int32 totalCount = 2;
+}
+
+message Volunteer {
+  int32 volunteerID = 1;
+  string firstName = 2;
+  string lastName = 3;
+  string dateOfBirth = 4;
+  string role = 5;
+  int32 graduateYear = 6;
+  bool safeGuardCertificate = 7;
+  string email = 8;
 }

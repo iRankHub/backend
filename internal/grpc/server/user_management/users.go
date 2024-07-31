@@ -14,15 +14,21 @@ import (
 type userManagementServer struct {
 	user_management.UnimplementedUserManagementServiceServer
 	db *sql.DB
-	userManagementService *services.UserManagementService
+	userManagementService           *services.UserManagementService
+	countryManagementService        *services.CountryService
+	schoolsManagementService         *services.SchoolService
+	studentsManagementService        *services.StudentService
+	volunteersManagementService      *services.VolunteerService
 }
 
 func NewUserManagementServer(db *sql.DB) (user_management.UserManagementServiceServer, error) {
-	userManagementService := services.NewUserManagementService(db)
-
 	return &userManagementServer{
-		db: db,
-		userManagementService: userManagementService,
+		db:                    db,
+		userManagementService: services.NewUserManagementService(db),
+		countryManagementService:         services.NewCountryManagementService(db),
+		schoolsManagementService:         services.NewSchoolsManagementService(db),
+		studentsManagementService:        services.NewStudentsManagementService(db),
+		volunteersManagementService:      services.NewVolunteersManagementService(db),
 	}, nil
 }
 
@@ -162,5 +168,117 @@ func (s *userManagementServer) GetAccountStatus(ctx context.Context, req *user_m
 
 	return &user_management.GetAccountStatusResponse{
 		Status: accountStatus,
+	}, nil
+}
+
+func (s *userManagementServer) GetStudents(ctx context.Context, req *user_management.GetStudentsRequest) (*user_management.GetStudentsResponse, error) {
+	students, totalCount, err := s.studentsManagementService.GetStudents(ctx, req.Token, req.Page, req.PageSize)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get students: %v", err)
+	}
+
+	var protoStudents []*user_management.Student
+	for _, student := range students {
+		dateOfBirth := ""
+		if student.Dateofbirth.Valid {
+			dateOfBirth = student.Dateofbirth.Time.Format("2006-01-02")
+		}
+		email := ""
+		if student.Email.Valid {
+			email = student.Email.String
+		}
+		protoStudents = append(protoStudents, &user_management.Student{
+			StudentID:   student.Studentid,
+			FirstName:   student.Firstname,
+			LastName:    student.Lastname,
+			Grade:       student.Grade,
+			DateOfBirth: dateOfBirth,
+			Email:       email,
+			SchoolID:    student.Schoolid,
+		})
+	}
+
+	return &user_management.GetStudentsResponse{
+		Students:   protoStudents,
+		TotalCount: totalCount,
+	}, nil
+}
+
+func (s *userManagementServer) GetVolunteers(ctx context.Context, req *user_management.GetVolunteersRequest) (*user_management.GetVolunteersResponse, error) {
+	volunteers, totalCount, err := s.volunteersManagementService.GetVolunteers(ctx, req.Token, req.Page, req.PageSize)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get volunteers: %v", err)
+	}
+
+	var protoVolunteers []*user_management.Volunteer
+	for _, volunteer := range volunteers {
+		dateOfBirth := ""
+		if volunteer.Dateofbirth.Valid {
+			dateOfBirth = volunteer.Dateofbirth.Time.Format("2006-01-02")
+		}
+		graduateYear := int32(0)
+		if volunteer.Graduateyear.Valid {
+			graduateYear = volunteer.Graduateyear.Int32
+		}
+		protoVolunteers = append(protoVolunteers, &user_management.Volunteer{
+			VolunteerID:          volunteer.Volunteerid,
+			FirstName:            volunteer.Firstname,
+			LastName:             volunteer.Lastname,
+			DateOfBirth:          dateOfBirth,
+			Role:                 volunteer.Role,
+			GraduateYear:         graduateYear,
+			SafeGuardCertificate: volunteer.Safeguardcertificate.Bool,
+		})
+	}
+
+	return &user_management.GetVolunteersResponse{
+		Volunteers: protoVolunteers,
+		TotalCount: totalCount,
+	}, nil
+}
+
+func (s *userManagementServer) GetSchools(ctx context.Context, req *user_management.GetSchoolsRequest) (*user_management.GetSchoolsResponse, error) {
+	schools, totalCount, err := s.schoolsManagementService.GetSchools(ctx, req.Token, req.Page, req.PageSize)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get schools: %v", err)
+	}
+
+	var protoSchools []*user_management.School
+	for _, school := range schools {
+		protoSchools = append(protoSchools, &user_management.School{
+			SchoolID:         school.Schoolid,
+			Name:             school.Schoolname,
+			Address:          school.Address,
+			Country:          school.Country.String,
+			Province:         school.Province.String,
+			District:         school.District.String,
+			SchoolType:       school.Schooltype,
+			ContactEmail:     school.Contactemail,
+			SchoolEmail:      school.Schoolemail,
+		})
+	}
+
+	return &user_management.GetSchoolsResponse{
+		Schools:    protoSchools,
+		TotalCount: totalCount,
+	}, nil
+}
+
+func (s *userManagementServer) GetCountries(ctx context.Context, req *user_management.GetCountriesRequest) (*user_management.GetCountriesResponse, error) {
+	countries, err := s.countryManagementService.GetCountries(ctx, req.Token)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get countries: %v", err)
+	}
+
+	var protoCountries []*user_management.Country
+	for _, country := range countries {
+		protoCountries = append(protoCountries, &user_management.Country{
+			Name: country.Countryname,
+			Code: country.Isocode,
+		})
+	}
+
+	return &user_management.GetCountriesResponse{
+		Countries: protoCountries,
 	}, nil
 }
