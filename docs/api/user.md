@@ -121,6 +121,60 @@ Request:
   "userID": 123
 }
 ```
+### GetStudents
+
+Endpoint: `UserManagementService.GetStudents`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "token": "your_auth_token_here",
+  "page": 1,
+  "pageSize": 10
+}
+```
+
+### GetVolunteers
+
+Endpoint: `UserManagementService.GetVolunteers`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "token": "your_auth_token_here",
+  "page": 1,
+  "pageSize": 10
+}
+```
+
+### GetSchools
+
+Endpoint: `UserManagementService.GetSchools`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "token": "your_auth_token_here",
+  "page": 1,
+  "pageSize": 10
+}
+```
+
+
+### GetCountries
+
+Endpoint: `UserManagementService.GetCountries`
+Authorization: Any authenticated user
+
+Request:
+```json
+{
+  "token": "your_auth_token_here"
+}
+```
 
 ## Testing User Management Features
 
@@ -150,4 +204,21 @@ To test the user management features:
    d. Account Status:
    - Use `GetAccountStatus` to check the current status of a user's account at any point.
 
+   e. Student Management:
+   - Use `GetStudents` to retrieve a paginated list of students.
+   - Verify the student information is correct and complete.
+
+   f. Volunteer Management:
+   - Use `GetVolunteers` to retrieve a paginated list of volunteers.
+   - Verify the volunteer information is correct and complete.
+
+   g. School Management:
+   - Use `GetSchools` to retrieve a paginated list of schools.
+   - Verify the school information is correct and complete.
+
+   h. Country Information:
+   - Use `GetCountries` to retrieve a list of countries and their codes.
+   - Verify the country information is correct and complete.
+
 5. For each test, verify that the appropriate email notifications are sent (approval, rejection, deactivation, reactivation).
+6. Test pagination for endpoints that support it (GetStudents, GetVolunteers, GetSchools) by varying the page and pageSize parameters.
