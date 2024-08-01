@@ -318,40 +318,40 @@ func (q *Queries) GetLeagueByID(ctx context.Context, leagueid int32) (League, er
 }
 
 const getPendingInvitations = `-- name: GetPendingInvitations :many
-SELECT ti.invitationid, ti.tournamentid, ti.schoolid, ti.volunteerid, ti.studentid, ti.status, ti.invitedat, ti.remindersentat, ti.respondedat, t.StartDate,
+SELECT ti.invitationid, ti.tournamentid, ti.schoolid, ti.volunteerid, ti.studentid, ti.status, ti.invitedat, ti.remindersentat, ti.respondedat,
        s.SchoolName, s.ContactEmail, s.SchoolEmail,
-       v.VolunteerID, u.Email as VolunteerEmail
+       v.VolunteerID, v.FirstName as VolunteerFirstName, v.LastName as VolunteerLastName, u.Email as VolunteerEmail,
+       st.StudentID, st.Email as StudentEmail, st.FirstName as StudentFirstName, st.LastName as StudentLastName
 FROM TournamentInvitations ti
-JOIN Tournaments t ON ti.TournamentID = t.TournamentID
 LEFT JOIN Schools s ON ti.SchoolID = s.SchoolID
 LEFT JOIN Volunteers v ON ti.VolunteerID = v.VolunteerID
 LEFT JOIN Users u ON v.UserID = u.UserID
+LEFT JOIN Students st ON ti.StudentID = st.StudentID
 WHERE ti.Status = 'pending'
   AND ti.TournamentID = $1
-  AND (
-    (ti.SchoolID IS NOT NULL AND t.StartDate > CURRENT_TIMESTAMP + INTERVAL '3 days')
-    OR
-    (ti.VolunteerID IS NOT NULL AND t.StartDate > CURRENT_TIMESTAMP + INTERVAL '2 days')
-  )
-  AND (ti.ReminderSentAt IS NULL OR ti.ReminderSentAt < CURRENT_TIMESTAMP - INTERVAL '1 day')
 `
 
 type GetPendingInvitationsRow struct {
-	Invitationid   int32          `json:"invitationid"`
-	Tournamentid   int32          `json:"tournamentid"`
-	Schoolid       sql.NullInt32  `json:"schoolid"`
-	Volunteerid    sql.NullInt32  `json:"volunteerid"`
-	Studentid      sql.NullInt32  `json:"studentid"`
-	Status         string         `json:"status"`
-	Invitedat      time.Time      `json:"invitedat"`
-	Remindersentat sql.NullTime   `json:"remindersentat"`
-	Respondedat    sql.NullTime   `json:"respondedat"`
-	Startdate      time.Time      `json:"startdate"`
-	Schoolname     sql.NullString `json:"schoolname"`
-	Contactemail   sql.NullString `json:"contactemail"`
-	Schoolemail    sql.NullString `json:"schoolemail"`
-	Volunteerid_2  sql.NullInt32  `json:"volunteerid_2"`
-	Volunteeremail sql.NullString `json:"volunteeremail"`
+	Invitationid       int32          `json:"invitationid"`
+	Tournamentid       int32          `json:"tournamentid"`
+	Schoolid           sql.NullInt32  `json:"schoolid"`
+	Volunteerid        sql.NullInt32  `json:"volunteerid"`
+	Studentid          sql.NullInt32  `json:"studentid"`
+	Status             string         `json:"status"`
+	Invitedat          time.Time      `json:"invitedat"`
+	Remindersentat     sql.NullTime   `json:"remindersentat"`
+	Respondedat        sql.NullTime   `json:"respondedat"`
+	Schoolname         sql.NullString `json:"schoolname"`
+	Contactemail       sql.NullString `json:"contactemail"`
+	Schoolemail        sql.NullString `json:"schoolemail"`
+	Volunteerid_2      sql.NullInt32  `json:"volunteerid_2"`
+	Volunteerfirstname sql.NullString `json:"volunteerfirstname"`
+	Volunteerlastname  sql.NullString `json:"volunteerlastname"`
+	Volunteeremail     sql.NullString `json:"volunteeremail"`
+	Studentid_2        sql.NullInt32  `json:"studentid_2"`
+	Studentemail       sql.NullString `json:"studentemail"`
+	Studentfirstname   sql.NullString `json:"studentfirstname"`
+	Studentlastname    sql.NullString `json:"studentlastname"`
 }
 
 func (q *Queries) GetPendingInvitations(ctx context.Context, tournamentid int32) ([]GetPendingInvitationsRow, error) {
@@ -373,12 +373,17 @@ func (q *Queries) GetPendingInvitations(ctx context.Context, tournamentid int32)
 			&i.Invitedat,
 			&i.Remindersentat,
 			&i.Respondedat,
-			&i.Startdate,
 			&i.Schoolname,
 			&i.Contactemail,
 			&i.Schoolemail,
 			&i.Volunteerid_2,
+			&i.Volunteerfirstname,
+			&i.Volunteerlastname,
 			&i.Volunteeremail,
+			&i.Studentid_2,
+			&i.Studentemail,
+			&i.Studentfirstname,
+			&i.Studentlastname,
 		); err != nil {
 			return nil, err
 		}

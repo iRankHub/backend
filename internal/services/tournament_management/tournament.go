@@ -102,23 +102,24 @@ func (s *TournamentService) CreateTournament(ctx context.Context, req *tournamen
 		return nil, fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	// Send tournament invitations and confirmation emails asynchronously
+	// Send emails asynchronously
 	go func() {
-		if err := emails.SendTournamentInvitations(context.Background(), tournament, league, format, models.New(s.db)); err != nil {
-			log.Printf("Failed to send tournament invitations: %v\n", err)
-		}
-	}()
+		// Use a new context for background operations
+		bgCtx := context.Background()
 
-	go func() {
+		// Create a new database connection for background operations
+		bgQueries := models.New(s.db)
+
+		if err := emails.SendTournamentInvitations(bgCtx, tournament, league, format, bgQueries); err != nil {
+			log.Printf("Failed to send tournament invitations: %v", err)
+		}
+
 		if err := emails.SendTournamentCreationConfirmation(creatorEmail, creatorName, tournament.Name); err != nil {
-			fmt.Printf("Failed to send tournament creation confirmation: %v\n", err)
+			log.Printf("Failed to send tournament creation confirmation: %v", err)
 		}
-	}()
 
-	// Send coordinator assignment email
-	go func() {
 		if err := emails.SendCoordinatorAssignmentEmail(coordinator, tournament, league, format); err != nil {
-			fmt.Printf("Failed to send coordinator assignment email: %v\n", err)
+			log.Printf("Failed to send coordinator assignment email: %v", err)
 		}
 	}()
 
@@ -292,7 +293,7 @@ func (s *TournamentService) createInvitations(ctx context.Context, queries *mode
     }
 
     for _, school := range schools {
-        _, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
+        invitation, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
             Tournamentid: tournamentID,
             Schoolid:     sql.NullInt32{Int32: school.Schoolid, Valid: true},
             Volunteerid:  sql.NullInt32{},
@@ -303,6 +304,7 @@ func (s *TournamentService) createInvitations(ctx context.Context, queries *mode
             log.Printf("Failed to create invitation for school %d: %v", school.Schoolid, err)
             return fmt.Errorf("failed to create invitation for school %d: %v", school.Schoolid, err)
         }
+        log.Printf("Created invitation %d for school %d", invitation.Invitationid, school.Schoolid)
     }
 
     // Create invitations for volunteers
@@ -312,7 +314,7 @@ func (s *TournamentService) createInvitations(ctx context.Context, queries *mode
     }
 
     for _, volunteer := range volunteers {
-        _, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
+        invitation, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
             Tournamentid: tournamentID,
             Schoolid:     sql.NullInt32{},
             Volunteerid:  sql.NullInt32{Int32: volunteer.Volunteerid, Valid: true},
@@ -323,6 +325,7 @@ func (s *TournamentService) createInvitations(ctx context.Context, queries *mode
             log.Printf("Failed to create invitation for volunteer %d: %v", volunteer.Volunteerid, err)
             return fmt.Errorf("failed to create invitation for volunteer %d: %v", volunteer.Volunteerid, err)
         }
+        log.Printf("Created invitation %d for volunteer %d", invitation.Invitationid, volunteer.Volunteerid)
     }
 
     // For DAC league, also invite all students
@@ -333,7 +336,7 @@ func (s *TournamentService) createInvitations(ctx context.Context, queries *mode
         }
 
         for _, student := range students {
-            _, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
+            invitation, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
                 Tournamentid: tournamentID,
                 Schoolid:     sql.NullInt32{},
                 Volunteerid:  sql.NullInt32{},
@@ -344,9 +347,11 @@ func (s *TournamentService) createInvitations(ctx context.Context, queries *mode
                 log.Printf("Failed to create invitation for student %d: %v", student.Studentid, err)
                 return fmt.Errorf("failed to create invitation for student %d: %v", student.Studentid, err)
             }
+            log.Printf("Created invitation %d for student %d", invitation.Invitationid, student.Studentid)
         }
     }
 
+    log.Printf("Finished creating invitations for tournament %d", tournamentID)
     return nil
 }
 

@@ -109,22 +109,17 @@ SET Status = $2, RespondedAt = CURRENT_TIMESTAMP
 WHERE InvitationID = $1;
 
 -- name: GetPendingInvitations :many
-SELECT ti.*, t.StartDate,
+SELECT ti.*,
        s.SchoolName, s.ContactEmail, s.SchoolEmail,
-       v.VolunteerID, u.Email as VolunteerEmail
+       v.VolunteerID, v.FirstName as VolunteerFirstName, v.LastName as VolunteerLastName, u.Email as VolunteerEmail,
+       st.StudentID, st.Email as StudentEmail, st.FirstName as StudentFirstName, st.LastName as StudentLastName
 FROM TournamentInvitations ti
-JOIN Tournaments t ON ti.TournamentID = t.TournamentID
 LEFT JOIN Schools s ON ti.SchoolID = s.SchoolID
 LEFT JOIN Volunteers v ON ti.VolunteerID = v.VolunteerID
 LEFT JOIN Users u ON v.UserID = u.UserID
+LEFT JOIN Students st ON ti.StudentID = st.StudentID
 WHERE ti.Status = 'pending'
-  AND ti.TournamentID = $1
-  AND (
-    (ti.SchoolID IS NOT NULL AND t.StartDate > CURRENT_TIMESTAMP + INTERVAL '3 days')
-    OR
-    (ti.VolunteerID IS NOT NULL AND t.StartDate > CURRENT_TIMESTAMP + INTERVAL '2 days')
-  )
-  AND (ti.ReminderSentAt IS NULL OR ti.ReminderSentAt < CURRENT_TIMESTAMP - INTERVAL '1 day');
+  AND ti.TournamentID = $1;
 
 -- name: RegisterTeam :one
 INSERT INTO Teams (Name, SchoolID, TournamentID, InvitationID)

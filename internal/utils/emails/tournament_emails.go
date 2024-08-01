@@ -4,97 +4,131 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/iRankHub/backend/internal/models"
-
 )
 
 func SendTournamentInvitations(ctx context.Context, tournament models.Tournament, league models.League, format models.Tournamentformat, queries *models.Queries) error {
+	log.Printf("Starting to send invitations for tournament %d", tournament.Tournamentid)
+
 	invitations, err := queries.GetPendingInvitations(ctx, tournament.Tournamentid)
 	if err != nil {
+		log.Printf("Error fetching pending invitations: %v", err)
 		return fmt.Errorf("failed to fetch pending invitations: %v", err)
 	}
 
-	batchSize := 50
-	delay := 5 * time.Second
+	log.Printf("Found %d pending invitations for tournament %d", len(invitations), tournament.Tournamentid)
 
+	if len(invitations) == 0 {
+		log.Printf("No pending invitations found for tournament %d. This is unexpected.", tournament.Tournamentid)
+		return nil
+	}
+
+	numWorkers := 5
+	jobChan := make(chan models.GetPendingInvitationsRow, len(invitations))
+	errChan := make(chan error, len(invitations))
+	doneChan := make(chan bool)
+
+	// Start worker pool
+	for i := 0; i < numWorkers; i++ {
+		go worker(ctx, jobChan, errChan, doneChan, tournament, league, format, queries)
+	}
+
+	// Send jobs to workers
+	for _, invitation := range invitations {
+		jobChan <- invitation
+	}
+	close(jobChan)
+
+	// Wait for all workers to finish
+	for i := 0; i < numWorkers; i++ {
+		<-doneChan
+	}
+
+	close(errChan)
+
+	// Collect errors
 	var errors []error
-
-	// Process invitations in batches
-	for i := 0; i < len(invitations); i += batchSize {
-		end := i + batchSize
-		if end > len(invitations) {
-			end = len(invitations)
+	for err := range errChan {
+		if err != nil {
+			errors = append(errors, err)
 		}
-
-		batch := invitations[i:end]
-		for _, invitation := range batch {
-			var subject, content string
-			var email string
-
-			if invitation.Studentid.Valid {
-				// This is a student invitation (for DAC league)
-				subject = fmt.Sprintf("Invitation to Participate in %s Tournament", tournament.Name)
-				student, err := queries.GetStudentByID(ctx, invitation.Studentid.Int32)
-				if err != nil {
-					errors = append(errors, fmt.Errorf("failed to get student details for invitation %d: %v", invitation.Invitationid, err))
-					continue
-				}
-				content = PrepareStudentInvitationContent(student, tournament, league, format)
-				email = student.Email.String
-			} else if invitation.Schoolid.Valid {
-				// This is a school invitation
-				subject = fmt.Sprintf("Invitation to %s Tournament", tournament.Name)
-				school, err := queries.GetSchoolByID(ctx, invitation.Schoolid.Int32)
-				if err != nil {
-					errors = append(errors, fmt.Errorf("failed to get school details for invitation %d: %v", invitation.Invitationid, err))
-					continue
-				}
-				content = PrepareSchoolInvitationContent(school, tournament, league, format)
-				email = school.Contactemail
-			} else if invitation.Volunteerid.Valid {
-				// This is a volunteer invitation
-				subject = fmt.Sprintf("Invitation to Judge at %s Tournament", tournament.Name)
-				volunteer, err := queries.GetVolunteerByID(ctx, invitation.Volunteerid.Int32)
-				if err != nil {
-					errors = append(errors, fmt.Errorf("failed to get volunteer details for invitation %d: %v", invitation.Invitationid, err))
-					continue
-				}
-				user, err := queries.GetUserByID(ctx, volunteer.Userid)
-				if err != nil {
-					errors = append(errors, fmt.Errorf("failed to get user details for volunteer %d: %v", volunteer.Volunteerid, err))
-					continue
-				}
-				content = PrepareVolunteerInvitationContent(volunteer, tournament, league, format)
-				email = user.Email
-			}
-
-			err := SendEmail(email, subject, content)
-			if err != nil {
-				errors = append(errors, fmt.Errorf("failed to send invitation to email %s for invitation ID %d: %v", email, invitation.Invitationid, err))
-			}
-
-			// Update the reminder sent timestamp
-			_, err = queries.UpdateReminderSentAt(ctx, models.UpdateReminderSentAtParams{
-				Invitationid:   invitation.Invitationid,
-				Remindersentat: sql.NullTime{Time: time.Now(), Valid: true},
-			})
-			if err != nil {
-				errors = append(errors, fmt.Errorf("failed to update reminder sent timestamp for invitation %d: %v", invitation.Invitationid, err))
-			}
-		}
-
-		time.Sleep(delay)
 	}
 
 	if len(errors) > 0 {
+		log.Printf("Encountered errors while sending tournament invitations: %v", errors)
 		return fmt.Errorf("encountered errors while sending tournament invitations: %v", errors)
 	}
 
+	log.Printf("Successfully sent all invitations for tournament %d", tournament.Tournamentid)
 	return nil
 }
 
+func worker(ctx context.Context, jobs <-chan models.GetPendingInvitationsRow, errors chan<- error, done chan<- bool, tournament models.Tournament, league models.League, format models.Tournamentformat, queries *models.Queries) {
+	for invitation := range jobs {
+		err := sendInvitation(ctx, invitation, tournament, league, format, queries)
+		errors <- err
+	}
+	done <- true
+}
+
+func sendInvitation(ctx context.Context, invitation models.GetPendingInvitationsRow, tournament models.Tournament, league models.League, format models.Tournamentformat, queries *models.Queries) error {
+	var subject, content string
+	var email string
+
+	if invitation.Studentid.Valid {
+		subject = fmt.Sprintf("Invitation to Participate in %s Tournament", tournament.Name)
+		student := models.Student{
+			Studentid:  invitation.Studentid.Int32,
+			Email:      invitation.Studentemail,
+			Firstname:  invitation.Studentfirstname.String,
+			Lastname:   invitation.Studentlastname.String,
+		}
+		content = PrepareStudentInvitationContent(student, tournament, league, format)
+		email = invitation.Studentemail.String
+	} else if invitation.Schoolid.Valid {
+		subject = fmt.Sprintf("Invitation to %s Tournament", tournament.Name)
+		school := models.School{
+			Schoolid:     invitation.Schoolid.Int32,
+			Schoolname:   invitation.Schoolname.String,
+			Contactemail: invitation.Contactemail.String,
+		}
+		content = PrepareSchoolInvitationContent(school, tournament, league, format)
+		email = invitation.Contactemail.String
+	} else if invitation.Volunteerid.Valid {
+		subject = fmt.Sprintf("Invitation to Judge at %s Tournament", tournament.Name)
+		volunteer := models.Volunteer{
+			Volunteerid: invitation.Volunteerid.Int32,
+			Firstname:   invitation.Volunteerfirstname.String,
+			Lastname:    invitation.Volunteerlastname.String,
+		}
+		content = PrepareVolunteerInvitationContent(volunteer, tournament, league, format)
+		email = invitation.Volunteeremail.String
+	}
+
+	log.Printf("Sending invitation email to %s for invitation ID %d", email, invitation.Invitationid)
+
+	err := SendEmail(email, subject, content)
+	if err != nil {
+		log.Printf("Failed to send invitation email to %s for invitation ID %d: %v", email, invitation.Invitationid, err)
+		return fmt.Errorf("failed to send invitation to email %s for invitation ID %d: %v", email, invitation.Invitationid, err)
+	}
+
+	// Update the reminder sent timestamp
+	_, err = queries.UpdateReminderSentAt(ctx, models.UpdateReminderSentAtParams{
+		Invitationid:   invitation.Invitationid,
+		Remindersentat: sql.NullTime{Time: time.Now(), Valid: true},
+	})
+	if err != nil {
+		log.Printf("Failed to update reminder sent timestamp for invitation ID %d: %v", invitation.Invitationid, err)
+		return fmt.Errorf("failed to update reminder sent timestamp for invitation %d: %v", invitation.Invitationid, err)
+	}
+
+	log.Printf("Successfully sent invitation email and updated timestamp for invitation ID %d", invitation.Invitationid)
+	return nil
+}
 func SendTournamentCreationConfirmation(to, name, tournamentName string) error {
 	subject := "Tournament Created Successfully"
 	content := fmt.Sprintf(`
