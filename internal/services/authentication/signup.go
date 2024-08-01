@@ -229,18 +229,24 @@ func (s *SignUpService) createVolunteerRecord(ctx context.Context, queries *mode
 
 	safeguardingCertificate, ok := additionalInfo["safeguardingCertificate"].(bool)
 	if !ok {
-		return fmt.Errorf("safeguarding certificate is missing or invalid")
+		return fmt.Errorf("safeguarding certificate information is missing or invalid")
+	}
+
+	hasInternship, ok := additionalInfo["hasInternship"].(bool)
+	if !ok {
+		return fmt.Errorf("internship information is missing or invalid")
 	}
 
 	_, err = queries.CreateVolunteer(ctx, models.CreateVolunteerParams{
-		Firstname:            firstName,
-		Lastname:             lastName,
-		Dateofbirth:          sql.NullTime{Time: dateOfBirth, Valid: true},
-		Role:                 roleInterestedIn,
-		Graduateyear:         sql.NullInt32{Int32: graduationYear, Valid: true},
-		Password:             hashedPassword,
-		Safeguardcertificate: sql.NullBool{Bool: safeguardingCertificate, Valid: true},
-		Userid:               userID,
+		Firstname:              firstName,
+		Lastname:               lastName,
+		Dateofbirth:            sql.NullTime{Time: dateOfBirth, Valid: true},
+		Role:                   roleInterestedIn,
+		Graduateyear:           sql.NullInt32{Int32: graduationYear, Valid: true},
+		Password:               hashedPassword,
+		Safeguardcertificate:   sql.NullBool{Bool: safeguardingCertificate, Valid: true},
+		Hasinternship:          sql.NullBool{Bool: hasInternship, Valid: true},
+		Userid:                 userID,
 	})
 	return err
 }

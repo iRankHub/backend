@@ -9,6 +9,7 @@ import (
 	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
+
 )
 
 type LeagueService struct {
@@ -24,6 +25,14 @@ func (s *LeagueService) CreateLeague(ctx context.Context, req *tournament_manage
         return nil, err
     }
 
+    // Validate required fields
+    if req.GetName() == "" {
+        return nil, fmt.Errorf("league name is required")
+    }
+    if req.GetLeagueType() != tournament_management.LeagueType_local && req.GetLeagueType() != tournament_management.LeagueType_international {
+        return nil, fmt.Errorf("invalid league type: must be either LOCAL or INTERNATIONAL")
+    }
+
     tx, err := s.db.BeginTx(ctx, nil)
     if err != nil {
         return nil, fmt.Errorf("failed to start transaction: %v", err)
@@ -36,12 +45,20 @@ func (s *LeagueService) CreateLeague(ctx context.Context, req *tournament_manage
     switch req.GetLeagueDetails().(type) {
     case *tournament_management.CreateLeagueRequest_LocalDetails:
         localDetails := req.GetLocalDetails()
+        if len(localDetails.GetProvinces()) == 0 || len(localDetails.GetDistricts()) == 0 {
+            return nil, fmt.Errorf("both province and district are required for local leagues")
+        }
         details["provinces"] = localDetails.GetProvinces()
         details["districts"] = localDetails.GetDistricts()
     case *tournament_management.CreateLeagueRequest_InternationalDetails:
         internationalDetails := req.GetInternationalDetails()
+        if len(internationalDetails.GetContinents()) == 0 || len(internationalDetails.GetCountries()) == 0 {
+            return nil, fmt.Errorf("both continent and country are required for international leagues")
+        }
         details["continents"] = internationalDetails.GetContinents()
         details["countries"] = internationalDetails.GetCountries()
+    default:
+        return nil, fmt.Errorf("league details are required")
     }
 
     detailsJSON, err := json.Marshal(details)
@@ -132,6 +149,17 @@ func (s *LeagueService) UpdateLeague(ctx context.Context, req *tournament_manage
         return nil, err
     }
 
+    // Validate required fields
+    if req.GetLeagueId() == 0 {
+        return nil, fmt.Errorf("league ID is required")
+    }
+    if req.GetName() == "" {
+        return nil, fmt.Errorf("league name is required")
+    }
+    if req.GetLeagueType() != tournament_management.LeagueType_local && req.GetLeagueType() != tournament_management.LeagueType_international {
+        return nil, fmt.Errorf("invalid league type: must be either LOCAL or INTERNATIONAL")
+    }
+
     tx, err := s.db.BeginTx(ctx, nil)
     if err != nil {
         return nil, fmt.Errorf("failed to start transaction: %v", err)
@@ -144,12 +172,20 @@ func (s *LeagueService) UpdateLeague(ctx context.Context, req *tournament_manage
     switch req.GetLeagueDetails().(type) {
     case *tournament_management.UpdateLeagueRequest_LocalDetails:
         localDetails := req.GetLocalDetails()
+        if len(localDetails.GetProvinces()) == 0 || len(localDetails.GetDistricts()) == 0 {
+            return nil, fmt.Errorf("both province and district are required for local leagues")
+        }
         details["provinces"] = localDetails.GetProvinces()
         details["districts"] = localDetails.GetDistricts()
     case *tournament_management.UpdateLeagueRequest_InternationalDetails:
         internationalDetails := req.GetInternationalDetails()
+        if len(internationalDetails.GetContinents()) == 0 || len(internationalDetails.GetCountries()) == 0 {
+            return nil, fmt.Errorf("both continent and country are required for international leagues")
+        }
         details["continents"] = internationalDetails.GetContinents()
         details["countries"] = internationalDetails.GetCountries()
+    default:
+        return nil, fmt.Errorf("league details are required")
     }
 
     detailsJSON, err := json.Marshal(details)

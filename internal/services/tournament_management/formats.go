@@ -23,6 +23,17 @@ func (s *FormatService) CreateTournamentFormat(ctx context.Context, req *tournam
 		return nil, err
 	}
 
+	// Validate required fields
+	if req.GetFormatName() == "" {
+		return nil, fmt.Errorf("format name is required")
+	}
+	if req.GetSpeakersPerTeam() <= 0 {
+		return nil, fmt.Errorf("speakers per team must be a positive number")
+	}
+	if req.GetDescription() == "" {
+		return nil, fmt.Errorf("description is required")
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start transaction: %v", err)
@@ -32,7 +43,7 @@ func (s *FormatService) CreateTournamentFormat(ctx context.Context, req *tournam
 	queries := models.New(tx)
 	format, err := queries.CreateTournamentFormat(ctx, models.CreateTournamentFormatParams{
 		Formatname:      req.GetFormatName(),
-		Description:     sql.NullString{String: req.GetDescription(), Valid: req.GetDescription() != ""},
+		Description:     sql.NullString{String: req.GetDescription(), Valid: true},
 		Speakersperteam: req.GetSpeakersPerTeam(),
 	})
 	if err != nil {
@@ -50,6 +61,7 @@ func (s *FormatService) CreateTournamentFormat(ctx context.Context, req *tournam
 		SpeakersPerTeam: format.Speakersperteam,
 	}, nil
 }
+
 
 func (s *FormatService) GetTournamentFormat(ctx context.Context, req *tournament_management.GetTournamentFormatRequest) (*tournament_management.TournamentFormat, error) {
 	if err := s.validateAuthentication(req.GetToken()); err != nil {
@@ -103,6 +115,20 @@ func (s *FormatService) UpdateTournamentFormat(ctx context.Context, req *tournam
 		return nil, err
 	}
 
+	// Validate required fields
+	if req.GetFormatId() <= 0 {
+		return nil, fmt.Errorf("format ID is required and must be a positive number")
+	}
+	if req.GetFormatName() == "" {
+		return nil, fmt.Errorf("format name is required")
+	}
+	if req.GetSpeakersPerTeam() <= 0 {
+		return nil, fmt.Errorf("speakers per team must be a positive number")
+	}
+	if req.GetDescription() == "" {
+		return nil, fmt.Errorf("description is required")
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start transaction: %v", err)
@@ -113,7 +139,7 @@ func (s *FormatService) UpdateTournamentFormat(ctx context.Context, req *tournam
 	updatedFormat, err := queries.UpdateTournamentFormatDetails(ctx, models.UpdateTournamentFormatDetailsParams{
 		Formatid:        int32(req.GetFormatId()),
 		Formatname:      req.GetFormatName(),
-		Description:     sql.NullString{String: req.GetDescription(), Valid: req.GetDescription() != ""},
+		Description:     sql.NullString{String: req.GetDescription(), Valid: true},
 		Speakersperteam: req.GetSpeakersPerTeam(),
 	})
 	if err != nil {

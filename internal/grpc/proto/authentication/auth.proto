@@ -41,6 +41,7 @@ message SignUpRequest {
   string roleInterestedIn = 20;
   bool safeguardingCertificate = 21;
   string grade = 22;
+  bool hasInternship = 23;
 }
 
 message SignUpResponse {

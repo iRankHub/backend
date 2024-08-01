@@ -70,6 +70,7 @@ func (s *authServer) SignUp(ctx context.Context, req *authentication.SignUpReque
 		"graduationYear":          req.GraduationYear,
 		"safeguardingCertificate": req.SafeguardingCertificate,
 		"grade":                   req.Grade,
+		"hasInternship":           req.HasInternship,
 	}
 
 	err := s.signUpService.SignUp(ctx, req.FirstName, req.LastName, req.Email, req.Password, req.UserRole, additionalInfo)

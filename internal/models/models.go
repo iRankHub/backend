@@ -276,6 +276,7 @@ type Volunteer struct {
 	Graduateyear         sql.NullInt32  `json:"graduateyear"`
 	Password             string         `json:"password"`
 	Safeguardcertificate sql.NullBool   `json:"safeguardcertificate"`
+	Hasinternship        sql.NullBool   `json:"hasinternship"`
 	Userid               int32          `json:"userid"`
 }
 

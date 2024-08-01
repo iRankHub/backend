@@ -15,8 +15,11 @@ LIMIT $1 OFFSET $2;
 SELECT COUNT(*) FROM Volunteers;
 
 -- name: CreateVolunteer :one
-INSERT INTO Volunteers (FirstName, LastName, DateOfBirth, Role, GraduateYear, Password, SafeGuardCertificate, UserID)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO Volunteers (
+  FirstName, LastName, DateOfBirth, Role, GraduateYear,
+  Password, SafeGuardCertificate, HasInternship, UserID
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 RETURNING *;
 
 -- name: UpdateVolunteer :one

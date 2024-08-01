@@ -158,6 +158,7 @@ CREATE TABLE Volunteers (
    GraduateYear INTEGER CHECK (GraduateYear >= 2000 AND GraduateYear <= EXTRACT(YEAR FROM CURRENT_DATE)),
    Password VARCHAR(255) NOT NULL,
    SafeGuardCertificate BOOLEAN DEFAULT FALSE,
+   HasInternship BOOLEAN DEFAULT FALSE,
    UserID INTEGER NOT NULL REFERENCES Users(UserID)
 );
 
@@ -170,7 +171,7 @@ CREATE TABLE TournamentInvitations (
     Status VARCHAR(20) NOT NULL CHECK (Status IN ('pending', 'accepted', 'declined')),
     InvitedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ReminderSentAt TIMESTAMP,
-    RespondedAt TIMESTAMP,
+    RespondedAt TIMESTAMP
 );
 
 CREATE TABLE Teams (
