@@ -54,8 +54,8 @@ WHERE FormatID = $1;
 
 -- Tournament Queries
 -- name: CreateTournamentEntry :one
-INSERT INTO Tournaments (Name, StartDate, EndDate, Location, FormatID, LeagueID, NumberOfPreliminaryRounds, NumberOfEliminationRounds, JudgesPerDebatePreliminary, JudgesPerDebateElimination, TournamentFee)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+INSERT INTO Tournaments (Name, StartDate, EndDate, Location, FormatID, LeagueID, CoordinatorID, NumberOfPreliminaryRounds, NumberOfEliminationRounds, JudgesPerDebatePreliminary, JudgesPerDebateElimination, TournamentFee)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 RETURNING *;
 
 -- name: GetTournamentByID :one
@@ -65,6 +65,12 @@ FROM Tournaments t
 JOIN TournamentFormats tf ON t.FormatID = tf.FormatID
 JOIN Leagues l ON t.LeagueID = l.LeagueID
 WHERE t.TournamentID = $1 AND t.deleted_at IS NULL;
+
+-- name: GetActiveTournaments :many
+SELECT * FROM Tournaments
+WHERE StartDate > CURRENT_TIMESTAMP
+  AND deleted_at IS NULL
+ORDER BY StartDate;
 
 -- name: ListTournamentsPaginated :many
 SELECT t.*, tf.FormatName, l.Name AS LeagueName
@@ -89,9 +95,13 @@ SET deleted_at = CURRENT_TIMESTAMP
 WHERE TournamentID = $1;
 
 -- name: CreateInvitation :one
-INSERT INTO TournamentInvitations (TournamentID, SchoolID, VolunteerID, Status)
-VALUES ($1, $2, $3, $4)
+INSERT INTO TournamentInvitations (TournamentID, SchoolID, VolunteerID, StudentID, Status)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
+
+-- name: GetInvitationByID :one
+SELECT * FROM TournamentInvitations
+WHERE InvitationID = $1;
 
 -- name: UpdateInvitationStatus :exec
 UPDATE TournamentInvitations
@@ -99,11 +109,22 @@ SET Status = $2, RespondedAt = CURRENT_TIMESTAMP
 WHERE InvitationID = $1;
 
 -- name: GetPendingInvitations :many
-SELECT * FROM TournamentInvitations
-WHERE Status = 'pending' AND TournamentID IN (
-    SELECT TournamentID FROM Tournaments
-    WHERE StartDate > CURRENT_DATE
-);
+SELECT ti.*, t.StartDate,
+       s.SchoolName, s.ContactEmail, s.SchoolEmail,
+       v.VolunteerID, u.Email as VolunteerEmail
+FROM TournamentInvitations ti
+JOIN Tournaments t ON ti.TournamentID = t.TournamentID
+LEFT JOIN Schools s ON ti.SchoolID = s.SchoolID
+LEFT JOIN Volunteers v ON ti.VolunteerID = v.VolunteerID
+LEFT JOIN Users u ON v.UserID = u.UserID
+WHERE ti.Status = 'pending'
+  AND ti.TournamentID = $1
+  AND (
+    (ti.SchoolID IS NOT NULL AND t.StartDate > CURRENT_TIMESTAMP + INTERVAL '3 days')
+    OR
+    (ti.VolunteerID IS NOT NULL AND t.StartDate > CURRENT_TIMESTAMP + INTERVAL '2 days')
+  )
+  AND (ti.ReminderSentAt IS NULL OR ti.ReminderSentAt < CURRENT_TIMESTAMP - INTERVAL '1 day');
 
 -- name: RegisterTeam :one
 INSERT INTO Teams (Name, SchoolID, TournamentID, InvitationID)

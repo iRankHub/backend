@@ -19,7 +19,7 @@ func init() {
 	viper.AutomaticEnv()
 }
 
-func SendReminderEmails(ctx context.Context, invitations []models.Tournamentinvitation, queries *models.Queries) error {
+func SendReminderEmails(ctx context.Context, invitations []models.GetPendingInvitationsRow, queries *models.Queries) error {
 	var errors []error
 	batchSize := 50
 	delay := 5 * time.Second
@@ -47,13 +47,13 @@ func SendReminderEmails(ctx context.Context, invitations []models.Tournamentinvi
 	return nil
 }
 
-func sendSingleReminderEmail(ctx context.Context, invitation models.Tournamentinvitation, queries *models.Queries) error {
+func sendSingleReminderEmail(ctx context.Context, invitation models.GetPendingInvitationsRow, queries *models.Queries) error {
 	tournament, err := queries.GetTournamentByID(ctx, invitation.Tournamentid)
 	if err != nil {
 		return fmt.Errorf("failed to get tournament details: %v", err)
 	}
 
-	timeUntilTournament := tournament.Startdate.Sub(time.Now())
+	timeUntilTournament := time.Until(tournament.Startdate)
 	reminderType := getShouldSendReminder(timeUntilTournament, invitation.Status, invitation.Schoolid.Valid)
 
 	if reminderType == "none" {
@@ -66,13 +66,13 @@ func sendSingleReminderEmail(ctx context.Context, invitation models.Tournamentin
 	}
 
 	subject := fmt.Sprintf("Reminder: %s Tournament", tournament.Name)
-	content := prepareReminderEmailContent(recipientType, tournament.Name, timeUntilTournament, invitation.Status, invitation.Invitationid, reminderType)
+	content := prepareReminderEmailContent(recipientType, tournament.Name, timeUntilTournament, invitation.Invitationid, reminderType)
 	body := GetEmailTemplate(content)
 
 	return SendEmail(recipient, subject, body)
 }
 
-func prepareReminderEmailContent(recipientType, tournamentName string, timeUntilTournament time.Duration, invitationStatus string, invitationID int32, reminderType string) string {
+func prepareReminderEmailContent(recipientType, tournamentName string, timeUntilTournament time.Duration, invitationID int32, reminderType string) string {
 	actionURL := fmt.Sprintf("%s/invitation/%d", viper.GetString("FRONTEND_URL"), invitationID)
 	tournamentStart := time.Now().Add(timeUntilTournament)
 
@@ -135,7 +135,7 @@ func prepareReminderEmailContent(recipientType, tournamentName string, timeUntil
 	return content
 }
 
-func getRecipientInfo(ctx context.Context, queries *models.Queries, invitation models.Tournamentinvitation) (string, string, error) {
+func getRecipientInfo(ctx context.Context, queries *models.Queries, invitation models.GetPendingInvitationsRow) (string, string, error) {
 	if invitation.Schoolid.Valid {
 		school, err := queries.GetSchoolByID(ctx, invitation.Schoolid.Int32)
 		if err != nil {
@@ -189,44 +189,4 @@ func ShouldSendReminder(daysUntilTournament int) bool {
 		}
 	}
 	return false
-}
-
-func formatDuration(d time.Duration) string {
-	days := int(d.Hours() / 24)
-	hours := int(d.Hours()) % 24
-	minutes := int(d.Minutes()) % 60
-
-	parts := []string{}
-	if days > 0 {
-		if days == 1 {
-			parts = append(parts, "1 day")
-		} else {
-			parts = append(parts, fmt.Sprintf("%d days", days))
-		}
-	}
-	if hours > 0 {
-		if hours == 1 {
-			parts = append(parts, "1 hour")
-		} else {
-			parts = append(parts, fmt.Sprintf("%d hours", hours))
-		}
-	}
-	if minutes > 0 {
-		if minutes == 1 {
-			parts = append(parts, "1 minute")
-		} else {
-			parts = append(parts, fmt.Sprintf("%d minutes", minutes))
-		}
-	}
-
-	switch len(parts) {
-	case 0:
-		return "less than a minute"
-	case 1:
-		return parts[0]
-	case 2:
-		return parts[0] + " and " + parts[1]
-	default:
-		return parts[0] + ", " + parts[1] + ", and " + parts[2]
-	}
 }

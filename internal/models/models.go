@@ -201,19 +201,13 @@ type Tournament struct {
 	Location                   string        `json:"location"`
 	Formatid                   int32         `json:"formatid"`
 	Leagueid                   sql.NullInt32 `json:"leagueid"`
+	Coordinatorid              int32         `json:"coordinatorid"`
 	Numberofpreliminaryrounds  int32         `json:"numberofpreliminaryrounds"`
 	Numberofeliminationrounds  int32         `json:"numberofeliminationrounds"`
 	Judgesperdebatepreliminary int32         `json:"judgesperdebatepreliminary"`
 	Judgesperdebateelimination int32         `json:"judgesperdebateelimination"`
 	Tournamentfee              string        `json:"tournamentfee"`
 	DeletedAt                  sql.NullTime  `json:"deleted_at"`
-}
-
-type Tournamentcoordinator struct {
-	Coordinatorid int32     `json:"coordinatorid"`
-	Volunteerid   int32     `json:"volunteerid"`
-	Tournamentid  int32     `json:"tournamentid"`
-	Assigneddate  time.Time `json:"assigneddate"`
 }
 
 type Tournamentformat struct {
@@ -229,6 +223,7 @@ type Tournamentinvitation struct {
 	Tournamentid   int32         `json:"tournamentid"`
 	Schoolid       sql.NullInt32 `json:"schoolid"`
 	Volunteerid    sql.NullInt32 `json:"volunteerid"`
+	Studentid      sql.NullInt32 `json:"studentid"`
 	Status         string        `json:"status"`
 	Invitedat      time.Time     `json:"invitedat"`
 	Remindersentat sql.NullTime  `json:"remindersentat"`

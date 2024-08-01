@@ -3,13 +3,13 @@ package server
 import (
 	"context"
 	"database/sql"
+	"log"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
 	services "github.com/iRankHub/backend/internal/services/tournament_management"
-
 )
 
 type tournamentServer struct {
@@ -133,13 +133,14 @@ func (s *tournamentServer) DeleteTournamentFormat(ctx context.Context, req *tour
 }
 
 func (s *tournamentServer) CreateTournament(ctx context.Context, req *tournament_management.CreateTournamentRequest) (*tournament_management.CreateTournamentResponse, error) {
-	tournament, err := s.tournamentService.CreateTournament(ctx, req)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to create tournament: %v", err)
-	}
-	return &tournament_management.CreateTournamentResponse{
-		Tournament: tournament,
-	}, nil
+    tournament, err := s.tournamentService.CreateTournament(ctx, req)
+    if err != nil {
+        log.Printf("Error creating tournament: %v", err)
+        return nil, status.Errorf(codes.Internal, "Failed to create tournament: %v", err)
+    }
+    return &tournament_management.CreateTournamentResponse{
+        Tournament: tournament,
+    }, nil
 }
 
 func (s *tournamentServer) GetTournament(ctx context.Context, req *tournament_management.GetTournamentRequest) (*tournament_management.GetTournamentResponse, error) {
@@ -193,6 +194,14 @@ func (s *tournamentServer) DeclineInvitation(ctx context.Context, req *tournamen
 	response, err := s.invitationService.DeclineInvitation(ctx, req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to decline invitation: %v", err)
+	}
+	return response, nil
+}
+
+func (s *tournamentServer) ResendInvitation(ctx context.Context, req *tournament_management.ResendInvitationRequest) (*tournament_management.ResendInvitationResponse, error) {
+	response, err := s.invitationService.ResendInvitation(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to resend invitation: %v", err)
 	}
 	return response, nil
 }

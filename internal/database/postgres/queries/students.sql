@@ -6,6 +6,9 @@ WHERE StudentID = $1;
 SELECT * FROM Students
 WHERE Email = $1;
 
+-- name: GetAllStudents :many
+SELECT * FROM Students;
+
 -- name: GetStudentsPaginated :many
 SELECT s.*, sch.SchoolName
 FROM Students s

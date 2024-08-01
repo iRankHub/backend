@@ -64,6 +64,44 @@ func (q *Queries) DeleteStudent(ctx context.Context, studentid int32) error {
 	return err
 }
 
+const getAllStudents = `-- name: GetAllStudents :many
+SELECT studentid, idebatestudentid, firstname, lastname, grade, dateofbirth, email, password, schoolid, userid FROM Students
+`
+
+func (q *Queries) GetAllStudents(ctx context.Context) ([]Student, error) {
+	rows, err := q.db.QueryContext(ctx, getAllStudents)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Student{}
+	for rows.Next() {
+		var i Student
+		if err := rows.Scan(
+			&i.Studentid,
+			&i.Idebatestudentid,
+			&i.Firstname,
+			&i.Lastname,
+			&i.Grade,
+			&i.Dateofbirth,
+			&i.Email,
+			&i.Password,
+			&i.Schoolid,
+			&i.Userid,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getStudentByEmail = `-- name: GetStudentByEmail :one
 SELECT studentid, idebatestudentid, firstname, lastname, grade, dateofbirth, email, password, schoolid, userid FROM Students
 WHERE Email = $1

@@ -10,6 +10,7 @@ service InvitationService {
   rpc RegisterTeam(RegisterTeamRequest) returns (RegisterTeamResponse);
   rpc AddTeamMember(AddTeamMemberRequest) returns (AddTeamMemberResponse);
   rpc GetInvitationStatus(GetInvitationStatusRequest) returns (GetInvitationStatusResponse);
+  rpc ResendInvitation(ResendInvitationRequest) returns (ResendInvitationResponse);
 }
 
 message AcceptInvitationRequest {
@@ -69,4 +70,14 @@ message Team {
 message GetInvitationStatusResponse {
   string status = 1;
   repeated Team registered_teams = 2;
+}
+
+message ResendInvitationRequest {
+  int32 invitation_id = 1;
+  string token = 2;
+}
+
+message ResendInvitationResponse {
+  bool success = 1;
+  string message = 2;
 }

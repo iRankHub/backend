@@ -24,6 +24,7 @@ const (
 	InvitationService_RegisterTeam_FullMethodName        = "/tournament_management.InvitationService/RegisterTeam"
 	InvitationService_AddTeamMember_FullMethodName       = "/tournament_management.InvitationService/AddTeamMember"
 	InvitationService_GetInvitationStatus_FullMethodName = "/tournament_management.InvitationService/GetInvitationStatus"
+	InvitationService_ResendInvitation_FullMethodName    = "/tournament_management.InvitationService/ResendInvitation"
 )
 
 // InvitationServiceClient is the client API for InvitationService service.
@@ -35,6 +36,7 @@ type InvitationServiceClient interface {
 	RegisterTeam(ctx context.Context, in *RegisterTeamRequest, opts ...grpc.CallOption) (*RegisterTeamResponse, error)
 	AddTeamMember(ctx context.Context, in *AddTeamMemberRequest, opts ...grpc.CallOption) (*AddTeamMemberResponse, error)
 	GetInvitationStatus(ctx context.Context, in *GetInvitationStatusRequest, opts ...grpc.CallOption) (*GetInvitationStatusResponse, error)
+	ResendInvitation(ctx context.Context, in *ResendInvitationRequest, opts ...grpc.CallOption) (*ResendInvitationResponse, error)
 }
 
 type invitationServiceClient struct {
@@ -95,6 +97,16 @@ func (c *invitationServiceClient) GetInvitationStatus(ctx context.Context, in *G
 	return out, nil
 }
 
+func (c *invitationServiceClient) ResendInvitation(ctx context.Context, in *ResendInvitationRequest, opts ...grpc.CallOption) (*ResendInvitationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ResendInvitationResponse)
+	err := c.cc.Invoke(ctx, InvitationService_ResendInvitation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // InvitationServiceServer is the server API for InvitationService service.
 // All implementations must embed UnimplementedInvitationServiceServer
 // for forward compatibility
@@ -104,6 +116,7 @@ type InvitationServiceServer interface {
 	RegisterTeam(context.Context, *RegisterTeamRequest) (*RegisterTeamResponse, error)
 	AddTeamMember(context.Context, *AddTeamMemberRequest) (*AddTeamMemberResponse, error)
 	GetInvitationStatus(context.Context, *GetInvitationStatusRequest) (*GetInvitationStatusResponse, error)
+	ResendInvitation(context.Context, *ResendInvitationRequest) (*ResendInvitationResponse, error)
 	mustEmbedUnimplementedInvitationServiceServer()
 }
 
@@ -125,6 +138,9 @@ func (UnimplementedInvitationServiceServer) AddTeamMember(context.Context, *AddT
 }
 func (UnimplementedInvitationServiceServer) GetInvitationStatus(context.Context, *GetInvitationStatusRequest) (*GetInvitationStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetInvitationStatus not implemented")
+}
+func (UnimplementedInvitationServiceServer) ResendInvitation(context.Context, *ResendInvitationRequest) (*ResendInvitationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResendInvitation not implemented")
 }
 func (UnimplementedInvitationServiceServer) mustEmbedUnimplementedInvitationServiceServer() {}
 
@@ -229,6 +245,24 @@ func _InvitationService_GetInvitationStatus_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _InvitationService_ResendInvitation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResendInvitationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InvitationServiceServer).ResendInvitation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InvitationService_ResendInvitation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InvitationServiceServer).ResendInvitation(ctx, req.(*ResendInvitationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // InvitationService_ServiceDesc is the grpc.ServiceDesc for InvitationService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -255,6 +289,10 @@ var InvitationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetInvitationStatus",
 			Handler:    _InvitationService_GetInvitationStatus_Handler,
+		},
+		{
+			MethodName: "ResendInvitation",
+			Handler:    _InvitationService_ResendInvitation_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

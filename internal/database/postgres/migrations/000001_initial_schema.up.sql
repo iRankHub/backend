@@ -166,14 +166,11 @@ CREATE TABLE TournamentInvitations (
     TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
     SchoolID INTEGER REFERENCES Schools(SchoolID),
     VolunteerID INTEGER REFERENCES Volunteers(VolunteerID),
+    StudentID INTEGER REFERENCES Student(StudentID),
     Status VARCHAR(20) NOT NULL CHECK (Status IN ('pending', 'accepted', 'declined')),
     InvitedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ReminderSentAt TIMESTAMP,
     RespondedAt TIMESTAMP,
-    CONSTRAINT school_or_volunteer_check CHECK (
-        (SchoolID IS NOT NULL AND VolunteerID IS NULL) OR
-        (SchoolID IS NULL AND VolunteerID IS NOT NULL)
-    )
 );
 
 CREATE TABLE Teams (

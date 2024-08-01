@@ -11,7 +11,6 @@ import (
 
 	"github.com/iRankHub/backend/internal/models"
 	emails "github.com/iRankHub/backend/internal/utils/emails"
-
 )
 
 type ReminderService struct {
@@ -37,14 +36,23 @@ func (s *ReminderService) SendReminders() {
 	ctx := context.Background()
 	queries := models.New(s.db)
 
-	invitations, err := queries.GetPendingInvitations(ctx)
+	// Get all active tournaments
+	tournaments, err := queries.GetActiveTournaments(ctx)
 	if err != nil {
-		log.Printf("Failed to get pending invitations: %v\n", err)
+		log.Printf("Failed to get active tournaments: %v\n", err)
 		return
 	}
 
-	if err := emails.SendReminderEmails(ctx, invitations, queries); err != nil {
-		log.Printf("Failed to send reminder emails: %v\n", err)
+	for _, tournament := range tournaments {
+		invitations, err := queries.GetPendingInvitations(ctx, tournament.Tournamentid)
+		if err != nil {
+			log.Printf("Failed to get pending invitations for tournament %d: %v\n", tournament.Tournamentid, err)
+			continue
+		}
+
+		if err := emails.SendReminderEmails(ctx, invitations, queries); err != nil {
+			log.Printf("Failed to send reminder emails for tournament %d: %v\n", tournament.Tournamentid, err)
+		}
 	}
 }
 
