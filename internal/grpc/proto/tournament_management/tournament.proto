@@ -68,11 +68,12 @@ message Tournament {
   string location = 5;
   int32 format_id = 6;
   int32 league_id = 7;
-  int32 number_of_preliminary_rounds = 8;
-  int32 number_of_elimination_rounds = 9;
-  int32 judges_per_debate_preliminary = 10;
-  int32 judges_per_debate_elimination = 11;
-  double tournament_fee = 12;
+  int32 coordinator_id = 8;
+  int32 number_of_preliminary_rounds = 9;
+  int32 number_of_elimination_rounds = 10;
+  int32 judges_per_debate_preliminary = 11;
+  int32 judges_per_debate_elimination = 12;
+  double tournament_fee = 13;
 }
 
 // Request messages
@@ -151,12 +152,13 @@ message CreateTournamentRequest {
   string location = 4;
   int32 format_id = 5;
   int32 league_id = 6;
-  int32 number_of_preliminary_rounds = 7;
-  int32 number_of_elimination_rounds = 8;
-  int32 judges_per_debate_preliminary = 9;
-  int32 judges_per_debate_elimination = 10;
-  double tournament_fee = 11;
-  string token = 12;
+  int32 coordinator_id = 7;
+  int32 number_of_preliminary_rounds = 8;
+  int32 number_of_elimination_rounds = 9;
+  int32 judges_per_debate_preliminary = 10;
+  int32 judges_per_debate_elimination = 11;
+  double tournament_fee = 12;
+  string token = 13;
 }
 
 message GetTournamentRequest {
@@ -178,12 +180,13 @@ message UpdateTournamentRequest {
   string location = 5;
   int32 format_id = 6;
   int32 league_id = 7;
-  int32 number_of_preliminary_rounds = 8;
-  int32 number_of_elimination_rounds = 9;
-  int32 judges_per_debate_preliminary = 10;
-  int32 judges_per_debate_elimination = 11;
-  double tournament_fee = 12;
-  string token = 13;
+  int32 coordinator_id = 8;
+  int32 number_of_preliminary_rounds = 9;
+  int32 number_of_elimination_rounds = 10;
+  int32 judges_per_debate_preliminary = 11;
+  int32 judges_per_debate_elimination = 12;
+  double tournament_fee = 13;
+  string token = 14;
 }
 
 message DeleteTournamentRequest {
@@ -238,6 +241,7 @@ message DeleteTournamentFormatResponse {
 
 message CreateTournamentResponse {
   Tournament tournament = 1;
+  repeated int32 invitation_ids = 2;
 }
 
 message GetTournamentResponse {

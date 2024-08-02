@@ -23,11 +23,18 @@ const (
 	UserManagementService_GetUserDetails_FullMethodName    = "/user_management.UserManagementService/GetUserDetails"
 	UserManagementService_ApproveUser_FullMethodName       = "/user_management.UserManagementService/ApproveUser"
 	UserManagementService_RejectUser_FullMethodName        = "/user_management.UserManagementService/RejectUser"
+	UserManagementService_ApproveUsers_FullMethodName      = "/user_management.UserManagementService/ApproveUsers"
+	UserManagementService_RejectUsers_FullMethodName       = "/user_management.UserManagementService/RejectUsers"
+	UserManagementService_DeleteUsers_FullMethodName       = "/user_management.UserManagementService/DeleteUsers"
 	UserManagementService_UpdateUserProfile_FullMethodName = "/user_management.UserManagementService/UpdateUserProfile"
 	UserManagementService_DeleteUserProfile_FullMethodName = "/user_management.UserManagementService/DeleteUserProfile"
 	UserManagementService_DeactivateAccount_FullMethodName = "/user_management.UserManagementService/DeactivateAccount"
 	UserManagementService_ReactivateAccount_FullMethodName = "/user_management.UserManagementService/ReactivateAccount"
 	UserManagementService_GetAccountStatus_FullMethodName  = "/user_management.UserManagementService/GetAccountStatus"
+	UserManagementService_GetCountries_FullMethodName      = "/user_management.UserManagementService/GetCountries"
+	UserManagementService_GetSchools_FullMethodName        = "/user_management.UserManagementService/GetSchools"
+	UserManagementService_GetStudents_FullMethodName       = "/user_management.UserManagementService/GetStudents"
+	UserManagementService_GetVolunteers_FullMethodName     = "/user_management.UserManagementService/GetVolunteers"
 )
 
 // UserManagementServiceClient is the client API for UserManagementService service.
@@ -38,11 +45,18 @@ type UserManagementServiceClient interface {
 	GetUserDetails(ctx context.Context, in *GetUserDetailsRequest, opts ...grpc.CallOption) (*GetUserDetailsResponse, error)
 	ApproveUser(ctx context.Context, in *ApproveUserRequest, opts ...grpc.CallOption) (*ApproveUserResponse, error)
 	RejectUser(ctx context.Context, in *RejectUserRequest, opts ...grpc.CallOption) (*RejectUserResponse, error)
+	ApproveUsers(ctx context.Context, in *ApproveUsersRequest, opts ...grpc.CallOption) (*ApproveUsersResponse, error)
+	RejectUsers(ctx context.Context, in *RejectUsersRequest, opts ...grpc.CallOption) (*RejectUsersResponse, error)
+	DeleteUsers(ctx context.Context, in *DeleteUsersRequest, opts ...grpc.CallOption) (*DeleteUsersResponse, error)
 	UpdateUserProfile(ctx context.Context, in *UpdateUserProfileRequest, opts ...grpc.CallOption) (*UpdateUserProfileResponse, error)
 	DeleteUserProfile(ctx context.Context, in *DeleteUserProfileRequest, opts ...grpc.CallOption) (*DeleteUserProfileResponse, error)
 	DeactivateAccount(ctx context.Context, in *DeactivateAccountRequest, opts ...grpc.CallOption) (*DeactivateAccountResponse, error)
 	ReactivateAccount(ctx context.Context, in *ReactivateAccountRequest, opts ...grpc.CallOption) (*ReactivateAccountResponse, error)
 	GetAccountStatus(ctx context.Context, in *GetAccountStatusRequest, opts ...grpc.CallOption) (*GetAccountStatusResponse, error)
+	GetCountries(ctx context.Context, in *GetCountriesRequest, opts ...grpc.CallOption) (*GetCountriesResponse, error)
+	GetSchools(ctx context.Context, in *GetSchoolsRequest, opts ...grpc.CallOption) (*GetSchoolsResponse, error)
+	GetStudents(ctx context.Context, in *GetStudentsRequest, opts ...grpc.CallOption) (*GetStudentsResponse, error)
+	GetVolunteers(ctx context.Context, in *GetVolunteersRequest, opts ...grpc.CallOption) (*GetVolunteersResponse, error)
 }
 
 type userManagementServiceClient struct {
@@ -87,6 +101,36 @@ func (c *userManagementServiceClient) RejectUser(ctx context.Context, in *Reject
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RejectUserResponse)
 	err := c.cc.Invoke(ctx, UserManagementService_RejectUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userManagementServiceClient) ApproveUsers(ctx context.Context, in *ApproveUsersRequest, opts ...grpc.CallOption) (*ApproveUsersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ApproveUsersResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_ApproveUsers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userManagementServiceClient) RejectUsers(ctx context.Context, in *RejectUsersRequest, opts ...grpc.CallOption) (*RejectUsersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RejectUsersResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_RejectUsers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userManagementServiceClient) DeleteUsers(ctx context.Context, in *DeleteUsersRequest, opts ...grpc.CallOption) (*DeleteUsersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteUsersResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_DeleteUsers_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -143,6 +187,46 @@ func (c *userManagementServiceClient) GetAccountStatus(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *userManagementServiceClient) GetCountries(ctx context.Context, in *GetCountriesRequest, opts ...grpc.CallOption) (*GetCountriesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetCountriesResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_GetCountries_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userManagementServiceClient) GetSchools(ctx context.Context, in *GetSchoolsRequest, opts ...grpc.CallOption) (*GetSchoolsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetSchoolsResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_GetSchools_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userManagementServiceClient) GetStudents(ctx context.Context, in *GetStudentsRequest, opts ...grpc.CallOption) (*GetStudentsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetStudentsResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_GetStudents_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userManagementServiceClient) GetVolunteers(ctx context.Context, in *GetVolunteersRequest, opts ...grpc.CallOption) (*GetVolunteersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetVolunteersResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_GetVolunteers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserManagementServiceServer is the server API for UserManagementService service.
 // All implementations must embed UnimplementedUserManagementServiceServer
 // for forward compatibility
@@ -151,11 +235,18 @@ type UserManagementServiceServer interface {
 	GetUserDetails(context.Context, *GetUserDetailsRequest) (*GetUserDetailsResponse, error)
 	ApproveUser(context.Context, *ApproveUserRequest) (*ApproveUserResponse, error)
 	RejectUser(context.Context, *RejectUserRequest) (*RejectUserResponse, error)
+	ApproveUsers(context.Context, *ApproveUsersRequest) (*ApproveUsersResponse, error)
+	RejectUsers(context.Context, *RejectUsersRequest) (*RejectUsersResponse, error)
+	DeleteUsers(context.Context, *DeleteUsersRequest) (*DeleteUsersResponse, error)
 	UpdateUserProfile(context.Context, *UpdateUserProfileRequest) (*UpdateUserProfileResponse, error)
 	DeleteUserProfile(context.Context, *DeleteUserProfileRequest) (*DeleteUserProfileResponse, error)
 	DeactivateAccount(context.Context, *DeactivateAccountRequest) (*DeactivateAccountResponse, error)
 	ReactivateAccount(context.Context, *ReactivateAccountRequest) (*ReactivateAccountResponse, error)
 	GetAccountStatus(context.Context, *GetAccountStatusRequest) (*GetAccountStatusResponse, error)
+	GetCountries(context.Context, *GetCountriesRequest) (*GetCountriesResponse, error)
+	GetSchools(context.Context, *GetSchoolsRequest) (*GetSchoolsResponse, error)
+	GetStudents(context.Context, *GetStudentsRequest) (*GetStudentsResponse, error)
+	GetVolunteers(context.Context, *GetVolunteersRequest) (*GetVolunteersResponse, error)
 	mustEmbedUnimplementedUserManagementServiceServer()
 }
 
@@ -175,6 +266,15 @@ func (UnimplementedUserManagementServiceServer) ApproveUser(context.Context, *Ap
 func (UnimplementedUserManagementServiceServer) RejectUser(context.Context, *RejectUserRequest) (*RejectUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RejectUser not implemented")
 }
+func (UnimplementedUserManagementServiceServer) ApproveUsers(context.Context, *ApproveUsersRequest) (*ApproveUsersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ApproveUsers not implemented")
+}
+func (UnimplementedUserManagementServiceServer) RejectUsers(context.Context, *RejectUsersRequest) (*RejectUsersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RejectUsers not implemented")
+}
+func (UnimplementedUserManagementServiceServer) DeleteUsers(context.Context, *DeleteUsersRequest) (*DeleteUsersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteUsers not implemented")
+}
 func (UnimplementedUserManagementServiceServer) UpdateUserProfile(context.Context, *UpdateUserProfileRequest) (*UpdateUserProfileResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateUserProfile not implemented")
 }
@@ -189,6 +289,18 @@ func (UnimplementedUserManagementServiceServer) ReactivateAccount(context.Contex
 }
 func (UnimplementedUserManagementServiceServer) GetAccountStatus(context.Context, *GetAccountStatusRequest) (*GetAccountStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAccountStatus not implemented")
+}
+func (UnimplementedUserManagementServiceServer) GetCountries(context.Context, *GetCountriesRequest) (*GetCountriesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCountries not implemented")
+}
+func (UnimplementedUserManagementServiceServer) GetSchools(context.Context, *GetSchoolsRequest) (*GetSchoolsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSchools not implemented")
+}
+func (UnimplementedUserManagementServiceServer) GetStudents(context.Context, *GetStudentsRequest) (*GetStudentsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStudents not implemented")
+}
+func (UnimplementedUserManagementServiceServer) GetVolunteers(context.Context, *GetVolunteersRequest) (*GetVolunteersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetVolunteers not implemented")
 }
 func (UnimplementedUserManagementServiceServer) mustEmbedUnimplementedUserManagementServiceServer() {}
 
@@ -271,6 +383,60 @@ func _UserManagementService_RejectUser_Handler(srv interface{}, ctx context.Cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(UserManagementServiceServer).RejectUser(ctx, req.(*RejectUserRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserManagementService_ApproveUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ApproveUsersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).ApproveUsers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_ApproveUsers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).ApproveUsers(ctx, req.(*ApproveUsersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserManagementService_RejectUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RejectUsersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).RejectUsers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_RejectUsers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).RejectUsers(ctx, req.(*RejectUsersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserManagementService_DeleteUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteUsersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).DeleteUsers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_DeleteUsers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).DeleteUsers(ctx, req.(*DeleteUsersRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -365,6 +531,78 @@ func _UserManagementService_GetAccountStatus_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserManagementService_GetCountries_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetCountriesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).GetCountries(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_GetCountries_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).GetCountries(ctx, req.(*GetCountriesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserManagementService_GetSchools_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSchoolsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).GetSchools(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_GetSchools_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).GetSchools(ctx, req.(*GetSchoolsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserManagementService_GetStudents_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetStudentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).GetStudents(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_GetStudents_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).GetStudents(ctx, req.(*GetStudentsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserManagementService_GetVolunteers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVolunteersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).GetVolunteers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_GetVolunteers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).GetVolunteers(ctx, req.(*GetVolunteersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // UserManagementService_ServiceDesc is the grpc.ServiceDesc for UserManagementService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -389,6 +627,18 @@ var UserManagementService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _UserManagementService_RejectUser_Handler,
 		},
 		{
+			MethodName: "ApproveUsers",
+			Handler:    _UserManagementService_ApproveUsers_Handler,
+		},
+		{
+			MethodName: "RejectUsers",
+			Handler:    _UserManagementService_RejectUsers_Handler,
+		},
+		{
+			MethodName: "DeleteUsers",
+			Handler:    _UserManagementService_DeleteUsers_Handler,
+		},
+		{
 			MethodName: "UpdateUserProfile",
 			Handler:    _UserManagementService_UpdateUserProfile_Handler,
 		},
@@ -407,6 +657,22 @@ var UserManagementService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAccountStatus",
 			Handler:    _UserManagementService_GetAccountStatus_Handler,
+		},
+		{
+			MethodName: "GetCountries",
+			Handler:    _UserManagementService_GetCountries_Handler,
+		},
+		{
+			MethodName: "GetSchools",
+			Handler:    _UserManagementService_GetSchools_Handler,
+		},
+		{
+			MethodName: "GetStudents",
+			Handler:    _UserManagementService_GetStudents_Handler,
+		},
+		{
+			MethodName: "GetVolunteers",
+			Handler:    _UserManagementService_GetVolunteers_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

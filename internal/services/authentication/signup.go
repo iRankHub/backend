@@ -9,6 +9,7 @@ import (
 
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
+	emails "github.com/iRankHub/backend/internal/utils/emails"
 )
 
 type SignUpService struct {
@@ -32,6 +33,17 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 
 	queries := models.New(tx)
 
+	// Check if email is unique (now inside the transaction)
+	_, err = queries.GetUserByEmail(ctx, email)
+	if err == nil {
+		// User with this email already exists
+		return fmt.Errorf("email already in use")
+	} else if err != sql.ErrNoRows {
+		// An error occurred that wasn't "no rows found"
+		return fmt.Errorf("error checking email uniqueness: %v", err)
+	}
+
+
 	hashedPassword, err := utils.HashPassword(password)
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %v", err)
@@ -52,6 +64,7 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 	if err != nil {
 		return fmt.Errorf("failed to create user: %v", err)
 	}
+
 
 	switch userRole {
 	case "student":
@@ -77,7 +90,7 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 	// This go routine run in the background as to not impact performance
 	go func() {
 		if userRole == "admin" {
-			if err := utils.SendAdminWelcomeEmail(email, firstName); err != nil {
+			if err := emails.SendAdminWelcomeEmail(email, firstName); err != nil {
 				log.Printf("Failed to send admin welcome email: %v", err)
 			}
 		} else {
@@ -88,7 +101,7 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 					log.Printf("Failed to notify admin of new signup: %v", err)
 				}
 			}
-			if err := utils.SendWelcomeEmail(email, firstName); err != nil {
+			if err := emails.SendWelcomeEmail(email, firstName); err != nil {
 				log.Printf("Failed to send welcome email: %v", err)
 			}
 		}
@@ -216,18 +229,30 @@ func (s *SignUpService) createVolunteerRecord(ctx context.Context, queries *mode
 
 	safeguardingCertificate, ok := additionalInfo["safeguardingCertificate"].(bool)
 	if !ok {
-		return fmt.Errorf("safeguarding certificate is missing or invalid")
+		return fmt.Errorf("safeguarding certificate information is missing or invalid")
 	}
 
-	_, err = queries.CreateVolunteer(ctx, models.CreateVolunteerParams{
-		Firstname:            firstName,
-		Lastname:             lastName,
-		Dateofbirth:          sql.NullTime{Time: dateOfBirth, Valid: true},
-		Role:                 roleInterestedIn,
-		Graduateyear:         sql.NullInt32{Int32: graduationYear, Valid: true},
-		Password:             hashedPassword,
-		Safeguardcertificate: sql.NullBool{Bool: safeguardingCertificate, Valid: true},
-		Userid:               userID,
-	})
-	return err
+	hasInternship, ok := additionalInfo["hasInternship"].(bool)
+	if !ok {
+		return fmt.Errorf("internship information is missing or invalid")
+	}
+
+    isEnrolledInUniversity, ok := additionalInfo["isEnrolledInUniversity"].(bool)
+    if !ok {
+        return fmt.Errorf("university enrollment information is missing or invalid")
+    }
+
+    _, err = queries.CreateVolunteer(ctx, models.CreateVolunteerParams{
+        Firstname:              firstName,
+        Lastname:               lastName,
+        Dateofbirth:            sql.NullTime{Time: dateOfBirth, Valid: true},
+        Role:                   roleInterestedIn,
+        Graduateyear:           sql.NullInt32{Int32: graduationYear, Valid: true},
+        Password:               hashedPassword,
+        Safeguardcertificate:   sql.NullBool{Bool: safeguardingCertificate, Valid: true},
+        Hasinternship:          sql.NullBool{Bool: hasInternship, Valid: true},
+        Userid:                 userID,
+        Isenrolledinuniversity: sql.NullBool{Bool: isEnrolledInUniversity, Valid: true},
+    })
+    return err
 }

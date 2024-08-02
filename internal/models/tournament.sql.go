@@ -12,6 +12,43 @@ import (
 	"time"
 )
 
+const createInvitation = `-- name: CreateInvitation :one
+INSERT INTO TournamentInvitations (TournamentID, SchoolID, VolunteerID, StudentID, Status)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING invitationid, tournamentid, schoolid, volunteerid, studentid, status, invitedat, remindersentat, respondedat
+`
+
+type CreateInvitationParams struct {
+	Tournamentid int32         `json:"tournamentid"`
+	Schoolid     sql.NullInt32 `json:"schoolid"`
+	Volunteerid  sql.NullInt32 `json:"volunteerid"`
+	Studentid    sql.NullInt32 `json:"studentid"`
+	Status       string        `json:"status"`
+}
+
+func (q *Queries) CreateInvitation(ctx context.Context, arg CreateInvitationParams) (Tournamentinvitation, error) {
+	row := q.db.QueryRowContext(ctx, createInvitation,
+		arg.Tournamentid,
+		arg.Schoolid,
+		arg.Volunteerid,
+		arg.Studentid,
+		arg.Status,
+	)
+	var i Tournamentinvitation
+	err := row.Scan(
+		&i.Invitationid,
+		&i.Tournamentid,
+		&i.Schoolid,
+		&i.Volunteerid,
+		&i.Studentid,
+		&i.Status,
+		&i.Invitedat,
+		&i.Remindersentat,
+		&i.Respondedat,
+	)
+	return i, err
+}
+
 const createLeague = `-- name: CreateLeague :one
 INSERT INTO Leagues (Name, LeagueType, Details)
 VALUES ($1, $2, $3)
@@ -39,9 +76,9 @@ func (q *Queries) CreateLeague(ctx context.Context, arg CreateLeagueParams) (Lea
 }
 
 const createTournamentEntry = `-- name: CreateTournamentEntry :one
-INSERT INTO Tournaments (Name, StartDate, EndDate, Location, FormatID, LeagueID, NumberOfPreliminaryRounds, NumberOfEliminationRounds, JudgesPerDebatePreliminary, JudgesPerDebateElimination, TournamentFee)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-RETURNING tournamentid, name, startdate, enddate, location, formatid, leagueid, numberofpreliminaryrounds, numberofeliminationrounds, judgesperdebatepreliminary, judgesperdebateelimination, tournamentfee, deleted_at
+INSERT INTO Tournaments (Name, StartDate, EndDate, Location, FormatID, LeagueID, CoordinatorID, NumberOfPreliminaryRounds, NumberOfEliminationRounds, JudgesPerDebatePreliminary, JudgesPerDebateElimination, TournamentFee)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+RETURNING tournamentid, name, startdate, enddate, location, formatid, leagueid, coordinatorid, numberofpreliminaryrounds, numberofeliminationrounds, judgesperdebatepreliminary, judgesperdebateelimination, tournamentfee, deleted_at
 `
 
 type CreateTournamentEntryParams struct {
@@ -51,6 +88,7 @@ type CreateTournamentEntryParams struct {
 	Location                   string        `json:"location"`
 	Formatid                   int32         `json:"formatid"`
 	Leagueid                   sql.NullInt32 `json:"leagueid"`
+	Coordinatorid              int32         `json:"coordinatorid"`
 	Numberofpreliminaryrounds  int32         `json:"numberofpreliminaryrounds"`
 	Numberofeliminationrounds  int32         `json:"numberofeliminationrounds"`
 	Judgesperdebatepreliminary int32         `json:"judgesperdebatepreliminary"`
@@ -67,6 +105,7 @@ func (q *Queries) CreateTournamentEntry(ctx context.Context, arg CreateTournamen
 		arg.Location,
 		arg.Formatid,
 		arg.Leagueid,
+		arg.Coordinatorid,
 		arg.Numberofpreliminaryrounds,
 		arg.Numberofeliminationrounds,
 		arg.Judgesperdebatepreliminary,
@@ -82,6 +121,7 @@ func (q *Queries) CreateTournamentEntry(ctx context.Context, arg CreateTournamen
 		&i.Location,
 		&i.Formatid,
 		&i.Leagueid,
+		&i.Coordinatorid,
 		&i.Numberofpreliminaryrounds,
 		&i.Numberofeliminationrounds,
 		&i.Judgesperdebatepreliminary,
@@ -151,6 +191,114 @@ func (q *Queries) DeleteTournamentFormatByID(ctx context.Context, formatid int32
 	return err
 }
 
+const getActiveTournaments = `-- name: GetActiveTournaments :many
+SELECT tournamentid, name, startdate, enddate, location, formatid, leagueid, coordinatorid, numberofpreliminaryrounds, numberofeliminationrounds, judgesperdebatepreliminary, judgesperdebateelimination, tournamentfee, deleted_at FROM Tournaments
+WHERE StartDate > CURRENT_TIMESTAMP
+  AND deleted_at IS NULL
+ORDER BY StartDate
+`
+
+func (q *Queries) GetActiveTournaments(ctx context.Context) ([]Tournament, error) {
+	rows, err := q.db.QueryContext(ctx, getActiveTournaments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Tournament{}
+	for rows.Next() {
+		var i Tournament
+		if err := rows.Scan(
+			&i.Tournamentid,
+			&i.Name,
+			&i.Startdate,
+			&i.Enddate,
+			&i.Location,
+			&i.Formatid,
+			&i.Leagueid,
+			&i.Coordinatorid,
+			&i.Numberofpreliminaryrounds,
+			&i.Numberofeliminationrounds,
+			&i.Judgesperdebatepreliminary,
+			&i.Judgesperdebateelimination,
+			&i.Tournamentfee,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getInvitationByID = `-- name: GetInvitationByID :one
+SELECT invitationid, tournamentid, schoolid, volunteerid, studentid, status, invitedat, remindersentat, respondedat FROM TournamentInvitations
+WHERE InvitationID = $1
+`
+
+func (q *Queries) GetInvitationByID(ctx context.Context, invitationid int32) (Tournamentinvitation, error) {
+	row := q.db.QueryRowContext(ctx, getInvitationByID, invitationid)
+	var i Tournamentinvitation
+	err := row.Scan(
+		&i.Invitationid,
+		&i.Tournamentid,
+		&i.Schoolid,
+		&i.Volunteerid,
+		&i.Studentid,
+		&i.Status,
+		&i.Invitedat,
+		&i.Remindersentat,
+		&i.Respondedat,
+	)
+	return i, err
+}
+
+const getInvitationStatus = `-- name: GetInvitationStatus :one
+SELECT i.invitationid, i.tournamentid, i.schoolid, i.volunteerid, i.studentid, i.status, i.invitedat, i.remindersentat, i.respondedat,
+       json_agg(json_build_object('team_id', t.TeamID, 'team_name', t.Name, 'number_of_speakers', COUNT(tm.StudentID))) as registered_teams
+FROM TournamentInvitations i
+LEFT JOIN Teams t ON i.InvitationID = t.InvitationID
+LEFT JOIN TeamMembers tm ON t.TeamID = tm.TeamID
+WHERE i.InvitationID = $1
+GROUP BY i.InvitationID
+`
+
+type GetInvitationStatusRow struct {
+	Invitationid    int32           `json:"invitationid"`
+	Tournamentid    int32           `json:"tournamentid"`
+	Schoolid        sql.NullInt32   `json:"schoolid"`
+	Volunteerid     sql.NullInt32   `json:"volunteerid"`
+	Studentid       sql.NullInt32   `json:"studentid"`
+	Status          string          `json:"status"`
+	Invitedat       time.Time       `json:"invitedat"`
+	Remindersentat  sql.NullTime    `json:"remindersentat"`
+	Respondedat     sql.NullTime    `json:"respondedat"`
+	RegisteredTeams json.RawMessage `json:"registered_teams"`
+}
+
+func (q *Queries) GetInvitationStatus(ctx context.Context, invitationid int32) (GetInvitationStatusRow, error) {
+	row := q.db.QueryRowContext(ctx, getInvitationStatus, invitationid)
+	var i GetInvitationStatusRow
+	err := row.Scan(
+		&i.Invitationid,
+		&i.Tournamentid,
+		&i.Schoolid,
+		&i.Volunteerid,
+		&i.Studentid,
+		&i.Status,
+		&i.Invitedat,
+		&i.Remindersentat,
+		&i.Respondedat,
+		&i.RegisteredTeams,
+	)
+	return i, err
+}
+
 const getLeagueByID = `-- name: GetLeagueByID :one
 SELECT leagueid, name, leaguetype, details, deleted_at FROM Leagues
 WHERE LeagueID = $1 AND deleted_at IS NULL
@@ -169,12 +317,140 @@ func (q *Queries) GetLeagueByID(ctx context.Context, leagueid int32) (League, er
 	return i, err
 }
 
+const getPendingInvitations = `-- name: GetPendingInvitations :many
+SELECT ti.invitationid, ti.tournamentid, ti.schoolid, ti.volunteerid, ti.studentid, ti.status, ti.invitedat, ti.remindersentat, ti.respondedat,
+       s.SchoolName, s.ContactEmail, s.SchoolEmail,
+       v.VolunteerID, v.FirstName as VolunteerFirstName, v.LastName as VolunteerLastName, u.Email as VolunteerEmail,
+       st.StudentID, st.Email as StudentEmail, st.FirstName as StudentFirstName, st.LastName as StudentLastName
+FROM TournamentInvitations ti
+LEFT JOIN Schools s ON ti.SchoolID = s.SchoolID
+LEFT JOIN Volunteers v ON ti.VolunteerID = v.VolunteerID
+LEFT JOIN Users u ON v.UserID = u.UserID
+LEFT JOIN Students st ON ti.StudentID = st.StudentID
+WHERE ti.Status = 'pending'
+  AND ti.TournamentID = $1
+`
+
+type GetPendingInvitationsRow struct {
+	Invitationid       int32          `json:"invitationid"`
+	Tournamentid       int32          `json:"tournamentid"`
+	Schoolid           sql.NullInt32  `json:"schoolid"`
+	Volunteerid        sql.NullInt32  `json:"volunteerid"`
+	Studentid          sql.NullInt32  `json:"studentid"`
+	Status             string         `json:"status"`
+	Invitedat          time.Time      `json:"invitedat"`
+	Remindersentat     sql.NullTime   `json:"remindersentat"`
+	Respondedat        sql.NullTime   `json:"respondedat"`
+	Schoolname         sql.NullString `json:"schoolname"`
+	Contactemail       sql.NullString `json:"contactemail"`
+	Schoolemail        sql.NullString `json:"schoolemail"`
+	Volunteerid_2      sql.NullInt32  `json:"volunteerid_2"`
+	Volunteerfirstname sql.NullString `json:"volunteerfirstname"`
+	Volunteerlastname  sql.NullString `json:"volunteerlastname"`
+	Volunteeremail     sql.NullString `json:"volunteeremail"`
+	Studentid_2        sql.NullInt32  `json:"studentid_2"`
+	Studentemail       sql.NullString `json:"studentemail"`
+	Studentfirstname   sql.NullString `json:"studentfirstname"`
+	Studentlastname    sql.NullString `json:"studentlastname"`
+}
+
+func (q *Queries) GetPendingInvitations(ctx context.Context, tournamentid int32) ([]GetPendingInvitationsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPendingInvitations, tournamentid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetPendingInvitationsRow{}
+	for rows.Next() {
+		var i GetPendingInvitationsRow
+		if err := rows.Scan(
+			&i.Invitationid,
+			&i.Tournamentid,
+			&i.Schoolid,
+			&i.Volunteerid,
+			&i.Studentid,
+			&i.Status,
+			&i.Invitedat,
+			&i.Remindersentat,
+			&i.Respondedat,
+			&i.Schoolname,
+			&i.Contactemail,
+			&i.Schoolemail,
+			&i.Volunteerid_2,
+			&i.Volunteerfirstname,
+			&i.Volunteerlastname,
+			&i.Volunteeremail,
+			&i.Studentid_2,
+			&i.Studentemail,
+			&i.Studentfirstname,
+			&i.Studentlastname,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTeamsByInvitation = `-- name: GetTeamsByInvitation :many
+SELECT t.teamid, t.name, t.schoolid, t.invitationid, t.tournamentid, COUNT(tm.StudentID) as number_of_speakers
+FROM Teams t
+LEFT JOIN TeamMembers tm ON t.TeamID = tm.TeamID
+WHERE t.InvitationID = $1
+GROUP BY t.TeamID
+`
+
+type GetTeamsByInvitationRow struct {
+	Teamid           int32         `json:"teamid"`
+	Name             string        `json:"name"`
+	Schoolid         int32         `json:"schoolid"`
+	Invitationid     sql.NullInt32 `json:"invitationid"`
+	Tournamentid     int32         `json:"tournamentid"`
+	NumberOfSpeakers int64         `json:"number_of_speakers"`
+}
+
+func (q *Queries) GetTeamsByInvitation(ctx context.Context, invitationid sql.NullInt32) ([]GetTeamsByInvitationRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTeamsByInvitation, invitationid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetTeamsByInvitationRow{}
+	for rows.Next() {
+		var i GetTeamsByInvitationRow
+		if err := rows.Scan(
+			&i.Teamid,
+			&i.Name,
+			&i.Schoolid,
+			&i.Invitationid,
+			&i.Tournamentid,
+			&i.NumberOfSpeakers,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTournamentByID = `-- name: GetTournamentByID :one
-SELECT t.tournamentid, t.name, t.startdate, t.enddate, t.location, t.formatid, t.leagueid, t.numberofpreliminaryrounds, t.numberofeliminationrounds, t.judgesperdebatepreliminary, t.judgesperdebateelimination, t.tournamentfee, t.deleted_at, tf.formatid, tf.formatname, tf.description, tf.speakersperteam, tf.deleted_at, l.leagueid, l.name, l.leaguetype, l.details, l.deleted_at
+SELECT t.tournamentid, t.name, t.startdate, t.enddate, t.location, t.formatid, t.leagueid, t.coordinatorid, t.numberofpreliminaryrounds, t.numberofeliminationrounds, t.judgesperdebatepreliminary, t.judgesperdebateelimination, t.tournamentfee, t.deleted_at, tf.FormatName, tf.Description AS FormatDescription, tf.SpeakersPerTeam,
+       l.Name AS LeagueName, l.LeagueType, l.Details AS LeagueDetails
 FROM Tournaments t
 JOIN TournamentFormats tf ON t.FormatID = tf.FormatID
 JOIN Leagues l ON t.LeagueID = l.LeagueID
-LEFT JOIN TournamentCoordinators tc ON t.TournamentID = tc.TournamentID
 WHERE t.TournamentID = $1 AND t.deleted_at IS NULL
 `
 
@@ -186,22 +462,19 @@ type GetTournamentByIDRow struct {
 	Location                   string          `json:"location"`
 	Formatid                   int32           `json:"formatid"`
 	Leagueid                   sql.NullInt32   `json:"leagueid"`
+	Coordinatorid              int32           `json:"coordinatorid"`
 	Numberofpreliminaryrounds  int32           `json:"numberofpreliminaryrounds"`
 	Numberofeliminationrounds  int32           `json:"numberofeliminationrounds"`
 	Judgesperdebatepreliminary int32           `json:"judgesperdebatepreliminary"`
 	Judgesperdebateelimination int32           `json:"judgesperdebateelimination"`
 	Tournamentfee              string          `json:"tournamentfee"`
 	DeletedAt                  sql.NullTime    `json:"deleted_at"`
-	Formatid_2                 int32           `json:"formatid_2"`
 	Formatname                 string          `json:"formatname"`
-	Description                sql.NullString  `json:"description"`
+	Formatdescription          sql.NullString  `json:"formatdescription"`
 	Speakersperteam            int32           `json:"speakersperteam"`
-	DeletedAt_2                sql.NullTime    `json:"deleted_at_2"`
-	Leagueid_2                 int32           `json:"leagueid_2"`
-	Name_2                     string          `json:"name_2"`
+	Leaguename                 string          `json:"leaguename"`
 	Leaguetype                 string          `json:"leaguetype"`
-	Details                    json.RawMessage `json:"details"`
-	DeletedAt_3                sql.NullTime    `json:"deleted_at_3"`
+	Leaguedetails              json.RawMessage `json:"leaguedetails"`
 }
 
 func (q *Queries) GetTournamentByID(ctx context.Context, tournamentid int32) (GetTournamentByIDRow, error) {
@@ -215,22 +488,19 @@ func (q *Queries) GetTournamentByID(ctx context.Context, tournamentid int32) (Ge
 		&i.Location,
 		&i.Formatid,
 		&i.Leagueid,
+		&i.Coordinatorid,
 		&i.Numberofpreliminaryrounds,
 		&i.Numberofeliminationrounds,
 		&i.Judgesperdebatepreliminary,
 		&i.Judgesperdebateelimination,
 		&i.Tournamentfee,
 		&i.DeletedAt,
-		&i.Formatid_2,
 		&i.Formatname,
-		&i.Description,
+		&i.Formatdescription,
 		&i.Speakersperteam,
-		&i.DeletedAt_2,
-		&i.Leagueid_2,
-		&i.Name_2,
+		&i.Leaguename,
 		&i.Leaguetype,
-		&i.Details,
-		&i.DeletedAt_3,
+		&i.Leaguedetails,
 	)
 	return i, err
 }
@@ -336,13 +606,12 @@ func (q *Queries) ListTournamentFormatsPaginated(ctx context.Context, arg ListTo
 }
 
 const listTournamentsPaginated = `-- name: ListTournamentsPaginated :many
-SELECT t.tournamentid, t.name, t.startdate, t.enddate, t.location, t.formatid, t.leagueid, t.numberofpreliminaryrounds, t.numberofeliminationrounds, t.judgesperdebatepreliminary, t.judgesperdebateelimination, t.tournamentfee, t.deleted_at, tf.formatid, tf.formatname, tf.description, tf.speakersperteam, tf.deleted_at, l.leagueid, l.name, l.leaguetype, l.details, l.deleted_at
+SELECT t.tournamentid, t.name, t.startdate, t.enddate, t.location, t.formatid, t.leagueid, t.coordinatorid, t.numberofpreliminaryrounds, t.numberofeliminationrounds, t.judgesperdebatepreliminary, t.judgesperdebateelimination, t.tournamentfee, t.deleted_at, tf.FormatName, l.Name AS LeagueName
 FROM Tournaments t
 JOIN TournamentFormats tf ON t.FormatID = tf.FormatID
 JOIN Leagues l ON t.LeagueID = l.LeagueID
-LEFT JOIN TournamentCoordinators tc ON t.TournamentID = tc.TournamentID
 WHERE t.deleted_at IS NULL
-ORDER BY t.TournamentID
+ORDER BY t.StartDate DESC
 LIMIT $1 OFFSET $2
 `
 
@@ -352,29 +621,22 @@ type ListTournamentsPaginatedParams struct {
 }
 
 type ListTournamentsPaginatedRow struct {
-	Tournamentid               int32           `json:"tournamentid"`
-	Name                       string          `json:"name"`
-	Startdate                  time.Time       `json:"startdate"`
-	Enddate                    time.Time       `json:"enddate"`
-	Location                   string          `json:"location"`
-	Formatid                   int32           `json:"formatid"`
-	Leagueid                   sql.NullInt32   `json:"leagueid"`
-	Numberofpreliminaryrounds  int32           `json:"numberofpreliminaryrounds"`
-	Numberofeliminationrounds  int32           `json:"numberofeliminationrounds"`
-	Judgesperdebatepreliminary int32           `json:"judgesperdebatepreliminary"`
-	Judgesperdebateelimination int32           `json:"judgesperdebateelimination"`
-	Tournamentfee              string          `json:"tournamentfee"`
-	DeletedAt                  sql.NullTime    `json:"deleted_at"`
-	Formatid_2                 int32           `json:"formatid_2"`
-	Formatname                 string          `json:"formatname"`
-	Description                sql.NullString  `json:"description"`
-	Speakersperteam            int32           `json:"speakersperteam"`
-	DeletedAt_2                sql.NullTime    `json:"deleted_at_2"`
-	Leagueid_2                 int32           `json:"leagueid_2"`
-	Name_2                     string          `json:"name_2"`
-	Leaguetype                 string          `json:"leaguetype"`
-	Details                    json.RawMessage `json:"details"`
-	DeletedAt_3                sql.NullTime    `json:"deleted_at_3"`
+	Tournamentid               int32         `json:"tournamentid"`
+	Name                       string        `json:"name"`
+	Startdate                  time.Time     `json:"startdate"`
+	Enddate                    time.Time     `json:"enddate"`
+	Location                   string        `json:"location"`
+	Formatid                   int32         `json:"formatid"`
+	Leagueid                   sql.NullInt32 `json:"leagueid"`
+	Coordinatorid              int32         `json:"coordinatorid"`
+	Numberofpreliminaryrounds  int32         `json:"numberofpreliminaryrounds"`
+	Numberofeliminationrounds  int32         `json:"numberofeliminationrounds"`
+	Judgesperdebatepreliminary int32         `json:"judgesperdebatepreliminary"`
+	Judgesperdebateelimination int32         `json:"judgesperdebateelimination"`
+	Tournamentfee              string        `json:"tournamentfee"`
+	DeletedAt                  sql.NullTime  `json:"deleted_at"`
+	Formatname                 string        `json:"formatname"`
+	Leaguename                 string        `json:"leaguename"`
 }
 
 func (q *Queries) ListTournamentsPaginated(ctx context.Context, arg ListTournamentsPaginatedParams) ([]ListTournamentsPaginatedRow, error) {
@@ -394,22 +656,15 @@ func (q *Queries) ListTournamentsPaginated(ctx context.Context, arg ListTourname
 			&i.Location,
 			&i.Formatid,
 			&i.Leagueid,
+			&i.Coordinatorid,
 			&i.Numberofpreliminaryrounds,
 			&i.Numberofeliminationrounds,
 			&i.Judgesperdebatepreliminary,
 			&i.Judgesperdebateelimination,
 			&i.Tournamentfee,
 			&i.DeletedAt,
-			&i.Formatid_2,
 			&i.Formatname,
-			&i.Description,
-			&i.Speakersperteam,
-			&i.DeletedAt_2,
-			&i.Leagueid_2,
-			&i.Name_2,
-			&i.Leaguetype,
-			&i.Details,
-			&i.DeletedAt_3,
+			&i.Leaguename,
 		); err != nil {
 			return nil, err
 		}
@@ -422,6 +677,53 @@ func (q *Queries) ListTournamentsPaginated(ctx context.Context, arg ListTourname
 		return nil, err
 	}
 	return items, nil
+}
+
+const registerTeam = `-- name: RegisterTeam :one
+INSERT INTO Teams (Name, SchoolID, TournamentID, InvitationID)
+VALUES ($1, $2, $3, $4)
+RETURNING teamid, name, schoolid, invitationid, tournamentid
+`
+
+type RegisterTeamParams struct {
+	Name         string        `json:"name"`
+	Schoolid     int32         `json:"schoolid"`
+	Tournamentid int32         `json:"tournamentid"`
+	Invitationid sql.NullInt32 `json:"invitationid"`
+}
+
+func (q *Queries) RegisterTeam(ctx context.Context, arg RegisterTeamParams) (Team, error) {
+	row := q.db.QueryRowContext(ctx, registerTeam,
+		arg.Name,
+		arg.Schoolid,
+		arg.Tournamentid,
+		arg.Invitationid,
+	)
+	var i Team
+	err := row.Scan(
+		&i.Teamid,
+		&i.Name,
+		&i.Schoolid,
+		&i.Invitationid,
+		&i.Tournamentid,
+	)
+	return i, err
+}
+
+const updateInvitationStatus = `-- name: UpdateInvitationStatus :exec
+UPDATE TournamentInvitations
+SET Status = $2, RespondedAt = CURRENT_TIMESTAMP
+WHERE InvitationID = $1
+`
+
+type UpdateInvitationStatusParams struct {
+	Invitationid int32  `json:"invitationid"`
+	Status       string `json:"status"`
+}
+
+func (q *Queries) UpdateInvitationStatus(ctx context.Context, arg UpdateInvitationStatusParams) error {
+	_, err := q.db.ExecContext(ctx, updateInvitationStatus, arg.Invitationid, arg.Status)
+	return err
 }
 
 const updateLeague = `-- name: UpdateLeague :one
@@ -456,11 +758,42 @@ func (q *Queries) UpdateLeague(ctx context.Context, arg UpdateLeagueParams) (Lea
 	return i, err
 }
 
+const updateReminderSentAt = `-- name: UpdateReminderSentAt :one
+UPDATE TournamentInvitations
+SET ReminderSentAt = $2
+WHERE InvitationID = $1
+RETURNING invitationid, tournamentid, schoolid, volunteerid, studentid, status, invitedat, remindersentat, respondedat
+`
+
+type UpdateReminderSentAtParams struct {
+	Invitationid   int32        `json:"invitationid"`
+	Remindersentat sql.NullTime `json:"remindersentat"`
+}
+
+func (q *Queries) UpdateReminderSentAt(ctx context.Context, arg UpdateReminderSentAtParams) (Tournamentinvitation, error) {
+	row := q.db.QueryRowContext(ctx, updateReminderSentAt, arg.Invitationid, arg.Remindersentat)
+	var i Tournamentinvitation
+	err := row.Scan(
+		&i.Invitationid,
+		&i.Tournamentid,
+		&i.Schoolid,
+		&i.Volunteerid,
+		&i.Studentid,
+		&i.Status,
+		&i.Invitedat,
+		&i.Remindersentat,
+		&i.Respondedat,
+	)
+	return i, err
+}
+
 const updateTournamentDetails = `-- name: UpdateTournamentDetails :one
 UPDATE Tournaments
-SET Name = $2, StartDate = $3, EndDate = $4, Location = $5, FormatID = $6, LeagueID = $7, NumberOfPreliminaryRounds = $8, NumberOfEliminationRounds = $9, JudgesPerDebatePreliminary = $10, JudgesPerDebateElimination = $11, TournamentFee = $12
+SET Name = $2, StartDate = $3, EndDate = $4, Location = $5, FormatID = $6, LeagueID = $7,
+    NumberOfPreliminaryRounds = $8, NumberOfEliminationRounds = $9,
+    JudgesPerDebatePreliminary = $10, JudgesPerDebateElimination = $11, TournamentFee = $12
 WHERE TournamentID = $1
-RETURNING tournamentid, name, startdate, enddate, location, formatid, leagueid, numberofpreliminaryrounds, numberofeliminationrounds, judgesperdebatepreliminary, judgesperdebateelimination, tournamentfee, deleted_at
+RETURNING tournamentid, name, startdate, enddate, location, formatid, leagueid, coordinatorid, numberofpreliminaryrounds, numberofeliminationrounds, judgesperdebatepreliminary, judgesperdebateelimination, tournamentfee, deleted_at
 `
 
 type UpdateTournamentDetailsParams struct {
@@ -502,6 +835,7 @@ func (q *Queries) UpdateTournamentDetails(ctx context.Context, arg UpdateTournam
 		&i.Location,
 		&i.Formatid,
 		&i.Leagueid,
+		&i.Coordinatorid,
 		&i.Numberofpreliminaryrounds,
 		&i.Numberofeliminationrounds,
 		&i.Judgesperdebatepreliminary,

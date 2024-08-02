@@ -15,7 +15,7 @@ func init() {
 	viper.AutomaticEnv()
 }
 
-func getAuthEmailTemplate(title, content string) string {
+func getAuthEmailTemplate(content string) string {
 	logoURL := viper.GetString("LOGO_URL")
 	if logoURL == "" {
 		logoURL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSy1c8yfmVvRgCThDUvkJTmpTrV92ANV7iSRQ&s"
@@ -48,12 +48,11 @@ func getAuthEmailTemplate(title, content string) string {
 		<body>
 			<div class="container">
 				<img src="%s" alt="iRankHub Logo" class="logo">
-				<h1>%s</h1>
 				%s
 			</div>
 		</body>
 		</html>
-	`, logoURL, title, content)
+	`, logoURL,content)
 }
 
 func sendAuthEmail(to, subject, body string) error {
@@ -84,7 +83,7 @@ func SendWelcomeEmail(to, name string) error {
 		<p>You will receive another email once your account has been reviewed.</p>
 		<p>Best regards,<br>The iRankHub Team</p>
 	`, name)
-	body := getAuthEmailTemplate("Welcome to iRankHub", content)
+	body := getAuthEmailTemplate(content)
 	return sendAuthEmail(to, subject, body)
 }
 
@@ -97,7 +96,7 @@ func SendAdminWelcomeEmail(to, name string) error {
 		<p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
 		<p>Best regards,<br>The iRankHub Team</p>
 	`, name)
-	body := getAuthEmailTemplate("Welcome to iRankHub - Admin Account", content)
+	body := getAuthEmailTemplate(content)
 	return sendAuthEmail(to, subject, body)
 }
 
@@ -112,7 +111,7 @@ func SendPasswordResetEmail(to, resetToken string) error {
 		<p>https://irankhub.com/reset-password?token=%s</p>
 		<p>Best regards,<br>The iRankHub Team</p>
 	`, resetToken, resetToken)
-	body := getAuthEmailTemplate("Password Reset Request", content)
+	body := getAuthEmailTemplate(content)
 	return sendAuthEmail(to, subject, body)
 }
 
@@ -128,7 +127,7 @@ func SendForcedPasswordResetEmail(to, resetToken string) error {
 		<p>If you didn't attempt to log in recently, please contact our support team immediately as your account may be at risk.</p>
 		<p>Best regards,<br>The iRankHub Security Team</p>
 	`, resetToken, resetToken)
-	body := getAuthEmailTemplate("Security Alert: Forced Password Reset", content)
+	body := getAuthEmailTemplate(content)
 	return sendAuthEmail(to, subject, body)
 }
 
@@ -144,6 +143,20 @@ func SendTwoFactorOTPEmail(to, otp string) error {
 		<p>Thank you for your cooperation in keeping your account safe.</p>
 		<p>Best regards,<br>The iRankHub Security Team</p>
 	`, otp)
-	body := getAuthEmailTemplate("Security Verification Required", content)
+	body := getAuthEmailTemplate(content)
 	return sendAuthEmail(to, subject, body)
+}
+
+func SendTemporaryPasswordEmail(to, firstName, temporaryPassword string) error {
+    subject := "Welcome to iRankHub - Your Temporary Password"
+    content := fmt.Sprintf(`
+        <p>Hello, %s!</p>
+        <p>Welcome to iRankHub! Your account has been created as part of a batch import process.</p>
+        <p>Your temporary password is: <strong>%s</strong></p>
+        <p>Please log in and change your password immediately for security reasons.</p>
+        <p>If you have any questions or concerns, please contact our support team.</p>
+        <p>Best regards,<br>The iRankHub Team</p>
+    `, firstName, temporaryPassword)
+    body := getAuthEmailTemplate(content)
+    return sendAuthEmail(to, subject, body)
 }

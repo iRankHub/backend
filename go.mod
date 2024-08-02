@@ -8,6 +8,7 @@ require (
 	github.com/jackc/pgx/v5 v5.5.5
 	github.com/o1egl/paseto v1.0.0
 	github.com/pquerna/otp v1.4.0
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/viper v1.18.2
 	golang.org/x/crypto v0.24.0
 	google.golang.org/grpc v1.65.0

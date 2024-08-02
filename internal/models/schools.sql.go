@@ -218,6 +218,109 @@ func (q *Queries) GetSchoolsByDistrict(ctx context.Context, district sql.NullStr
 	return items, nil
 }
 
+const getSchoolsByLeague = `-- name: GetSchoolsByLeague :many
+SELECT s.schoolid, s.idebateschoolid, s.schoolname, s.address, s.country, s.province, s.district, s.contactpersonid, s.contactemail, s.schoolemail, s.schooltype
+FROM Schools s
+JOIN Leagues l ON l.LeagueID = $1
+WHERE
+    (l.LeagueType = 'local' AND s.District = ANY(SELECT jsonb_array_elements_text(l.Details->'districts')))
+    OR
+    (l.LeagueType = 'international' AND s.Country = ANY(SELECT jsonb_array_elements_text(l.Details->'countries')))
+`
+
+func (q *Queries) GetSchoolsByLeague(ctx context.Context, leagueid int32) ([]School, error) {
+	rows, err := q.db.QueryContext(ctx, getSchoolsByLeague, leagueid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []School{}
+	for rows.Next() {
+		var i School
+		if err := rows.Scan(
+			&i.Schoolid,
+			&i.Idebateschoolid,
+			&i.Schoolname,
+			&i.Address,
+			&i.Country,
+			&i.Province,
+			&i.District,
+			&i.Contactpersonid,
+			&i.Contactemail,
+			&i.Schoolemail,
+			&i.Schooltype,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSchoolsPaginated = `-- name: GetSchoolsPaginated :many
+SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schoolemail, schooltype
+FROM Schools
+ORDER BY SchoolID
+LIMIT $1 OFFSET $2
+`
+
+type GetSchoolsPaginatedParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+func (q *Queries) GetSchoolsPaginated(ctx context.Context, arg GetSchoolsPaginatedParams) ([]School, error) {
+	rows, err := q.db.QueryContext(ctx, getSchoolsPaginated, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []School{}
+	for rows.Next() {
+		var i School
+		if err := rows.Scan(
+			&i.Schoolid,
+			&i.Idebateschoolid,
+			&i.Schoolname,
+			&i.Address,
+			&i.Country,
+			&i.Province,
+			&i.District,
+			&i.Contactpersonid,
+			&i.Contactemail,
+			&i.Schoolemail,
+			&i.Schooltype,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTotalSchoolCount = `-- name: GetTotalSchoolCount :one
+SELECT COUNT(*) FROM Schools
+`
+
+func (q *Queries) GetTotalSchoolCount(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getTotalSchoolCount)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const updateSchool = `-- name: UpdateSchool :one
 UPDATE Schools
 SET SchoolName = $2, Address = $3, Country = $4, Province = $5, District = $6, ContactPersonID = $7, ContactEmail = $8, SchoolEmail = $9, SchoolType = $10
