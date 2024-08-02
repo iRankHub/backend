@@ -6,6 +6,7 @@ package auth;
 
 service AuthService {
   rpc SignUp(SignUpRequest) returns (SignUpResponse) {}
+  rpc BatchImportUsers(BatchImportUsersRequest) returns (BatchImportUsersResponse) {}
   rpc Login(LoginRequest) returns (LoginResponse) {}
   rpc GenerateTwoFactorOTP(GenerateTwoFactorOTPRequest) returns (GenerateTwoFactorOTPResponse) {}
   rpc VerifyTwoFactor(VerifyTwoFactorRequest) returns (LoginResponse) {}
@@ -16,6 +17,39 @@ service AuthService {
   rpc BeginWebAuthnLogin(BeginWebAuthnLoginRequest) returns (BeginWebAuthnLoginResponse) {}
   rpc FinishWebAuthnLogin(FinishWebAuthnLoginRequest) returns (FinishWebAuthnLoginResponse) {}
   rpc Logout(LogoutRequest) returns (LogoutResponse) {}
+}
+
+message BatchImportUsersRequest {
+  repeated UserData users = 1;
+}
+
+message UserData {
+  string firstName = 1;
+  string lastName = 2;
+  string email = 3;
+  string userRole = 4;
+  string dateOfBirth = 5;
+  int32 schoolID = 6;
+  string schoolName = 7;
+  string address = 8;
+  string country = 9;
+  string province = 10;
+  string district = 11;
+  string schoolType = 12;
+  string contactEmail = 13;
+  int32 graduationYear = 14;
+  string roleInterestedIn = 15;
+  bool safeguardingCertificate = 16;
+  string grade = 17;
+  bool hasInternship = 18;
+  bool isEnrolledInUniversity = 19;
+}
+
+message BatchImportUsersResponse {
+  bool success = 1;
+  string message = 2;
+  int32 importedCount = 3;
+  repeated string failedEmails = 4;
 }
 
 message SignUpRequest {

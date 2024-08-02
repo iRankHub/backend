@@ -9,6 +9,9 @@ service UserManagementService {
   rpc GetUserDetails(GetUserDetailsRequest) returns (GetUserDetailsResponse) {}
   rpc ApproveUser(ApproveUserRequest) returns (ApproveUserResponse) {}
   rpc RejectUser(RejectUserRequest) returns (RejectUserResponse) {}
+  rpc ApproveUsers(ApproveUsersRequest) returns (ApproveUsersResponse) {}
+  rpc RejectUsers(RejectUsersRequest) returns (RejectUsersResponse) {}
+  rpc DeleteUsers(DeleteUsersRequest) returns (DeleteUsersResponse) {}
   rpc UpdateUserProfile(UpdateUserProfileRequest) returns (UpdateUserProfileResponse) {}
   rpc DeleteUserProfile(DeleteUserProfileRequest) returns (DeleteUserProfileResponse) {}
   rpc DeactivateAccount(DeactivateAccountRequest) returns (DeactivateAccountResponse) {}
@@ -108,6 +111,39 @@ message RejectUserRequest {
 message RejectUserResponse {
   bool success = 1;
   string message = 2;
+}
+
+message ApproveUsersRequest {
+  string token = 1;
+  repeated int32 userIDs = 2;
+}
+
+message ApproveUsersResponse {
+  bool success = 1;
+  string message = 2;
+  repeated int32 failedUserIDs = 3;
+}
+
+message RejectUsersRequest {
+  string token = 1;
+  repeated int32 userIDs = 2;
+}
+
+message RejectUsersResponse {
+  bool success = 1;
+  string message = 2;
+  repeated int32 failedUserIDs = 3;
+}
+
+message DeleteUsersRequest {
+  string token = 1;
+  repeated int32 userIDs = 2;
+}
+
+message DeleteUsersResponse {
+  bool success = 1;
+  string message = 2;
+  repeated int32 failedUserIDs = 3;
 }
 
 message UpdateUserProfileRequest {

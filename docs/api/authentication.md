@@ -55,6 +55,59 @@ Demo Data:
 }
 ```
 
+### Batch Import Users
+
+Endpoint: `AuthService.BatchImportUsers`
+
+Description: Import multiple users at once. This endpoint is typically used by admins to bulk import user data.
+
+Demo Data:
+```json
+{
+  "users": [
+    {
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "john.doe@example.com",
+      "userRole": "student",
+      "dateOfBirth": "2005-05-15",
+      "grade": "Grade 4",
+      "schoolID": 2
+    },
+    {
+      "firstName": "Jane",
+      "lastName": "Smith",
+      "email": "jane.smith@example.com",
+      "userRole": "school",
+      "schoolName": "Springfield High",
+      "address": "KK 123 St",
+      "country": "United States of America",
+      "province": "Illinois",
+      "district": "Springfield",
+      "contactEmail": "contact@springfieldhigh.edu",
+      "schoolType": "Public"
+    },
+    {
+      "firstName": "Alex",
+      "lastName": "Johnson",
+      "email": "alex.johnson@example.com",
+      "userRole": "volunteer",
+      "dateOfBirth": "1990-08-20",
+      "roleInterestedIn": "Mentor",
+      "graduationYear": 2012,
+      "hasInternship": true,
+      "isEnrolledInUniversity": true,
+      "safeguardingCertificate": true
+    }
+  ]
+}
+```
+
+Note:
+- Passwords for imported users are automatically generated and sent to their email addresses.
+- Users are notified via email about their account creation and temporary password.
+- If any imports fail, their email addresses will be listed in the `failedEmails` array.
+
 ### Login
 
 Endpoint: `AuthService.Login`

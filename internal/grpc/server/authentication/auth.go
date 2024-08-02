@@ -20,6 +20,7 @@ type authServer struct {
 	webauthn         *webauthn.WebAuthn
 	loginService     *services.LoginService
 	signUpService    *services.SignUpService
+	importUsersService *services.ImportUsersService
 	twoFactorService *services.TwoFactorService
 	recoveryService  *services.RecoveryService
 	biometricService *services.BiometricService
@@ -42,12 +43,15 @@ func NewAuthServer(db *sql.DB) (authentication.AuthServiceServer, error) {
     biometricService := services.NewBiometricService(db, w)
     loginService := services.NewLoginService(db, twoFactorService, recoveryService)
     signUpService := services.NewSignUpService(db)
+	importUsersService := services.NewImportUsersService(signUpService)
+
 
     return &authServer{
         db:               db,
         webauthn:         w,
         loginService:     loginService,
         signUpService:    signUpService,
+		importUsersService: importUsersService,
         twoFactorService: twoFactorService,
         recoveryService:  recoveryService,
         biometricService: biometricService,
@@ -88,6 +92,17 @@ func (s *authServer) SignUp(ctx context.Context, req *authentication.SignUpReque
 	}
 
 	return &authentication.SignUpResponse{Success: true, Message: message, Status: status}, nil
+}
+
+func (s *authServer) BatchImportUsers(ctx context.Context, req *authentication.BatchImportUsersRequest) (*authentication.BatchImportUsersResponse, error) {
+    importedCount, failedEmails := s.importUsersService.BatchImportUsers(ctx, req.Users)
+
+    return &authentication.BatchImportUsersResponse{
+        Success:       importedCount > 0,
+        Message:       fmt.Sprintf("Imported %d users successfully", importedCount),
+        ImportedCount: importedCount,
+        FailedEmails:  failedEmails,
+    }, nil
 }
 
 func (s *authServer) Login(ctx context.Context, req *authentication.LoginRequest) (*authentication.LoginResponse, error) {

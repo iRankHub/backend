@@ -112,6 +112,60 @@ func (s *userManagementServer) RejectUser(ctx context.Context, req *user_managem
 	}, nil
 }
 
+func (s *userManagementServer) ApproveUsers(ctx context.Context, req *user_management.ApproveUsersRequest) (*user_management.ApproveUsersResponse, error) {
+	failedUserIDs, err := s.userManagementService.ApproveUsers(ctx, req.Token, req.UserIDs)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to approve users: %v", err)
+	}
+
+	message := "All users approved successfully"
+	if len(failedUserIDs) > 0 {
+		message = "Some users could not be approved"
+	}
+
+	return &user_management.ApproveUsersResponse{
+		Success:       len(failedUserIDs) < len(req.UserIDs),
+		Message:       message,
+		FailedUserIDs: failedUserIDs,
+	}, nil
+}
+
+func (s *userManagementServer) RejectUsers(ctx context.Context, req *user_management.RejectUsersRequest) (*user_management.RejectUsersResponse, error) {
+	failedUserIDs, err := s.userManagementService.RejectUsers(ctx, req.Token, req.UserIDs)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to reject users: %v", err)
+	}
+
+	message := "All users rejected successfully"
+	if len(failedUserIDs) > 0 {
+		message = "Some users could not be rejected"
+	}
+
+	return &user_management.RejectUsersResponse{
+		Success:       len(failedUserIDs) < len(req.UserIDs),
+		Message:       message,
+		FailedUserIDs: failedUserIDs,
+	}, nil
+}
+
+func (s *userManagementServer) DeleteUsers(ctx context.Context, req *user_management.DeleteUsersRequest) (*user_management.DeleteUsersResponse, error) {
+	failedUserIDs, err := s.userManagementService.DeleteUsers(ctx, req.Token, req.UserIDs)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to delete users: %v", err)
+	}
+
+	message := "All users deleted successfully"
+	if len(failedUserIDs) > 0 {
+		message = "Some users could not be deleted"
+	}
+
+	return &user_management.DeleteUsersResponse{
+		Success:       len(failedUserIDs) < len(req.UserIDs),
+		Message:       message,
+		FailedUserIDs: failedUserIDs,
+	}, nil
+}
+
 func (s *userManagementServer) UpdateUserProfile(ctx context.Context, req *user_management.UpdateUserProfileRequest) (*user_management.UpdateUserProfileResponse, error) {
 	err := s.userManagementService.UpdateUserProfile(ctx, req.Token, req.UserID, req.Name, req.Email, req.Address, req.Phone, req.Bio, req.ProfilePicture)
 	if err != nil {

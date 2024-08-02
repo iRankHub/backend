@@ -23,6 +23,9 @@ const (
 	UserManagementService_GetUserDetails_FullMethodName    = "/user_management.UserManagementService/GetUserDetails"
 	UserManagementService_ApproveUser_FullMethodName       = "/user_management.UserManagementService/ApproveUser"
 	UserManagementService_RejectUser_FullMethodName        = "/user_management.UserManagementService/RejectUser"
+	UserManagementService_ApproveUsers_FullMethodName      = "/user_management.UserManagementService/ApproveUsers"
+	UserManagementService_RejectUsers_FullMethodName       = "/user_management.UserManagementService/RejectUsers"
+	UserManagementService_DeleteUsers_FullMethodName       = "/user_management.UserManagementService/DeleteUsers"
 	UserManagementService_UpdateUserProfile_FullMethodName = "/user_management.UserManagementService/UpdateUserProfile"
 	UserManagementService_DeleteUserProfile_FullMethodName = "/user_management.UserManagementService/DeleteUserProfile"
 	UserManagementService_DeactivateAccount_FullMethodName = "/user_management.UserManagementService/DeactivateAccount"
@@ -42,6 +45,9 @@ type UserManagementServiceClient interface {
 	GetUserDetails(ctx context.Context, in *GetUserDetailsRequest, opts ...grpc.CallOption) (*GetUserDetailsResponse, error)
 	ApproveUser(ctx context.Context, in *ApproveUserRequest, opts ...grpc.CallOption) (*ApproveUserResponse, error)
 	RejectUser(ctx context.Context, in *RejectUserRequest, opts ...grpc.CallOption) (*RejectUserResponse, error)
+	ApproveUsers(ctx context.Context, in *ApproveUsersRequest, opts ...grpc.CallOption) (*ApproveUsersResponse, error)
+	RejectUsers(ctx context.Context, in *RejectUsersRequest, opts ...grpc.CallOption) (*RejectUsersResponse, error)
+	DeleteUsers(ctx context.Context, in *DeleteUsersRequest, opts ...grpc.CallOption) (*DeleteUsersResponse, error)
 	UpdateUserProfile(ctx context.Context, in *UpdateUserProfileRequest, opts ...grpc.CallOption) (*UpdateUserProfileResponse, error)
 	DeleteUserProfile(ctx context.Context, in *DeleteUserProfileRequest, opts ...grpc.CallOption) (*DeleteUserProfileResponse, error)
 	DeactivateAccount(ctx context.Context, in *DeactivateAccountRequest, opts ...grpc.CallOption) (*DeactivateAccountResponse, error)
@@ -95,6 +101,36 @@ func (c *userManagementServiceClient) RejectUser(ctx context.Context, in *Reject
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RejectUserResponse)
 	err := c.cc.Invoke(ctx, UserManagementService_RejectUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userManagementServiceClient) ApproveUsers(ctx context.Context, in *ApproveUsersRequest, opts ...grpc.CallOption) (*ApproveUsersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ApproveUsersResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_ApproveUsers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userManagementServiceClient) RejectUsers(ctx context.Context, in *RejectUsersRequest, opts ...grpc.CallOption) (*RejectUsersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RejectUsersResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_RejectUsers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userManagementServiceClient) DeleteUsers(ctx context.Context, in *DeleteUsersRequest, opts ...grpc.CallOption) (*DeleteUsersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteUsersResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_DeleteUsers_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -199,6 +235,9 @@ type UserManagementServiceServer interface {
 	GetUserDetails(context.Context, *GetUserDetailsRequest) (*GetUserDetailsResponse, error)
 	ApproveUser(context.Context, *ApproveUserRequest) (*ApproveUserResponse, error)
 	RejectUser(context.Context, *RejectUserRequest) (*RejectUserResponse, error)
+	ApproveUsers(context.Context, *ApproveUsersRequest) (*ApproveUsersResponse, error)
+	RejectUsers(context.Context, *RejectUsersRequest) (*RejectUsersResponse, error)
+	DeleteUsers(context.Context, *DeleteUsersRequest) (*DeleteUsersResponse, error)
 	UpdateUserProfile(context.Context, *UpdateUserProfileRequest) (*UpdateUserProfileResponse, error)
 	DeleteUserProfile(context.Context, *DeleteUserProfileRequest) (*DeleteUserProfileResponse, error)
 	DeactivateAccount(context.Context, *DeactivateAccountRequest) (*DeactivateAccountResponse, error)
@@ -226,6 +265,15 @@ func (UnimplementedUserManagementServiceServer) ApproveUser(context.Context, *Ap
 }
 func (UnimplementedUserManagementServiceServer) RejectUser(context.Context, *RejectUserRequest) (*RejectUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RejectUser not implemented")
+}
+func (UnimplementedUserManagementServiceServer) ApproveUsers(context.Context, *ApproveUsersRequest) (*ApproveUsersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ApproveUsers not implemented")
+}
+func (UnimplementedUserManagementServiceServer) RejectUsers(context.Context, *RejectUsersRequest) (*RejectUsersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RejectUsers not implemented")
+}
+func (UnimplementedUserManagementServiceServer) DeleteUsers(context.Context, *DeleteUsersRequest) (*DeleteUsersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteUsers not implemented")
 }
 func (UnimplementedUserManagementServiceServer) UpdateUserProfile(context.Context, *UpdateUserProfileRequest) (*UpdateUserProfileResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateUserProfile not implemented")
@@ -335,6 +383,60 @@ func _UserManagementService_RejectUser_Handler(srv interface{}, ctx context.Cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(UserManagementServiceServer).RejectUser(ctx, req.(*RejectUserRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserManagementService_ApproveUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ApproveUsersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).ApproveUsers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_ApproveUsers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).ApproveUsers(ctx, req.(*ApproveUsersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserManagementService_RejectUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RejectUsersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).RejectUsers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_RejectUsers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).RejectUsers(ctx, req.(*RejectUsersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserManagementService_DeleteUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteUsersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).DeleteUsers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_DeleteUsers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).DeleteUsers(ctx, req.(*DeleteUsersRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -523,6 +625,18 @@ var UserManagementService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RejectUser",
 			Handler:    _UserManagementService_RejectUser_Handler,
+		},
+		{
+			MethodName: "ApproveUsers",
+			Handler:    _UserManagementService_ApproveUsers_Handler,
+		},
+		{
+			MethodName: "RejectUsers",
+			Handler:    _UserManagementService_RejectUsers_Handler,
+		},
+		{
+			MethodName: "DeleteUsers",
+			Handler:    _UserManagementService_DeleteUsers_Handler,
 		},
 		{
 			MethodName: "UpdateUserProfile",

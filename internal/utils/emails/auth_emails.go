@@ -146,3 +146,17 @@ func SendTwoFactorOTPEmail(to, otp string) error {
 	body := getAuthEmailTemplate(content)
 	return sendAuthEmail(to, subject, body)
 }
+
+func SendTemporaryPasswordEmail(to, firstName, temporaryPassword string) error {
+    subject := "Welcome to iRankHub - Your Temporary Password"
+    content := fmt.Sprintf(`
+        <p>Hello, %s!</p>
+        <p>Welcome to iRankHub! Your account has been created as part of a batch import process.</p>
+        <p>Your temporary password is: <strong>%s</strong></p>
+        <p>Please log in and change your password immediately for security reasons.</p>
+        <p>If you have any questions or concerns, please contact our support team.</p>
+        <p>Best regards,<br>The iRankHub Team</p>
+    `, firstName, temporaryPassword)
+    body := getAuthEmailTemplate(content)
+    return sendAuthEmail(to, subject, body)
+}
