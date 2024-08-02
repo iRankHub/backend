@@ -49,6 +49,8 @@ Demo Data:
   "dateOfBirth": "1990-08-20",
   "roleInterestedIn": "Mentor",
   "graduationYear": 2012,
+  "hasInternship": true,
+  "isEnrolledInUniversity": true,
   "safeguardingCertificate": true
 }
 ```

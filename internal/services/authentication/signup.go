@@ -237,16 +237,22 @@ func (s *SignUpService) createVolunteerRecord(ctx context.Context, queries *mode
 		return fmt.Errorf("internship information is missing or invalid")
 	}
 
-	_, err = queries.CreateVolunteer(ctx, models.CreateVolunteerParams{
-		Firstname:              firstName,
-		Lastname:               lastName,
-		Dateofbirth:            sql.NullTime{Time: dateOfBirth, Valid: true},
-		Role:                   roleInterestedIn,
-		Graduateyear:           sql.NullInt32{Int32: graduationYear, Valid: true},
-		Password:               hashedPassword,
-		Safeguardcertificate:   sql.NullBool{Bool: safeguardingCertificate, Valid: true},
-		Hasinternship:          sql.NullBool{Bool: hasInternship, Valid: true},
-		Userid:                 userID,
-	})
-	return err
+    isEnrolledInUniversity, ok := additionalInfo["isEnrolledInUniversity"].(bool)
+    if !ok {
+        return fmt.Errorf("university enrollment information is missing or invalid")
+    }
+
+    _, err = queries.CreateVolunteer(ctx, models.CreateVolunteerParams{
+        Firstname:              firstName,
+        Lastname:               lastName,
+        Dateofbirth:            sql.NullTime{Time: dateOfBirth, Valid: true},
+        Role:                   roleInterestedIn,
+        Graduateyear:           sql.NullInt32{Int32: graduationYear, Valid: true},
+        Password:               hashedPassword,
+        Safeguardcertificate:   sql.NullBool{Bool: safeguardingCertificate, Valid: true},
+        Hasinternship:          sql.NullBool{Bool: hasInternship, Valid: true},
+        Userid:                 userID,
+        Isenrolledinuniversity: sql.NullBool{Bool: isEnrolledInUniversity, Valid: true},
+    })
+    return err
 }

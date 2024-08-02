@@ -17,14 +17,15 @@ SELECT COUNT(*) FROM Volunteers;
 -- name: CreateVolunteer :one
 INSERT INTO Volunteers (
   FirstName, LastName, DateOfBirth, Role, GraduateYear,
-  Password, SafeGuardCertificate, HasInternship, UserID
+  Password, SafeGuardCertificate, HasInternship, UserID, IsEnrolledInUniversity
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING *;
 
 -- name: UpdateVolunteer :one
 UPDATE Volunteers
-SET FirstName = $2, LastName = $3, DateOfBirth = $4, Role = $5, GraduateYear = $6, Password = $7, SafeGuardCertificate = $8
+SET FirstName = $2, LastName = $3, DateOfBirth = $4, Role = $5, GraduateYear = $6,
+    Password = $7, SafeGuardCertificate = $8, hasinternship = $9, IsEnrolledInUniversity = $10
 WHERE VolunteerID = $1
 RETURNING *;
 

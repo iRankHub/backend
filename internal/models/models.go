@@ -267,17 +267,18 @@ type Userprofile struct {
 }
 
 type Volunteer struct {
-	Volunteerid          int32          `json:"volunteerid"`
-	Idebatevolunteerid   sql.NullString `json:"idebatevolunteerid"`
-	Firstname            string         `json:"firstname"`
-	Lastname             string         `json:"lastname"`
-	Dateofbirth          sql.NullTime   `json:"dateofbirth"`
-	Role                 string         `json:"role"`
-	Graduateyear         sql.NullInt32  `json:"graduateyear"`
-	Password             string         `json:"password"`
-	Safeguardcertificate sql.NullBool   `json:"safeguardcertificate"`
-	Hasinternship        sql.NullBool   `json:"hasinternship"`
-	Userid               int32          `json:"userid"`
+	Volunteerid            int32          `json:"volunteerid"`
+	Idebatevolunteerid     sql.NullString `json:"idebatevolunteerid"`
+	Firstname              string         `json:"firstname"`
+	Lastname               string         `json:"lastname"`
+	Dateofbirth            sql.NullTime   `json:"dateofbirth"`
+	Role                   string         `json:"role"`
+	Graduateyear           sql.NullInt32  `json:"graduateyear"`
+	Password               string         `json:"password"`
+	Safeguardcertificate   sql.NullBool   `json:"safeguardcertificate"`
+	Hasinternship          sql.NullBool   `json:"hasinternship"`
+	Isenrolledinuniversity sql.NullBool   `json:"isenrolledinuniversity"`
+	Userid                 int32          `json:"userid"`
 }
 
 type Volunteerrating struct {

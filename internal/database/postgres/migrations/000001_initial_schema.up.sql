@@ -159,6 +159,7 @@ CREATE TABLE Volunteers (
    Password VARCHAR(255) NOT NULL,
    SafeGuardCertificate BOOLEAN DEFAULT FALSE,
    HasInternship BOOLEAN DEFAULT FALSE,
+   IsEnrolledInUniversity BOOLEAN DEFAULT FALSE,
    UserID INTEGER NOT NULL REFERENCES Users(UserID)
 );
 
