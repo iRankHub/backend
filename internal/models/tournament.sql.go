@@ -239,6 +239,41 @@ func (q *Queries) GetActiveTournaments(ctx context.Context) ([]Tournament, error
 	return items, nil
 }
 
+const getAllInvitations = `-- name: GetAllInvitations :many
+SELECT invitationid, tournamentid, status
+FROM tournamentinvitations
+ORDER BY invitationid
+`
+
+type GetAllInvitationsRow struct {
+	Invitationid int32  `json:"invitationid"`
+	Tournamentid int32  `json:"tournamentid"`
+	Status       string `json:"status"`
+}
+
+func (q *Queries) GetAllInvitations(ctx context.Context) ([]GetAllInvitationsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAllInvitations)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetAllInvitationsRow{}
+	for rows.Next() {
+		var i GetAllInvitationsRow
+		if err := rows.Scan(&i.Invitationid, &i.Tournamentid, &i.Status); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getInvitationByID = `-- name: GetInvitationByID :one
 SELECT invitationid, tournamentid, schoolid, volunteerid, studentid, userid, status, invitedat, remindersentat, respondedat FROM TournamentInvitations
 WHERE InvitationID = $1
@@ -263,46 +298,16 @@ func (q *Queries) GetInvitationByID(ctx context.Context, invitationid int32) (To
 }
 
 const getInvitationStatus = `-- name: GetInvitationStatus :one
-SELECT i.invitationid, i.tournamentid, i.schoolid, i.volunteerid, i.studentid, i.userid, i.status, i.invitedat, i.remindersentat, i.respondedat,
-       json_agg(json_build_object('team_id', t.TeamID, 'team_name', t.Name, 'number_of_speakers', COUNT(tm.StudentID))) as registered_teams
-FROM TournamentInvitations i
-LEFT JOIN Teams t ON i.InvitationID = t.InvitationID
-LEFT JOIN TeamMembers tm ON t.TeamID = tm.TeamID
-WHERE i.InvitationID = $1
-GROUP BY i.InvitationID
+SELECT status
+FROM tournamentinvitations
+WHERE invitationid = $1
 `
 
-type GetInvitationStatusRow struct {
-	Invitationid    int32           `json:"invitationid"`
-	Tournamentid    int32           `json:"tournamentid"`
-	Schoolid        sql.NullInt32   `json:"schoolid"`
-	Volunteerid     sql.NullInt32   `json:"volunteerid"`
-	Studentid       sql.NullInt32   `json:"studentid"`
-	Userid          sql.NullInt32   `json:"userid"`
-	Status          string          `json:"status"`
-	Invitedat       time.Time       `json:"invitedat"`
-	Remindersentat  sql.NullTime    `json:"remindersentat"`
-	Respondedat     sql.NullTime    `json:"respondedat"`
-	RegisteredTeams json.RawMessage `json:"registered_teams"`
-}
-
-func (q *Queries) GetInvitationStatus(ctx context.Context, invitationid int32) (GetInvitationStatusRow, error) {
+func (q *Queries) GetInvitationStatus(ctx context.Context, invitationid int32) (string, error) {
 	row := q.db.QueryRowContext(ctx, getInvitationStatus, invitationid)
-	var i GetInvitationStatusRow
-	err := row.Scan(
-		&i.Invitationid,
-		&i.Tournamentid,
-		&i.Schoolid,
-		&i.Volunteerid,
-		&i.Studentid,
-		&i.Userid,
-		&i.Status,
-		&i.Invitedat,
-		&i.Remindersentat,
-		&i.Respondedat,
-		&i.RegisteredTeams,
-	)
-	return i, err
+	var status string
+	err := row.Scan(&status)
+	return status, err
 }
 
 const getInvitationsByUserID = `-- name: GetInvitationsByUserID :many

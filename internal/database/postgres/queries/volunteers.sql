@@ -2,6 +2,10 @@
 SELECT * FROM Volunteers
 WHERE VolunteerID = $1;
 
+-- name: GetVolunteerByUserID :one
+SELECT * FROM volunteers
+WHERE UserID = $1 LIMIT 1;
+
 -- name: GetAllVolunteers :many
 SELECT * FROM Volunteers;
 

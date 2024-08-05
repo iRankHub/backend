@@ -107,6 +107,11 @@ WHERE InvitationID = $1;
 SELECT * FROM TournamentInvitations
 WHERE UserID = $1;
 
+-- name: GetAllInvitations :many
+SELECT invitationid, tournamentid, status
+FROM tournamentinvitations
+ORDER BY invitationid;
+
 -- name: UpdateInvitationStatus :exec
 UPDATE TournamentInvitations
 SET Status = $2, RespondedAt = CURRENT_TIMESTAMP
@@ -140,13 +145,9 @@ INSERT INTO TeamMembers (TeamID, StudentID)
 VALUES ($1, $2);
 
 -- name: GetInvitationStatus :one
-SELECT i.*,
-       json_agg(json_build_object('team_id', t.TeamID, 'team_name', t.Name, 'number_of_speakers', COUNT(tm.StudentID))) as registered_teams
-FROM TournamentInvitations i
-LEFT JOIN Teams t ON i.InvitationID = t.InvitationID
-LEFT JOIN TeamMembers tm ON t.TeamID = tm.TeamID
-WHERE i.InvitationID = $1
-GROUP BY i.InvitationID;
+SELECT status
+FROM tournamentinvitations
+WHERE invitationid = $1;
 
 -- name: GetTeamsByInvitation :many
 SELECT t.*, COUNT(tm.StudentID) as number_of_speakers

@@ -36,11 +36,13 @@ const (
 	TournamentService_DeleteTournament_FullMethodName       = "/tournament_management.TournamentService/DeleteTournament"
 	TournamentService_AcceptInvitation_FullMethodName       = "/tournament_management.TournamentService/AcceptInvitation"
 	TournamentService_DeclineInvitation_FullMethodName      = "/tournament_management.TournamentService/DeclineInvitation"
-	TournamentService_RegisterTeam_FullMethodName           = "/tournament_management.TournamentService/RegisterTeam"
-	TournamentService_AddTeamMember_FullMethodName          = "/tournament_management.TournamentService/AddTeamMember"
 	TournamentService_GetInvitationStatus_FullMethodName    = "/tournament_management.TournamentService/GetInvitationStatus"
 	TournamentService_ResendInvitation_FullMethodName       = "/tournament_management.TournamentService/ResendInvitation"
 	TournamentService_GetInvitationsByUser_FullMethodName   = "/tournament_management.TournamentService/GetInvitationsByUser"
+	TournamentService_BulkAcceptInvitations_FullMethodName  = "/tournament_management.TournamentService/BulkAcceptInvitations"
+	TournamentService_BulkDeclineInvitations_FullMethodName = "/tournament_management.TournamentService/BulkDeclineInvitations"
+	TournamentService_GetAllInvitations_FullMethodName      = "/tournament_management.TournamentService/GetAllInvitations"
+	TournamentService_BulkResendInvitations_FullMethodName  = "/tournament_management.TournamentService/BulkResendInvitations"
 )
 
 // TournamentServiceClient is the client API for TournamentService service.
@@ -68,11 +70,13 @@ type TournamentServiceClient interface {
 	// Invitation operations
 	AcceptInvitation(ctx context.Context, in *AcceptInvitationRequest, opts ...grpc.CallOption) (*AcceptInvitationResponse, error)
 	DeclineInvitation(ctx context.Context, in *DeclineInvitationRequest, opts ...grpc.CallOption) (*DeclineInvitationResponse, error)
-	RegisterTeam(ctx context.Context, in *RegisterTeamRequest, opts ...grpc.CallOption) (*RegisterTeamResponse, error)
-	AddTeamMember(ctx context.Context, in *AddTeamMemberRequest, opts ...grpc.CallOption) (*AddTeamMemberResponse, error)
 	GetInvitationStatus(ctx context.Context, in *GetInvitationStatusRequest, opts ...grpc.CallOption) (*GetInvitationStatusResponse, error)
 	ResendInvitation(ctx context.Context, in *ResendInvitationRequest, opts ...grpc.CallOption) (*ResendInvitationResponse, error)
 	GetInvitationsByUser(ctx context.Context, in *GetInvitationsByUserRequest, opts ...grpc.CallOption) (*GetInvitationsByUserResponse, error)
+	BulkAcceptInvitations(ctx context.Context, in *BulkAcceptInvitationsRequest, opts ...grpc.CallOption) (*BulkAcceptInvitationsResponse, error)
+	BulkDeclineInvitations(ctx context.Context, in *BulkDeclineInvitationsRequest, opts ...grpc.CallOption) (*BulkDeclineInvitationsResponse, error)
+	GetAllInvitations(ctx context.Context, in *GetAllInvitationsRequest, opts ...grpc.CallOption) (*GetAllInvitationsResponse, error)
+	BulkResendInvitations(ctx context.Context, in *BulkResendInvitationsRequest, opts ...grpc.CallOption) (*BulkResendInvitationsResponse, error)
 }
 
 type tournamentServiceClient struct {
@@ -253,26 +257,6 @@ func (c *tournamentServiceClient) DeclineInvitation(ctx context.Context, in *Dec
 	return out, nil
 }
 
-func (c *tournamentServiceClient) RegisterTeam(ctx context.Context, in *RegisterTeamRequest, opts ...grpc.CallOption) (*RegisterTeamResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RegisterTeamResponse)
-	err := c.cc.Invoke(ctx, TournamentService_RegisterTeam_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *tournamentServiceClient) AddTeamMember(ctx context.Context, in *AddTeamMemberRequest, opts ...grpc.CallOption) (*AddTeamMemberResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(AddTeamMemberResponse)
-	err := c.cc.Invoke(ctx, TournamentService_AddTeamMember_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *tournamentServiceClient) GetInvitationStatus(ctx context.Context, in *GetInvitationStatusRequest, opts ...grpc.CallOption) (*GetInvitationStatusResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetInvitationStatusResponse)
@@ -297,6 +281,46 @@ func (c *tournamentServiceClient) GetInvitationsByUser(ctx context.Context, in *
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetInvitationsByUserResponse)
 	err := c.cc.Invoke(ctx, TournamentService_GetInvitationsByUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tournamentServiceClient) BulkAcceptInvitations(ctx context.Context, in *BulkAcceptInvitationsRequest, opts ...grpc.CallOption) (*BulkAcceptInvitationsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BulkAcceptInvitationsResponse)
+	err := c.cc.Invoke(ctx, TournamentService_BulkAcceptInvitations_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tournamentServiceClient) BulkDeclineInvitations(ctx context.Context, in *BulkDeclineInvitationsRequest, opts ...grpc.CallOption) (*BulkDeclineInvitationsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BulkDeclineInvitationsResponse)
+	err := c.cc.Invoke(ctx, TournamentService_BulkDeclineInvitations_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tournamentServiceClient) GetAllInvitations(ctx context.Context, in *GetAllInvitationsRequest, opts ...grpc.CallOption) (*GetAllInvitationsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAllInvitationsResponse)
+	err := c.cc.Invoke(ctx, TournamentService_GetAllInvitations_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tournamentServiceClient) BulkResendInvitations(ctx context.Context, in *BulkResendInvitationsRequest, opts ...grpc.CallOption) (*BulkResendInvitationsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BulkResendInvitationsResponse)
+	err := c.cc.Invoke(ctx, TournamentService_BulkResendInvitations_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -328,11 +352,13 @@ type TournamentServiceServer interface {
 	// Invitation operations
 	AcceptInvitation(context.Context, *AcceptInvitationRequest) (*AcceptInvitationResponse, error)
 	DeclineInvitation(context.Context, *DeclineInvitationRequest) (*DeclineInvitationResponse, error)
-	RegisterTeam(context.Context, *RegisterTeamRequest) (*RegisterTeamResponse, error)
-	AddTeamMember(context.Context, *AddTeamMemberRequest) (*AddTeamMemberResponse, error)
 	GetInvitationStatus(context.Context, *GetInvitationStatusRequest) (*GetInvitationStatusResponse, error)
 	ResendInvitation(context.Context, *ResendInvitationRequest) (*ResendInvitationResponse, error)
 	GetInvitationsByUser(context.Context, *GetInvitationsByUserRequest) (*GetInvitationsByUserResponse, error)
+	BulkAcceptInvitations(context.Context, *BulkAcceptInvitationsRequest) (*BulkAcceptInvitationsResponse, error)
+	BulkDeclineInvitations(context.Context, *BulkDeclineInvitationsRequest) (*BulkDeclineInvitationsResponse, error)
+	GetAllInvitations(context.Context, *GetAllInvitationsRequest) (*GetAllInvitationsResponse, error)
+	BulkResendInvitations(context.Context, *BulkResendInvitationsRequest) (*BulkResendInvitationsResponse, error)
 	mustEmbedUnimplementedTournamentServiceServer()
 }
 
@@ -391,12 +417,6 @@ func (UnimplementedTournamentServiceServer) AcceptInvitation(context.Context, *A
 func (UnimplementedTournamentServiceServer) DeclineInvitation(context.Context, *DeclineInvitationRequest) (*DeclineInvitationResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeclineInvitation not implemented")
 }
-func (UnimplementedTournamentServiceServer) RegisterTeam(context.Context, *RegisterTeamRequest) (*RegisterTeamResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RegisterTeam not implemented")
-}
-func (UnimplementedTournamentServiceServer) AddTeamMember(context.Context, *AddTeamMemberRequest) (*AddTeamMemberResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddTeamMember not implemented")
-}
 func (UnimplementedTournamentServiceServer) GetInvitationStatus(context.Context, *GetInvitationStatusRequest) (*GetInvitationStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetInvitationStatus not implemented")
 }
@@ -405,6 +425,18 @@ func (UnimplementedTournamentServiceServer) ResendInvitation(context.Context, *R
 }
 func (UnimplementedTournamentServiceServer) GetInvitationsByUser(context.Context, *GetInvitationsByUserRequest) (*GetInvitationsByUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetInvitationsByUser not implemented")
+}
+func (UnimplementedTournamentServiceServer) BulkAcceptInvitations(context.Context, *BulkAcceptInvitationsRequest) (*BulkAcceptInvitationsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BulkAcceptInvitations not implemented")
+}
+func (UnimplementedTournamentServiceServer) BulkDeclineInvitations(context.Context, *BulkDeclineInvitationsRequest) (*BulkDeclineInvitationsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BulkDeclineInvitations not implemented")
+}
+func (UnimplementedTournamentServiceServer) GetAllInvitations(context.Context, *GetAllInvitationsRequest) (*GetAllInvitationsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAllInvitations not implemented")
+}
+func (UnimplementedTournamentServiceServer) BulkResendInvitations(context.Context, *BulkResendInvitationsRequest) (*BulkResendInvitationsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BulkResendInvitations not implemented")
 }
 func (UnimplementedTournamentServiceServer) mustEmbedUnimplementedTournamentServiceServer() {}
 
@@ -725,42 +757,6 @@ func _TournamentService_DeclineInvitation_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
-func _TournamentService_RegisterTeam_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RegisterTeamRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(TournamentServiceServer).RegisterTeam(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: TournamentService_RegisterTeam_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TournamentServiceServer).RegisterTeam(ctx, req.(*RegisterTeamRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _TournamentService_AddTeamMember_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AddTeamMemberRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(TournamentServiceServer).AddTeamMember(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: TournamentService_AddTeamMember_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TournamentServiceServer).AddTeamMember(ctx, req.(*AddTeamMemberRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _TournamentService_GetInvitationStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetInvitationStatusRequest)
 	if err := dec(in); err != nil {
@@ -811,6 +807,78 @@ func _TournamentService_GetInvitationsByUser_Handler(srv interface{}, ctx contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TournamentServiceServer).GetInvitationsByUser(ctx, req.(*GetInvitationsByUserRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TournamentService_BulkAcceptInvitations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BulkAcceptInvitationsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TournamentServiceServer).BulkAcceptInvitations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TournamentService_BulkAcceptInvitations_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TournamentServiceServer).BulkAcceptInvitations(ctx, req.(*BulkAcceptInvitationsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TournamentService_BulkDeclineInvitations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BulkDeclineInvitationsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TournamentServiceServer).BulkDeclineInvitations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TournamentService_BulkDeclineInvitations_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TournamentServiceServer).BulkDeclineInvitations(ctx, req.(*BulkDeclineInvitationsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TournamentService_GetAllInvitations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAllInvitationsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TournamentServiceServer).GetAllInvitations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TournamentService_GetAllInvitations_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TournamentServiceServer).GetAllInvitations(ctx, req.(*GetAllInvitationsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TournamentService_BulkResendInvitations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BulkResendInvitationsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TournamentServiceServer).BulkResendInvitations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TournamentService_BulkResendInvitations_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TournamentServiceServer).BulkResendInvitations(ctx, req.(*BulkResendInvitationsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -891,14 +959,6 @@ var TournamentService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _TournamentService_DeclineInvitation_Handler,
 		},
 		{
-			MethodName: "RegisterTeam",
-			Handler:    _TournamentService_RegisterTeam_Handler,
-		},
-		{
-			MethodName: "AddTeamMember",
-			Handler:    _TournamentService_AddTeamMember_Handler,
-		},
-		{
 			MethodName: "GetInvitationStatus",
 			Handler:    _TournamentService_GetInvitationStatus_Handler,
 		},
@@ -909,6 +969,22 @@ var TournamentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetInvitationsByUser",
 			Handler:    _TournamentService_GetInvitationsByUser_Handler,
+		},
+		{
+			MethodName: "BulkAcceptInvitations",
+			Handler:    _TournamentService_BulkAcceptInvitations_Handler,
+		},
+		{
+			MethodName: "BulkDeclineInvitations",
+			Handler:    _TournamentService_BulkDeclineInvitations_Handler,
+		},
+		{
+			MethodName: "GetAllInvitations",
+			Handler:    _TournamentService_GetAllInvitations_Handler,
+		},
+		{
+			MethodName: "BulkResendInvitations",
+			Handler:    _TournamentService_BulkResendInvitations_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
