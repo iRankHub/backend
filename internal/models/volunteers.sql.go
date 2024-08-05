@@ -149,6 +149,31 @@ func (q *Queries) GetVolunteerByID(ctx context.Context, volunteerid int32) (Volu
 	return i, err
 }
 
+const getVolunteerByUserID = `-- name: GetVolunteerByUserID :one
+SELECT volunteerid, idebatevolunteerid, firstname, lastname, dateofbirth, role, graduateyear, password, safeguardcertificate, hasinternship, isenrolledinuniversity, userid FROM volunteers
+WHERE UserID = $1 LIMIT 1
+`
+
+func (q *Queries) GetVolunteerByUserID(ctx context.Context, userid int32) (Volunteer, error) {
+	row := q.db.QueryRowContext(ctx, getVolunteerByUserID, userid)
+	var i Volunteer
+	err := row.Scan(
+		&i.Volunteerid,
+		&i.Idebatevolunteerid,
+		&i.Firstname,
+		&i.Lastname,
+		&i.Dateofbirth,
+		&i.Role,
+		&i.Graduateyear,
+		&i.Password,
+		&i.Safeguardcertificate,
+		&i.Hasinternship,
+		&i.Isenrolledinuniversity,
+		&i.Userid,
+	)
+	return i, err
+}
+
 const getVolunteersPaginated = `-- name: GetVolunteersPaginated :many
 SELECT volunteerid, idebatevolunteerid, firstname, lastname, dateofbirth, role, graduateyear, password, safeguardcertificate, hasinternship, isenrolledinuniversity, userid
 FROM Volunteers

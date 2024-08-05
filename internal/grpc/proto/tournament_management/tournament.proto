@@ -27,6 +27,17 @@ service TournamentService {
   rpc ListTournaments(ListTournamentsRequest) returns (ListTournamentsResponse);
   rpc UpdateTournament(UpdateTournamentRequest) returns (UpdateTournamentResponse);
   rpc DeleteTournament(DeleteTournamentRequest) returns (DeleteTournamentResponse);
+
+  // Invitation operations
+  rpc AcceptInvitation(AcceptInvitationRequest) returns (AcceptInvitationResponse);
+  rpc DeclineInvitation(DeclineInvitationRequest) returns (DeclineInvitationResponse);
+  rpc GetInvitationStatus(GetInvitationStatusRequest) returns (GetInvitationStatusResponse);
+  rpc ResendInvitation(ResendInvitationRequest) returns (ResendInvitationResponse);
+  rpc GetInvitationsByUser(GetInvitationsByUserRequest) returns (GetInvitationsByUserResponse);
+  rpc BulkAcceptInvitations(BulkAcceptInvitationsRequest) returns (BulkAcceptInvitationsResponse);
+  rpc BulkDeclineInvitations(BulkDeclineInvitationsRequest) returns (BulkDeclineInvitationsResponse);
+  rpc GetAllInvitations(GetAllInvitationsRequest) returns (GetAllInvitationsResponse);
+  rpc BulkResendInvitations(BulkResendInvitationsRequest) returns (BulkResendInvitationsResponse);
 }
 
 // Enum definitions
@@ -260,4 +271,95 @@ message UpdateTournamentResponse {
 message DeleteTournamentResponse {
   bool success = 1;
   string message = 2;
+}
+
+message AcceptInvitationRequest {
+  int32 invitation_id = 1;
+  string token = 2;
+}
+
+message AcceptInvitationResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message DeclineInvitationRequest {
+  int32 invitation_id = 1;
+  string token = 2;
+}
+
+message DeclineInvitationResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetInvitationStatusRequest {
+  int32 invitation_id = 1;
+  string token = 2;
+}
+
+message GetInvitationStatusResponse {
+  string status = 1;
+}
+
+message ResendInvitationRequest {
+  int32 invitation_id = 1;
+  string token = 2;
+}
+
+message ResendInvitationResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message BulkResendInvitationsRequest {
+  repeated int32 invitation_ids = 1;
+  string token = 2;
+}
+
+message BulkResendInvitationsResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetInvitationsByUserRequest {
+  string token = 1;
+}
+
+message Invitation {
+  int32 invitation_id = 1;
+  int32 tournament_id = 2;
+  string status = 3;
+}
+
+message GetInvitationsByUserResponse {
+  repeated Invitation invitations = 1;
+}
+
+message BulkAcceptInvitationsRequest {
+  repeated int32 invitation_ids = 1;
+  string token = 2;
+}
+
+message BulkAcceptInvitationsResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message BulkDeclineInvitationsRequest {
+  repeated int32 invitation_ids = 1;
+  string token = 2;
+}
+
+message BulkDeclineInvitationsResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetAllInvitationsRequest {
+  string token = 1;
+}
+
+message GetAllInvitationsResponse {
+  repeated Invitation invitations = 1;
 }

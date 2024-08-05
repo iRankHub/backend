@@ -161,6 +161,7 @@ Request:
   "location": "City Convention Center",
   "format_id": 1,
   "league_id": 1,
+  "coordinator_id": 1,
   "number_of_preliminary_rounds": 4,
   "number_of_elimination_rounds": 2,
   "judges_per_debate_preliminary": 3,
@@ -236,7 +237,7 @@ Request:
 
 ### AcceptInvitation
 
-Endpoint: `InvitationService.AcceptInvitation`
+Endpoint: `TournamentService.AcceptInvitation`
 
 Request:
 ```json
@@ -248,50 +249,87 @@ Request:
 
 ### DeclineInvitation
 
-Endpoint: `InvitationService.DeclineInvitation`
+Endpoint: `TournamentService.DeclineInvitation`
 
 Request:
 ```json
 {
   "invitation_id": 1,
-  "token": "your_auth_token_here"
-}
-```
-
-### RegisterTeam
-
-Endpoint: `InvitationService.RegisterTeam`
-
-Request:
-```json
-{
-  "invitation_id": 1,
-  "team_name": "Debate Masters",
-  "token": "your_auth_token_here"
-}
-```
-
-### AddTeamMember
-
-Endpoint: `InvitationService.AddTeamMember`
-
-Request:
-```json
-{
-  "team_id": 1,
-  "student_id": 101,
   "token": "your_auth_token_here"
 }
 ```
 
 ### GetInvitationStatus
 
-Endpoint: `InvitationService.GetInvitationStatus`
+Endpoint: `TournamentService.GetInvitationStatus`
 
 Request:
 ```json
 {
   "invitation_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+### GetInvitationStatus
+
+Endpoint: `TournamentService.GetInvitationStatus`
+
+Request:
+```json
+{
+  "invitation_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+### BulkAcceptInvitations
+
+Endpoint: `TournamentService.BulkAcceptInvitations`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "invitation_ids": [1, 2, 3],
+  "token": "your_auth_token_here"
+}
+```
+
+### BulkDeclineInvitations
+
+Endpoint: `TournamentService.BulkDeclineInvitations`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "invitation_ids": [4, 5, 6],
+  "token": "your_auth_token_here"
+}
+```
+
+### GetAllInvitations
+
+Endpoint: `TournamentService.GetAllInvitations`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "token": "your_auth_token_here"
+}
+```
+
+### BulkResendInvitations
+
+Endpoint: `TournamentService.BulkResendInvitations`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "invitation_ids": [1, 2, 3],
   "token": "your_auth_token_here"
 }
 ```
@@ -331,13 +369,18 @@ To test the tournament management and invitation features, including leagues, fo
    e. Invitation Management:
    - Use `AcceptInvitation` to accept an invitation for a school or volunteer.
    - Use `DeclineInvitation` to decline an invitation.
-   - Use `RegisterTeam` to register a team for an accepted school invitation.
-   - Use `AddTeamMember` to add a student to a registered team.
    - Use `GetInvitationStatus` to check the status of an invitation and its registered teams.
 
    f. Tournament Deletion:
    - Use `DeleteTournament` to remove a tournament.
    - Attempt to `GetTournament` for the deleted tournament (should fail).
+
+   g. Bulk Invitation Management:
+   - Use `BulkAcceptInvitations` to accept multiple invitations at once.
+   - Use `BulkDeclineInvitations` to decline multiple invitations at once.
+   - Use `BulkResendInvitations` to resend multiple invitations at once.
+   - Use `GetAllInvitations` to retrieve all invitations in the system.
+   - Verify the changes using `GetInvitationStatus` for individual invitations.
 
 4. For each test, verify that the appropriate email notifications are sent (tournament creation confirmation, invitations, reminders).
 

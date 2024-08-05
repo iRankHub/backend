@@ -95,18 +95,32 @@ SET deleted_at = CURRENT_TIMESTAMP
 WHERE TournamentID = $1;
 
 -- name: CreateInvitation :one
-INSERT INTO TournamentInvitations (TournamentID, SchoolID, VolunteerID, StudentID, Status)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO TournamentInvitations (TournamentID, SchoolID, VolunteerID, StudentID, UserID, Status)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
 -- name: GetInvitationByID :one
 SELECT * FROM TournamentInvitations
 WHERE InvitationID = $1;
 
+-- name: GetInvitationsByUserID :many
+SELECT * FROM TournamentInvitations
+WHERE UserID = $1;
+
+-- name: GetAllInvitations :many
+SELECT invitationid, tournamentid, status
+FROM tournamentinvitations
+ORDER BY invitationid;
+
 -- name: UpdateInvitationStatus :exec
 UPDATE TournamentInvitations
 SET Status = $2, RespondedAt = CURRENT_TIMESTAMP
 WHERE InvitationID = $1;
+
+-- name: UpdateInvitationStatusWithUserCheck :exec
+UPDATE TournamentInvitations
+SET Status = $2, RespondedAt = CURRENT_TIMESTAMP
+WHERE InvitationID = $1 AND UserID = $3;
 
 -- name: GetPendingInvitations :many
 SELECT ti.*,
@@ -116,7 +130,7 @@ SELECT ti.*,
 FROM TournamentInvitations ti
 LEFT JOIN Schools s ON ti.SchoolID = s.SchoolID
 LEFT JOIN Volunteers v ON ti.VolunteerID = v.VolunteerID
-LEFT JOIN Users u ON v.UserID = u.UserID
+LEFT JOIN Users u ON ti.UserID = u.UserID
 LEFT JOIN Students st ON ti.StudentID = st.StudentID
 WHERE ti.Status = 'pending'
   AND ti.TournamentID = $1;
@@ -131,13 +145,9 @@ INSERT INTO TeamMembers (TeamID, StudentID)
 VALUES ($1, $2);
 
 -- name: GetInvitationStatus :one
-SELECT i.*,
-       json_agg(json_build_object('team_id', t.TeamID, 'team_name', t.Name, 'number_of_speakers', COUNT(tm.StudentID))) as registered_teams
-FROM TournamentInvitations i
-LEFT JOIN Teams t ON i.InvitationID = t.InvitationID
-LEFT JOIN TeamMembers tm ON t.TeamID = tm.TeamID
-WHERE i.InvitationID = $1
-GROUP BY i.InvitationID;
+SELECT status
+FROM tournamentinvitations
+WHERE invitationid = $1;
 
 -- name: GetTeamsByInvitation :many
 SELECT t.*, COUNT(tm.StudentID) as number_of_speakers
