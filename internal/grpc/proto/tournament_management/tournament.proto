@@ -27,6 +27,15 @@ service TournamentService {
   rpc ListTournaments(ListTournamentsRequest) returns (ListTournamentsResponse);
   rpc UpdateTournament(UpdateTournamentRequest) returns (UpdateTournamentResponse);
   rpc DeleteTournament(DeleteTournamentRequest) returns (DeleteTournamentResponse);
+
+  // Invitation operations
+  rpc AcceptInvitation(AcceptInvitationRequest) returns (AcceptInvitationResponse);
+  rpc DeclineInvitation(DeclineInvitationRequest) returns (DeclineInvitationResponse);
+  rpc RegisterTeam(RegisterTeamRequest) returns (RegisterTeamResponse);
+  rpc AddTeamMember(AddTeamMemberRequest) returns (AddTeamMemberResponse);
+  rpc GetInvitationStatus(GetInvitationStatusRequest) returns (GetInvitationStatusResponse);
+  rpc ResendInvitation(ResendInvitationRequest) returns (ResendInvitationResponse);
+  rpc GetInvitationsByUser(GetInvitationsByUserRequest) returns (GetInvitationsByUserResponse);
 }
 
 // Enum definitions
@@ -260,4 +269,87 @@ message UpdateTournamentResponse {
 message DeleteTournamentResponse {
   bool success = 1;
   string message = 2;
+}
+
+message AcceptInvitationRequest {
+  int32 invitation_id = 1;
+  string token = 2;
+}
+
+message AcceptInvitationResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message DeclineInvitationRequest {
+  int32 invitation_id = 1;
+  string token = 2;
+}
+
+message DeclineInvitationResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message RegisterTeamRequest {
+  int32 invitation_id = 1;
+  string team_name = 2;
+  string token = 3;
+}
+
+message RegisterTeamResponse {
+  bool success = 1;
+  string message = 2;
+  int32 team_id = 3;
+}
+
+message AddTeamMemberRequest {
+  int32 team_id = 1;
+  int32 student_id = 2;
+  string token = 3;
+}
+
+message AddTeamMemberResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetInvitationStatusRequest {
+  int32 invitation_id = 1;
+  string token = 2;
+}
+
+message Team {
+  int32 team_id = 1;
+  string team_name = 2;
+  int32 number_of_speakers = 3;
+}
+
+message GetInvitationStatusResponse {
+  string status = 1;
+  repeated Team registered_teams = 2;
+}
+
+message ResendInvitationRequest {
+  int32 invitation_id = 1;
+  string token = 2;
+}
+
+message ResendInvitationResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetInvitationsByUserRequest {
+  string token = 1;
+}
+
+message Invitation {
+  int32 invitation_id = 1;
+  int32 tournament_id = 2;
+  string status = 3;
+}
+
+message GetInvitationsByUserResponse {
+  repeated Invitation invitations = 1;
 }

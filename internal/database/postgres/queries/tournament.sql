@@ -95,18 +95,27 @@ SET deleted_at = CURRENT_TIMESTAMP
 WHERE TournamentID = $1;
 
 -- name: CreateInvitation :one
-INSERT INTO TournamentInvitations (TournamentID, SchoolID, VolunteerID, StudentID, Status)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO TournamentInvitations (TournamentID, SchoolID, VolunteerID, StudentID, UserID, Status)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
 -- name: GetInvitationByID :one
 SELECT * FROM TournamentInvitations
 WHERE InvitationID = $1;
 
+-- name: GetInvitationsByUserID :many
+SELECT * FROM TournamentInvitations
+WHERE UserID = $1;
+
 -- name: UpdateInvitationStatus :exec
 UPDATE TournamentInvitations
 SET Status = $2, RespondedAt = CURRENT_TIMESTAMP
 WHERE InvitationID = $1;
+
+-- name: UpdateInvitationStatusWithUserCheck :exec
+UPDATE TournamentInvitations
+SET Status = $2, RespondedAt = CURRENT_TIMESTAMP
+WHERE InvitationID = $1 AND UserID = $3;
 
 -- name: GetPendingInvitations :many
 SELECT ti.*,
@@ -116,7 +125,7 @@ SELECT ti.*,
 FROM TournamentInvitations ti
 LEFT JOIN Schools s ON ti.SchoolID = s.SchoolID
 LEFT JOIN Volunteers v ON ti.VolunteerID = v.VolunteerID
-LEFT JOIN Users u ON v.UserID = u.UserID
+LEFT JOIN Users u ON ti.UserID = u.UserID
 LEFT JOIN Students st ON ti.StudentID = st.StudentID
 WHERE ti.Status = 'pending'
   AND ti.TournamentID = $1;

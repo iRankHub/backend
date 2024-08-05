@@ -169,6 +169,7 @@ CREATE TABLE TournamentInvitations (
     SchoolID INTEGER REFERENCES Schools(SchoolID),
     VolunteerID INTEGER REFERENCES Volunteers(VolunteerID),
     StudentID INTEGER REFERENCES Student(StudentID),
+    UserID INTEGER REFERENCES Users(UserID),
     Status VARCHAR(20) NOT NULL CHECK (Status IN ('pending', 'accepted', 'declined')),
     InvitedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ReminderSentAt TIMESTAMP,

@@ -10,6 +10,7 @@ import (
 
 	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
 	services "github.com/iRankHub/backend/internal/services/tournament_management"
+
 )
 
 type tournamentServer struct {
@@ -185,12 +186,14 @@ func (s *tournamentServer) DeleteTournament(ctx context.Context, req *tournament
 func (s *tournamentServer) AcceptInvitation(ctx context.Context, req *tournament_management.AcceptInvitationRequest) (*tournament_management.AcceptInvitationResponse, error) {
 	response, err := s.invitationService.AcceptInvitation(ctx, req)
 	if err != nil {
+		log.Printf("Failed to accept invitation: %v", err)
 		return nil, status.Errorf(codes.Internal, "Failed to accept invitation: %v", err)
 	}
 	return response, nil
 }
 
 func (s *tournamentServer) DeclineInvitation(ctx context.Context, req *tournament_management.DeclineInvitationRequest) (*tournament_management.DeclineInvitationResponse, error) {
+	log.Printf("DeclineInvitation called with invitation ID: %d", req.GetInvitationId())
 	response, err := s.invitationService.DeclineInvitation(ctx, req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to decline invitation: %v", err)
@@ -223,6 +226,7 @@ func (s *tournamentServer) AddTeamMember(ctx context.Context, req *tournament_ma
 }
 
 func (s *tournamentServer) GetInvitationStatus(ctx context.Context, req *tournament_management.GetInvitationStatusRequest) (*tournament_management.GetInvitationStatusResponse, error) {
+	log.Printf("GetInvitationStatus called with invitation ID: %d", req.GetInvitationId())
 	response, err := s.invitationService.GetInvitationStatus(ctx, req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to get invitation status: %v", err)

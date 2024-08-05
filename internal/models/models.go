@@ -224,6 +224,7 @@ type Tournamentinvitation struct {
 	Schoolid       sql.NullInt32 `json:"schoolid"`
 	Volunteerid    sql.NullInt32 `json:"volunteerid"`
 	Studentid      sql.NullInt32 `json:"studentid"`
+	Userid         sql.NullInt32 `json:"userid"`
 	Status         string        `json:"status"`
 	Invitedat      time.Time     `json:"invitedat"`
 	Remindersentat sql.NullTime  `json:"remindersentat"`

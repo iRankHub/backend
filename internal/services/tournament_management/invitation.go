@@ -4,13 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
 	emails "github.com/iRankHub/backend/internal/utils/emails"
-
 )
 
 type InvitationService struct {
@@ -22,44 +22,49 @@ func NewInvitationService(db *sql.DB) *InvitationService {
 }
 
 func (s *InvitationService) AcceptInvitation(ctx context.Context, req *tournament_management.AcceptInvitationRequest) (*tournament_management.AcceptInvitationResponse, error) {
+	log.Printf("AcceptInvitation called with invitation ID: %d", req.GetInvitationId())
+
 	claims, err := utils.ValidateToken(req.GetToken())
 	if err != nil {
+		log.Printf("Authentication failed: %v", err)
 		return nil, fmt.Errorf("authentication failed: %v", err)
 	}
+	log.Printf("Token validated successfully")
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
+		log.Printf("Failed to start transaction: %v", err)
 		return nil, fmt.Errorf("failed to start transaction: %v", err)
 	}
 	defer tx.Rollback()
 
 	queries := models.New(s.db).WithTx(tx)
 
-	invitation, err := queries.GetInvitationByID(ctx, req.GetInvitationId())
-	if err != nil {
-		return nil, fmt.Errorf("failed to get invitation: %v", err)
+	userIDFloat, ok := claims["user_id"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("invalid user ID in token")
 	}
+	userID := sql.NullInt32{Int32: int32(userIDFloat), Valid: true}
+	log.Printf("User ID from token: %d", userID.Int32)
 
-	// Check if the user has the right to accept this invitation
-	userRole := claims["user_role"].(string)
-	userID := int32(claims["user_id"].(float64))
-
-	if !s.canAcceptInvitation(userRole, userID, invitation) {
-		return nil, fmt.Errorf("unauthorized to accept this invitation")
-	}
-
-	err = queries.UpdateInvitationStatus(ctx, models.UpdateInvitationStatusParams{
+	err = queries.UpdateInvitationStatusWithUserCheck(ctx, models.UpdateInvitationStatusWithUserCheckParams{
 		Invitationid: req.GetInvitationId(),
 		Status:       "accepted",
+		Userid:       userID,
 	})
 	if err != nil {
+		log.Printf("Failed to update invitation status: %v", err)
 		return nil, fmt.Errorf("failed to accept invitation: %v", err)
 	}
+	log.Printf("Invitation status updated successfully")
 
 	if err := tx.Commit(); err != nil {
+		log.Printf("Failed to commit transaction: %v", err)
 		return nil, fmt.Errorf("failed to commit transaction: %v", err)
 	}
+	log.Printf("Transaction committed successfully")
 
+	log.Printf("Invitation %d accepted successfully", req.GetInvitationId())
 	return &tournament_management.AcceptInvitationResponse{
 		Success: true,
 		Message: "Invitation accepted successfully",
@@ -67,10 +72,14 @@ func (s *InvitationService) AcceptInvitation(ctx context.Context, req *tournamen
 }
 
 func (s *InvitationService) DeclineInvitation(ctx context.Context, req *tournament_management.DeclineInvitationRequest) (*tournament_management.DeclineInvitationResponse, error) {
+	log.Printf("DeclineInvitation called with invitation ID: %d", req.GetInvitationId())
+
 	claims, err := utils.ValidateToken(req.GetToken())
 	if err != nil {
+		log.Printf("Authentication failed: %v", err)
 		return nil, fmt.Errorf("authentication failed: %v", err)
 	}
+	log.Printf("Token validated successfully")
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -80,22 +89,16 @@ func (s *InvitationService) DeclineInvitation(ctx context.Context, req *tourname
 
 	queries := models.New(s.db).WithTx(tx)
 
-	invitation, err := queries.GetInvitationByID(ctx, req.GetInvitationId())
-	if err != nil {
-		return nil, fmt.Errorf("failed to get invitation: %v", err)
+	userIDFloat, ok := claims["user_id"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("invalid user ID in token")
 	}
+	userID := sql.NullInt32{Int32: int32(userIDFloat), Valid: true}
 
-	// Check if the user has the right to decline this invitation
-	userRole := claims["user_role"].(string)
-	userID := int32(claims["user_id"].(float64))
-
-	if !s.canDeclineInvitation(userRole, userID, invitation) {
-		return nil, fmt.Errorf("unauthorized to decline this invitation")
-	}
-
-	err = queries.UpdateInvitationStatus(ctx, models.UpdateInvitationStatusParams{
+	err = queries.UpdateInvitationStatusWithUserCheck(ctx, models.UpdateInvitationStatusWithUserCheckParams{
 		Invitationid: req.GetInvitationId(),
 		Status:       "declined",
+		Userid:       userID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to decline invitation: %v", err)
@@ -105,6 +108,7 @@ func (s *InvitationService) DeclineInvitation(ctx context.Context, req *tourname
 		return nil, fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
+	log.Printf("Invitation %d declined successfully", req.GetInvitationId())
 	return &tournament_management.DeclineInvitationResponse{
 		Success: true,
 		Message: "Invitation declined successfully",
@@ -196,9 +200,13 @@ func (s *InvitationService) ResendInvitation(ctx context.Context, req *tournamen
 }
 
 func (s *InvitationService) GetInvitationStatus(ctx context.Context, req *tournament_management.GetInvitationStatusRequest) (*tournament_management.GetInvitationStatusResponse, error) {
+	log.Printf("GetInvitationStatus called with invitation ID: %d", req.GetInvitationId())
+
 	if err := s.validateAuthentication(req.GetToken()); err != nil {
+		log.Printf("Authentication failed: %v", err)
 		return nil, err
 	}
+	log.Printf("Token validated successfully")
 
 	queries := models.New(s.db)
 	status, err := queries.GetInvitationStatus(ctx, req.GetInvitationId())
@@ -220,6 +228,7 @@ func (s *InvitationService) GetInvitationStatus(ctx context.Context, req *tourna
 		})
 	}
 
+	log.Printf("Invitation status retrieved successfully for invitation ID: %d", req.GetInvitationId())
 	return &tournament_management.GetInvitationStatusResponse{
 		Status:          status.Status,
 		RegisteredTeams: registeredTeams,
@@ -275,23 +284,6 @@ func (s *InvitationService) AddTeamMember(ctx context.Context, req *tournament_m
 		Success: true,
 		Message: "Team member added successfully",
 	}, nil
-}
-
-func (s *InvitationService) canAcceptInvitation(userRole string, userID int32, invitation models.Tournamentinvitation) bool {
-	switch {
-	case invitation.Schoolid.Valid:
-		return userRole == "school_admin" && userID == invitation.Schoolid.Int32
-	case invitation.Volunteerid.Valid:
-		return userRole == "volunteer" && userID == invitation.Volunteerid.Int32
-	case invitation.Studentid.Valid:
-		return userRole == "student" && userID == invitation.Studentid.Int32
-	default:
-		return false
-	}
-}
-
-func (s *InvitationService) canDeclineInvitation(userRole string, userID int32, invitation models.Tournamentinvitation) bool {
-	return s.canAcceptInvitation(userRole, userID, invitation)
 }
 
 // Helper function to convert GetTournamentByIDRow to Tournament

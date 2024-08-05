@@ -13,9 +13,9 @@ import (
 )
 
 const createInvitation = `-- name: CreateInvitation :one
-INSERT INTO TournamentInvitations (TournamentID, SchoolID, VolunteerID, StudentID, Status)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING invitationid, tournamentid, schoolid, volunteerid, studentid, status, invitedat, remindersentat, respondedat
+INSERT INTO TournamentInvitations (TournamentID, SchoolID, VolunteerID, StudentID, UserID, Status)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING invitationid, tournamentid, schoolid, volunteerid, studentid, userid, status, invitedat, remindersentat, respondedat
 `
 
 type CreateInvitationParams struct {
@@ -23,6 +23,7 @@ type CreateInvitationParams struct {
 	Schoolid     sql.NullInt32 `json:"schoolid"`
 	Volunteerid  sql.NullInt32 `json:"volunteerid"`
 	Studentid    sql.NullInt32 `json:"studentid"`
+	Userid       sql.NullInt32 `json:"userid"`
 	Status       string        `json:"status"`
 }
 
@@ -32,6 +33,7 @@ func (q *Queries) CreateInvitation(ctx context.Context, arg CreateInvitationPara
 		arg.Schoolid,
 		arg.Volunteerid,
 		arg.Studentid,
+		arg.Userid,
 		arg.Status,
 	)
 	var i Tournamentinvitation
@@ -41,6 +43,7 @@ func (q *Queries) CreateInvitation(ctx context.Context, arg CreateInvitationPara
 		&i.Schoolid,
 		&i.Volunteerid,
 		&i.Studentid,
+		&i.Userid,
 		&i.Status,
 		&i.Invitedat,
 		&i.Remindersentat,
@@ -237,7 +240,7 @@ func (q *Queries) GetActiveTournaments(ctx context.Context) ([]Tournament, error
 }
 
 const getInvitationByID = `-- name: GetInvitationByID :one
-SELECT invitationid, tournamentid, schoolid, volunteerid, studentid, status, invitedat, remindersentat, respondedat FROM TournamentInvitations
+SELECT invitationid, tournamentid, schoolid, volunteerid, studentid, userid, status, invitedat, remindersentat, respondedat FROM TournamentInvitations
 WHERE InvitationID = $1
 `
 
@@ -250,6 +253,7 @@ func (q *Queries) GetInvitationByID(ctx context.Context, invitationid int32) (To
 		&i.Schoolid,
 		&i.Volunteerid,
 		&i.Studentid,
+		&i.Userid,
 		&i.Status,
 		&i.Invitedat,
 		&i.Remindersentat,
@@ -259,7 +263,7 @@ func (q *Queries) GetInvitationByID(ctx context.Context, invitationid int32) (To
 }
 
 const getInvitationStatus = `-- name: GetInvitationStatus :one
-SELECT i.invitationid, i.tournamentid, i.schoolid, i.volunteerid, i.studentid, i.status, i.invitedat, i.remindersentat, i.respondedat,
+SELECT i.invitationid, i.tournamentid, i.schoolid, i.volunteerid, i.studentid, i.userid, i.status, i.invitedat, i.remindersentat, i.respondedat,
        json_agg(json_build_object('team_id', t.TeamID, 'team_name', t.Name, 'number_of_speakers', COUNT(tm.StudentID))) as registered_teams
 FROM TournamentInvitations i
 LEFT JOIN Teams t ON i.InvitationID = t.InvitationID
@@ -274,6 +278,7 @@ type GetInvitationStatusRow struct {
 	Schoolid        sql.NullInt32   `json:"schoolid"`
 	Volunteerid     sql.NullInt32   `json:"volunteerid"`
 	Studentid       sql.NullInt32   `json:"studentid"`
+	Userid          sql.NullInt32   `json:"userid"`
 	Status          string          `json:"status"`
 	Invitedat       time.Time       `json:"invitedat"`
 	Remindersentat  sql.NullTime    `json:"remindersentat"`
@@ -290,6 +295,7 @@ func (q *Queries) GetInvitationStatus(ctx context.Context, invitationid int32) (
 		&i.Schoolid,
 		&i.Volunteerid,
 		&i.Studentid,
+		&i.Userid,
 		&i.Status,
 		&i.Invitedat,
 		&i.Remindersentat,
@@ -297,6 +303,45 @@ func (q *Queries) GetInvitationStatus(ctx context.Context, invitationid int32) (
 		&i.RegisteredTeams,
 	)
 	return i, err
+}
+
+const getInvitationsByUserID = `-- name: GetInvitationsByUserID :many
+SELECT invitationid, tournamentid, schoolid, volunteerid, studentid, userid, status, invitedat, remindersentat, respondedat FROM TournamentInvitations
+WHERE UserID = $1
+`
+
+func (q *Queries) GetInvitationsByUserID(ctx context.Context, userid sql.NullInt32) ([]Tournamentinvitation, error) {
+	rows, err := q.db.QueryContext(ctx, getInvitationsByUserID, userid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Tournamentinvitation{}
+	for rows.Next() {
+		var i Tournamentinvitation
+		if err := rows.Scan(
+			&i.Invitationid,
+			&i.Tournamentid,
+			&i.Schoolid,
+			&i.Volunteerid,
+			&i.Studentid,
+			&i.Userid,
+			&i.Status,
+			&i.Invitedat,
+			&i.Remindersentat,
+			&i.Respondedat,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getLeagueByID = `-- name: GetLeagueByID :one
@@ -318,14 +363,14 @@ func (q *Queries) GetLeagueByID(ctx context.Context, leagueid int32) (League, er
 }
 
 const getPendingInvitations = `-- name: GetPendingInvitations :many
-SELECT ti.invitationid, ti.tournamentid, ti.schoolid, ti.volunteerid, ti.studentid, ti.status, ti.invitedat, ti.remindersentat, ti.respondedat,
+SELECT ti.invitationid, ti.tournamentid, ti.schoolid, ti.volunteerid, ti.studentid, ti.userid, ti.status, ti.invitedat, ti.remindersentat, ti.respondedat,
        s.SchoolName, s.ContactEmail, s.SchoolEmail,
        v.VolunteerID, v.FirstName as VolunteerFirstName, v.LastName as VolunteerLastName, u.Email as VolunteerEmail,
        st.StudentID, st.Email as StudentEmail, st.FirstName as StudentFirstName, st.LastName as StudentLastName
 FROM TournamentInvitations ti
 LEFT JOIN Schools s ON ti.SchoolID = s.SchoolID
 LEFT JOIN Volunteers v ON ti.VolunteerID = v.VolunteerID
-LEFT JOIN Users u ON v.UserID = u.UserID
+LEFT JOIN Users u ON ti.UserID = u.UserID
 LEFT JOIN Students st ON ti.StudentID = st.StudentID
 WHERE ti.Status = 'pending'
   AND ti.TournamentID = $1
@@ -337,6 +382,7 @@ type GetPendingInvitationsRow struct {
 	Schoolid           sql.NullInt32  `json:"schoolid"`
 	Volunteerid        sql.NullInt32  `json:"volunteerid"`
 	Studentid          sql.NullInt32  `json:"studentid"`
+	Userid             sql.NullInt32  `json:"userid"`
 	Status             string         `json:"status"`
 	Invitedat          time.Time      `json:"invitedat"`
 	Remindersentat     sql.NullTime   `json:"remindersentat"`
@@ -369,6 +415,7 @@ func (q *Queries) GetPendingInvitations(ctx context.Context, tournamentid int32)
 			&i.Schoolid,
 			&i.Volunteerid,
 			&i.Studentid,
+			&i.Userid,
 			&i.Status,
 			&i.Invitedat,
 			&i.Remindersentat,
@@ -726,6 +773,23 @@ func (q *Queries) UpdateInvitationStatus(ctx context.Context, arg UpdateInvitati
 	return err
 }
 
+const updateInvitationStatusWithUserCheck = `-- name: UpdateInvitationStatusWithUserCheck :exec
+UPDATE TournamentInvitations
+SET Status = $2, RespondedAt = CURRENT_TIMESTAMP
+WHERE InvitationID = $1 AND UserID = $3
+`
+
+type UpdateInvitationStatusWithUserCheckParams struct {
+	Invitationid int32         `json:"invitationid"`
+	Status       string        `json:"status"`
+	Userid       sql.NullInt32 `json:"userid"`
+}
+
+func (q *Queries) UpdateInvitationStatusWithUserCheck(ctx context.Context, arg UpdateInvitationStatusWithUserCheckParams) error {
+	_, err := q.db.ExecContext(ctx, updateInvitationStatusWithUserCheck, arg.Invitationid, arg.Status, arg.Userid)
+	return err
+}
+
 const updateLeague = `-- name: UpdateLeague :one
 UPDATE Leagues
 SET Name = $2, LeagueType = $3, Details = $4
@@ -762,7 +826,7 @@ const updateReminderSentAt = `-- name: UpdateReminderSentAt :one
 UPDATE TournamentInvitations
 SET ReminderSentAt = $2
 WHERE InvitationID = $1
-RETURNING invitationid, tournamentid, schoolid, volunteerid, studentid, status, invitedat, remindersentat, respondedat
+RETURNING invitationid, tournamentid, schoolid, volunteerid, studentid, userid, status, invitedat, remindersentat, respondedat
 `
 
 type UpdateReminderSentAtParams struct {
@@ -779,6 +843,7 @@ func (q *Queries) UpdateReminderSentAt(ctx context.Context, arg UpdateReminderSe
 		&i.Schoolid,
 		&i.Volunteerid,
 		&i.Studentid,
+		&i.Userid,
 		&i.Status,
 		&i.Invitedat,
 		&i.Remindersentat,
