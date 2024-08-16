@@ -54,8 +54,8 @@ WHERE FormatID = $1;
 
 -- Tournament Queries
 -- name: CreateTournamentEntry :one
-INSERT INTO Tournaments (Name, StartDate, EndDate, Location, FormatID, LeagueID, CoordinatorID, NumberOfPreliminaryRounds, NumberOfEliminationRounds, JudgesPerDebatePreliminary, JudgesPerDebateElimination, TournamentFee)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+INSERT INTO Tournaments (Name, StartDate, EndDate, Location, FormatID, LeagueID, CoordinatorID, NumberOfPreliminaryRounds, NumberOfEliminationRounds, JudgesPerDebatePreliminary, JudgesPerDebateElimination, TournamentFee, ImageUrl)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 RETURNING *;
 
 -- name: GetTournamentByID :one
@@ -85,7 +85,7 @@ LIMIT $1 OFFSET $2;
 UPDATE Tournaments
 SET Name = $2, StartDate = $3, EndDate = $4, Location = $5, FormatID = $6, LeagueID = $7,
     NumberOfPreliminaryRounds = $8, NumberOfEliminationRounds = $9,
-    JudgesPerDebatePreliminary = $10, JudgesPerDebateElimination = $11, TournamentFee = $12
+    JudgesPerDebatePreliminary = $10, JudgesPerDebateElimination = $11, TournamentFee = $12, ImageUrl = $13
 WHERE TournamentID = $1
 RETURNING *;
 

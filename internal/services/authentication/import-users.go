@@ -53,7 +53,7 @@ func (s *ImportUsersService) BatchImportUsers(ctx context.Context, users []*auth
 
 			password := utils.GenerateRandomPassword()
 
-			err := s.signUpService.SignUp(ctx, userData.FirstName, userData.LastName, userData.Email, password, userData.UserRole, additionalInfo)
+			err := s.signUpService.SignUp(ctx, userData.FirstName, userData.LastName, userData.Email, password, userData.UserRole, userData.Gender, additionalInfo)
 			if err != nil {
 				mu.Lock()
 				failedEmails = append(failedEmails, userData.Email)

@@ -43,6 +43,7 @@ message UserData {
   string grade = 17;
   bool hasInternship = 18;
   bool isEnrolledInUniversity = 19;
+  string gender = 20;
 }
 
 message BatchImportUsersResponse {
@@ -77,6 +78,7 @@ message SignUpRequest {
   string grade = 22;
   bool hasInternship = 23;
   bool isEnrolledInUniversity = 24;
+  string gender = 25;
 }
 
 message SignUpResponse {

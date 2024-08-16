@@ -6,6 +6,18 @@ Endpoint: `AuthService.SignUp`
 
 Demo Data:
 
+1. Admin Sign Up:
+```json
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john.doe@admin.com",
+  "password": "admin",
+  "userRole": "admin",
+  "gender": "male",
+}
+```
+
 1. Student Sign Up:
 ```json
 {
@@ -14,6 +26,7 @@ Demo Data:
   "email": "john.doe@student.com",
   "password": "studentPass123!",
   "userRole": "student",
+  "gender": "male",
   "dateOfBirth": "2005-05-15",
   "grade": "Grade 4",
   "schoolID": 2
@@ -28,6 +41,7 @@ Demo Data:
   "email": "jane.smith@school.com",
   "password": "schoolAdmin456!",
   "userRole": "school",
+  "gender": "female",
   "schoolName": "Springfield High",
   "address": "KK 123 St",
   "country": "United States of America",
@@ -46,6 +60,7 @@ Demo Data:
   "email": "alex.johnson@volunteer.com",
   "password": "volunteer789!",
   "userRole": "volunteer",
+  "gender": "female",
   "dateOfBirth": "1990-08-20",
   "roleInterestedIn": "Mentor",
   "graduationYear": 2012,
@@ -70,6 +85,7 @@ Demo Data:
       "lastName": "Doe",
       "email": "john.doe@example.com",
       "userRole": "student",
+      "gender": "female",
       "dateOfBirth": "2005-05-15",
       "grade": "Grade 4",
       "schoolID": 2
@@ -92,6 +108,7 @@ Demo Data:
       "lastName": "Johnson",
       "email": "alex.johnson@example.com",
       "userRole": "volunteer",
+      "gender": "female",
       "dateOfBirth": "1990-08-20",
       "roleInterestedIn": "Mentor",
       "graduationYear": 2012,

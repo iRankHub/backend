@@ -49,3 +49,9 @@ RETURNING *;
 -- name: DeleteSchool :exec
 DELETE FROM Schools
 WHERE SchoolID = $1;
+
+-- name: UpdateSchoolAddress :one
+UPDATE Schools
+SET Address = $2
+WHERE ContactPersonID = $1
+RETURNING *;

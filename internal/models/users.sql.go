@@ -20,9 +20,9 @@ func (q *Queries) ClearResetToken(ctx context.Context, userid int32) error {
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO Users (Name, Email, Password, UserRole, Status)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING userid, webauthnuserid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at
+INSERT INTO Users (Name, Email, Password, UserRole, Status, Gender)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING userid, webauthnuserid, name, gender, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at
 `
 
 type CreateUserParams struct {
@@ -31,6 +31,7 @@ type CreateUserParams struct {
 	Password string         `json:"password"`
 	Userrole string         `json:"userrole"`
 	Status   sql.NullString `json:"status"`
+	Gender   sql.NullString `json:"gender"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -40,12 +41,14 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.Password,
 		arg.Userrole,
 		arg.Status,
+		arg.Gender,
 	)
 	var i User
 	err := row.Scan(
 		&i.Userid,
 		&i.Webauthnuserid,
 		&i.Name,
+		&i.Gender,
 		&i.Email,
 		&i.Password,
 		&i.Userrole,
@@ -79,7 +82,7 @@ func (q *Queries) DeactivateAccount(ctx context.Context, userid int32) error {
 
 const deleteUser = `-- name: DeleteUser :exec
 UPDATE Users
-SET deleted_at = CURRENT_TIMESTAMP
+SET Status = 'rejected', deleted_at = CURRENT_TIMESTAMP
 WHERE UserID = $1
 `
 
@@ -105,13 +108,20 @@ func (q *Queries) GetAccountStatus(ctx context.Context, userid int32) (string, e
 	return status, err
 }
 
-const getPendingUsers = `-- name: GetPendingUsers :many
-SELECT userid, webauthnuserid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at FROM Users
-WHERE Status = 'pending' AND deleted_at IS NULL
+const getAllUsers = `-- name: GetAllUsers :many
+SELECT userid, webauthnuserid, name, gender, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at FROM Users
+WHERE deleted_at IS NULL
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2
 `
 
-func (q *Queries) GetPendingUsers(ctx context.Context) ([]User, error) {
-	rows, err := q.db.QueryContext(ctx, getPendingUsers)
+type GetAllUsersParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+func (q *Queries) GetAllUsers(ctx context.Context, arg GetAllUsersParams) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getAllUsers, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -123,6 +133,7 @@ func (q *Queries) GetPendingUsers(ctx context.Context) ([]User, error) {
 			&i.Userid,
 			&i.Webauthnuserid,
 			&i.Name,
+			&i.Gender,
 			&i.Email,
 			&i.Password,
 			&i.Userrole,
@@ -153,8 +164,80 @@ func (q *Queries) GetPendingUsers(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
+const getPendingUsers = `-- name: GetPendingUsers :many
+SELECT userid, webauthnuserid, name, gender, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at FROM Users
+WHERE Status = 'pending' AND deleted_at IS NULL
+`
+
+func (q *Queries) GetPendingUsers(ctx context.Context) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getPendingUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []User{}
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.Userid,
+			&i.Webauthnuserid,
+			&i.Name,
+			&i.Gender,
+			&i.Email,
+			&i.Password,
+			&i.Userrole,
+			&i.Status,
+			&i.Verificationstatus,
+			&i.Deactivatedat,
+			&i.TwoFactorSecret,
+			&i.TwoFactorEnabled,
+			&i.FailedLoginAttempts,
+			&i.LastLoginAttempt,
+			&i.LastLogout,
+			&i.ResetToken,
+			&i.ResetTokenExpires,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTotalUserCount = `-- name: GetTotalUserCount :one
+SELECT COUNT(*) FROM Users WHERE deleted_at IS NULL
+`
+
+func (q *Queries) GetTotalUserCount(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getTotalUserCount)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const getTotalVolunteersAndAdminsCount = `-- name: GetTotalVolunteersAndAdminsCount :one
+SELECT COUNT(*) FROM Users
+WHERE UserRole IN ('volunteer', 'admin') AND deleted_at IS NULL
+`
+
+func (q *Queries) GetTotalVolunteersAndAdminsCount(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getTotalVolunteersAndAdminsCount)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT userid, webauthnuserid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at FROM Users
+SELECT userid, webauthnuserid, name, gender, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at FROM Users
 WHERE Email = $1 AND deleted_at IS NULL
 `
 
@@ -165,6 +248,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Userid,
 		&i.Webauthnuserid,
 		&i.Name,
+		&i.Gender,
 		&i.Email,
 		&i.Password,
 		&i.Userrole,
@@ -202,9 +286,9 @@ WITH updated_user AS (
         AND u.deleted_at IS NULL
         LIMIT 1
     )
-    RETURNING userid, webauthnuserid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at
+    RETURNING userid, webauthnuserid, name, gender, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at
 )
-SELECT u.userid, u.webauthnuserid, u.name, u.email, u.password, u.userrole, u.status, u.verificationstatus, u.deactivatedat, u.two_factor_secret, u.two_factor_enabled, u.failed_login_attempts, u.last_login_attempt, u.last_logout, u.reset_token, u.reset_token_expires, u.created_at, u.updated_at, u.deleted_at,
+SELECT u.userid, u.webauthnuserid, u.name, u.gender, u.email, u.password, u.userrole, u.status, u.verificationstatus, u.deactivatedat, u.two_factor_secret, u.two_factor_enabled, u.failed_login_attempts, u.last_login_attempt, u.last_logout, u.reset_token, u.reset_token_expires, u.created_at, u.updated_at, u.deleted_at,
        s.iDebateStudentID,
        sch.iDebateSchoolID,
        v.iDebateVolunteerID
@@ -218,6 +302,7 @@ type GetUserByEmailOrIDebateIDAndUpdateLoginAttemptRow struct {
 	Userid              int32          `json:"userid"`
 	Webauthnuserid      []byte         `json:"webauthnuserid"`
 	Name                string         `json:"name"`
+	Gender              sql.NullString `json:"gender"`
 	Email               string         `json:"email"`
 	Password            string         `json:"password"`
 	Userrole            string         `json:"userrole"`
@@ -246,6 +331,7 @@ func (q *Queries) GetUserByEmailOrIDebateIDAndUpdateLoginAttempt(ctx context.Con
 		&i.Userid,
 		&i.Webauthnuserid,
 		&i.Name,
+		&i.Gender,
 		&i.Email,
 		&i.Password,
 		&i.Userrole,
@@ -270,7 +356,7 @@ func (q *Queries) GetUserByEmailOrIDebateIDAndUpdateLoginAttempt(ctx context.Con
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT userid, webauthnuserid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at FROM Users
+SELECT userid, webauthnuserid, name, gender, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at FROM Users
 WHERE UserID = $1 AND deleted_at IS NULL
 `
 
@@ -281,6 +367,7 @@ func (q *Queries) GetUserByID(ctx context.Context, userid int32) (User, error) {
 		&i.Userid,
 		&i.Webauthnuserid,
 		&i.Name,
+		&i.Gender,
 		&i.Email,
 		&i.Password,
 		&i.Userrole,
@@ -302,7 +389,7 @@ func (q *Queries) GetUserByID(ctx context.Context, userid int32) (User, error) {
 }
 
 const getUserByResetToken = `-- name: GetUserByResetToken :one
-SELECT userid, webauthnuserid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at FROM Users
+SELECT userid, webauthnuserid, name, gender, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at FROM Users
 WHERE reset_token = $1 AND reset_token_expires > NOW() AND deleted_at IS NULL
 LIMIT 1
 `
@@ -314,6 +401,7 @@ func (q *Queries) GetUserByResetToken(ctx context.Context, resetToken sql.NullSt
 		&i.Userid,
 		&i.Webauthnuserid,
 		&i.Name,
+		&i.Gender,
 		&i.Email,
 		&i.Password,
 		&i.Userrole,
@@ -406,7 +494,7 @@ func (q *Queries) GetUserForWebAuthnByEmail(ctx context.Context, email string) (
 }
 
 const getUserWithAuthDetails = `-- name: GetUserWithAuthDetails :one
-SELECT userid, webauthnuserid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at FROM Users
+SELECT userid, webauthnuserid, name, gender, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at FROM Users
 WHERE UserID = $1 AND deleted_at IS NULL
 `
 
@@ -417,6 +505,7 @@ func (q *Queries) GetUserWithAuthDetails(ctx context.Context, userid int32) (Use
 		&i.Userid,
 		&i.Webauthnuserid,
 		&i.Name,
+		&i.Gender,
 		&i.Email,
 		&i.Password,
 		&i.Userrole,
@@ -438,7 +527,7 @@ func (q *Queries) GetUserWithAuthDetails(ctx context.Context, userid int32) (Use
 }
 
 const getUsersByStatus = `-- name: GetUsersByStatus :many
-SELECT userid, webauthnuserid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at FROM Users
+SELECT userid, webauthnuserid, name, gender, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at FROM Users
 WHERE Status = $1 AND deleted_at IS NULL
 `
 
@@ -455,6 +544,63 @@ func (q *Queries) GetUsersByStatus(ctx context.Context, status sql.NullString) (
 			&i.Userid,
 			&i.Webauthnuserid,
 			&i.Name,
+			&i.Gender,
+			&i.Email,
+			&i.Password,
+			&i.Userrole,
+			&i.Status,
+			&i.Verificationstatus,
+			&i.Deactivatedat,
+			&i.TwoFactorSecret,
+			&i.TwoFactorEnabled,
+			&i.FailedLoginAttempts,
+			&i.LastLoginAttempt,
+			&i.LastLogout,
+			&i.ResetToken,
+			&i.ResetTokenExpires,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getVolunteersAndAdmins = `-- name: GetVolunteersAndAdmins :many
+SELECT userid, webauthnuserid, name, gender, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at FROM Users
+WHERE UserRole IN ('volunteer', 'admin') AND deleted_at IS NULL
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2
+`
+
+type GetVolunteersAndAdminsParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+func (q *Queries) GetVolunteersAndAdmins(ctx context.Context, arg GetVolunteersAndAdminsParams) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getVolunteersAndAdmins, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []User{}
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.Userid,
+			&i.Webauthnuserid,
+			&i.Name,
+			&i.Gender,
 			&i.Email,
 			&i.Password,
 			&i.Userrole,
@@ -543,7 +689,7 @@ UPDATE Users
 SET failed_login_attempts = failed_login_attempts + 1,
     last_login_attempt = NOW()
 WHERE UserID = $1
-RETURNING userid, webauthnuserid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at
+RETURNING userid, webauthnuserid, name, gender, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at
 `
 
 func (q *Queries) IncrementAndGetFailedLoginAttempts(ctx context.Context, userid int32) (User, error) {
@@ -553,6 +699,7 @@ func (q *Queries) IncrementAndGetFailedLoginAttempts(ctx context.Context, userid
 		&i.Userid,
 		&i.Webauthnuserid,
 		&i.Name,
+		&i.Gender,
 		&i.Email,
 		&i.Password,
 		&i.Userrole,
@@ -588,7 +735,7 @@ const rejectAndGetUser = `-- name: RejectAndGetUser :one
 UPDATE Users
 SET Status = 'rejected', deleted_at = CURRENT_TIMESTAMP
 WHERE UserID = $1 AND deleted_at IS NULL
-RETURNING userid, webauthnuserid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at
+RETURNING userid, webauthnuserid, name, gender, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at
 `
 
 func (q *Queries) RejectAndGetUser(ctx context.Context, userid int32) (User, error) {
@@ -598,6 +745,7 @@ func (q *Queries) RejectAndGetUser(ctx context.Context, userid int32) (User, err
 		&i.Userid,
 		&i.Webauthnuserid,
 		&i.Name,
+		&i.Gender,
 		&i.Email,
 		&i.Password,
 		&i.Userrole,
@@ -718,9 +866,9 @@ func (q *Queries) UpdateLastLogout(ctx context.Context, arg UpdateLastLogoutPara
 
 const updateUser = `-- name: UpdateUser :one
 UPDATE Users
-SET Name = $2, Email = $3, Password = $4, UserRole = $5, VerificationStatus = $6, Status = $7
+SET Name = $2, Email = $3, Password = $4, UserRole = $5, VerificationStatus = $6, Status = $7, Gender = $8
 WHERE UserID = $1
-RETURNING userid, webauthnuserid, name, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at
+RETURNING userid, webauthnuserid, name, gender, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at
 `
 
 type UpdateUserParams struct {
@@ -731,6 +879,7 @@ type UpdateUserParams struct {
 	Userrole           string         `json:"userrole"`
 	Verificationstatus sql.NullBool   `json:"verificationstatus"`
 	Status             sql.NullString `json:"status"`
+	Gender             sql.NullString `json:"gender"`
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
@@ -742,12 +891,14 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		arg.Userrole,
 		arg.Verificationstatus,
 		arg.Status,
+		arg.Gender,
 	)
 	var i User
 	err := row.Scan(
 		&i.Userid,
 		&i.Webauthnuserid,
 		&i.Name,
+		&i.Gender,
 		&i.Email,
 		&i.Password,
 		&i.Userrole,

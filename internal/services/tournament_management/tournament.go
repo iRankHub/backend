@@ -13,6 +13,7 @@ import (
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
 	emails "github.com/iRankHub/backend/internal/utils/emails"
+
 )
 
 type TournamentService struct {
@@ -67,6 +68,7 @@ func (s *TournamentService) CreateTournament(ctx context.Context, req *tournamen
 
 	tournament, err := queries.CreateTournamentEntry(ctx, models.CreateTournamentEntryParams{
 		Name:                       req.GetName(),
+		Imageurl: 					sql.NullString{String: req.GetImageUrl(), Valid: req.GetImageUrl() != ""},
 		Startdate:                  startDate,
 		Enddate:                    endDate,
 		Location:                   req.GetLocation(),
@@ -167,6 +169,7 @@ func tournamentPaginatedRowToProto(t models.ListTournamentsPaginatedRow) *tourna
 	return &tournament_management.Tournament{
 		TournamentId:               t.Tournamentid,
 		Name:                       t.Name,
+		ImageUrl: 					t.Imageurl.String,
 		StartDate:                  t.Startdate.Format("2006-01-02 15:04"),
 		EndDate:                    t.Enddate.Format("2006-01-02 15:04"),
 		Location:                   t.Location,
@@ -207,6 +210,7 @@ func (s *TournamentService) UpdateTournament(ctx context.Context, req *tournamen
 	updatedTournament, err := queries.UpdateTournamentDetails(ctx, models.UpdateTournamentDetailsParams{
 		Tournamentid:               req.GetTournamentId(),
 		Name:                       req.GetName(),
+		Imageurl: 					sql.NullString{String: req.GetImageUrl(), Valid: req.GetImageUrl() != ""},
 		Startdate:                  startDate,
 		Enddate:                    endDate,
 		Location:                   req.GetLocation(),
@@ -382,6 +386,7 @@ func tournamentModelToProto(t models.Tournament) *tournament_management.Tourname
 	return &tournament_management.Tournament{
 		TournamentId:               t.Tournamentid,
 		Name:                       t.Name,
+		ImageUrl: 					t.Imageurl.String,
 		StartDate:                  t.Startdate.Format("2006-01-02 15:04"),
 		EndDate:                    t.Enddate.Format("2006-01-02 15:04"),
 		Location:                   t.Location,
@@ -400,6 +405,7 @@ func tournamentRowToProto(t models.GetTournamentByIDRow) *tournament_management.
 	return &tournament_management.Tournament{
 		TournamentId:               t.Tournamentid,
 		Name:                       t.Name,
+		ImageUrl: 					t.Imageurl.String,
 		StartDate:                  t.Startdate.Format("2006-01-02 15:04"),
 		EndDate:                    t.Enddate.Format("2006-01-02 15:04"),
 		Location:                   t.Location,

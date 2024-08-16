@@ -121,6 +121,34 @@ Request:
   "userID": 123
 }
 ```
+
+### GetVolunteersAndAdmins
+
+Endpoint: `UserManagementService.GetVolunteersAndAdmins`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "token": "your_auth_token_here",
+  "page": 1,
+  "pageSize": 10
+}
+```
+
+### GetSchoolsNoAuth
+
+Endpoint: `UserManagementService.GetSchoolsNoAuth`
+Authorization: No authentication required
+
+Request:
+```json
+{
+  "page": 1,
+  "pageSize": 1000
+}
+```
+
 ### GetStudents
 
 Endpoint: `UserManagementService.GetStudents`

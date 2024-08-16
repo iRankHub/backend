@@ -20,8 +20,8 @@ LIMIT $1 OFFSET $2;
 SELECT COUNT(*) FROM Students;
 
 -- name: CreateStudent :one
-INSERT INTO Students (FirstName, LastName, Grade, DateOfBirth, Email, Password, SchoolID, UserID)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO Students (FirstName, LastName, Gender, Grade, DateOfBirth, Email, Password, SchoolID, UserID)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9)
 RETURNING *;
 
 -- name: UpdateStudent :one
