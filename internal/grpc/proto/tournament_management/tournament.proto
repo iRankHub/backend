@@ -85,6 +85,7 @@ message Tournament {
   int32 judges_per_debate_preliminary = 11;
   int32 judges_per_debate_elimination = 12;
   double tournament_fee = 13;
+  string image_url = 14;
 }
 
 // Request messages
@@ -170,6 +171,7 @@ message CreateTournamentRequest {
   int32 judges_per_debate_elimination = 11;
   double tournament_fee = 12;
   string token = 13;
+  string image_url = 14;
 }
 
 message GetTournamentRequest {
@@ -198,6 +200,7 @@ message UpdateTournamentRequest {
   int32 judges_per_debate_elimination = 12;
   double tournament_fee = 13;
   string token = 14;
+  string image_url = 15;
 }
 
 message DeleteTournamentRequest {

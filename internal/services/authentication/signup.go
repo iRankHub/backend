@@ -20,10 +20,14 @@ func NewSignUpService(db *sql.DB) *SignUpService {
 	return &SignUpService{db: db}
 }
 
-func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, password, userRole string, additionalInfo map[string]interface{}) error {
+func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, password, userRole, gender string, additionalInfo map[string]interface{}) error {
 	if firstName == "" || lastName == "" || email == "" || password == "" || userRole == "" {
 		return fmt.Errorf("missing required fields")
 	}
+
+	if gender != "male" && gender != "female" && gender != "non-binary" {
+        return fmt.Errorf("invalid gender. Must be 'male', 'female', or 'non-binary'")
+    }
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -55,12 +59,13 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 	}
 
 	user, err := queries.CreateUser(ctx, models.CreateUserParams{
-		Name:     firstName + " " + lastName,
-		Email:    email,
-		Password: hashedPassword,
-		Userrole: userRole,
-		Status:   status,
-	})
+        Name:     firstName + " " + lastName,
+        Email:    email,
+        Password: hashedPassword,
+        Userrole: userRole,
+        Status:   status,
+        Gender:   sql.NullString{String: gender, Valid: true},
+    })
 	if err != nil {
 		return fmt.Errorf("failed to create user: %v", err)
 	}
@@ -68,11 +73,11 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 
 	switch userRole {
 	case "student":
-		err = s.createStudentRecord(ctx, queries, user.Userid, firstName, lastName, email, hashedPassword, additionalInfo)
+		err = s.createStudentRecord(ctx, queries, user.Userid, firstName, lastName, email, gender, hashedPassword, additionalInfo)
 	case "school":
 		err = s.createSchoolRecord(ctx, queries, user.Userid, email, additionalInfo)
 	case "volunteer":
-		err = s.createVolunteerRecord(ctx, queries, user.Userid, firstName, lastName, hashedPassword, additionalInfo)
+		err = s.createVolunteerRecord(ctx, queries, user.Userid, firstName, lastName, gender, hashedPassword, additionalInfo)
 	case "admin":
 		// No additional record needed for admin
 	default:
@@ -121,7 +126,7 @@ func (s *SignUpService) notifyAdminOfNewSignUp(ctx context.Context, queries *mod
 	return err
 }
 
-func (s *SignUpService) createStudentRecord(ctx context.Context, queries *models.Queries, userID int32, firstName, lastName, email string, hashedPassword string, additionalInfo map[string]interface{}) error {
+func (s *SignUpService) createStudentRecord(ctx context.Context, queries *models.Queries, userID int32, firstName, lastName, email, gender, hashedPassword string, additionalInfo map[string]interface{}) error {
 	dateOfBirthStr, ok := additionalInfo["dateOfBirth"].(string)
 	if !ok || dateOfBirthStr == "" {
 		return fmt.Errorf("date of birth is missing or invalid")
@@ -142,19 +147,20 @@ func (s *SignUpService) createStudentRecord(ctx context.Context, queries *models
 	}
 
 	_, err = queries.CreateStudent(ctx, models.CreateStudentParams{
-		Firstname:   firstName,
-		Lastname:    lastName,
-		Grade:       grade,
-		Dateofbirth: sql.NullTime{Time: dateOfBirth, Valid: true},
-		Email:       sql.NullString{String: email, Valid: true},
-		Password:    hashedPassword,
-		Schoolid:    schoolID,
-		Userid:      userID,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create student record: %v", err)
-	}
-	return nil
+        Firstname:   firstName,
+        Lastname:    lastName,
+        Grade:       grade,
+        Dateofbirth: sql.NullTime{Time: dateOfBirth, Valid: true},
+        Email:       sql.NullString{String: email, Valid: true},
+        Password:    hashedPassword,
+        Schoolid:    schoolID,
+        Userid:      userID,
+        Gender:      sql.NullString{String: gender, Valid: true},
+    })
+    if err != nil {
+        return fmt.Errorf("failed to create student record: %v", err)
+    }
+    return nil
 }
 
 func (s *SignUpService) createSchoolRecord(ctx context.Context, queries *models.Queries, userID int32, email string, additionalInfo map[string]interface{}) error {
@@ -207,7 +213,7 @@ func (s *SignUpService) createSchoolRecord(ctx context.Context, queries *models.
     return err
 }
 
-func (s *SignUpService) createVolunteerRecord(ctx context.Context, queries *models.Queries, userID int32, firstName, lastName, hashedPassword string, additionalInfo map[string]interface{}) error {
+func (s *SignUpService) createVolunteerRecord(ctx context.Context, queries *models.Queries, userID int32, firstName, lastName, gender, hashedPassword string, additionalInfo map[string]interface{}) error {
 	dateOfBirthStr, ok := additionalInfo["dateOfBirth"].(string)
 	if !ok || dateOfBirthStr == "" {
 		return fmt.Errorf("date of birth is missing or invalid")
@@ -253,6 +259,7 @@ func (s *SignUpService) createVolunteerRecord(ctx context.Context, queries *mode
         Hasinternship:          sql.NullBool{Bool: hasInternship, Valid: true},
         Userid:                 userID,
         Isenrolledinuniversity: sql.NullBool{Bool: isEnrolledInUniversity, Valid: true},
+        Gender:                 sql.NullString{String: gender, Valid: true},
     })
     return err
 }

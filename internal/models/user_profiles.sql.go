@@ -11,9 +11,9 @@ import (
 )
 
 const createUserProfile = `-- name: CreateUserProfile :one
-INSERT INTO UserProfiles (UserID, Name, UserRole, Email, VerificationStatus, Address, Phone, Bio, ProfilePicture)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING profileid, userid, name, userrole, email, password, address, phone, bio, profilepicture, verificationstatus
+INSERT INTO UserProfiles (UserID, Name, UserRole, Email, Password, VerificationStatus, Address, Phone, Bio, ProfilePicture, Gender)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+RETURNING profileid, userid, name, userrole, email, password, gender, address, phone, bio, profilepicture, verificationstatus
 `
 
 type CreateUserProfileParams struct {
@@ -21,11 +21,13 @@ type CreateUserProfileParams struct {
 	Name               string         `json:"name"`
 	Userrole           string         `json:"userrole"`
 	Email              string         `json:"email"`
+	Password           string         `json:"password"`
 	Verificationstatus sql.NullBool   `json:"verificationstatus"`
 	Address            sql.NullString `json:"address"`
 	Phone              sql.NullString `json:"phone"`
 	Bio                sql.NullString `json:"bio"`
 	Profilepicture     []byte         `json:"profilepicture"`
+	Gender             sql.NullString `json:"gender"`
 }
 
 func (q *Queries) CreateUserProfile(ctx context.Context, arg CreateUserProfileParams) (Userprofile, error) {
@@ -34,11 +36,13 @@ func (q *Queries) CreateUserProfile(ctx context.Context, arg CreateUserProfilePa
 		arg.Name,
 		arg.Userrole,
 		arg.Email,
+		arg.Password,
 		arg.Verificationstatus,
 		arg.Address,
 		arg.Phone,
 		arg.Bio,
 		arg.Profilepicture,
+		arg.Gender,
 	)
 	var i Userprofile
 	err := row.Scan(
@@ -48,6 +52,7 @@ func (q *Queries) CreateUserProfile(ctx context.Context, arg CreateUserProfilePa
 		&i.Userrole,
 		&i.Email,
 		&i.Password,
+		&i.Gender,
 		&i.Address,
 		&i.Phone,
 		&i.Bio,
@@ -68,7 +73,7 @@ func (q *Queries) DeleteUserProfile(ctx context.Context, userid int32) error {
 }
 
 const getUserProfile = `-- name: GetUserProfile :one
-SELECT profileid, userid, name, userrole, email, password, address, phone, bio, profilepicture, verificationstatus FROM UserProfiles
+SELECT profileid, userid, name, userrole, email, password, gender, address, phone, bio, profilepicture, verificationstatus FROM UserProfiles
 WHERE UserID = $1
 `
 
@@ -82,6 +87,7 @@ func (q *Queries) GetUserProfile(ctx context.Context, userid int32) (Userprofile
 		&i.Userrole,
 		&i.Email,
 		&i.Password,
+		&i.Gender,
 		&i.Address,
 		&i.Phone,
 		&i.Bio,
@@ -93,9 +99,9 @@ func (q *Queries) GetUserProfile(ctx context.Context, userid int32) (Userprofile
 
 const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE UserProfiles
-SET Name = $2, UserRole = $3, Email = $4, VerificationStatus = $5, Address = $6, Phone = $7, Bio = $8, ProfilePicture = $9
+SET Name = $2, UserRole = $3, Email = $4, VerificationStatus = $5, Address = $6, Phone = $7, Bio = $8, ProfilePicture = $9, Gender = $10
 WHERE UserID = $1
-RETURNING profileid, userid, name, userrole, email, password, address, phone, bio, profilepicture, verificationstatus
+RETURNING profileid, userid, name, userrole, email, password, gender, address, phone, bio, profilepicture, verificationstatus
 `
 
 type UpdateUserProfileParams struct {
@@ -108,6 +114,7 @@ type UpdateUserProfileParams struct {
 	Phone              sql.NullString `json:"phone"`
 	Bio                sql.NullString `json:"bio"`
 	Profilepicture     []byte         `json:"profilepicture"`
+	Gender             sql.NullString `json:"gender"`
 }
 
 func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (Userprofile, error) {
@@ -121,6 +128,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		arg.Phone,
 		arg.Bio,
 		arg.Profilepicture,
+		arg.Gender,
 	)
 	var i Userprofile
 	err := row.Scan(
@@ -130,6 +138,46 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.Userrole,
 		&i.Email,
 		&i.Password,
+		&i.Gender,
+		&i.Address,
+		&i.Phone,
+		&i.Bio,
+		&i.Profilepicture,
+		&i.Verificationstatus,
+	)
+	return i, err
+}
+
+const updateUserProfileBasicInfo = `-- name: UpdateUserProfileBasicInfo :one
+UPDATE UserProfiles
+SET Name = $2, Email = $3, Gender = $4
+WHERE UserID = $1
+RETURNING profileid, userid, name, userrole, email, password, gender, address, phone, bio, profilepicture, verificationstatus
+`
+
+type UpdateUserProfileBasicInfoParams struct {
+	Userid int32          `json:"userid"`
+	Name   string         `json:"name"`
+	Email  string         `json:"email"`
+	Gender sql.NullString `json:"gender"`
+}
+
+func (q *Queries) UpdateUserProfileBasicInfo(ctx context.Context, arg UpdateUserProfileBasicInfoParams) (Userprofile, error) {
+	row := q.db.QueryRowContext(ctx, updateUserProfileBasicInfo,
+		arg.Userid,
+		arg.Name,
+		arg.Email,
+		arg.Gender,
+	)
+	var i Userprofile
+	err := row.Scan(
+		&i.Profileid,
+		&i.Userid,
+		&i.Name,
+		&i.Userrole,
+		&i.Email,
+		&i.Password,
+		&i.Gender,
 		&i.Address,
 		&i.Phone,
 		&i.Bio,

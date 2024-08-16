@@ -13,23 +13,24 @@ import (
 const createVolunteer = `-- name: CreateVolunteer :one
 INSERT INTO Volunteers (
   FirstName, LastName, DateOfBirth, Role, GraduateYear,
-  Password, SafeGuardCertificate, HasInternship, UserID, IsEnrolledInUniversity
+  Password, Gender, SafeGuardCertificate, HasInternship, UserID, IsEnrolledInUniversity
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING volunteerid, idebatevolunteerid, firstname, lastname, dateofbirth, role, graduateyear, password, safeguardcertificate, hasinternship, isenrolledinuniversity, userid
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+RETURNING volunteerid, idebatevolunteerid, firstname, lastname, gender, dateofbirth, role, graduateyear, password, safeguardcertificate, hasinternship, isenrolledinuniversity, userid
 `
 
 type CreateVolunteerParams struct {
-	Firstname              string        `json:"firstname"`
-	Lastname               string        `json:"lastname"`
-	Dateofbirth            sql.NullTime  `json:"dateofbirth"`
-	Role                   string        `json:"role"`
-	Graduateyear           sql.NullInt32 `json:"graduateyear"`
-	Password               string        `json:"password"`
-	Safeguardcertificate   sql.NullBool  `json:"safeguardcertificate"`
-	Hasinternship          sql.NullBool  `json:"hasinternship"`
-	Userid                 int32         `json:"userid"`
-	Isenrolledinuniversity sql.NullBool  `json:"isenrolledinuniversity"`
+	Firstname              string         `json:"firstname"`
+	Lastname               string         `json:"lastname"`
+	Dateofbirth            sql.NullTime   `json:"dateofbirth"`
+	Role                   string         `json:"role"`
+	Graduateyear           sql.NullInt32  `json:"graduateyear"`
+	Password               string         `json:"password"`
+	Gender                 sql.NullString `json:"gender"`
+	Safeguardcertificate   sql.NullBool   `json:"safeguardcertificate"`
+	Hasinternship          sql.NullBool   `json:"hasinternship"`
+	Userid                 int32          `json:"userid"`
+	Isenrolledinuniversity sql.NullBool   `json:"isenrolledinuniversity"`
 }
 
 func (q *Queries) CreateVolunteer(ctx context.Context, arg CreateVolunteerParams) (Volunteer, error) {
@@ -40,6 +41,7 @@ func (q *Queries) CreateVolunteer(ctx context.Context, arg CreateVolunteerParams
 		arg.Role,
 		arg.Graduateyear,
 		arg.Password,
+		arg.Gender,
 		arg.Safeguardcertificate,
 		arg.Hasinternship,
 		arg.Userid,
@@ -51,6 +53,7 @@ func (q *Queries) CreateVolunteer(ctx context.Context, arg CreateVolunteerParams
 		&i.Idebatevolunteerid,
 		&i.Firstname,
 		&i.Lastname,
+		&i.Gender,
 		&i.Dateofbirth,
 		&i.Role,
 		&i.Graduateyear,
@@ -74,7 +77,7 @@ func (q *Queries) DeleteVolunteer(ctx context.Context, volunteerid int32) error 
 }
 
 const getAllVolunteers = `-- name: GetAllVolunteers :many
-SELECT volunteerid, idebatevolunteerid, firstname, lastname, dateofbirth, role, graduateyear, password, safeguardcertificate, hasinternship, isenrolledinuniversity, userid FROM Volunteers
+SELECT volunteerid, idebatevolunteerid, firstname, lastname, gender, dateofbirth, role, graduateyear, password, safeguardcertificate, hasinternship, isenrolledinuniversity, userid FROM Volunteers
 `
 
 func (q *Queries) GetAllVolunteers(ctx context.Context) ([]Volunteer, error) {
@@ -91,6 +94,7 @@ func (q *Queries) GetAllVolunteers(ctx context.Context) ([]Volunteer, error) {
 			&i.Idebatevolunteerid,
 			&i.Firstname,
 			&i.Lastname,
+			&i.Gender,
 			&i.Dateofbirth,
 			&i.Role,
 			&i.Graduateyear,
@@ -125,7 +129,7 @@ func (q *Queries) GetTotalVolunteerCount(ctx context.Context) (int64, error) {
 }
 
 const getVolunteerByID = `-- name: GetVolunteerByID :one
-SELECT volunteerid, idebatevolunteerid, firstname, lastname, dateofbirth, role, graduateyear, password, safeguardcertificate, hasinternship, isenrolledinuniversity, userid FROM Volunteers
+SELECT volunteerid, idebatevolunteerid, firstname, lastname, gender, dateofbirth, role, graduateyear, password, safeguardcertificate, hasinternship, isenrolledinuniversity, userid FROM Volunteers
 WHERE VolunteerID = $1
 `
 
@@ -137,6 +141,7 @@ func (q *Queries) GetVolunteerByID(ctx context.Context, volunteerid int32) (Volu
 		&i.Idebatevolunteerid,
 		&i.Firstname,
 		&i.Lastname,
+		&i.Gender,
 		&i.Dateofbirth,
 		&i.Role,
 		&i.Graduateyear,
@@ -150,7 +155,7 @@ func (q *Queries) GetVolunteerByID(ctx context.Context, volunteerid int32) (Volu
 }
 
 const getVolunteerByUserID = `-- name: GetVolunteerByUserID :one
-SELECT volunteerid, idebatevolunteerid, firstname, lastname, dateofbirth, role, graduateyear, password, safeguardcertificate, hasinternship, isenrolledinuniversity, userid FROM volunteers
+SELECT volunteerid, idebatevolunteerid, firstname, lastname, gender, dateofbirth, role, graduateyear, password, safeguardcertificate, hasinternship, isenrolledinuniversity, userid FROM volunteers
 WHERE UserID = $1 LIMIT 1
 `
 
@@ -162,6 +167,7 @@ func (q *Queries) GetVolunteerByUserID(ctx context.Context, userid int32) (Volun
 		&i.Idebatevolunteerid,
 		&i.Firstname,
 		&i.Lastname,
+		&i.Gender,
 		&i.Dateofbirth,
 		&i.Role,
 		&i.Graduateyear,
@@ -175,7 +181,7 @@ func (q *Queries) GetVolunteerByUserID(ctx context.Context, userid int32) (Volun
 }
 
 const getVolunteersPaginated = `-- name: GetVolunteersPaginated :many
-SELECT volunteerid, idebatevolunteerid, firstname, lastname, dateofbirth, role, graduateyear, password, safeguardcertificate, hasinternship, isenrolledinuniversity, userid
+SELECT volunteerid, idebatevolunteerid, firstname, lastname, gender, dateofbirth, role, graduateyear, password, safeguardcertificate, hasinternship, isenrolledinuniversity, userid
 FROM Volunteers
 ORDER BY VolunteerID
 LIMIT $1 OFFSET $2
@@ -200,6 +206,7 @@ func (q *Queries) GetVolunteersPaginated(ctx context.Context, arg GetVolunteersP
 			&i.Idebatevolunteerid,
 			&i.Firstname,
 			&i.Lastname,
+			&i.Gender,
 			&i.Dateofbirth,
 			&i.Role,
 			&i.Graduateyear,
@@ -227,7 +234,7 @@ UPDATE Volunteers
 SET FirstName = $2, LastName = $3, DateOfBirth = $4, Role = $5, GraduateYear = $6,
     Password = $7, SafeGuardCertificate = $8, hasinternship = $9, IsEnrolledInUniversity = $10
 WHERE VolunteerID = $1
-RETURNING volunteerid, idebatevolunteerid, firstname, lastname, dateofbirth, role, graduateyear, password, safeguardcertificate, hasinternship, isenrolledinuniversity, userid
+RETURNING volunteerid, idebatevolunteerid, firstname, lastname, gender, dateofbirth, role, graduateyear, password, safeguardcertificate, hasinternship, isenrolledinuniversity, userid
 `
 
 type UpdateVolunteerParams struct {
@@ -262,6 +269,7 @@ func (q *Queries) UpdateVolunteer(ctx context.Context, arg UpdateVolunteerParams
 		&i.Idebatevolunteerid,
 		&i.Firstname,
 		&i.Lastname,
+		&i.Gender,
 		&i.Dateofbirth,
 		&i.Role,
 		&i.Graduateyear,

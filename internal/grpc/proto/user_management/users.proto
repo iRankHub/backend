@@ -21,6 +21,9 @@ service UserManagementService {
   rpc GetSchools(GetSchoolsRequest) returns (GetSchoolsResponse) {}
   rpc GetStudents(GetStudentsRequest) returns (GetStudentsResponse) {}
   rpc GetVolunteers(GetVolunteersRequest) returns (GetVolunteersResponse) {}
+  rpc GetAllUsers(GetAllUsersRequest) returns (GetAllUsersResponse) {}
+  rpc GetVolunteersAndAdmins(GetVolunteersAndAdminsRequest) returns (GetVolunteersAndAdminsResponse) {}
+  rpc GetSchoolsNoAuth(GetSchoolsNoAuthRequest) returns (GetSchoolsNoAuthResponse) {}
 }
 
 message GetPendingUsersRequest {
@@ -31,12 +34,24 @@ message GetPendingUsersResponse {
   repeated UserSummary users = 1;
 }
 
+message GetAllUsersRequest {
+  string token = 1;
+  int32 page = 2;
+  int32 pageSize = 3;
+}
+
+message GetAllUsersResponse {
+  repeated UserSummary users = 1;
+  int32 totalCount = 2;
+}
+
 message UserSummary {
   int32 userID = 1;
   string name = 2;
   string email = 3;
   string userRole = 4;
   string signUpDate = 5;
+  string gender = 6;
 }
 
 message GetUserDetailsRequest {
@@ -60,6 +75,7 @@ message UserDetails {
     SchoolDetails schoolDetails = 8;
     VolunteerDetails volunteerDetails = 9;
   }
+  string gender = 10;
 }
 
 message UserProfile {
@@ -67,6 +83,7 @@ message UserProfile {
   string phone = 2;
   string bio = 3;
   bytes profilePicture = 4;
+  string gender = 5;
 }
 
 message StudentDetails {
@@ -155,6 +172,7 @@ message UpdateUserProfileRequest {
   string phone = 6;
   string bio = 7;
   bytes profilePicture = 8;
+  string gender = 9;
 }
 
 message UpdateUserProfileResponse {
@@ -280,4 +298,25 @@ message Volunteer {
   int32 graduateYear = 6;
   bool safeGuardCertificate = 7;
   string email = 8;
+}
+
+message GetVolunteersAndAdminsRequest {
+  string token = 1;
+  int32 page = 2;
+  int32 pageSize = 3;
+}
+
+message GetVolunteersAndAdminsResponse {
+  repeated UserSummary users = 1;
+  int32 totalCount = 2;
+}
+
+message GetSchoolsNoAuthRequest {
+  int32 page = 1;
+  int32 pageSize = 2;
+}
+
+message GetSchoolsNoAuthResponse {
+  repeated School schools = 1;
+  int32 totalCount = 2;
 }

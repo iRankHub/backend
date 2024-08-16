@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
+	"math"
 
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
@@ -33,6 +35,39 @@ func (s *UserManagementService) GetPendingUsers(ctx context.Context, token strin
 
 	queries := models.New(s.db)
 	return queries.GetUsersByStatus(ctx, sql.NullString{String: "pending", Valid: true})
+}
+
+func (s *UserManagementService) GetAllUsers(ctx context.Context, token string, page, pageSize int32) ([]models.User, int32, error) {
+    claims, err := utils.ValidateToken(token)
+    if err != nil {
+        return nil, 0, fmt.Errorf("invalid token: %v", err)
+    }
+
+    userRole, ok := claims["user_role"].(string)
+    if !ok || userRole != "admin" {
+        return nil, 0, fmt.Errorf("only admins can get all users")
+    }
+
+    queries := models.New(s.db)
+    users, err := queries.GetAllUsers(ctx, models.GetAllUsersParams{
+        Limit:  pageSize,
+        Offset: (page - 1) * pageSize,
+    })
+    if err != nil {
+        return nil, 0, fmt.Errorf("failed to get users: %v", err)
+    }
+
+    totalCount, err := queries.GetTotalUserCount(ctx)
+    if err != nil {
+        return nil, 0, fmt.Errorf("failed to get total user count: %v", err)
+    }
+
+    // Convert int64 to int32, checking for overflow
+    if totalCount > math.MaxInt32 {
+        return nil, 0, fmt.Errorf("total user count exceeds maximum value for int32")
+    }
+
+    return users, int32(totalCount), nil
 }
 
 func (s *UserManagementService) GetUserDetails(ctx context.Context, token string, userID int32) (models.User, models.Userprofile, error) {
@@ -66,108 +101,122 @@ func (s *UserManagementService) GetUserDetails(ctx context.Context, token string
 }
 
 func (s *UserManagementService) ApproveUser(ctx context.Context, token string, userID int32) error {
-	claims, err := utils.ValidateToken(token)
-	if err != nil {
-		return fmt.Errorf("invalid token: %v", err)
-	}
+    claims, err := utils.ValidateToken(token)
+    if err != nil {
+        return fmt.Errorf("invalid token: %v", err)
+    }
 
-	userRole, ok := claims["user_role"].(string)
-	if !ok || userRole != "admin" {
-		return fmt.Errorf("only admins can approve users")
-	}
+    userRole, ok := claims["user_role"].(string)
+    if !ok || userRole != "admin" {
+        return fmt.Errorf("only admins can approve users")
+    }
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to start transaction: %v", err)
-	}
-	defer tx.Rollback()
+    tx, err := s.db.BeginTx(ctx, nil)
+    if err != nil {
+        return fmt.Errorf("failed to start transaction: %v", err)
+    }
+    defer tx.Rollback()
 
-	queries := models.New(tx)
+    queries := models.New(tx)
 
-	err = queries.UpdateUserStatus(ctx, models.UpdateUserStatusParams{
-		Userid: userID,
-		Status: sql.NullString{String: "approved", Valid: true},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to update user status: %v", err)
-	}
+    // Update user status
+    err = queries.UpdateUserStatus(ctx, models.UpdateUserStatusParams{
+        Userid: userID,
+        Status: sql.NullString{String: "approved", Valid: true},
+    })
+    if err != nil {
+        return fmt.Errorf("failed to update user status: %v", err)
+    }
 
-	user, err := queries.GetUserByID(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("failed to get user details: %v", err)
-	}
+    // Get user details
+    user, err := queries.GetUserByID(ctx, userID)
+    if err != nil {
+        return fmt.Errorf("failed to get user details: %v", err)
+    }
 
-	var address sql.NullString
-	if user.Userrole == "school" {
-		school, err := queries.GetSchoolByUserID(ctx, userID)
-		if err != nil {
-			return fmt.Errorf("failed to get school details: %v", err)
-		}
-		address = sql.NullString{String: school.Address, Valid: true}
-	}
+    var address sql.NullString
+    if user.Userrole == "school" {
+        school, err := queries.GetSchoolByUserID(ctx, userID)
+        if err != nil {
+            return fmt.Errorf("failed to get school details: %v", err)
+        }
+        address = sql.NullString{String: school.Address, Valid: true}
+    }
 
-	_, err = queries.CreateUserProfile(ctx, models.CreateUserProfileParams{
-		Userid:         user.Userid,
-		Address:        address,
-		Phone:          sql.NullString{},
-		Bio:            sql.NullString{},
-		Profilepicture: nil,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create user profile: %v", err)
-	}
+    _, err = queries.CreateUserProfile(ctx, models.CreateUserProfileParams{
+        Userid:             user.Userid,
+        Name:               user.Name,
+        Userrole:           user.Userrole,
+        Email:              user.Email,
+        Verificationstatus: user.Verificationstatus,
+        Address:            address,
+        Phone:              sql.NullString{},
+        Bio:                sql.NullString{},
+        Profilepicture:     nil,
+        Gender:             user.Gender,
+    })
+    if err != nil {
+        return fmt.Errorf("failed to create user profile: %v", err)
+    }
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %v", err)
-	}
+    if err := tx.Commit(); err != nil {
+        return fmt.Errorf("failed to commit transaction: %v", err)
+    }
 
-	err = email.SendApprovalNotification(user.Email, user.Name)
-	if err != nil {
-		fmt.Printf("Failed to send approval notification: %v\n", err)
-	}
+    // Send approval notification (consider moving this to a background job)
+    go func() {
+        if err := email.SendApprovalNotification(user.Email, user.Name); err != nil {
+            log.Printf("Failed to send approval notification: %v", err)
+        }
+    }()
 
-	return nil
+    return nil
 }
 
 func (s *UserManagementService) RejectUser(ctx context.Context, token string, userID int32) error {
-	claims, err := utils.ValidateToken(token)
-	if err != nil {
-		return fmt.Errorf("invalid token: %v", err)
-	}
+    // Validate token and check if the user is an admin
+    claims, err := utils.ValidateToken(token)
+    if err != nil {
+        return fmt.Errorf("invalid token: %v", err)
+    }
 
-	userRole, ok := claims["user_role"].(string)
-	if !ok || userRole != "admin" {
-		return fmt.Errorf("only admins can reject users")
-	}
+    userRole, ok := claims["user_role"].(string)
+    if !ok || userRole != "admin" {
+        return fmt.Errorf("only admins can reject users")
+    }
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to start transaction: %v", err)
-	}
-	defer tx.Rollback()
+    tx, err := s.db.BeginTx(ctx, nil)
+    if err != nil {
+        return fmt.Errorf("failed to start transaction: %v", err)
+    }
+    defer tx.Rollback()
 
-	queries := models.New(tx)
+    queries := models.New(tx)
 
-	user, err := queries.GetUserByID(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("failed to get user details: %v", err)
-	}
+    // Get user details before rejection
+    user, err := queries.GetUserByID(ctx, userID)
+    if err != nil {
+        return fmt.Errorf("failed to get user details: %v", err)
+    }
 
-	err = queries.DeleteUser(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("failed to delete user: %v", err)
-	}
+    // Reject and delete user
+    err = queries.DeleteUser(ctx, userID)
+    if err != nil {
+        return fmt.Errorf("failed to reject user: %v", err)
+    }
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %v", err)
-	}
+    if err := tx.Commit(); err != nil {
+        return fmt.Errorf("failed to commit transaction: %v", err)
+    }
 
-	err = email.SendRejectionNotification(user.Email, user.Name)
-	if err != nil {
-		fmt.Printf("Failed to send rejection notification: %v\n", err)
-	}
+    // Send rejection notification (consider moving this to a background job)
+    go func() {
+        if err := email.SendRejectionNotification(user.Email, user.Name); err != nil {
+            log.Printf("Failed to send rejection notification: %v", err)
+        }
+    }()
 
-	return nil
+    return nil
 }
 
 func (s *UserManagementService) ApproveUsers(ctx context.Context, token string, userIDs []int32) ([]int32, error) {
@@ -218,10 +267,16 @@ func (s *UserManagementService) ApproveUsers(ctx context.Context, token string, 
 
 		_, err = queries.CreateUserProfile(ctx, models.CreateUserProfileParams{
 			Userid:         user.Userid,
+			Name:           user.Name,
+			Userrole:       user.Userrole,
+			Email:          user.Email,
+			Password:       user.Password,
+			Verificationstatus: user.Verificationstatus,
 			Address:        address,
 			Phone:          sql.NullString{},
 			Bio:            sql.NullString{},
 			Profilepicture: nil,
+			Gender:         user.Gender,
 		})
 		if err != nil {
 			failedUserIDs = append(failedUserIDs, userID)
@@ -315,7 +370,7 @@ func (s *UserManagementService) DeleteUsers(ctx context.Context, token string, u
 	return failedUserIDs, nil
 }
 
-func (s *UserManagementService) UpdateUserProfile(ctx context.Context, token string, userID int32, name, email, address, phone, bio string, profilePicture []byte) error {
+func (s *UserManagementService) UpdateUserProfile(ctx context.Context, token string, userID int32, name, email, address, phone, bio string, profilePicture []byte, gender string) error {
 	claims, err := utils.ValidateToken(token)
 	if err != nil {
 		return fmt.Errorf("invalid token: %v", err)
@@ -327,31 +382,61 @@ func (s *UserManagementService) UpdateUserProfile(ctx context.Context, token str
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to start transaction: %v", err)
-	}
-	defer tx.Rollback()
+    if err != nil {
+        return fmt.Errorf("failed to start transaction: %v", err)
+    }
+    defer tx.Rollback()
 
-	queries := models.New(tx)
+    queries := models.New(tx)
 
-	_, err = queries.UpdateUserProfile(ctx, models.UpdateUserProfileParams{
-		Userid:         userID,
-		Name:           name,
-		Email:          email,
-		Address:        sql.NullString{String: address, Valid: address != ""},
-		Phone:          sql.NullString{String: phone, Valid: phone != ""},
-		Bio:            sql.NullString{String: bio, Valid: bio != ""},
-		Profilepicture: profilePicture,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to update user profile: %v", err)
-	}
+    // Get the user's role
+    user, err := queries.GetUserByID(ctx, userID)
+    if err != nil {
+        return fmt.Errorf("failed to get user details: %v", err)
+    }
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %v", err)
-	}
+    // Update UserProfiles table
+    _, err = queries.UpdateUserProfile(ctx, models.UpdateUserProfileParams{
+        Userid:         userID,
+        Name:           name,
+        Email:          email,
+        Address:        sql.NullString{String: address, Valid: address != ""},
+        Phone:          sql.NullString{String: phone, Valid: phone != ""},
+        Bio:            sql.NullString{String: bio, Valid: bio != ""},
+        Profilepicture: profilePicture,
+        Gender:         sql.NullString{String: gender, Valid: gender != ""},
+    })
+    if err != nil {
+        return fmt.Errorf("failed to update user profile: %v", err)
+    }
 
-	return nil
+    // Update Users table
+    _, err = queries.UpdateUser(ctx, models.UpdateUserParams{
+        Userid: userID,
+        Name:   name,
+        Email:  email,
+        Gender: sql.NullString{String: gender, Valid: gender != ""},
+    })
+    if err != nil {
+        return fmt.Errorf("failed to update user: %v", err)
+    }
+
+    // If the user is a school, update the school's address
+    if user.Userrole == "school" && address != "" {
+        _, err = queries.UpdateSchoolAddress(ctx, models.UpdateSchoolAddressParams{
+            Contactpersonid: userID,
+            Address:         address,
+        })
+        if err != nil {
+            return fmt.Errorf("failed to update school address: %v", err)
+        }
+    }
+
+    if err := tx.Commit(); err != nil {
+        return fmt.Errorf("failed to commit transaction: %v", err)
+    }
+
+    return nil
 }
 
 func (s *UserManagementService) DeleteUserProfile(ctx context.Context, token string, userID int32) error {
@@ -494,4 +579,32 @@ func (s *UserManagementService) GetAccountStatus(ctx context.Context, token stri
 	}
 
 	return status, nil
+}
+
+func (s *UserManagementService) GetVolunteersAndAdmins(ctx context.Context, token string, page, pageSize int32) ([]models.User, int32, error) {
+    claims, err := utils.ValidateToken(token)
+    if err != nil {
+        return nil, 0, fmt.Errorf("invalid token: %v", err)
+    }
+
+    userRole, ok := claims["user_role"].(string)
+    if !ok || userRole != "admin" {
+        return nil, 0, fmt.Errorf("only admins can access this information")
+    }
+
+    queries := models.New(s.db)
+    users, err := queries.GetVolunteersAndAdmins(ctx, models.GetVolunteersAndAdminsParams{
+        Limit:  pageSize,
+        Offset: (page - 1) * pageSize,
+    })
+    if err != nil {
+        return nil, 0, fmt.Errorf("failed to fetch volunteers and admins: %v", err)
+    }
+
+    totalCount, err := queries.GetTotalVolunteersAndAdminsCount(ctx)
+    if err != nil {
+        return nil, 0, fmt.Errorf("failed to get total count: %v", err)
+    }
+
+    return users, int32(totalCount), nil
 }

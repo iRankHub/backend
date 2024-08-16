@@ -21,9 +21,9 @@ SELECT COUNT(*) FROM Volunteers;
 -- name: CreateVolunteer :one
 INSERT INTO Volunteers (
   FirstName, LastName, DateOfBirth, Role, GraduateYear,
-  Password, SafeGuardCertificate, HasInternship, UserID, IsEnrolledInUniversity
+  Password, Gender, SafeGuardCertificate, HasInternship, UserID, IsEnrolledInUniversity
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 RETURNING *;
 
 -- name: UpdateVolunteer :one

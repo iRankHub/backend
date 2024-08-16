@@ -370,3 +370,34 @@ func (q *Queries) UpdateSchool(ctx context.Context, arg UpdateSchoolParams) (Sch
 	)
 	return i, err
 }
+
+const updateSchoolAddress = `-- name: UpdateSchoolAddress :one
+UPDATE Schools
+SET Address = $2
+WHERE ContactPersonID = $1
+RETURNING schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schoolemail, schooltype
+`
+
+type UpdateSchoolAddressParams struct {
+	Contactpersonid int32  `json:"contactpersonid"`
+	Address         string `json:"address"`
+}
+
+func (q *Queries) UpdateSchoolAddress(ctx context.Context, arg UpdateSchoolAddressParams) (School, error) {
+	row := q.db.QueryRowContext(ctx, updateSchoolAddress, arg.Contactpersonid, arg.Address)
+	var i School
+	err := row.Scan(
+		&i.Schoolid,
+		&i.Idebateschoolid,
+		&i.Schoolname,
+		&i.Address,
+		&i.Country,
+		&i.Province,
+		&i.District,
+		&i.Contactpersonid,
+		&i.Contactemail,
+		&i.Schoolemail,
+		&i.Schooltype,
+	)
+	return i, err
+}

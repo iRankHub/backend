@@ -60,27 +60,28 @@ func NewAuthServer(db *sql.DB) (authentication.AuthServiceServer, error) {
 
 
 func (s *authServer) SignUp(ctx context.Context, req *authentication.SignUpRequest) (*authentication.SignUpResponse, error) {
-	additionalInfo := map[string]interface{}{
-		"dateOfBirth":             req.DateOfBirth,
-		"schoolID":                req.SchoolID,
-		"schoolName":              req.SchoolName,
-		"address":                 req.Address,
-		"country":                 req.Country,
-		"province":                req.Province,
-		"district":                req.District,
-		"contactEmail":            req.ContactEmail,
-		"schoolType":              req.SchoolType,
-		"roleInterestedIn":        req.RoleInterestedIn,
-		"graduationYear":          req.GraduationYear,
-		"safeguardingCertificate": req.SafeguardingCertificate,
-		"grade":                   req.Grade,
-		"hasInternship":           req.HasInternship,
-	}
+    additionalInfo := map[string]interface{}{
+        "dateOfBirth":             req.DateOfBirth,
+        "schoolID":                req.SchoolID,
+        "schoolName":              req.SchoolName,
+        "address":                 req.Address,
+        "country":                 req.Country,
+        "province":                req.Province,
+        "district":                req.District,
+        "contactEmail":            req.ContactEmail,
+        "schoolType":              req.SchoolType,
+        "roleInterestedIn":        req.RoleInterestedIn,
+        "graduationYear":          req.GraduationYear,
+        "safeguardingCertificate": req.SafeguardingCertificate,
+        "grade":                   req.Grade,
+        "hasInternship":           req.HasInternship,
+        "isEnrolledInUniversity":  req.IsEnrolledInUniversity,
+    }
 
-	err := s.signUpService.SignUp(ctx, req.FirstName, req.LastName, req.Email, req.Password, req.UserRole, additionalInfo)
-	if err != nil {
-		return nil, err
-	}
+    err := s.signUpService.SignUp(ctx, req.FirstName, req.LastName, req.Email, req.Password, req.UserRole, req.Gender, additionalInfo)
+    if err != nil {
+        return nil, err
+    }
 
 	var message, status string
 	if req.UserRole == "admin" {
@@ -106,30 +107,30 @@ func (s *authServer) BatchImportUsers(ctx context.Context, req *authentication.B
 }
 
 func (s *authServer) Login(ctx context.Context, req *authentication.LoginRequest) (*authentication.LoginResponse, error) {
-    user, err := s.loginService.Login(ctx, req.EmailOrId, req.Password)
-    if err != nil {
-        if err.Error() == "two factor authentication required" {
-            err := s.twoFactorService.GenerateTwoFactorOTP(ctx, req.EmailOrId)
-            if err != nil {
-                return nil, fmt.Errorf("failed to generate two-factor OTP: %v", err)
-            }
-            return &authentication.LoginResponse{
-                Success: false,
-                RequireTwoFactor: true,
-                Message: "Two-factor authentication required. An OTP has been sent to your email.",
-            }, nil
-        }
-        if err.Error() == "password reset required" {
-            return &authentication.LoginResponse{
-                Success: false,
-                RequirePasswordReset: true,
-                Message: "A password reset email has been sent to your account.",
-            }, nil
-        }
-        return &authentication.LoginResponse{Success: false, Message: "Invalid email/ID or password"}, nil
-    }
+	user, err := s.loginService.Login(ctx, req.EmailOrId, req.Password)
+	if err != nil {
+		if err.Error() == "two factor authentication required" {
+			err := s.twoFactorService.GenerateTwoFactorOTP(ctx, req.EmailOrId)
+			if err != nil {
+				return nil, fmt.Errorf("failed to generate two-factor OTP: %v", err)
+			}
+			return &authentication.LoginResponse{
+				Success:           false,
+				RequireTwoFactor:  true,
+				Message:           "Two-factor authentication required. An OTP has been sent to your email.",
+			}, nil
+		}
+		if err.Error() == "forced password reset required" {
+			return &authentication.LoginResponse{
+				Success:               false,
+				RequirePasswordReset:  true,
+				Message:               "A password reset is required for your account. Please check your email for instructions.",
+			}, nil
+		}
+		return &authentication.LoginResponse{Success: false, Message: "Invalid email/ID or password"}, nil
+	}
 
-    return s.generateSuccessfulLoginResponse(user)
+	return s.generateSuccessfulLoginResponse(user)
 }
 
 func (s *authServer) Logout(ctx context.Context, req *authentication.LogoutRequest) (*authentication.LogoutResponse, error) {

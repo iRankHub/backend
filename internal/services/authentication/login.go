@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
@@ -40,31 +41,35 @@ func (s *LoginService) Login(ctx context.Context, emailOrId, password string) (*
 		return nil, fmt.Errorf("failed to retrieve user: %v", err)
 	}
 
-	 // Convert GetUserByEmailOrIDebateIDRow to User
-	 user := &models.User{
-        Userid:               userRow.Userid,
-        Webauthnuserid:       userRow.Webauthnuserid,
-        Name:                 userRow.Name,
-        Email:                userRow.Email,
-        Password:             userRow.Password,
-        Userrole:             userRow.Userrole,
-        Status:               userRow.Status,
-        Verificationstatus:   userRow.Verificationstatus,
-        Deactivatedat:        userRow.Deactivatedat,
-        TwoFactorSecret:      userRow.TwoFactorSecret,
-        TwoFactorEnabled:     userRow.TwoFactorEnabled,
-        FailedLoginAttempts:  userRow.FailedLoginAttempts,
-        LastLoginAttempt:     userRow.LastLoginAttempt,
-        LastLogout:           userRow.LastLogout,
-        ResetToken:           userRow.ResetToken,
-        ResetTokenExpires:    userRow.ResetTokenExpires,
-        CreatedAt:            userRow.CreatedAt,
-        UpdatedAt:            userRow.UpdatedAt,
-        DeletedAt:            userRow.DeletedAt,
-    }
+	user := &models.User{
+		Userid:               userRow.Userid,
+		Webauthnuserid:       userRow.Webauthnuserid,
+		Name:                 userRow.Name,
+		Email:                userRow.Email,
+		Password:             userRow.Password,
+		Userrole:             userRow.Userrole,
+		Status:               userRow.Status,
+		Verificationstatus:   userRow.Verificationstatus,
+		Deactivatedat:        userRow.Deactivatedat,
+		TwoFactorSecret:      userRow.TwoFactorSecret,
+		TwoFactorEnabled:     userRow.TwoFactorEnabled,
+		FailedLoginAttempts:  userRow.FailedLoginAttempts,
+		LastLoginAttempt:     userRow.LastLoginAttempt,
+		LastLogout:           userRow.LastLogout,
+		ResetToken:           userRow.ResetToken,
+		ResetTokenExpires:    userRow.ResetTokenExpires,
+		CreatedAt:            userRow.CreatedAt,
+		UpdatedAt:            userRow.UpdatedAt,
+		DeletedAt:            userRow.DeletedAt,
+	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	// Check if forced password reset is active
+	if user.ResetToken.Valid && user.ResetTokenExpires.Valid && user.ResetTokenExpires.Time.After(time.Now()) {
+		return nil, fmt.Errorf("forced password reset required")
 	}
 
 	err = utils.ComparePasswords(user.Password, password)

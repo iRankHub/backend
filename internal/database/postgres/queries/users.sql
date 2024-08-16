@@ -37,14 +37,24 @@ LEFT JOIN Volunteers v ON u.UserID = v.UserID;
 SELECT UserID, Email, Name, Password, UserRole FROM Users WHERE UserID = $1;
 
 -- name: CreateUser :one
-INSERT INTO Users (Name, Email, Password, UserRole, Status)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO Users (Name, Email, Password, UserRole, Status, Gender)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
+
 -- name: UpdateUser :one
 UPDATE Users
-SET Name = $2, Email = $3, Password = $4, UserRole = $5, VerificationStatus = $6, Status = $7
+SET Name = $2, Email = $3, Password = $4, UserRole = $5, VerificationStatus = $6, Status = $7, Gender = $8
 WHERE UserID = $1
 RETURNING *;
+
+-- name: GetAllUsers :many
+SELECT * FROM Users
+WHERE deleted_at IS NULL
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2;
+
+-- name: GetTotalUserCount :one
+SELECT COUNT(*) FROM Users WHERE deleted_at IS NULL;
 
 -- name: UpdateUserStatus :exec
 UPDATE Users
@@ -72,7 +82,7 @@ WHERE UserID = $1;
 
 -- name: DeleteUser :exec
 UPDATE Users
-SET deleted_at = CURRENT_TIMESTAMP
+SET Status = 'rejected', deleted_at = CURRENT_TIMESTAMP
 WHERE UserID = $1;
 
 -- name: UpdateAndEnableTwoFactor :exec
@@ -138,3 +148,13 @@ SELECT
     END AS status
 FROM Users
 WHERE UserID = $1;
+
+-- name: GetVolunteersAndAdmins :many
+SELECT * FROM Users
+WHERE UserRole IN ('volunteer', 'admin') AND deleted_at IS NULL
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2;
+
+-- name: GetTotalVolunteersAndAdminsCount :one
+SELECT COUNT(*) FROM Users
+WHERE UserRole IN ('volunteer', 'admin') AND deleted_at IS NULL;

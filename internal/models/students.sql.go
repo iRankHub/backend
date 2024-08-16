@@ -11,14 +11,15 @@ import (
 )
 
 const createStudent = `-- name: CreateStudent :one
-INSERT INTO Students (FirstName, LastName, Grade, DateOfBirth, Email, Password, SchoolID, UserID)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING studentid, idebatestudentid, firstname, lastname, grade, dateofbirth, email, password, schoolid, userid
+INSERT INTO Students (FirstName, LastName, Gender, Grade, DateOfBirth, Email, Password, SchoolID, UserID)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9)
+RETURNING studentid, idebatestudentid, firstname, lastname, gender, grade, dateofbirth, email, password, schoolid, userid
 `
 
 type CreateStudentParams struct {
 	Firstname   string         `json:"firstname"`
 	Lastname    string         `json:"lastname"`
+	Gender      sql.NullString `json:"gender"`
 	Grade       string         `json:"grade"`
 	Dateofbirth sql.NullTime   `json:"dateofbirth"`
 	Email       sql.NullString `json:"email"`
@@ -31,6 +32,7 @@ func (q *Queries) CreateStudent(ctx context.Context, arg CreateStudentParams) (S
 	row := q.db.QueryRowContext(ctx, createStudent,
 		arg.Firstname,
 		arg.Lastname,
+		arg.Gender,
 		arg.Grade,
 		arg.Dateofbirth,
 		arg.Email,
@@ -44,6 +46,7 @@ func (q *Queries) CreateStudent(ctx context.Context, arg CreateStudentParams) (S
 		&i.Idebatestudentid,
 		&i.Firstname,
 		&i.Lastname,
+		&i.Gender,
 		&i.Grade,
 		&i.Dateofbirth,
 		&i.Email,
@@ -65,7 +68,7 @@ func (q *Queries) DeleteStudent(ctx context.Context, studentid int32) error {
 }
 
 const getAllStudents = `-- name: GetAllStudents :many
-SELECT studentid, idebatestudentid, firstname, lastname, grade, dateofbirth, email, password, schoolid, userid FROM Students
+SELECT studentid, idebatestudentid, firstname, lastname, gender, grade, dateofbirth, email, password, schoolid, userid FROM Students
 `
 
 func (q *Queries) GetAllStudents(ctx context.Context) ([]Student, error) {
@@ -82,6 +85,7 @@ func (q *Queries) GetAllStudents(ctx context.Context) ([]Student, error) {
 			&i.Idebatestudentid,
 			&i.Firstname,
 			&i.Lastname,
+			&i.Gender,
 			&i.Grade,
 			&i.Dateofbirth,
 			&i.Email,
@@ -103,7 +107,7 @@ func (q *Queries) GetAllStudents(ctx context.Context) ([]Student, error) {
 }
 
 const getStudentByEmail = `-- name: GetStudentByEmail :one
-SELECT studentid, idebatestudentid, firstname, lastname, grade, dateofbirth, email, password, schoolid, userid FROM Students
+SELECT studentid, idebatestudentid, firstname, lastname, gender, grade, dateofbirth, email, password, schoolid, userid FROM Students
 WHERE Email = $1
 `
 
@@ -115,6 +119,7 @@ func (q *Queries) GetStudentByEmail(ctx context.Context, email sql.NullString) (
 		&i.Idebatestudentid,
 		&i.Firstname,
 		&i.Lastname,
+		&i.Gender,
 		&i.Grade,
 		&i.Dateofbirth,
 		&i.Email,
@@ -126,7 +131,7 @@ func (q *Queries) GetStudentByEmail(ctx context.Context, email sql.NullString) (
 }
 
 const getStudentByID = `-- name: GetStudentByID :one
-SELECT studentid, idebatestudentid, firstname, lastname, grade, dateofbirth, email, password, schoolid, userid FROM Students
+SELECT studentid, idebatestudentid, firstname, lastname, gender, grade, dateofbirth, email, password, schoolid, userid FROM Students
 WHERE StudentID = $1
 `
 
@@ -138,6 +143,7 @@ func (q *Queries) GetStudentByID(ctx context.Context, studentid int32) (Student,
 		&i.Idebatestudentid,
 		&i.Firstname,
 		&i.Lastname,
+		&i.Gender,
 		&i.Grade,
 		&i.Dateofbirth,
 		&i.Email,
@@ -149,7 +155,7 @@ func (q *Queries) GetStudentByID(ctx context.Context, studentid int32) (Student,
 }
 
 const getStudentsPaginated = `-- name: GetStudentsPaginated :many
-SELECT s.studentid, s.idebatestudentid, s.firstname, s.lastname, s.grade, s.dateofbirth, s.email, s.password, s.schoolid, s.userid, sch.SchoolName
+SELECT s.studentid, s.idebatestudentid, s.firstname, s.lastname, s.gender, s.grade, s.dateofbirth, s.email, s.password, s.schoolid, s.userid, sch.SchoolName
 FROM Students s
 JOIN Schools sch ON s.SchoolID = sch.SchoolID
 ORDER BY s.StudentID
@@ -166,6 +172,7 @@ type GetStudentsPaginatedRow struct {
 	Idebatestudentid sql.NullString `json:"idebatestudentid"`
 	Firstname        string         `json:"firstname"`
 	Lastname         string         `json:"lastname"`
+	Gender           sql.NullString `json:"gender"`
 	Grade            string         `json:"grade"`
 	Dateofbirth      sql.NullTime   `json:"dateofbirth"`
 	Email            sql.NullString `json:"email"`
@@ -189,6 +196,7 @@ func (q *Queries) GetStudentsPaginated(ctx context.Context, arg GetStudentsPagin
 			&i.Idebatestudentid,
 			&i.Firstname,
 			&i.Lastname,
+			&i.Gender,
 			&i.Grade,
 			&i.Dateofbirth,
 			&i.Email,
@@ -225,7 +233,7 @@ const updateStudent = `-- name: UpdateStudent :one
 UPDATE Students
 SET FirstName = $2, LastName = $3, Grade = $4, DateOfBirth = $5, Email = $6, Password = $7, SchoolID = $8
 WHERE StudentID = $1
-RETURNING studentid, idebatestudentid, firstname, lastname, grade, dateofbirth, email, password, schoolid, userid
+RETURNING studentid, idebatestudentid, firstname, lastname, gender, grade, dateofbirth, email, password, schoolid, userid
 `
 
 type UpdateStudentParams struct {
@@ -256,6 +264,7 @@ func (q *Queries) UpdateStudent(ctx context.Context, arg UpdateStudentParams) (S
 		&i.Idebatestudentid,
 		&i.Firstname,
 		&i.Lastname,
+		&i.Gender,
 		&i.Grade,
 		&i.Dateofbirth,
 		&i.Email,
