@@ -154,6 +154,30 @@ func (q *Queries) GetStudentByID(ctx context.Context, studentid int32) (Student,
 	return i, err
 }
 
+const getStudentByIDebateID = `-- name: GetStudentByIDebateID :one
+SELECT studentid, idebatestudentid, firstname, lastname, gender, grade, dateofbirth, email, password, schoolid, userid FROM Students
+WHERE iDebateStudentID = $1
+`
+
+func (q *Queries) GetStudentByIDebateID(ctx context.Context, idebatestudentid sql.NullString) (Student, error) {
+	row := q.db.QueryRowContext(ctx, getStudentByIDebateID, idebatestudentid)
+	var i Student
+	err := row.Scan(
+		&i.Studentid,
+		&i.Idebatestudentid,
+		&i.Firstname,
+		&i.Lastname,
+		&i.Gender,
+		&i.Grade,
+		&i.Dateofbirth,
+		&i.Email,
+		&i.Password,
+		&i.Schoolid,
+		&i.Userid,
+	)
+	return i, err
+}
+
 const getStudentsPaginated = `-- name: GetStudentsPaginated :many
 SELECT s.studentid, s.idebatestudentid, s.firstname, s.lastname, s.gender, s.grade, s.dateofbirth, s.email, s.password, s.schoolid, s.userid, sch.SchoolName
 FROM Students s

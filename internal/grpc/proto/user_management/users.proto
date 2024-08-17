@@ -52,6 +52,7 @@ message UserSummary {
   string userRole = 4;
   string signUpDate = 5;
   string gender = 6;
+  string status = 7;
 }
 
 message GetUserDetailsRequest {

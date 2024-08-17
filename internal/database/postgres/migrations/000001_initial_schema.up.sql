@@ -173,14 +173,12 @@ CREATE TABLE Volunteers (
 CREATE TABLE TournamentInvitations (
     InvitationID SERIAL PRIMARY KEY,
     TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
-    SchoolID INTEGER REFERENCES Schools(SchoolID),
-    VolunteerID INTEGER REFERENCES Volunteers(VolunteerID),
-    StudentID INTEGER REFERENCES Students(StudentID),
-    UserID INTEGER REFERENCES Users(UserID),
-    Status VARCHAR(20) NOT NULL CHECK (Status IN ('pending', 'accepted', 'declined')),
-    InvitedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    ReminderSentAt TIMESTAMP,
-    RespondedAt TIMESTAMP
+    InviteeID VARCHAR(35) NOT NULL, -- This will store the iDebate ID
+    InviteeRole VARCHAR(20) NOT NULL CHECK (InviteeRole IN ('school', 'volunteer', 'student')),
+    Status VARCHAR(20) NOT NULL CHECK (Status IN ('pending', 'accepted', 'rejected')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ReminderSentAt TIMESTAMP
 );
 
 CREATE TABLE Teams (
@@ -325,7 +323,7 @@ CREATE INDEX IF NOT EXISTS idx_notifications_userid ON Notifications(UserID);
 CREATE INDEX idx_tournaments_coordinator_id ON Tournaments(CoordinatorID);
 CREATE INDEX IF NOT EXISTS idx_tournaments_startdate ON Tournaments(StartDate);
 CREATE INDEX IF NOT EXISTS idx_tournament_invitations_status ON TournamentInvitations(Status);
-CREATE INDEX IF NOT EXISTS idx_tournament_invitations_tournamentid ON TournamentInvitations(TournamentID);
+CREATE INDEX IF NOT EXISTS idx_tournament_invitations_tournament_id ON TournamentInvitations(TournamentID);
 CREATE INDEX IF NOT EXISTS idx_teams_invitationid ON Teams(InvitationID);
 CREATE INDEX IF NOT EXISTS idx_team_members_teamid ON TeamMembers(TeamID);
 

@@ -2,6 +2,10 @@
 SELECT * FROM Schools
 WHERE SchoolID = $1;
 
+-- name: GetSchoolByIDebateID :one
+SELECT * FROM Schools
+WHERE iDebateSchoolID = $1;
+
 -- name: GetSchoolByUserID :one
 SELECT * FROM Schools WHERE ContactPersonID = $1;
 

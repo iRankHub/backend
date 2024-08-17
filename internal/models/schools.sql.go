@@ -115,6 +115,30 @@ func (q *Queries) GetSchoolByID(ctx context.Context, schoolid int32) (School, er
 	return i, err
 }
 
+const getSchoolByIDebateID = `-- name: GetSchoolByIDebateID :one
+SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schoolemail, schooltype FROM Schools
+WHERE iDebateSchoolID = $1
+`
+
+func (q *Queries) GetSchoolByIDebateID(ctx context.Context, idebateschoolid sql.NullString) (School, error) {
+	row := q.db.QueryRowContext(ctx, getSchoolByIDebateID, idebateschoolid)
+	var i School
+	err := row.Scan(
+		&i.Schoolid,
+		&i.Idebateschoolid,
+		&i.Schoolname,
+		&i.Address,
+		&i.Country,
+		&i.Province,
+		&i.District,
+		&i.Contactpersonid,
+		&i.Contactemail,
+		&i.Schoolemail,
+		&i.Schooltype,
+	)
+	return i, err
+}
+
 const getSchoolByUserID = `-- name: GetSchoolByUserID :one
 SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schoolemail, schooltype FROM Schools WHERE ContactPersonID = $1
 `

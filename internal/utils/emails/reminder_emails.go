@@ -32,7 +32,7 @@ func SendReminderEmails(ctx context.Context, invitations []models.GetPendingInvi
 
 		batch := invitations[i:end]
 		for _, invitation := range batch {
-			if err := sendSingleReminderEmail(ctx, invitation, queries); err != nil {
+			if err := sendSingleReminderEmail(invitation); err != nil {
 				errors = append(errors, fmt.Errorf("failed to send reminder email for invitation %d: %v", invitation.Invitationid, err))
 			}
 		}
@@ -47,29 +47,24 @@ func SendReminderEmails(ctx context.Context, invitations []models.GetPendingInvi
 	return nil
 }
 
-func sendSingleReminderEmail(ctx context.Context, invitation models.GetPendingInvitationsRow, queries *models.Queries) error {
-	tournament, err := queries.GetTournamentByID(ctx, invitation.Tournamentid)
-	if err != nil {
-		return fmt.Errorf("failed to get tournament details: %v", err)
-	}
+func sendSingleReminderEmail(invitation models.GetPendingInvitationsRow) error {
+    timeUntilTournament := time.Until(invitation.Tournamentstartdate)
+    reminderType := getShouldSendReminder(timeUntilTournament, invitation.Status, invitation.Inviteerole == "school")
 
-	timeUntilTournament := time.Until(tournament.Startdate)
-	reminderType := getShouldSendReminder(timeUntilTournament, invitation.Status, invitation.Schoolid.Valid)
+    if reminderType == "none" {
+        return nil
+    }
 
-	if reminderType == "none" {
-		return nil
-	}
+    recipient, recipientType, err := getRecipientInfo(invitation)
+    if err != nil {
+        return err
+    }
 
-	recipient, recipientType, err := getRecipientInfo(ctx, queries, invitation)
-	if err != nil {
-		return err
-	}
+    subject := fmt.Sprintf("Reminder: %s Tournament", invitation.Tournamentname)
+    content := prepareReminderEmailContent(recipientType, invitation.Tournamentname, timeUntilTournament, invitation.Invitationid, reminderType)
+    body := GetEmailTemplate(content)
 
-	subject := fmt.Sprintf("Reminder: %s Tournament", tournament.Name)
-	content := prepareReminderEmailContent(recipientType, tournament.Name, timeUntilTournament, invitation.Invitationid, reminderType)
-	body := GetEmailTemplate(content)
-
-	return SendEmail(recipient, subject, body)
+    return SendEmail(recipient, subject, body)
 }
 
 func prepareReminderEmailContent(recipientType, tournamentName string, timeUntilTournament time.Duration, invitationID int32, reminderType string) string {
@@ -135,25 +130,17 @@ func prepareReminderEmailContent(recipientType, tournamentName string, timeUntil
 	return content
 }
 
-func getRecipientInfo(ctx context.Context, queries *models.Queries, invitation models.GetPendingInvitationsRow) (string, string, error) {
-	if invitation.Schoolid.Valid {
-		school, err := queries.GetSchoolByID(ctx, invitation.Schoolid.Int32)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to get school details: %v", err)
-		}
-		return school.Contactemail, "school", nil
-	} else if invitation.Volunteerid.Valid {
-		volunteer, err := queries.GetVolunteerByID(ctx, invitation.Volunteerid.Int32)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to get volunteer details: %v", err)
-		}
-		user, err := queries.GetUserByID(ctx, volunteer.Userid)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to get user details: %v", err)
-		}
-		return user.Email, "volunteer", nil
-	}
-	return "", "", fmt.Errorf("invalid invitation: neither school nor volunteer ID is set")
+func getRecipientInfo(invitation models.GetPendingInvitationsRow) (string, string, error) {
+    switch invitation.Inviteerole {
+    case "school":
+        return invitation.Inviteeemail.(string), "school", nil
+    case "volunteer":
+        return invitation.Inviteeemail.(string), "volunteer", nil
+    case "student":
+        return invitation.Inviteeemail.(string), "student", nil
+    default:
+        return "", "", fmt.Errorf("invalid invitation role: %s", invitation.Inviteerole)
+    }
 }
 
 func getShouldSendReminder(timeUntilTournament time.Duration, invitationStatus string, isSchool bool) string {

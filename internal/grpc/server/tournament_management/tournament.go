@@ -183,38 +183,6 @@ func (s *tournamentServer) DeleteTournament(ctx context.Context, req *tournament
 	}, nil
 }
 
-func (s *tournamentServer) AcceptInvitation(ctx context.Context, req *tournament_management.AcceptInvitationRequest) (*tournament_management.AcceptInvitationResponse, error) {
-	response, err := s.invitationService.AcceptInvitation(ctx, req)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to accept invitation: %v", err)
-	}
-	return response, nil
-}
-
-func (s *tournamentServer) DeclineInvitation(ctx context.Context, req *tournament_management.DeclineInvitationRequest) (*tournament_management.DeclineInvitationResponse, error) {
-	response, err := s.invitationService.DeclineInvitation(ctx, req)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to decline invitation: %v", err)
-	}
-	return response, nil
-}
-
-func (s *tournamentServer) BulkAcceptInvitations(ctx context.Context, req *tournament_management.BulkAcceptInvitationsRequest) (*tournament_management.BulkAcceptInvitationsResponse, error) {
-	response, err := s.invitationService.BulkAcceptInvitations(ctx, req)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to bulk accept invitations: %v", err)
-	}
-	return response, nil
-}
-
-func (s *tournamentServer) BulkDeclineInvitations(ctx context.Context, req *tournament_management.BulkDeclineInvitationsRequest) (*tournament_management.BulkDeclineInvitationsResponse, error) {
-	response, err := s.invitationService.BulkDeclineInvitations(ctx, req)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to bulk decline invitations: %v", err)
-	}
-	return response, nil
-}
-
 func (s *tournamentServer) GetInvitationsByUser(ctx context.Context, req *tournament_management.GetInvitationsByUserRequest) (*tournament_management.GetInvitationsByUserResponse, error) {
     response, err := s.invitationService.GetInvitationsByUser(ctx, req)
     if err != nil {
@@ -223,12 +191,28 @@ func (s *tournamentServer) GetInvitationsByUser(ctx context.Context, req *tourna
     return response, nil
 }
 
-func (s *tournamentServer) GetAllInvitations(ctx context.Context, req *tournament_management.GetAllInvitationsRequest) (*tournament_management.GetAllInvitationsResponse, error) {
-	response, err := s.invitationService.GetAllInvitations(ctx, req)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to get all invitations: %v", err)
-	}
-	return response, nil
+func (s *tournamentServer) GetInvitationsByTournament(ctx context.Context, req *tournament_management.GetInvitationsByTournamentRequest) (*tournament_management.GetInvitationsByTournamentResponse, error) {
+    response, err := s.invitationService.GetInvitationsByTournament(ctx, req)
+    if err != nil {
+        return nil, status.Errorf(codes.Internal, "Failed to get invitations for tournament: %v", err)
+    }
+    return response, nil
+}
+
+func (s *tournamentServer) UpdateInvitationStatus(ctx context.Context, req *tournament_management.UpdateInvitationStatusRequest) (*tournament_management.UpdateInvitationStatusResponse, error) {
+    response, err := s.invitationService.UpdateInvitationStatus(ctx, req)
+    if err != nil {
+        return nil, status.Errorf(codes.Internal, "Failed to update invitation status: %v", err)
+    }
+    return response, nil
+}
+
+func (s *tournamentServer) BulkUpdateInvitationStatus(ctx context.Context, req *tournament_management.BulkUpdateInvitationStatusRequest) (*tournament_management.BulkUpdateInvitationStatusResponse, error) {
+    response, err := s.invitationService.BulkUpdateInvitationStatus(ctx, req)
+    if err != nil {
+        return nil, status.Errorf(codes.Internal, "Failed to bulk update invitation statuses: %v", err)
+    }
+    return response, nil
 }
 
 func (s *tournamentServer) ResendInvitation(ctx context.Context, req *tournament_management.ResendInvitationRequest) (*tournament_management.ResendInvitationResponse, error) {
@@ -243,15 +227,6 @@ func (s *tournamentServer) BulkResendInvitations(ctx context.Context, req *tourn
 	response, err := s.invitationService.BulkResendInvitations(ctx, req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to bulk resend invitations: %v", err)
-	}
-	return response, nil
-}
-
-func (s *tournamentServer) GetInvitationStatus(ctx context.Context, req *tournament_management.GetInvitationStatusRequest) (*tournament_management.GetInvitationStatusResponse, error) {
-	log.Printf("GetInvitationStatus called with invitation ID: %d", req.GetInvitationId())
-	response, err := s.invitationService.GetInvitationStatus(ctx, req)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to get invitation status: %v", err)
 	}
 	return response, nil
 }

@@ -2,6 +2,10 @@
 SELECT * FROM Students
 WHERE StudentID = $1;
 
+-- name: GetStudentByIDebateID :one
+SELECT * FROM Students
+WHERE iDebateStudentID = $1;
+
 -- name: GetStudentByEmail :one
 SELECT * FROM Students
 WHERE Email = $1;
