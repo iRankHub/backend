@@ -192,6 +192,7 @@ func (s *userManagementServer) GetAllUsers(ctx context.Context, req *user_manage
             UserRole:   user.Userrole,
             SignUpDate: signUpDate,
             Gender:     user.Gender.String,
+			Status:     user.Gender.String,
         })
     }
 
@@ -387,6 +388,7 @@ func (s *userManagementServer) GetVolunteersAndAdmins(ctx context.Context, req *
 			UserRole:   user.Userrole,
 			SignUpDate: user.CreatedAt.Time.Format("2006-01-02 15:04:05"),
 			Gender:     user.Gender.String,
+			Status:     user.Status.String,
 		})
 	}
 

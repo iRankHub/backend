@@ -301,6 +301,9 @@ To test the user management features:
    k. Country Information:
    - Use `GetCountries` to retrieve a list of countries and their codes.
    - Verify the country information is correct and complete.
+  
+   l. User Management:
+   - Use `GetAllUsers` to retrieve a list of users.
 
 5. For each test, verify that the appropriate email notifications are sent:
    - Single user operations: approval, rejection, deletion, deactivation, reactivation

@@ -223,16 +223,14 @@ type Tournamentformat struct {
 }
 
 type Tournamentinvitation struct {
-	Invitationid   int32         `json:"invitationid"`
-	Tournamentid   int32         `json:"tournamentid"`
-	Schoolid       sql.NullInt32 `json:"schoolid"`
-	Volunteerid    sql.NullInt32 `json:"volunteerid"`
-	Studentid      sql.NullInt32 `json:"studentid"`
-	Userid         sql.NullInt32 `json:"userid"`
-	Status         string        `json:"status"`
-	Invitedat      time.Time     `json:"invitedat"`
-	Remindersentat sql.NullTime  `json:"remindersentat"`
-	Respondedat    sql.NullTime  `json:"respondedat"`
+	Invitationid   int32        `json:"invitationid"`
+	Tournamentid   int32        `json:"tournamentid"`
+	Inviteeid      string       `json:"inviteeid"`
+	Inviteerole    string       `json:"inviteerole"`
+	Status         string       `json:"status"`
+	CreatedAt      sql.NullTime `json:"created_at"`
+	UpdatedAt      sql.NullTime `json:"updated_at"`
+	Remindersentat sql.NullTime `json:"remindersentat"`
 }
 
 type User struct {

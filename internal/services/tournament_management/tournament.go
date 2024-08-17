@@ -299,10 +299,9 @@ func (s *TournamentService) createInvitations(ctx context.Context, queries *mode
     for _, school := range schools {
         invitation, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
             Tournamentid: tournamentID,
-            Schoolid:     sql.NullInt32{Int32: school.Schoolid, Valid: true},
-            Volunteerid:  sql.NullInt32{},
-            Studentid:    sql.NullInt32{},
-            Status:       "pending",
+			Inviteeid:    school.Idebateschoolid.String,
+			Inviteerole:  "school",
+			Status:       "pending",
         })
         if err != nil {
             log.Printf("Failed to create invitation for school %d: %v", school.Schoolid, err)
@@ -320,10 +319,9 @@ func (s *TournamentService) createInvitations(ctx context.Context, queries *mode
     for _, volunteer := range volunteers {
         invitation, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
             Tournamentid: tournamentID,
-            Schoolid:     sql.NullInt32{},
-            Volunteerid:  sql.NullInt32{Int32: volunteer.Volunteerid, Valid: true},
-            Studentid:    sql.NullInt32{},
-            Status:       "pending",
+			Inviteeid:    volunteer.Idebatevolunteerid.String,
+			Inviteerole:  "volunteer",
+			Status:       "pending",
         })
         if err != nil {
             log.Printf("Failed to create invitation for volunteer %d: %v", volunteer.Volunteerid, err)
@@ -342,9 +340,8 @@ func (s *TournamentService) createInvitations(ctx context.Context, queries *mode
         for _, student := range students {
             invitation, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
                 Tournamentid: tournamentID,
-                Schoolid:     sql.NullInt32{},
-                Volunteerid:  sql.NullInt32{},
-                Studentid:    sql.NullInt32{Int32: student.Studentid, Valid: true},
+                Inviteeid:    student.Idebatestudentid.String,
+                Inviteerole:  "student",
                 Status:       "pending",
             })
             if err != nil {

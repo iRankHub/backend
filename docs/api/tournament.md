@@ -235,88 +235,64 @@ Request:
 
 ## Invitation Management API
 
-### AcceptInvitation
+### GetInvitationsByUser
 
-Endpoint: `TournamentService.AcceptInvitation`
+Endpoint: `TournamentService.GetInvitationsByUser`
+
+Request:
+```json
+{
+  "token": "your_auth_token_here"
+}
+```
+
+### GetInvitationsByTournament
+
+Endpoint: `TournamentService.GetInvitationsByTournament`
+
+Request:
+```json
+{
+  "tournament_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+### UpdateInvitationStatus
+
+Endpoint: `TournamentService.UpdateInvitationStatus`
 
 Request:
 ```json
 {
   "invitation_id": 1,
+  "new_status": "accepted",
   "token": "your_auth_token_here"
 }
 ```
 
-### DeclineInvitation
+### BulkUpdateInvitationStatus
 
-Endpoint: `TournamentService.DeclineInvitation`
-
-Request:
-```json
-{
-  "invitation_id": 1,
-  "token": "your_auth_token_here"
-}
-```
-
-### GetInvitationStatus
-
-Endpoint: `TournamentService.GetInvitationStatus`
-
-Request:
-```json
-{
-  "invitation_id": 1,
-  "token": "your_auth_token_here"
-}
-```
-
-### GetInvitationStatus
-
-Endpoint: `TournamentService.GetInvitationStatus`
-
-Request:
-```json
-{
-  "invitation_id": 1,
-  "token": "your_auth_token_here"
-}
-```
-
-### BulkAcceptInvitations
-
-Endpoint: `TournamentService.BulkAcceptInvitations`
+Endpoint: `TournamentService.BulkUpdateInvitationStatus`
 Authorization: Admin only
 
 Request:
 ```json
 {
   "invitation_ids": [1, 2, 3],
+  "new_status": "accepted",
   "token": "your_auth_token_here"
 }
 ```
 
-### BulkDeclineInvitations
+### ResendInvitation
 
-Endpoint: `TournamentService.BulkDeclineInvitations`
-Authorization: Admin only
-
-Request:
-```json
-{
-  "invitation_ids": [4, 5, 6],
-  "token": "your_auth_token_here"
-}
-```
-
-### GetAllInvitations
-
-Endpoint: `TournamentService.GetAllInvitations`
-Authorization: Admin only
+Endpoint: `TournamentService.ResendInvitation`
 
 Request:
 ```json
 {
+  "invitation_id": 1,
   "token": "your_auth_token_here"
 }
 ```
@@ -367,20 +343,16 @@ To test the tournament management and invitation features, including leagues, fo
    - Use `GetTournament` again to verify the changes.
 
    e. Invitation Management:
-   - Use `AcceptInvitation` to accept an invitation for a school or volunteer.
-   - Use `DeclineInvitation` to decline an invitation.
-   - Use `GetInvitationStatus` to check the status of an invitation and its registered teams.
+   - Use `GetInvitationsByUser` to get a list of all tournament invitations a user received and their status.
+   - Use `GetInvitationsByTournament` to get a list of all invitations for a particular tournament and their status.
+   - Use `UpdateInvitationStatus` to updat the status of a single invitation.
+   - Use `BulkUpdateInvitationStatus` to update the status of multiple invitations at once.
+   - Use `ResendInvitation` to resend a single invitation to a user.
+   - Use `BulkResendInvitations` to resend multiple invitations to selected users at once.
 
    f. Tournament Deletion:
    - Use `DeleteTournament` to remove a tournament.
    - Attempt to `GetTournament` for the deleted tournament (should fail).
-
-   g. Bulk Invitation Management:
-   - Use `BulkAcceptInvitations` to accept multiple invitations at once.
-   - Use `BulkDeclineInvitations` to decline multiple invitations at once.
-   - Use `BulkResendInvitations` to resend multiple invitations at once.
-   - Use `GetAllInvitations` to retrieve all invitations in the system.
-   - Verify the changes using `GetInvitationStatus` for individual invitations.
 
 4. For each test, verify that the appropriate email notifications are sent (tournament creation confirmation, invitations, reminders).
 

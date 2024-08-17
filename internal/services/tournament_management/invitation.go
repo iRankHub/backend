@@ -11,6 +11,7 @@ import (
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
 	emails "github.com/iRankHub/backend/internal/utils/emails"
+
 )
 
 type InvitationService struct {
@@ -21,254 +22,193 @@ func NewInvitationService(db *sql.DB) *InvitationService {
 	return &InvitationService{db: db}
 }
 
-func (s *InvitationService) AcceptInvitation(ctx context.Context, req *tournament_management.AcceptInvitationRequest) (*tournament_management.AcceptInvitationResponse, error) {
-	claims, err := utils.ValidateToken(req.GetToken())
-	if err != nil {
-		log.Printf("Authentication failed: %v", err)
-		return nil, fmt.Errorf("authentication failed: %v", err)
-	}
+func (s *InvitationService) GetInvitationsByUser(ctx context.Context, req *tournament_management.GetInvitationsByUserRequest) (*tournament_management.GetInvitationsByUserResponse, error) {
+    claims, err := utils.ValidateToken(req.GetToken())
+    if err != nil {
+        return nil, fmt.Errorf("authentication failed: %v", err)
+    }
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		log.Printf("Failed to start transaction: %v", err)
-		return nil, fmt.Errorf("failed to start transaction: %v", err)
-	}
-	defer tx.Rollback()
+    userIDFloat, ok := claims["user_id"].(float64)
+    if !ok {
+        return nil, fmt.Errorf("invalid user ID in token")
+    }
+    userID := int32(userIDFloat)
 
-	queries := models.New(s.db).WithTx(tx)
+    queries := models.New(s.db)
+    invitations, err := queries.GetInvitationsByUser(ctx, userID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get invitations: %v", err)
+    }
 
-	userIDFloat, ok := claims["user_id"].(float64)
-	if !ok {
-		return nil, fmt.Errorf("invalid user ID in token")
-	}
-	userID := sql.NullInt32{Int32: int32(userIDFloat), Valid: true}
-	log.Printf("User ID from token: %d", userID.Int32)
+    invitationInfos := make([]*tournament_management.InvitationInfo, len(invitations))
+    for i, inv := range invitations {
+        invitationInfos[i] = &tournament_management.InvitationInfo{
+            InvitationId: inv.Invitationid,
+            Status:       inv.Status,
+            IdebateId:    inv.Inviteeid,
+            InviteeRole:  inv.Inviteerole,
+            CreatedAt:    inv.CreatedAt.Time.Format(time.RFC3339),
+            UpdatedAt:    inv.UpdatedAt.Time.Format(time.RFC3339),
+        }
+    }
 
-	err = queries.UpdateInvitationStatusWithUserCheck(ctx, models.UpdateInvitationStatusWithUserCheckParams{
-		Invitationid: req.GetInvitationId(),
-		Status:       "accepted",
-		Userid:       userID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to accept invitation: %v", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %v", err)
-	}
-
-	return &tournament_management.AcceptInvitationResponse{
-		Success: true,
-		Message: "Invitation accepted successfully",
-	}, nil
+    return &tournament_management.GetInvitationsByUserResponse{
+        Invitations: invitationInfos,
+    }, nil
 }
 
-func (s *InvitationService) DeclineInvitation(ctx context.Context, req *tournament_management.DeclineInvitationRequest) (*tournament_management.DeclineInvitationResponse, error) {
-	claims, err := utils.ValidateToken(req.GetToken())
-	if err != nil {
-		return nil, fmt.Errorf("authentication failed: %v", err)
-	}
-
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start transaction: %v", err)
-	}
-	defer tx.Rollback()
-
-	queries := models.New(s.db).WithTx(tx)
-
-	userIDFloat, ok := claims["user_id"].(float64)
-	if !ok {
-		return nil, fmt.Errorf("invalid user ID in token")
-	}
-	userID := sql.NullInt32{Int32: int32(userIDFloat), Valid: true}
-
-	err = queries.UpdateInvitationStatusWithUserCheck(ctx, models.UpdateInvitationStatusWithUserCheckParams{
-		Invitationid: req.GetInvitationId(),
-		Status:       "declined",
-		Userid:       userID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to decline invitation: %v", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %v", err)
-	}
-
-	return &tournament_management.DeclineInvitationResponse{
-		Success: true,
-		Message: "Invitation declined successfully",
-	}, nil
-}
-
-func (s *InvitationService) BulkAcceptInvitations(ctx context.Context, req *tournament_management.BulkAcceptInvitationsRequest) (*tournament_management.BulkAcceptInvitationsResponse, error) {
-	_, err := s.validateAdminRole(req.GetToken())
-	if err != nil {
+func (s *InvitationService) GetInvitationsByTournament(ctx context.Context, req *tournament_management.GetInvitationsByTournamentRequest) (*tournament_management.GetInvitationsByTournamentResponse, error) {
+	if err := s.validateAuthentication(req.GetToken()); err != nil {
 		return nil, err
 	}
 
-	tx, err := s.db.BeginTx(ctx, nil)
+	queries := models.New(s.db)
+	invitations, err := queries.GetInvitationsByTournament(ctx, req.GetTournamentId())
 	if err != nil {
-		return nil, fmt.Errorf("failed to start transaction: %v", err)
+		return nil, fmt.Errorf("failed to get invitations: %v", err)
 	}
-	defer tx.Rollback()
 
-	queries := models.New(s.db).WithTx(tx)
-
-	for _, invitationID := range req.GetInvitationIds() {
-		err = queries.UpdateInvitationStatus(ctx, models.UpdateInvitationStatusParams{
-			Invitationid: invitationID,
-			Status:       "accepted",
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to accept invitation %d: %v", invitationID, err)
+	invitationInfos := make([]*tournament_management.InvitationInfo, len(invitations))
+	for i, inv := range invitations {
+		invitationInfos[i] = &tournament_management.InvitationInfo{
+			InvitationId: inv.Invitationid,
+			Status:       inv.Status,
+			IdebateId:    inv.Inviteeid,
+			InviteeName:  inv.Inviteename.(string),
+			InviteeRole:  inv.Inviteerole,
+			CreatedAt:    inv.CreatedAt.Time.Format(time.RFC3339),
+			UpdatedAt:    inv.UpdatedAt.Time.Format(time.RFC3339),
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %v", err)
-	}
-
-	return &tournament_management.BulkAcceptInvitationsResponse{
-		Success: true,
-		Message: fmt.Sprintf("Successfully accepted %d invitations", len(req.GetInvitationIds())),
+	return &tournament_management.GetInvitationsByTournamentResponse{
+		Invitations: invitationInfos,
 	}, nil
 }
 
-func (s *InvitationService) BulkDeclineInvitations(ctx context.Context, req *tournament_management.BulkDeclineInvitationsRequest) (*tournament_management.BulkDeclineInvitationsResponse, error) {
-	_, err := s.validateAdminRole(req.GetToken())
-	if err != nil {
+func (s *InvitationService) UpdateInvitationStatus(ctx context.Context, req *tournament_management.UpdateInvitationStatusRequest) (*tournament_management.UpdateInvitationStatusResponse, error) {
+	if err := s.validateAuthentication(req.GetToken()); err != nil {
 		return nil, err
 	}
 
-	tx, err := s.db.BeginTx(ctx, nil)
+	queries := models.New(s.db)
+	updatedInvitation, err := queries.UpdateInvitationStatus(ctx, models.UpdateInvitationStatusParams{
+		Invitationid: req.GetInvitationId(),
+		Status:       req.GetNewStatus(),
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to start transaction: %v", err)
-	}
-	defer tx.Rollback()
-
-	queries := models.New(s.db).WithTx(tx)
-
-	for _, invitationID := range req.GetInvitationIds() {
-		err = queries.UpdateInvitationStatus(ctx, models.UpdateInvitationStatusParams{
-			Invitationid: invitationID,
-			Status:       "declined",
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to decline invitation %d: %v", invitationID, err)
-		}
+		return nil, fmt.Errorf("failed to update invitation status: %v", err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %v", err)
-	}
-
-	return &tournament_management.BulkDeclineInvitationsResponse{
+	return &tournament_management.UpdateInvitationStatusResponse{
 		Success: true,
-		Message: fmt.Sprintf("Successfully declined %d invitations", len(req.GetInvitationIds())),
+		Message: fmt.Sprintf("Invitation status updated to %s", updatedInvitation.Status),
+	}, nil
+}
+
+func (s *InvitationService) BulkUpdateInvitationStatus(ctx context.Context, req *tournament_management.BulkUpdateInvitationStatusRequest) (*tournament_management.BulkUpdateInvitationStatusResponse, error) {
+	if err := s.validateAuthentication(req.GetToken()); err != nil {
+		return nil, err
+	}
+
+	queries := models.New(s.db)
+	updatedInvitations, err := queries.BulkUpdateInvitationStatus(ctx, models.BulkUpdateInvitationStatusParams{
+		Column1:       req.GetInvitationIds(),
+		Status:        req.GetNewStatus(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to bulk update invitation statuses: %v", err)
+	}
+
+	updatedIDs := make([]int32, len(updatedInvitations))
+	for i, inv := range updatedInvitations {
+		updatedIDs[i] = inv.Invitationid
+	}
+
+	return &tournament_management.BulkUpdateInvitationStatusResponse{
+		Success:              true,
+		Message:              fmt.Sprintf("%d invitations updated to status %s", len(updatedInvitations), req.GetNewStatus()),
+		UpdatedInvitationIds: updatedIDs,
 	}, nil
 }
 
 func (s *InvitationService) ResendInvitation(ctx context.Context, req *tournament_management.ResendInvitationRequest) (*tournament_management.ResendInvitationResponse, error) {
-    _, err := s.validateAdminRole(req.GetToken())
-    if err != nil {
-        return nil, err
-    }
+	_, err := s.validateAdminRole(req.GetToken())
+	if err != nil {
+		return nil, err
+	}
 
-    queries := models.New(s.db)
+	queries := models.New(s.db)
+	invitation, err := queries.GetInvitationByID(ctx, req.GetInvitationId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get invitation: %v", err)
+	}
 
-    invitation, err := queries.GetInvitationByID(ctx, req.GetInvitationId())
-    if err != nil {
-        return nil, fmt.Errorf("failed to get invitation: %v", err)
-    }
+	_, err = queries.UpdateReminderSentAt(ctx, models.UpdateReminderSentAtParams{
+		Invitationid:   invitation.Invitationid,
+		Remindersentat: sql.NullTime{Time: time.Now(), Valid: true},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to update reminder sent timestamp: %v", err)
+	}
 
-    // Update the reminder sent timestamp
-    _, err = queries.UpdateReminderSentAt(ctx, models.UpdateReminderSentAtParams{
-        Invitationid:   invitation.Invitationid,
-        Remindersentat: sql.NullTime{Time: time.Now(), Valid: true},
-    })
-    if err != nil {
-        return nil, fmt.Errorf("failed to update reminder sent timestamp: %v", err)
-    }
+	// Send email asynchronously
+	go s.sendInvitationEmailAsync(invitation.Invitationid)
 
-    // Send email asynchronously
-    go s.sendInvitationEmailAsync(invitation.Tournamentid)
-
-    return &tournament_management.ResendInvitationResponse{
-        Success: true,
-        Message: "Invitation resend process started",
-    }, nil
+	return &tournament_management.ResendInvitationResponse{
+		Success: true,
+		Message: "Invitation resend process started",
+	}, nil
 }
 
 func (s *InvitationService) BulkResendInvitations(ctx context.Context, req *tournament_management.BulkResendInvitationsRequest) (*tournament_management.BulkResendInvitationsResponse, error) {
-    _, err := s.validateAdminRole(req.GetToken())
-    if err != nil {
-        return nil, err
-    }
+	_, err := s.validateAdminRole(req.GetToken())
+	if err != nil {
+		return nil, err
+	}
 
-    queries := models.New(s.db)
+	queries := models.New(s.db)
 
-    tx, err := s.db.BeginTx(ctx, nil)
-    if err != nil {
-        return nil, fmt.Errorf("failed to start transaction: %v", err)
-    }
-    defer tx.Rollback()
+	for _, invitationID := range req.GetInvitationIds() {
+		_, err := queries.GetInvitationByID(ctx, invitationID)
+		if err != nil {
+			log.Printf("Failed to get invitation %d: %v", invitationID, err)
+			continue
+		}
 
-    for _, invitationID := range req.GetInvitationIds() {
-        invitation, err := queries.GetInvitationByID(ctx, invitationID)
-        if err != nil {
-            return nil, fmt.Errorf("failed to get invitation %d: %v", invitationID, err)
-        }
+		_, err = queries.UpdateReminderSentAt(ctx, models.UpdateReminderSentAtParams{
+			Invitationid:   invitationID,
+			Remindersentat: sql.NullTime{Time: time.Now(), Valid: true},
+		})
+		if err != nil {
+			log.Printf("Failed to update reminder sent timestamp for invitation %d: %v", invitationID, err)
+			continue
+		}
 
-        _, err = queries.UpdateReminderSentAt(ctx, models.UpdateReminderSentAtParams{
-            Invitationid:   invitationID,
-            Remindersentat: sql.NullTime{Time: time.Now(), Valid: true},
-        })
-        if err != nil {
-            return nil, fmt.Errorf("failed to update reminder sent timestamp for invitation %d: %v", invitationID, err)
-        }
-
-        // Send email asynchronously
-        go s.sendInvitationEmailAsync(invitation.Tournamentid)
-    }
-
-    if err := tx.Commit(); err != nil {
-        return nil, fmt.Errorf("failed to commit transaction: %v", err)
-    }
-
-    return &tournament_management.BulkResendInvitationsResponse{
-        Success: true,
-        Message: fmt.Sprintf("Resend process started for %d invitations", len(req.GetInvitationIds())),
-    }, nil
+		// Send email asynchronously
+		go s.sendInvitationEmailAsync(invitationID)
+	}
+	return &tournament_management.BulkResendInvitationsResponse{
+		Success: true,
+		Message: fmt.Sprintf("Resend process started for %d invitations", len(req.GetInvitationIds())),
+	}, nil
 }
 
 func (s *InvitationService) sendInvitationEmailAsync(invitationID int32) {
     ctx := context.Background()
     queries := models.New(s.db)
 
-    invitations, err := queries.GetPendingInvitations(ctx, invitationID)
+    invitation, err := queries.GetInvitationByID(ctx, invitationID)
     if err != nil {
-        log.Printf("Failed to get invitations for ID %d: %v", invitationID, err)
+        log.Printf("Failed to get invitation for ID %d: %v", invitationID, err)
         return
     }
 
-    if len(invitations) == 0 {
-        log.Printf("No pending invitations found for ID %d", invitationID)
-        return
-    }
-
-    // We'll process only the first invitation, as we're looking for a specific one
-    invitation := invitations[0]
-
-    tournamentRow, err := queries.GetTournamentByID(ctx, invitation.Tournamentid)
+    tournament, err := queries.GetTournamentByID(ctx, invitation.Tournamentid)
     if err != nil {
         log.Printf("Failed to get tournament for invitation %d: %v", invitationID, err)
         return
     }
-
-    // Convert GetTournamentByIDRow to Tournament
-    tournament := convertToTournament(tournamentRow)
 
     league, err := queries.GetLeagueByID(ctx, tournament.Leagueid.Int32)
     if err != nil {
@@ -282,37 +222,61 @@ func (s *InvitationService) sendInvitationEmailAsync(invitationID int32) {
         return
     }
 
+    tournamentModel := models.Tournament{
+        Tournamentid:               tournament.Tournamentid,
+        Name:                       tournament.Name,
+        Startdate:                  tournament.Startdate,
+        Enddate:                    tournament.Enddate,
+        Location:                   tournament.Location,
+        Formatid:                   tournament.Formatid,
+        Leagueid:                   tournament.Leagueid,
+        Coordinatorid:              tournament.Coordinatorid,
+        Numberofpreliminaryrounds:  tournament.Numberofpreliminaryrounds,
+        Numberofeliminationrounds:  tournament.Numberofeliminationrounds,
+        Judgesperdebatepreliminary: tournament.Judgesperdebatepreliminary,
+        Judgesperdebateelimination: tournament.Judgesperdebateelimination,
+        Tournamentfee:              tournament.Tournamentfee,
+    }
+
     var subject, content string
     var email string
 
-    if invitation.Studentid.Valid {
+    switch invitation.Inviteerole {
+    case "student":
+        student, err := queries.GetStudentByIDebateID(ctx, sql.NullString{String: invitation.Inviteeid, Valid: invitation.Inviteeid !=""})
+        if err != nil {
+            log.Printf("Failed to get student details: %v", err)
+            return
+        }
         subject = fmt.Sprintf("Reminder: Invitation to Participate in %s Tournament", tournament.Name)
-        student := models.Student{
-            Studentid:  invitation.Studentid.Int32,
-            Email:      invitation.Studentemail,
-            Firstname:  invitation.Studentfirstname.String,
-            Lastname:   invitation.Studentlastname.String,
+        content = emails.PrepareStudentInvitationContent(student, tournamentModel, league, format)
+        email = student.Email.String
+    case "school":
+        school, err := queries.GetSchoolByIDebateID(ctx, sql.NullString{String: invitation.Inviteeid, Valid: invitation.Inviteeid !=""})
+        if err != nil {
+            log.Printf("Failed to get school details: %v", err)
+            return
         }
-        content = emails.PrepareStudentInvitationContent(student, tournament, league, format)
-        email = invitation.Studentemail.String
-    } else if invitation.Schoolid.Valid {
         subject = fmt.Sprintf("Reminder: Invitation to %s Tournament", tournament.Name)
-        school := models.School{
-            Schoolid:     invitation.Schoolid.Int32,
-            Schoolname:   invitation.Schoolname.String,
-            Contactemail: invitation.Contactemail.String,
+        content = emails.PrepareSchoolInvitationContent(school, tournamentModel, league, format)
+        email = school.Contactemail
+    case "volunteer":
+        volunteer, err := queries.GetVolunteerByIDebateID(ctx, sql.NullString{String: invitation.Inviteeid, Valid: invitation.Inviteeid !=""})
+        if err != nil {
+            log.Printf("Failed to get volunteer details: %v", err)
+            return
         }
-        content = emails.PrepareSchoolInvitationContent(school, tournament, league, format)
-        email = invitation.Contactemail.String
-    } else if invitation.Volunteerid.Valid {
+        user, err := queries.GetUserByID(ctx, volunteer.Userid)
+        if err != nil {
+            log.Printf("Failed to get user details: %v", err)
+            return
+        }
         subject = fmt.Sprintf("Reminder: Invitation to Judge at %s Tournament", tournament.Name)
-        volunteer := models.Volunteer{
-            Volunteerid: invitation.Volunteerid.Int32,
-            Firstname:   invitation.Volunteerfirstname.String,
-            Lastname:    invitation.Volunteerlastname.String,
-        }
-        content = emails.PrepareVolunteerInvitationContent(volunteer, tournament, league, format)
-        email = invitation.Volunteeremail.String
+        content = emails.PrepareVolunteerInvitationContent(volunteer, tournamentModel, league, format)
+        email = user.Email
+    default:
+        log.Printf("Unknown invitee role: %s", invitation.Inviteerole)
+        return
     }
 
     err = emails.SendEmail(email, subject, content)
@@ -323,107 +287,6 @@ func (s *InvitationService) sendInvitationEmailAsync(invitationID int32) {
     }
 }
 
-func (s *InvitationService) GetInvitationStatus(ctx context.Context, req *tournament_management.GetInvitationStatusRequest) (*tournament_management.GetInvitationStatusResponse, error) {
-	log.Printf("GetInvitationStatus called with invitation ID: %d", req.GetInvitationId())
-
-	if err := s.validateAuthentication(req.GetToken()); err != nil {
-		log.Printf("Authentication failed: %v", err)
-		return nil, err
-	}
-	log.Printf("Token validated successfully")
-
-	queries := models.New(s.db)
-	status, err := queries.GetInvitationStatus(ctx, req.GetInvitationId())
-	if err != nil {
-		return nil, fmt.Errorf("failed to get invitation status: %v", err)
-	}
-
-	log.Printf("Invitation status retrieved successfully for invitation ID: %d", req.GetInvitationId())
-	return &tournament_management.GetInvitationStatusResponse{
-		Status: status,
-	}, nil
-}
-
-func (s *InvitationService) GetInvitationsByUser(ctx context.Context, req *tournament_management.GetInvitationsByUserRequest) (*tournament_management.GetInvitationsByUserResponse, error) {
-    claims, err := utils.ValidateToken(req.GetToken())
-    if err != nil {
-        return nil, fmt.Errorf("authentication failed: %v", err)
-    }
-
-    userIDFloat, ok := claims["user_id"].(float64)
-    if !ok {
-        return nil, fmt.Errorf("invalid user ID in token")
-    }
-    userID := sql.NullInt32{
-        Int32: int32(userIDFloat),
-        Valid: true,
-    }
-
-    queries := models.New(s.db)
-    invitations, err := queries.GetInvitationsByUserID(ctx, userID)
-    if err != nil {
-        return nil, fmt.Errorf("failed to get invitations: %v", err)
-    }
-
-    var protoInvitations []*tournament_management.Invitation
-    for _, inv := range invitations {
-        protoInvitations = append(protoInvitations, &tournament_management.Invitation{
-            InvitationId: inv.Invitationid,
-            TournamentId: inv.Tournamentid,
-            Status:       inv.Status,
-        })
-    }
-
-    return &tournament_management.GetInvitationsByUserResponse{
-        Invitations: protoInvitations,
-    }, nil
-}
-
-func (s *InvitationService) GetAllInvitations(ctx context.Context, req *tournament_management.GetAllInvitationsRequest) (*tournament_management.GetAllInvitationsResponse, error) {
-	_, err := s.validateAdminRole(req.GetToken())
-	if err != nil {
-		return nil, err
-	}
-
-	queries := models.New(s.db)
-
-	invitations, err := queries.GetAllInvitations(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get all invitations: %v", err)
-	}
-
-	var protoInvitations []*tournament_management.Invitation
-	for _, inv := range invitations {
-		protoInvitations = append(protoInvitations, &tournament_management.Invitation{
-			InvitationId: inv.Invitationid,
-			TournamentId: inv.Tournamentid,
-			Status:       inv.Status,
-		})
-	}
-
-	return &tournament_management.GetAllInvitationsResponse{
-		Invitations: protoInvitations,
-	}, nil
-}
-
-// Helper function to convert GetTournamentByIDRow to Tournament
-func convertToTournament(row models.GetTournamentByIDRow) models.Tournament {
-	return models.Tournament{
-		Tournamentid:               row.Tournamentid,
-		Name:                       row.Name,
-		Startdate:                  row.Startdate,
-		Enddate:                    row.Enddate,
-		Location:                   row.Location,
-		Formatid:                   row.Formatid,
-		Leagueid:                   row.Leagueid,
-		Coordinatorid:              row.Coordinatorid,
-		Numberofpreliminaryrounds:  row.Numberofpreliminaryrounds,
-		Numberofeliminationrounds:  row.Numberofeliminationrounds,
-		Judgesperdebatepreliminary: row.Judgesperdebatepreliminary,
-		Judgesperdebateelimination: row.Judgesperdebateelimination,
-		Tournamentfee:              row.Tournamentfee,
-	}
-}
 
 func (s *InvitationService) validateAdminRole(token string) (map[string]interface{}, error) {
 	claims, err := utils.ValidateToken(token)

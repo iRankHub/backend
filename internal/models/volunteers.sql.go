@@ -154,6 +154,32 @@ func (q *Queries) GetVolunteerByID(ctx context.Context, volunteerid int32) (Volu
 	return i, err
 }
 
+const getVolunteerByIDebateID = `-- name: GetVolunteerByIDebateID :one
+SELECT volunteerid, idebatevolunteerid, firstname, lastname, gender, dateofbirth, role, graduateyear, password, safeguardcertificate, hasinternship, isenrolledinuniversity, userid FROM Volunteers
+WHERE iDebateVolunteerID = $1
+`
+
+func (q *Queries) GetVolunteerByIDebateID(ctx context.Context, idebatevolunteerid sql.NullString) (Volunteer, error) {
+	row := q.db.QueryRowContext(ctx, getVolunteerByIDebateID, idebatevolunteerid)
+	var i Volunteer
+	err := row.Scan(
+		&i.Volunteerid,
+		&i.Idebatevolunteerid,
+		&i.Firstname,
+		&i.Lastname,
+		&i.Gender,
+		&i.Dateofbirth,
+		&i.Role,
+		&i.Graduateyear,
+		&i.Password,
+		&i.Safeguardcertificate,
+		&i.Hasinternship,
+		&i.Isenrolledinuniversity,
+		&i.Userid,
+	)
+	return i, err
+}
+
 const getVolunteerByUserID = `-- name: GetVolunteerByUserID :one
 SELECT volunteerid, idebatevolunteerid, firstname, lastname, gender, dateofbirth, role, graduateyear, password, safeguardcertificate, hasinternship, isenrolledinuniversity, userid FROM volunteers
 WHERE UserID = $1 LIMIT 1

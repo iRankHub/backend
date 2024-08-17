@@ -95,69 +95,102 @@ SET deleted_at = CURRENT_TIMESTAMP
 WHERE TournamentID = $1;
 
 -- name: CreateInvitation :one
-INSERT INTO TournamentInvitations (TournamentID, SchoolID, VolunteerID, StudentID, UserID, Status)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING *;
-
--- name: GetInvitationByID :one
-SELECT * FROM TournamentInvitations
-WHERE InvitationID = $1;
-
--- name: GetInvitationsByUserID :many
-SELECT * FROM TournamentInvitations
-WHERE UserID = $1;
-
--- name: GetAllInvitations :many
-SELECT invitationid, tournamentid, status
-FROM tournamentinvitations
-ORDER BY invitationid;
-
--- name: UpdateInvitationStatus :exec
-UPDATE TournamentInvitations
-SET Status = $2, RespondedAt = CURRENT_TIMESTAMP
-WHERE InvitationID = $1;
-
--- name: UpdateInvitationStatusWithUserCheck :exec
-UPDATE TournamentInvitations
-SET Status = $2, RespondedAt = CURRENT_TIMESTAMP
-WHERE InvitationID = $1 AND UserID = $3;
-
--- name: GetPendingInvitations :many
-SELECT ti.*,
-       s.SchoolName, s.ContactEmail, s.SchoolEmail,
-       v.VolunteerID, v.FirstName as VolunteerFirstName, v.LastName as VolunteerLastName, u.Email as VolunteerEmail,
-       st.StudentID, st.Email as StudentEmail, st.FirstName as StudentFirstName, st.LastName as StudentLastName
-FROM TournamentInvitations ti
-LEFT JOIN Schools s ON ti.SchoolID = s.SchoolID
-LEFT JOIN Volunteers v ON ti.VolunteerID = v.VolunteerID
-LEFT JOIN Users u ON ti.UserID = u.UserID
-LEFT JOIN Students st ON ti.StudentID = st.StudentID
-WHERE ti.Status = 'pending'
-  AND ti.TournamentID = $1;
-
--- name: RegisterTeam :one
-INSERT INTO Teams (Name, SchoolID, TournamentID, InvitationID)
+INSERT INTO TournamentInvitations (TournamentID, InviteeID, InviteeRole, Status)
 VALUES ($1, $2, $3, $4)
 RETURNING *;
 
--- name: AddTeamMember :exec
-INSERT INTO TeamMembers (TeamID, StudentID)
-VALUES ($1, $2);
+-- name: GetInvitationByID :one
+SELECT * FROM TournamentInvitations WHERE InvitationID = $1;
 
--- name: GetInvitationStatus :one
-SELECT status
-FROM tournamentinvitations
-WHERE invitationid = $1;
+-- name: GetInvitationsByTournament :many
+SELECT
+    ti.InvitationID,
+    ti.Status,
+    ti.InviteeID,
+    CASE
+        WHEN ti.InviteeRole = 'school' THEN s.SchoolName
+        WHEN ti.InviteeRole = 'volunteer' THEN CONCAT(v.FirstName, ' ', v.LastName)
+        WHEN ti.InviteeRole = 'student' THEN CONCAT(st.FirstName, ' ', st.LastName)
+    END as InviteeName,
+    ti.InviteeRole,
+    ti.created_at,
+    ti.updated_at
+FROM
+    TournamentInvitations ti
+LEFT JOIN
+    Schools s ON ti.InviteeID = s.iDebateSchoolID
+LEFT JOIN
+    Volunteers v ON ti.InviteeID = v.iDebateVolunteerID
+LEFT JOIN
+    Students st ON ti.InviteeID = st.iDebateStudentID
+WHERE
+    ti.TournamentID = $1
+ORDER BY
+    ti.created_at DESC;
 
--- name: GetTeamsByInvitation :many
-SELECT t.*, COUNT(tm.StudentID) as number_of_speakers
-FROM Teams t
-LEFT JOIN TeamMembers tm ON t.TeamID = tm.TeamID
-WHERE t.InvitationID = $1
-GROUP BY t.TeamID;
+-- name: UpdateInvitationStatus :one
+UPDATE TournamentInvitations
+SET Status = $2, updated_at = CURRENT_TIMESTAMP
+WHERE InvitationID = $1
+RETURNING *;
+
+-- name: BulkUpdateInvitationStatus :many
+UPDATE TournamentInvitations
+SET Status = $2, updated_at = CURRENT_TIMESTAMP
+WHERE InvitationID = ANY($1::int[])
+RETURNING *;
+
+-- name: DeleteInvitation :exec
+DELETE FROM TournamentInvitations WHERE InvitationID = $1;
 
 -- name: UpdateReminderSentAt :one
 UPDATE TournamentInvitations
 SET ReminderSentAt = $2
 WHERE InvitationID = $1
 RETURNING *;
+
+-- name: GetInvitationsByUser :many
+SELECT DISTINCT ti.*
+FROM TournamentInvitations ti
+LEFT JOIN Schools s ON ti.InviteeRole = 'school' AND ti.InviteeID = s.iDebateSchoolID
+LEFT JOIN Volunteers v ON ti.InviteeRole = 'volunteer' AND ti.InviteeID = v.iDebateVolunteerID
+LEFT JOIN Students st ON ti.InviteeRole = 'student' AND ti.InviteeID = st.iDebateStudentID
+WHERE
+    (ti.InviteeRole = 'school' AND s.ContactPersonID = $1) OR
+    (ti.InviteeRole = 'volunteer' AND v.UserID = $1) OR
+    (ti.InviteeRole = 'student' AND st.UserID = $1)
+ORDER BY ti.created_at DESC;
+
+-- name: GetPendingInvitations :many
+SELECT
+    ti.*,
+    CASE
+        WHEN ti.InviteeRole = 'school' THEN s.SchoolName
+        WHEN ti.InviteeRole = 'volunteer' THEN CONCAT(v.FirstName, ' ', v.LastName)
+        WHEN ti.InviteeRole = 'student' THEN CONCAT(st.FirstName, ' ', st.LastName)
+    END as InviteeName,
+    CASE
+        WHEN ti.InviteeRole = 'school' THEN s.ContactEmail
+        WHEN ti.InviteeRole = 'volunteer' THEN u.Email
+        WHEN ti.InviteeRole = 'student' THEN st.Email
+    END as InviteeEmail,
+    t.Name as TournamentName,
+    t.StartDate as TournamentStartDate,
+    t.EndDate as TournamentEndDate,
+    t.Location as TournamentLocation
+FROM
+    TournamentInvitations ti
+JOIN
+    Tournaments t ON ti.TournamentID = t.TournamentID
+LEFT JOIN
+    Schools s ON ti.InviteeRole = 'school' AND ti.InviteeID = s.iDebateSchoolID
+LEFT JOIN
+    Volunteers v ON ti.InviteeRole = 'volunteer' AND ti.InviteeID = v.iDebateVolunteerID
+LEFT JOIN
+    Students st ON ti.InviteeRole = 'student' AND ti.InviteeID = st.iDebateStudentID
+LEFT JOIN
+    Users u ON (ti.InviteeRole = 'volunteer' AND v.UserID = u.UserID)
+WHERE
+    ti.TournamentID = $1 AND ti.Status = 'pending'
+ORDER BY
+    ti.created_at DESC;
