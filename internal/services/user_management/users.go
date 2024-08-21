@@ -266,27 +266,29 @@ func (s *UserManagementService) ApproveUsers(ctx context.Context, token string, 
 		}
 
 		_, err = queries.CreateUserProfile(ctx, models.CreateUserProfileParams{
-			Userid:         user.Userid,
-			Name:           user.Name,
-			Userrole:       user.Userrole,
-			Email:          user.Email,
-			Password:       user.Password,
+			Userid:             user.Userid,
+			Name:               user.Name,
+			Userrole:           user.Userrole,
+			Email:              user.Email,
+			Password:           user.Password,
 			Verificationstatus: user.Verificationstatus,
-			Address:        address,
-			Phone:          sql.NullString{},
-			Bio:            sql.NullString{},
-			Profilepicture: nil,
-			Gender:         user.Gender,
+			Address:            address,
+			Phone:              sql.NullString{},
+			Bio:                sql.NullString{},
+			Profilepicture:     nil,
+			Gender:             user.Gender,
 		})
 		if err != nil {
 			failedUserIDs = append(failedUserIDs, userID)
 			continue
 		}
 
-		err = email.SendApprovalNotification(user.Email, user.Name)
-		if err != nil {
-			fmt.Printf("Failed to send approval notification to user %d: %v\n", userID, err)
-		}
+		// Launch goroutine to send approval notification
+		go func(userEmail, userName string, userId int32) {
+			if err := email.SendApprovalNotification(userEmail, userName); err != nil {
+				fmt.Printf("Failed to send approval notification to user %d: %v\n", userId, err)
+			}
+		}(user.Email, user.Name, user.Userid)
 	}
 
 	if err := tx.Commit(); err != nil {

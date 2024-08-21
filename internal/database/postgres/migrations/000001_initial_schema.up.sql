@@ -202,23 +202,31 @@ CREATE TABLE Rounds (
    IsEliminationRound BOOLEAN NOT NULL DEFAULT FALSE
 );
 
+
 CREATE TABLE Debates (
    DebateID SERIAL PRIMARY KEY,
    RoundID INTEGER NOT NULL REFERENCES Rounds(RoundID),
+   RoundNumber INTEGER NOT NULL,
+   IsEliminationRound BOOLEAN NOT NULL DEFAULT FALSE,
    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
    Team1ID INTEGER NOT NULL REFERENCES Teams(TeamID),
    Team2ID INTEGER NOT NULL REFERENCES Teams(TeamID),
    StartTime TIMESTAMP NOT NULL,
    EndTime TIMESTAMP,
    RoomID INTEGER NOT NULL REFERENCES Rooms(RoomID),
-   Status VARCHAR(50) NOT NULL
+   Status VARCHAR(50) NOT NULL DEFAULT 'scheduled'
 );
 
+-- Create JudgeAssignments table
 CREATE TABLE JudgeAssignments (
-   AssignmentID SERIAL PRIMARY KEY,
-   VolunteerID INTEGER NOT NULL REFERENCES Volunteers(VolunteerID),
-   TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
-   DebateID INTEGER NOT NULL REFERENCES Debates(DebateID)
+    AssignmentID SERIAL PRIMARY KEY,
+    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
+    JudgeID INTEGER NOT NULL REFERENCES Users(UserID),
+    DebateID INTEGER NOT NULL REFERENCES Debates(DebateID),
+    RoundNumber INTEGER NOT NULL,
+    IsElimination BOOLEAN NOT NULL DEFAULT FALSE,
+    IsHeadJudge BOOLEAN NOT NULL DEFAULT FALSE,
+    UNIQUE(TournamentID, JudgeID, RoundNumber, IsElimination)
 );
 
 CREATE TABLE Ballots (
@@ -238,7 +246,38 @@ CREATE TABLE Ballots (
    Team2DebaterBComments TEXT,
    Team2DebaterCScore NUMERIC,
    Team2DebaterCComments TEXT,
-   Team2TotalScore NUMERIC
+   Team2TotalScore NUMERIC,
+   RecordingStatus VARCHAR(20) NOT NULL DEFAULT 'pending',
+   Verdict VARCHAR(10) NOT NULL DEFAULT 'pending'
+);
+
+
+-- Create SpeakerScores table
+CREATE TABLE SpeakerScores (
+    ScoreID SERIAL PRIMARY KEY,
+    BallotID INTEGER NOT NULL REFERENCES Ballots(BallotID),
+    SpeakerID INTEGER NOT NULL REFERENCES Students(StudentID),
+    SpeakerRank INTEGER NOT NULL,
+    SpeakerPoints NUMERIC(5,2) NOT NULL,
+    Feedback TEXT,
+    UNIQUE(BallotID, SpeakerID)
+);
+
+-- Create PairingHistory table
+CREATE TABLE PairingHistory (
+    HistoryID SERIAL PRIMARY KEY,
+    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
+    Team1ID INTEGER NOT NULL REFERENCES Teams(TeamID),
+    Team2ID INTEGER NOT NULL REFERENCES Teams(TeamID),
+    RoundNumber INTEGER NOT NULL,
+    IsElimination BOOLEAN NOT NULL DEFAULT FALSE,
+    UNIQUE(TournamentID, Team1ID, Team2ID, RoundNumber, IsElimination)
+);
+
+CREATE TABLE IF NOT EXISTS DebateJudges (
+    DebateID INTEGER NOT NULL REFERENCES Debates(DebateID),
+    JudgeID INTEGER NOT NULL REFERENCES Volunteers(VolunteerID),
+    PRIMARY KEY (DebateID, JudgeID)
 );
 
 CREATE TABLE Schedules (
@@ -258,11 +297,13 @@ CREATE TABLE Results (
 );
 
 CREATE TABLE RoomBookings (
-   BookingID SERIAL PRIMARY KEY,
-   TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
-   RoomID INTEGER NOT NULL REFERENCES Rooms(RoomID),
-   StartTime TIMESTAMP NOT NULL,
-   EndTime TIMESTAMP NOT NULL
+    BookingID SERIAL PRIMARY KEY,
+    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
+    RoomID INTEGER NOT NULL REFERENCES Rooms(RoomID),
+    RoundNumber INTEGER NOT NULL,
+    IsElimination BOOLEAN NOT NULL DEFAULT FALSE,
+    IsOccupied BOOLEAN NOT NULL DEFAULT FALSE,
+    UNIQUE(TournamentID, RoomID, RoundNumber, IsElimination)
 );
 
 CREATE TABLE Communications (
@@ -326,6 +367,11 @@ CREATE INDEX IF NOT EXISTS idx_tournament_invitations_status ON TournamentInvita
 CREATE INDEX IF NOT EXISTS idx_tournament_invitations_tournament_id ON TournamentInvitations(TournamentID);
 CREATE INDEX IF NOT EXISTS idx_teams_invitationid ON Teams(InvitationID);
 CREATE INDEX IF NOT EXISTS idx_team_members_teamid ON TeamMembers(TeamID);
+CREATE INDEX IF NOT EXISTS idx_debates_roundid ON Debates(RoundID);
+CREATE INDEX IF NOT EXISTS idx_debates_tournamentid ON Debates(TournamentID);
+CREATE INDEX IF NOT EXISTS idx_debates_roomid ON Debates(RoomID);
+CREATE INDEX IF NOT EXISTS idx_debatejudges_debateid ON DebateJudges(DebateID);
+CREATE INDEX IF NOT EXISTS idx_debatejudges_judgeid ON DebateJudges(JudgeID);
 
 INSERT INTO CountryCodes (IsoCode, CountryName) VALUES
 ('AFG', 'Afghanistan'),

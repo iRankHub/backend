@@ -52,6 +52,8 @@ func (s *userManagementServer) GetPendingUsers(ctx context.Context, req *user_ma
 			Email:      user.Email,
 			UserRole:   user.Userrole,
 			SignUpDate: signUpDate,
+			Gender: 	user.Gender.String,
+			Status: 	user.Status.String,
 		})
 	}
 
