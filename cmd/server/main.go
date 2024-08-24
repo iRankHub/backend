@@ -54,7 +54,7 @@ func main() {
 	}
 	log.Println("Successfully ran database migrations")
 
-		// Initialize the token configuration
+	// Initialize the token configuration
 	err = utils.InitializeTokenConfig()
 	if err != nil {
 		log.Fatalf("Failed to initialize token configuration: %v", err)

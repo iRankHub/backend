@@ -1,0 +1,264 @@
+syntax = "proto3";
+
+package debate_management;
+
+option go_package = "github.com/iRankHub/backend/internal/grpc/proto/debate_management";
+
+service DebateService {
+  // Room operations
+  rpc GetRooms(GetRoomsRequest) returns (GetRoomsResponse);
+  rpc GetRoom(GetRoomRequest) returns (GetRoomResponse);
+  rpc UpdateRoom(UpdateRoomRequest) returns (UpdateRoomResponse);
+
+  // Judge operations
+  rpc GetJudges(GetJudgesRequest) returns (GetJudgesResponse);
+  rpc GetJudge(GetJudgeRequest) returns (GetJudgeResponse);
+
+  // Pairing operations
+  rpc GetPairings(GetPairingsRequest) returns (GetPairingsResponse);
+  rpc GetPairing(GetPairingRequest) returns (GetPairingResponse);
+  rpc UpdatePairing(UpdatePairingRequest) returns (UpdatePairingResponse);
+
+  // Ballot operations
+  rpc GetBallots(GetBallotsRequest) returns (GetBallotsResponse);
+  rpc GetBallot(GetBallotRequest) returns (GetBallotResponse);
+  rpc UpdateBallot(UpdateBallotRequest) returns (UpdateBallotResponse);
+
+  // Algorithm integration
+  rpc GeneratePairings(GeneratePairingsRequest) returns (GeneratePairingsResponse);
+  rpc AssignJudges(AssignJudgesRequest) returns (AssignJudgesResponse);
+
+  // Team operations
+  rpc CreateTeam(CreateTeamRequest) returns (Team);
+  rpc GetTeam(GetTeamRequest) returns (Team);
+  rpc UpdateTeam(UpdateTeamRequest) returns (Team);
+  rpc GetTeamsByTournament(GetTeamsByTournamentRequest) returns (GetTeamsByTournamentResponse);
+
+  // Regenerate pairings operation
+  rpc RegeneratePairings(RegeneratePairingsRequest) returns (GeneratePairingsResponse);
+}
+
+// Room messages
+message Room {
+  int32 room_id = 1;
+  string room_name = 2;
+  repeated RoundStatus round_status = 3;
+}
+
+message RoundStatus {
+  int32 round_number = 1;
+  bool is_elimination = 2;
+  bool is_occupied = 3;
+}
+
+message GetRoomsRequest {
+  int32 tournament_id = 1;
+  int32 round_number = 2;
+  bool is_elimination = 3;
+  string token = 4;
+}
+
+message GetRoomsResponse {
+  repeated Room rooms = 1;
+}
+
+message GetRoomRequest {
+  int32 room_id = 1;
+  string token = 2;
+}
+
+message GetRoomResponse {
+  Room room = 1;
+}
+
+message UpdateRoomRequest {
+  Room room = 1;
+  string token = 2;
+}
+
+message UpdateRoomResponse {
+  Room room = 1;
+}
+
+// Judge messages
+message Judge {
+  int32 judge_id = 1;
+  string name = 2;
+  string email = 3;
+  bool is_head_judge = 4;
+}
+
+message GetJudgesRequest {
+  int32 tournament_id = 1;
+  int32 round_number = 2;
+  bool is_elimination = 3;
+  string token = 4;
+}
+
+message GetJudgesResponse {
+  repeated Judge judges = 1;
+}
+
+message GetJudgeRequest {
+  int32 judge_id = 1;
+  string token = 2;
+}
+
+message GetJudgeResponse {
+  Judge judge = 1;
+}
+
+// Pairing messages
+message Pairing {
+  int32 pairing_id = 1;
+  int32 round_number = 2;
+  bool is_elimination_round = 3;
+  int32 room_id = 4;
+  string room_name = 5;
+  Team team1 = 6;
+  Team team2 = 7;
+  repeated Judge judges = 8; 
+}
+
+message Team {
+  int32 team_id = 1;
+  string name = 2;
+  repeated Speaker speakers = 3;
+  double total_points = 4;
+}
+
+message Speaker {
+  int32 speaker_id = 1;
+  string name = 2;
+  int32 score_id = 3;
+  int32 rank = 4;
+  double points = 5;
+  string feedback = 6;
+}
+
+message GetPairingsRequest {
+  int32 tournament_id = 1;
+  int32 round_number = 2;
+  bool is_elimination = 3;
+  string token = 4;
+}
+
+message GetPairingsResponse {
+  repeated Pairing pairings = 1;
+}
+
+message GetPairingRequest {
+  int32 pairing_id = 1;
+  string token = 2;
+}
+
+message GetPairingResponse {
+  Pairing pairing = 1;
+}
+
+message UpdatePairingRequest {
+  Pairing pairing = 1;
+  string token = 2;
+}
+
+message UpdatePairingResponse {
+  Pairing pairing = 1;
+}
+
+// Ballot messages
+message Ballot {
+  int32 ballot_id = 1;
+  int32 round_number = 2;
+  bool is_elimination = 3;
+  int32 room_id = 4;
+  string room_name = 5;
+  repeated Judge judges = 6;
+  Team team1 = 7;
+  Team team2 = 8;
+  string recording_status = 9;
+  string verdict = 10;
+}
+
+message GetBallotsRequest {
+  int32 tournament_id = 1;
+  int32 round_number = 2;
+  bool is_elimination = 3;
+  string token = 4;
+}
+
+message GetBallotsResponse {
+  repeated Ballot ballots = 1;
+}
+
+message GetBallotRequest {
+  int32 ballot_id = 1;
+  string token = 2;
+}
+
+message GetBallotResponse {
+  Ballot ballot = 1;
+}
+
+message UpdateBallotRequest {
+  Ballot ballot = 1;
+  string token = 2;
+}
+
+message UpdateBallotResponse {
+  Ballot ballot = 1;
+}
+
+// Algorithm integration messages
+message GeneratePairingsRequest {
+  int32 tournament_id = 1;
+  int32 round_number = 2;
+  bool is_elimination_round = 3;
+  string token = 4;
+}
+
+message GeneratePairingsResponse {
+  repeated Pairing pairings = 1;
+}
+
+message AssignJudgesRequest {
+  int32 tournament_id = 1;
+  int32 round_number = 2;
+  bool is_elimination = 3;
+  string token = 4;
+}
+
+message AssignJudgesResponse {
+  repeated Pairing pairings = 1;
+}
+
+message CreateTeamRequest {
+  string name = 1;
+  int32 tournament_id = 2;
+  repeated Speaker speakers = 3;
+  string token = 4;
+}
+
+message GetTeamRequest {
+  int32 team_id = 1;
+  string token = 2;
+}
+
+message UpdateTeamRequest {
+  Team team = 1;
+  string token = 2;
+}
+
+message GetTeamsByTournamentRequest {
+  int32 tournament_id = 1;
+  string token = 2;
+}
+
+message GetTeamsByTournamentResponse {
+  repeated Team teams = 1;
+}
+
+// Regenerate pairings message
+message RegeneratePairingsRequest {
+  int32 tournament_id = 1;
+  string token = 2;
+}

@@ -6,53 +6,57 @@ import (
 	"log"
 	"net"
 
+	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
+	"github.com/iRankHub/backend/internal/grpc/proto/debate_management"
+	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
 	"github.com/iRankHub/backend/internal/grpc/proto/user_management"
 	authserver "github.com/iRankHub/backend/internal/grpc/server/authentication"
-	userserver "github.com/iRankHub/backend/internal/grpc/server/user_management"
-	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
+	debateserver "github.com/iRankHub/backend/internal/grpc/server/debate_management"
 	tournamentserver "github.com/iRankHub/backend/internal/grpc/server/tournament_management"
+	userserver "github.com/iRankHub/backend/internal/grpc/server/user_management"
 )
 
 func StartGRPCServer(db *sql.DB) error {
 	// Create a new gRPC server
 	grpcServer := grpc.NewServer()
 
-	// Create the Auth server
+	// Create and register all your servers
 	authServer, err := authserver.NewAuthServer(db)
 	if err != nil {
 		return fmt.Errorf("failed to create AuthServer: %v", err)
 	}
-
-	// Register the AuthService with the gRPC server
 	authentication.RegisterAuthServiceServer(grpcServer, authServer)
 
-	// Create the User server
 	userManagementServer, err := userserver.NewUserManagementServer(db)
 	if err != nil {
 		return fmt.Errorf("failed to create UserManagementServer: %v", err)
 	}
-	// Register the UserManagementService with the gRPC server
 	user_management.RegisterUserManagementServiceServer(grpcServer, userManagementServer)
 
-		// Create the Tournament server
 	tournamentServer, err := tournamentserver.NewTournamentServer(db)
 	if err != nil {
 		return fmt.Errorf("failed to create TournamentServer: %v", err)
 	}
-	// Register the TournamentService with the gRPC server
 	tournament_management.RegisterTournamentServiceServer(grpcServer, tournamentServer)
 
+	debateServer, err := debateserver.NewDebateServer(db)
+	if err != nil {
+		return fmt.Errorf("failed to create DebateServer: %v", err)
+	}
+	debate_management.RegisterDebateServiceServer(grpcServer, debateServer)
 
+	// Read the gRPC server port from the environment
+	viper.SetDefault("GRPC_PORT", "8080")
+	grpcPort := viper.GetString("GRPC_PORT")
 
-	// Start the gRPC server on a specific port
-	grpcPort := "0.0.0.0:8080"
-	listener, err := net.Listen("tcp", grpcPort)
+	// Start the gRPC server on the specified port
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%s", grpcPort))
 	if err != nil {
 		return fmt.Errorf("failed to listen on port %s: %v", grpcPort, err)
 	}
-	log.Printf("gRPC server started on %s", grpcPort)
+	log.Printf("gRPC server started on 0.0.0.0:%s", grpcPort)
 	return grpcServer.Serve(listener)
 }

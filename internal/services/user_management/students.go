@@ -7,7 +7,6 @@ import (
 
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
-
 )
 
 type StudentService struct {

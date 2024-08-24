@@ -9,20 +9,6 @@ import (
 	"context"
 )
 
-const addTeamMember = `-- name: AddTeamMember :exec
-INSERT INTO TeamMembers (TeamID, StudentID)
-VALUES ($1, $2)
-`
-
-type AddTeamMemberParams struct {
-	Teamid    int32 `json:"teamid"`
-	Studentid int32 `json:"studentid"`
-}
-
-func (q *Queries) AddTeamMember(ctx context.Context, arg AddTeamMemberParams) error {
-	_, err := q.db.ExecContext(ctx, addTeamMember, arg.Teamid, arg.Studentid)
-	return err
-}
 
 const getTeamMember = `-- name: GetTeamMember :one
 SELECT teamid, studentid FROM TeamMembers WHERE TeamID = $1 AND StudentID = $2
@@ -40,32 +26,7 @@ func (q *Queries) GetTeamMember(ctx context.Context, arg GetTeamMemberParams) (T
 	return i, err
 }
 
-const getTeamMembers = `-- name: GetTeamMembers :many
-SELECT teamid, studentid FROM TeamMembers WHERE TeamID = $1
-`
 
-func (q *Queries) GetTeamMembers(ctx context.Context, teamid int32) ([]Teammember, error) {
-	rows, err := q.db.QueryContext(ctx, getTeamMembers, teamid)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Teammember{}
-	for rows.Next() {
-		var i Teammember
-		if err := rows.Scan(&i.Teamid, &i.Studentid); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
 
 const removeTeamMember = `-- name: RemoveTeamMember :exec
 DELETE FROM TeamMembers WHERE TeamID = $1 AND StudentID = $2

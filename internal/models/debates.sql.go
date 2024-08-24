@@ -8,88 +8,384 @@ package models
 import (
 	"context"
 	"database/sql"
-	"time"
 )
 
-const createDebate = `-- name: CreateDebate :one
-INSERT INTO Debates (RoundID, TournamentID, Team1ID, Team2ID, StartTime, EndTime, RoomID, Status)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING debateid, roundid, tournamentid, team1id, team2id, starttime, endtime, roomid, status
+const addTeamMember = `-- name: AddTeamMember :one
+INSERT INTO TeamMembers (TeamID, StudentID)
+VALUES ($1, $2)
+RETURNING TeamID, StudentID
 `
 
-type CreateDebateParams struct {
-	Roundid      int32        `json:"roundid"`
-	Tournamentid int32        `json:"tournamentid"`
-	Team1id      int32        `json:"team1id"`
-	Team2id      int32        `json:"team2id"`
-	Starttime    time.Time    `json:"starttime"`
-	Endtime      sql.NullTime `json:"endtime"`
-	Roomid       int32        `json:"roomid"`
-	Status       string       `json:"status"`
+type AddTeamMemberParams struct {
+	Teamid    int32 `json:"teamid"`
+	Studentid int32 `json:"studentid"`
 }
 
-func (q *Queries) CreateDebate(ctx context.Context, arg CreateDebateParams) (Debate, error) {
-	row := q.db.QueryRowContext(ctx, createDebate,
-		arg.Roundid,
-		arg.Tournamentid,
-		arg.Team1id,
-		arg.Team2id,
-		arg.Starttime,
-		arg.Endtime,
-		arg.Roomid,
-		arg.Status,
-	)
-	var i Debate
-	err := row.Scan(
-		&i.Debateid,
-		&i.Roundid,
-		&i.Tournamentid,
-		&i.Team1id,
-		&i.Team2id,
-		&i.Starttime,
-		&i.Endtime,
-		&i.Roomid,
-		&i.Status,
-	)
+func (q *Queries) AddTeamMember(ctx context.Context, arg AddTeamMemberParams) (Teammember, error) {
+	row := q.db.QueryRowContext(ctx, addTeamMember, arg.Teamid, arg.Studentid)
+	var i Teammember
+	err := row.Scan(&i.Teamid, &i.Studentid)
 	return i, err
 }
 
-const deleteDebate = `-- name: DeleteDebate :exec
-DELETE FROM Debates WHERE DebateID = $1
+const assignJudgeToDebate = `-- name: AssignJudgeToDebate :exec
+INSERT INTO JudgeAssignments (TournamentID, JudgeID, DebateID, RoundNumber, IsElimination, IsHeadJudge)
+VALUES ($1, $2, $3, $4, $5, $6)
 `
 
-func (q *Queries) DeleteDebate(ctx context.Context, debateid int32) error {
-	_, err := q.db.ExecContext(ctx, deleteDebate, debateid)
+type AssignJudgeToDebateParams struct {
+	Tournamentid  int32 `json:"tournamentid"`
+	Judgeid       int32 `json:"judgeid"`
+	Debateid      int32 `json:"debateid"`
+	Roundnumber   int32 `json:"roundnumber"`
+	Iselimination bool  `json:"iselimination"`
+	Isheadjudge   bool  `json:"isheadjudge"`
+}
+
+func (q *Queries) AssignJudgeToDebate(ctx context.Context, arg AssignJudgeToDebateParams) error {
+	_, err := q.db.ExecContext(ctx, assignJudgeToDebate,
+		arg.Tournamentid,
+		arg.Judgeid,
+		arg.Debateid,
+		arg.Roundnumber,
+		arg.Iselimination,
+		arg.Isheadjudge,
+	)
 	return err
 }
 
-const getDebate = `-- name: GetDebate :one
-SELECT debateid, roundid, tournamentid, team1id, team2id, starttime, endtime, roomid, status FROM Debates WHERE DebateID = $1
+const assignRoomToDebate = `-- name: AssignRoomToDebate :exec
+UPDATE Debates
+SET RoomID = $2
+WHERE DebateID = $1
 `
 
-func (q *Queries) GetDebate(ctx context.Context, debateid int32) (Debate, error) {
-	row := q.db.QueryRowContext(ctx, getDebate, debateid)
-	var i Debate
+type AssignRoomToDebateParams struct {
+	Debateid int32 `json:"debateid"`
+	Roomid   int32 `json:"roomid"`
+}
+
+func (q *Queries) AssignRoomToDebate(ctx context.Context, arg AssignRoomToDebateParams) error {
+	_, err := q.db.ExecContext(ctx, assignRoomToDebate, arg.Debateid, arg.Roomid)
+	return err
+}
+
+const createDebate = `-- name: CreateDebate :one
+INSERT INTO Debates (TournamentID, RoundNumber, IsEliminationRound, Team1ID, Team2ID)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING DebateID
+`
+
+type CreateDebateParams struct {
+	Tournamentid       int32 `json:"tournamentid"`
+	Roundnumber        int32 `json:"roundnumber"`
+	Iseliminationround bool  `json:"iseliminationround"`
+	Team1id            int32 `json:"team1id"`
+	Team2id            int32 `json:"team2id"`
+}
+
+func (q *Queries) CreateDebate(ctx context.Context, arg CreateDebateParams) (int32, error) {
+	row := q.db.QueryRowContext(ctx, createDebate,
+		arg.Tournamentid,
+		arg.Roundnumber,
+		arg.Iseliminationround,
+		arg.Team1id,
+		arg.Team2id,
+	)
+	var debateid int32
+	err := row.Scan(&debateid)
+	return debateid, err
+}
+
+const createPairingHistory = `-- name: CreatePairingHistory :exec
+INSERT INTO PairingHistory (TournamentID, Team1ID, Team2ID, RoundNumber, IsElimination)
+VALUES ($1, $2, $3, $4, $5)
+`
+
+type CreatePairingHistoryParams struct {
+	Tournamentid  int32 `json:"tournamentid"`
+	Team1id       int32 `json:"team1id"`
+	Team2id       int32 `json:"team2id"`
+	Roundnumber   int32 `json:"roundnumber"`
+	Iselimination bool  `json:"iselimination"`
+}
+
+func (q *Queries) CreatePairingHistory(ctx context.Context, arg CreatePairingHistoryParams) error {
+	_, err := q.db.ExecContext(ctx, createPairingHistory,
+		arg.Tournamentid,
+		arg.Team1id,
+		arg.Team2id,
+		arg.Roundnumber,
+		arg.Iselimination,
+	)
+	return err
+}
+
+const createTeam = `-- name: CreateTeam :one
+INSERT INTO Teams (Name, TournamentID)
+VALUES ($1, $2)
+RETURNING TeamID, Name, TournamentID
+`
+
+type CreateTeamParams struct {
+	Name         string `json:"name"`
+	Tournamentid int32  `json:"tournamentid"`
+}
+
+type CreateTeamRow struct {
+	Teamid       int32  `json:"teamid"`
+	Name         string `json:"name"`
+	Tournamentid int32  `json:"tournamentid"`
+}
+
+func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (CreateTeamRow, error) {
+	row := q.db.QueryRowContext(ctx, createTeam, arg.Name, arg.Tournamentid)
+	var i CreateTeamRow
+	err := row.Scan(&i.Teamid, &i.Name, &i.Tournamentid)
+	return i, err
+}
+
+const deletePairingsForTournament = `-- name: DeletePairingsForTournament :exec
+DELETE FROM Debates
+WHERE TournamentID = $1
+`
+
+func (q *Queries) DeletePairingsForTournament(ctx context.Context, tournamentid int32) error {
+	_, err := q.db.ExecContext(ctx, deletePairingsForTournament, tournamentid)
+	return err
+}
+
+const getAvailableJudges = `-- name: GetAvailableJudges :many
+SELECT u.UserID, u.Name, u.Email
+FROM Users u
+JOIN Volunteers v ON u.UserID = v.UserID
+LEFT JOIN JudgeAssignments ja ON u.UserID = ja.JudgeID AND ja.TournamentID = $1
+WHERE v.Role = 'Judge' AND ja.JudgeID IS NULL
+`
+
+type GetAvailableJudgesRow struct {
+	Userid int32  `json:"userid"`
+	Name   string `json:"name"`
+	Email  string `json:"email"`
+}
+
+func (q *Queries) GetAvailableJudges(ctx context.Context, tournamentid int32) ([]GetAvailableJudgesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAvailableJudges, tournamentid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetAvailableJudgesRow{}
+	for rows.Next() {
+		var i GetAvailableJudgesRow
+		if err := rows.Scan(&i.Userid, &i.Name, &i.Email); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAvailableRooms = `-- name: GetAvailableRooms :many
+SELECT r.roomid, r.roomname, r.location, r.capacity
+FROM Rooms r
+LEFT JOIN RoomBookings rb ON r.RoomID = rb.RoomID
+  AND rb.TournamentID = $1
+  AND rb.RoundNumber = $2
+  AND rb.IsElimination = $3
+WHERE rb.RoomID IS NULL OR rb.IsOccupied = FALSE
+`
+
+type GetAvailableRoomsParams struct {
+	Tournamentid  int32 `json:"tournamentid"`
+	Roundnumber   int32 `json:"roundnumber"`
+	Iselimination bool  `json:"iselimination"`
+}
+
+func (q *Queries) GetAvailableRooms(ctx context.Context, arg GetAvailableRoomsParams) ([]Room, error) {
+	rows, err := q.db.QueryContext(ctx, getAvailableRooms, arg.Tournamentid, arg.Roundnumber, arg.Iselimination)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Room{}
+	for rows.Next() {
+		var i Room
+		if err := rows.Scan(
+			&i.Roomid,
+			&i.Roomname,
+			&i.Location,
+			&i.Capacity,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getBallotByID = `-- name: GetBallotByID :one
+SELECT b.BallotID, d.DebateID, d.RoundNumber, d.IsEliminationRound,
+       d.RoomID, r.roomname AS RoomName, b.JudgeID, u.Name AS JudgeName,
+       d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,
+       b.Team1TotalScore, b.Team2TotalScore, b.RecordingStatus, b.Verdict
+FROM Ballots b
+JOIN Debates d ON b.DebateID = d.DebateID
+LEFT JOIN Rooms r ON d.RoomID = r.RoomID
+JOIN Users u ON b.JudgeID = u.UserID
+JOIN Teams t1 ON d.Team1ID = t1.TeamID
+JOIN Teams t2 ON d.Team2ID = t2.TeamID
+WHERE b.BallotID = $1
+`
+
+type GetBallotByIDRow struct {
+	Ballotid           int32          `json:"ballotid"`
+	Debateid           int32          `json:"debateid"`
+	Roundnumber        int32          `json:"roundnumber"`
+	Iseliminationround bool           `json:"iseliminationround"`
+	Roomid             int32          `json:"roomid"`
+	Roomname           sql.NullString `json:"roomname"`
+	Judgeid            int32          `json:"judgeid"`
+	Judgename          string         `json:"judgename"`
+	Team1id            int32          `json:"team1id"`
+	Team1name          string         `json:"team1name"`
+	Team2id            int32          `json:"team2id"`
+	Team2name          string         `json:"team2name"`
+	Team1totalscore    sql.NullString `json:"team1totalscore"`
+	Team2totalscore    sql.NullString `json:"team2totalscore"`
+	Recordingstatus    string         `json:"recordingstatus"`
+	Verdict            string         `json:"verdict"`
+}
+
+func (q *Queries) GetBallotByID(ctx context.Context, ballotid int32) (GetBallotByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getBallotByID, ballotid)
+	var i GetBallotByIDRow
 	err := row.Scan(
+		&i.Ballotid,
 		&i.Debateid,
-		&i.Roundid,
-		&i.Tournamentid,
-		&i.Team1id,
-		&i.Team2id,
-		&i.Starttime,
-		&i.Endtime,
+		&i.Roundnumber,
+		&i.Iseliminationround,
 		&i.Roomid,
-		&i.Status,
+		&i.Roomname,
+		&i.Judgeid,
+		&i.Judgename,
+		&i.Team1id,
+		&i.Team1name,
+		&i.Team2id,
+		&i.Team2name,
+		&i.Team1totalscore,
+		&i.Team2totalscore,
+		&i.Recordingstatus,
+		&i.Verdict,
 	)
 	return i, err
 }
 
-const getDebates = `-- name: GetDebates :many
-SELECT debateid, roundid, tournamentid, team1id, team2id, starttime, endtime, roomid, status FROM Debates
+const getBallotsByTournamentAndRound = `-- name: GetBallotsByTournamentAndRound :many
+SELECT b.BallotID, d.DebateID, d.RoundNumber, d.IsEliminationRound,
+       d.RoomID, r.roomname AS RoomName, b.JudgeID, u.Name AS JudgeName,
+       d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,
+       b.Team1TotalScore, b.Team2TotalScore, b.RecordingStatus, b.Verdict
+FROM Ballots b
+JOIN Debates d ON b.DebateID = d.DebateID
+LEFT JOIN Rooms r ON d.RoomID = r.RoomID
+JOIN Users u ON b.JudgeID = u.UserID
+JOIN Teams t1 ON d.Team1ID = t1.TeamID
+JOIN Teams t2 ON d.Team2ID = t2.TeamID
+WHERE d.TournamentID = $1 AND d.RoundNumber = $2 AND d.IsEliminationRound = $3
 `
 
-func (q *Queries) GetDebates(ctx context.Context) ([]Debate, error) {
-	rows, err := q.db.QueryContext(ctx, getDebates)
+type GetBallotsByTournamentAndRoundParams struct {
+	Tournamentid       int32 `json:"tournamentid"`
+	Roundnumber        int32 `json:"roundnumber"`
+	Iseliminationround bool  `json:"iseliminationround"`
+}
+
+type GetBallotsByTournamentAndRoundRow struct {
+	Ballotid           int32          `json:"ballotid"`
+	Debateid           int32          `json:"debateid"`
+	Roundnumber        int32          `json:"roundnumber"`
+	Iseliminationround bool           `json:"iseliminationround"`
+	Roomid             int32          `json:"roomid"`
+	Roomname           sql.NullString `json:"roomname"`
+	Judgeid            int32          `json:"judgeid"`
+	Judgename          string         `json:"judgename"`
+	Team1id            int32          `json:"team1id"`
+	Team1name          string         `json:"team1name"`
+	Team2id            int32          `json:"team2id"`
+	Team2name          string         `json:"team2name"`
+	Team1totalscore    sql.NullString `json:"team1totalscore"`
+	Team2totalscore    sql.NullString `json:"team2totalscore"`
+	Recordingstatus    string         `json:"recordingstatus"`
+	Verdict            string         `json:"verdict"`
+}
+
+func (q *Queries) GetBallotsByTournamentAndRound(ctx context.Context, arg GetBallotsByTournamentAndRoundParams) ([]GetBallotsByTournamentAndRoundRow, error) {
+	rows, err := q.db.QueryContext(ctx, getBallotsByTournamentAndRound, arg.Tournamentid, arg.Roundnumber, arg.Iseliminationround)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetBallotsByTournamentAndRoundRow{}
+	for rows.Next() {
+		var i GetBallotsByTournamentAndRoundRow
+		if err := rows.Scan(
+			&i.Ballotid,
+			&i.Debateid,
+			&i.Roundnumber,
+			&i.Iseliminationround,
+			&i.Roomid,
+			&i.Roomname,
+			&i.Judgeid,
+			&i.Judgename,
+			&i.Team1id,
+			&i.Team1name,
+			&i.Team2id,
+			&i.Team2name,
+			&i.Team1totalscore,
+			&i.Team2totalscore,
+			&i.Recordingstatus,
+			&i.Verdict,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getDebatesWithoutRooms = `-- name: GetDebatesWithoutRooms :many
+SELECT debateid, roundid, roundnumber, iseliminationround, tournamentid, team1id, team2id, starttime, endtime, roomid, status
+FROM Debates
+WHERE TournamentID = $1 AND RoundNumber = $2 AND IsEliminationRound = $3 AND RoomID IS NULL
+`
+
+type GetDebatesWithoutRoomsParams struct {
+	Tournamentid       int32 `json:"tournamentid"`
+	Roundnumber        int32 `json:"roundnumber"`
+	Iseliminationround bool  `json:"iseliminationround"`
+}
+
+func (q *Queries) GetDebatesWithoutRooms(ctx context.Context, arg GetDebatesWithoutRoomsParams) ([]Debate, error) {
+	rows, err := q.db.QueryContext(ctx, getDebatesWithoutRooms, arg.Tournamentid, arg.Roundnumber, arg.Iseliminationround)
 	if err != nil {
 		return nil, err
 	}
@@ -100,6 +396,8 @@ func (q *Queries) GetDebates(ctx context.Context) ([]Debate, error) {
 		if err := rows.Scan(
 			&i.Debateid,
 			&i.Roundid,
+			&i.Roundnumber,
+			&i.Iseliminationround,
 			&i.Tournamentid,
 			&i.Team1id,
 			&i.Team2id,
@@ -121,48 +419,592 @@ func (q *Queries) GetDebates(ctx context.Context) ([]Debate, error) {
 	return items, nil
 }
 
-const updateDebate = `-- name: UpdateDebate :one
-UPDATE Debates
-SET RoundID = $2, TournamentID = $3, Team1ID = $4, Team2ID = $5, StartTime = $6, EndTime = $7, RoomID = $8, Status = $9
-WHERE DebateID = $1
-RETURNING debateid, roundid, tournamentid, team1id, team2id, starttime, endtime, roomid, status
+const getJudgeByID = `-- name: GetJudgeByID :one
+SELECT u.UserID, u.Name, u.Email
+FROM Users u
+WHERE u.UserID = $1
 `
 
-type UpdateDebateParams struct {
-	Debateid     int32        `json:"debateid"`
-	Roundid      int32        `json:"roundid"`
-	Tournamentid int32        `json:"tournamentid"`
-	Team1id      int32        `json:"team1id"`
-	Team2id      int32        `json:"team2id"`
-	Starttime    time.Time    `json:"starttime"`
-	Endtime      sql.NullTime `json:"endtime"`
-	Roomid       int32        `json:"roomid"`
-	Status       string       `json:"status"`
+type GetJudgeByIDRow struct {
+	Userid int32  `json:"userid"`
+	Name   string `json:"name"`
+	Email  string `json:"email"`
 }
 
-func (q *Queries) UpdateDebate(ctx context.Context, arg UpdateDebateParams) (Debate, error) {
-	row := q.db.QueryRowContext(ctx, updateDebate,
-		arg.Debateid,
-		arg.Roundid,
-		arg.Tournamentid,
-		arg.Team1id,
-		arg.Team2id,
-		arg.Starttime,
-		arg.Endtime,
-		arg.Roomid,
-		arg.Status,
-	)
-	var i Debate
+func (q *Queries) GetJudgeByID(ctx context.Context, userid int32) (GetJudgeByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getJudgeByID, userid)
+	var i GetJudgeByIDRow
+	err := row.Scan(&i.Userid, &i.Name, &i.Email)
+	return i, err
+}
+
+const getJudgesByTournamentAndRound = `-- name: GetJudgesByTournamentAndRound :many
+SELECT u.UserID, u.Name, u.Email, ja.IsHeadJudge
+FROM Users u
+JOIN JudgeAssignments ja ON u.UserID = ja.JudgeID
+WHERE ja.TournamentID = $1 AND ja.RoundNumber = $2 AND ja.IsElimination = $3
+`
+
+type GetJudgesByTournamentAndRoundParams struct {
+	Tournamentid  int32 `json:"tournamentid"`
+	Roundnumber   int32 `json:"roundnumber"`
+	Iselimination bool  `json:"iselimination"`
+}
+
+type GetJudgesByTournamentAndRoundRow struct {
+	Userid      int32  `json:"userid"`
+	Name        string `json:"name"`
+	Email       string `json:"email"`
+	Isheadjudge bool   `json:"isheadjudge"`
+}
+
+func (q *Queries) GetJudgesByTournamentAndRound(ctx context.Context, arg GetJudgesByTournamentAndRoundParams) ([]GetJudgesByTournamentAndRoundRow, error) {
+	rows, err := q.db.QueryContext(ctx, getJudgesByTournamentAndRound, arg.Tournamentid, arg.Roundnumber, arg.Iselimination)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetJudgesByTournamentAndRoundRow{}
+	for rows.Next() {
+		var i GetJudgesByTournamentAndRoundRow
+		if err := rows.Scan(
+			&i.Userid,
+			&i.Name,
+			&i.Email,
+			&i.Isheadjudge,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getPairingByID = `-- name: GetPairingByID :one
+SELECT d.DebateID, d.RoundNumber, d.IsEliminationRound,
+       d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,
+       d.RoomID, r.roomname AS RoomName
+FROM Debates d
+JOIN Teams t1 ON d.Team1ID = t1.TeamID
+JOIN Teams t2 ON d.Team2ID = t2.TeamID
+LEFT JOIN Rooms r ON d.RoomID = r.RoomID
+WHERE d.DebateID = $1
+`
+
+type GetPairingByIDRow struct {
+	Debateid           int32          `json:"debateid"`
+	Roundnumber        int32          `json:"roundnumber"`
+	Iseliminationround bool           `json:"iseliminationround"`
+	Team1id            int32          `json:"team1id"`
+	Team1name          string         `json:"team1name"`
+	Team2id            int32          `json:"team2id"`
+	Team2name          string         `json:"team2name"`
+	Roomid             int32          `json:"roomid"`
+	Roomname           sql.NullString `json:"roomname"`
+}
+
+func (q *Queries) GetPairingByID(ctx context.Context, debateid int32) (GetPairingByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getPairingByID, debateid)
+	var i GetPairingByIDRow
 	err := row.Scan(
 		&i.Debateid,
-		&i.Roundid,
-		&i.Tournamentid,
+		&i.Roundnumber,
+		&i.Iseliminationround,
 		&i.Team1id,
+		&i.Team1name,
 		&i.Team2id,
-		&i.Starttime,
-		&i.Endtime,
+		&i.Team2name,
 		&i.Roomid,
-		&i.Status,
+		&i.Roomname,
 	)
 	return i, err
+}
+
+const getPairingsByTournamentAndRound = `-- name: GetPairingsByTournamentAndRound :many
+SELECT d.DebateID, d.RoundNumber, d.IsEliminationRound,
+       d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,
+       d.RoomID, r.roomname AS RoomName
+FROM Debates d
+JOIN Teams t1 ON d.Team1ID = t1.TeamID
+JOIN Teams t2 ON d.Team2ID = t2.TeamID
+LEFT JOIN Rooms r ON d.RoomID = r.RoomID
+WHERE d.TournamentID = $1 AND d.RoundNumber = $2 AND d.IsEliminationRound = $3
+`
+
+type GetPairingsByTournamentAndRoundParams struct {
+	Tournamentid       int32 `json:"tournamentid"`
+	Roundnumber        int32 `json:"roundnumber"`
+	Iseliminationround bool  `json:"iseliminationround"`
+}
+
+type GetPairingsByTournamentAndRoundRow struct {
+	Debateid           int32          `json:"debateid"`
+	Roundnumber        int32          `json:"roundnumber"`
+	Iseliminationround bool           `json:"iseliminationround"`
+	Team1id            int32          `json:"team1id"`
+	Team1name          string         `json:"team1name"`
+	Team2id            int32          `json:"team2id"`
+	Team2name          string         `json:"team2name"`
+	Roomid             int32          `json:"roomid"`
+	Roomname           sql.NullString `json:"roomname"`
+}
+
+func (q *Queries) GetPairingsByTournamentAndRound(ctx context.Context, arg GetPairingsByTournamentAndRoundParams) ([]GetPairingsByTournamentAndRoundRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPairingsByTournamentAndRound, arg.Tournamentid, arg.Roundnumber, arg.Iseliminationround)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetPairingsByTournamentAndRoundRow{}
+	for rows.Next() {
+		var i GetPairingsByTournamentAndRoundRow
+		if err := rows.Scan(
+			&i.Debateid,
+			&i.Roundnumber,
+			&i.Iseliminationround,
+			&i.Team1id,
+			&i.Team1name,
+			&i.Team2id,
+			&i.Team2name,
+			&i.Roomid,
+			&i.Roomname,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getPreviousPairings = `-- name: GetPreviousPairings :many
+SELECT Team1ID, Team2ID
+FROM Debates
+WHERE TournamentID = $1 AND RoundNumber < $2
+`
+
+type GetPreviousPairingsParams struct {
+	Tournamentid int32 `json:"tournamentid"`
+	Roundnumber  int32 `json:"roundnumber"`
+}
+
+type GetPreviousPairingsRow struct {
+	Team1id int32 `json:"team1id"`
+	Team2id int32 `json:"team2id"`
+}
+
+func (q *Queries) GetPreviousPairings(ctx context.Context, arg GetPreviousPairingsParams) ([]GetPreviousPairingsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPreviousPairings, arg.Tournamentid, arg.Roundnumber)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetPreviousPairingsRow{}
+	for rows.Next() {
+		var i GetPreviousPairingsRow
+		if err := rows.Scan(&i.Team1id, &i.Team2id); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getRoomByID = `-- name: GetRoomByID :many
+SELECT r.RoomID, r.RoomName, rb.RoundNumber, rb.IsElimination, rb.IsOccupied
+FROM Rooms r
+LEFT JOIN RoomBookings rb ON r.RoomID = rb.RoomID
+WHERE r.RoomID = $1
+`
+
+type GetRoomByIDRow struct {
+	Roomid        int32         `json:"roomid"`
+	Roomname      string        `json:"roomname"`
+	Roundnumber   sql.NullInt32 `json:"roundnumber"`
+	Iselimination sql.NullBool  `json:"iselimination"`
+	Isoccupied    sql.NullBool  `json:"isoccupied"`
+}
+
+func (q *Queries) GetRoomByID(ctx context.Context, roomid int32) ([]GetRoomByIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, getRoomByID, roomid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetRoomByIDRow{}
+	for rows.Next() {
+		var i GetRoomByIDRow
+		if err := rows.Scan(
+			&i.Roomid,
+			&i.Roomname,
+			&i.Roundnumber,
+			&i.Iselimination,
+			&i.Isoccupied,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getRoomsByTournamentAndRound = `-- name: GetRoomsByTournamentAndRound :many
+SELECT r.RoomID, r.roomname, rb.RoundNumber, rb.IsElimination, rb.IsOccupied
+FROM Rooms r
+JOIN RoomBookings rb ON r.RoomID = rb.RoomID
+WHERE rb.TournamentID = $1 AND rb.RoundNumber = $2 AND rb.IsElimination = $3
+`
+
+type GetRoomsByTournamentAndRoundParams struct {
+	Tournamentid  int32 `json:"tournamentid"`
+	Roundnumber   int32 `json:"roundnumber"`
+	Iselimination bool  `json:"iselimination"`
+}
+
+type GetRoomsByTournamentAndRoundRow struct {
+	Roomid        int32  `json:"roomid"`
+	Roomname      string `json:"roomname"`
+	Roundnumber   int32  `json:"roundnumber"`
+	Iselimination bool   `json:"iselimination"`
+	Isoccupied    bool   `json:"isoccupied"`
+}
+
+func (q *Queries) GetRoomsByTournamentAndRound(ctx context.Context, arg GetRoomsByTournamentAndRoundParams) ([]GetRoomsByTournamentAndRoundRow, error) {
+	rows, err := q.db.QueryContext(ctx, getRoomsByTournamentAndRound, arg.Tournamentid, arg.Roundnumber, arg.Iselimination)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetRoomsByTournamentAndRoundRow{}
+	for rows.Next() {
+		var i GetRoomsByTournamentAndRoundRow
+		if err := rows.Scan(
+			&i.Roomid,
+			&i.Roomname,
+			&i.Roundnumber,
+			&i.Iselimination,
+			&i.Isoccupied,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSpeakerScoresByBallot = `-- name: GetSpeakerScoresByBallot :many
+SELECT ss.ScoreID, ss.SpeakerID, s.FirstName, s.LastName, ss.SpeakerRank, ss.SpeakerPoints, ss.Feedback
+FROM SpeakerScores ss
+JOIN Students s ON ss.SpeakerID = s.StudentID
+WHERE ss.BallotID = $1
+`
+
+type GetSpeakerScoresByBallotRow struct {
+	Scoreid       int32          `json:"scoreid"`
+	Speakerid     int32          `json:"speakerid"`
+	Firstname     string         `json:"firstname"`
+	Lastname      string         `json:"lastname"`
+	Speakerrank   int32          `json:"speakerrank"`
+	Speakerpoints string         `json:"speakerpoints"`
+	Feedback      sql.NullString `json:"feedback"`
+}
+
+func (q *Queries) GetSpeakerScoresByBallot(ctx context.Context, ballotid int32) ([]GetSpeakerScoresByBallotRow, error) {
+	rows, err := q.db.QueryContext(ctx, getSpeakerScoresByBallot, ballotid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetSpeakerScoresByBallotRow{}
+	for rows.Next() {
+		var i GetSpeakerScoresByBallotRow
+		if err := rows.Scan(
+			&i.Scoreid,
+			&i.Speakerid,
+			&i.Firstname,
+			&i.Lastname,
+			&i.Speakerrank,
+			&i.Speakerpoints,
+			&i.Feedback,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTeamByID = `-- name: GetTeamByID :one
+SELECT t.TeamID, t.Name, t.TournamentID,
+       array_agg(tm.StudentID) as SpeakerIDs
+FROM Teams t
+LEFT JOIN TeamMembers tm ON t.TeamID = tm.TeamID
+WHERE t.TeamID = $1
+GROUP BY t.TeamID, t.Name, t.TournamentID
+`
+
+type GetTeamByIDRow struct {
+	Teamid       int32       `json:"teamid"`
+	Name         string      `json:"name"`
+	Tournamentid int32       `json:"tournamentid"`
+	Speakerids   interface{} `json:"speakerids"`
+}
+
+func (q *Queries) GetTeamByID(ctx context.Context, teamid int32) (GetTeamByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getTeamByID, teamid)
+	var i GetTeamByIDRow
+	err := row.Scan(
+		&i.Teamid,
+		&i.Name,
+		&i.Tournamentid,
+		&i.Speakerids,
+	)
+	return i, err
+}
+
+const getTeamMembers = `-- name: GetTeamMembers :many
+SELECT tm.TeamID, tm.StudentID, s.FirstName, s.LastName
+FROM TeamMembers tm
+JOIN Students s ON tm.StudentID = s.StudentID
+WHERE tm.TeamID = $1
+`
+
+type GetTeamMembersRow struct {
+	Teamid    int32  `json:"teamid"`
+	Studentid int32  `json:"studentid"`
+	Firstname string `json:"firstname"`
+	Lastname  string `json:"lastname"`
+}
+
+func (q *Queries) GetTeamMembers(ctx context.Context, teamid int32) ([]GetTeamMembersRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTeamMembers, teamid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetTeamMembersRow{}
+	for rows.Next() {
+		var i GetTeamMembersRow
+		if err := rows.Scan(
+			&i.Teamid,
+			&i.Studentid,
+			&i.Firstname,
+			&i.Lastname,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTeamWins = `-- name: GetTeamWins :one
+SELECT COUNT(*) as wins
+FROM Debates d
+JOIN Ballots b ON d.DebateID = b.DebateID
+WHERE (d.Team1ID = $1 AND b.Team1TotalScore > b.Team2TotalScore)
+   OR (d.Team2ID = $1 AND b.Team2TotalScore > b.Team1TotalScore)
+   AND d.TournamentID = $2
+`
+
+type GetTeamWinsParams struct {
+	Team1id      int32 `json:"team1id"`
+	Tournamentid int32 `json:"tournamentid"`
+}
+
+func (q *Queries) GetTeamWins(ctx context.Context, arg GetTeamWinsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getTeamWins, arg.Team1id, arg.Tournamentid)
+	var wins int64
+	err := row.Scan(&wins)
+	return wins, err
+}
+
+const getTeamsByTournament = `-- name: GetTeamsByTournament :many
+SELECT t.TeamID, t.Name, t.TournamentID,
+       array_agg(tm.StudentID) as SpeakerIDs,
+       (SELECT COUNT(*)
+        FROM Debates d
+        JOIN Ballots b ON d.DebateID = b.DebateID
+        WHERE ((d.Team1ID = t.TeamID AND b.Team1TotalScore > b.Team2TotalScore)
+           OR (d.Team2ID = t.TeamID AND b.Team2TotalScore > b.Team1TotalScore))
+           AND d.TournamentID = $1) as Wins
+FROM Teams t
+LEFT JOIN TeamMembers tm ON t.TeamID = tm.TeamID
+WHERE t.TournamentID = $1
+GROUP BY t.TeamID, t.Name, t.TournamentID
+`
+
+type GetTeamsByTournamentRow struct {
+	Teamid       int32       `json:"teamid"`
+	Name         string      `json:"name"`
+	Tournamentid int32       `json:"tournamentid"`
+	Speakerids   interface{} `json:"speakerids"`
+	Wins         int64       `json:"wins"`
+}
+
+func (q *Queries) GetTeamsByTournament(ctx context.Context, tournamentid int32) ([]GetTeamsByTournamentRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTeamsByTournament, tournamentid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetTeamsByTournamentRow{}
+	for rows.Next() {
+		var i GetTeamsByTournamentRow
+		if err := rows.Scan(
+			&i.Teamid,
+			&i.Name,
+			&i.Tournamentid,
+			&i.Speakerids,
+			&i.Wins,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const removeTeamMembers = `-- name: RemoveTeamMembers :exec
+DELETE FROM TeamMembers
+WHERE TeamID = $1
+`
+
+func (q *Queries) RemoveTeamMembers(ctx context.Context, teamid int32) error {
+	_, err := q.db.ExecContext(ctx, removeTeamMembers, teamid)
+	return err
+}
+
+const updateBallot = `-- name: UpdateBallot :exec
+UPDATE Ballots
+SET Team1TotalScore = $2, Team2TotalScore = $3, RecordingStatus = $4, Verdict = $5
+WHERE BallotID = $1
+`
+
+type UpdateBallotParams struct {
+	Ballotid        int32          `json:"ballotid"`
+	Team1totalscore sql.NullString `json:"team1totalscore"`
+	Team2totalscore sql.NullString `json:"team2totalscore"`
+	Recordingstatus string         `json:"recordingstatus"`
+	Verdict         string         `json:"verdict"`
+}
+
+func (q *Queries) UpdateBallot(ctx context.Context, arg UpdateBallotParams) error {
+	_, err := q.db.ExecContext(ctx, updateBallot,
+		arg.Ballotid,
+		arg.Team1totalscore,
+		arg.Team2totalscore,
+		arg.Recordingstatus,
+		arg.Verdict,
+	)
+	return err
+}
+
+const updatePairing = `-- name: UpdatePairing :exec
+UPDATE Debates
+SET Team1ID = $2, Team2ID = $3, RoomID = $4
+WHERE DebateID = $1
+`
+
+type UpdatePairingParams struct {
+	Debateid int32 `json:"debateid"`
+	Team1id  int32 `json:"team1id"`
+	Team2id  int32 `json:"team2id"`
+	Roomid   int32 `json:"roomid"`
+}
+
+func (q *Queries) UpdatePairing(ctx context.Context, arg UpdatePairingParams) error {
+	_, err := q.db.ExecContext(ctx, updatePairing,
+		arg.Debateid,
+		arg.Team1id,
+		arg.Team2id,
+		arg.Roomid,
+	)
+	return err
+}
+
+const updateSpeakerScore = `-- name: UpdateSpeakerScore :exec
+UPDATE SpeakerScores
+SET SpeakerRank = $2, SpeakerPoints = $3, Feedback = $4
+WHERE ScoreID = $1
+`
+
+type UpdateSpeakerScoreParams struct {
+	Scoreid       int32          `json:"scoreid"`
+	Speakerrank   int32          `json:"speakerrank"`
+	Speakerpoints string         `json:"speakerpoints"`
+	Feedback      sql.NullString `json:"feedback"`
+}
+
+func (q *Queries) UpdateSpeakerScore(ctx context.Context, arg UpdateSpeakerScoreParams) error {
+	_, err := q.db.ExecContext(ctx, updateSpeakerScore,
+		arg.Scoreid,
+		arg.Speakerrank,
+		arg.Speakerpoints,
+		arg.Feedback,
+	)
+	return err
+}
+
+const updateTeam = `-- name: UpdateTeam :exec
+UPDATE Teams
+SET Name = $2
+WHERE TeamID = $1
+`
+
+type UpdateTeamParams struct {
+	Teamid int32  `json:"teamid"`
+	Name   string `json:"name"`
+}
+
+func (q *Queries) UpdateTeam(ctx context.Context, arg UpdateTeamParams) error {
+	_, err := q.db.ExecContext(ctx, updateTeam, arg.Teamid, arg.Name)
+	return err
 }

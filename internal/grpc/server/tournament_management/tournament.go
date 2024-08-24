@@ -10,7 +10,6 @@ import (
 
 	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
 	services "github.com/iRankHub/backend/internal/services/tournament_management"
-
 )
 
 type tournamentServer struct {
@@ -134,14 +133,14 @@ func (s *tournamentServer) DeleteTournamentFormat(ctx context.Context, req *tour
 }
 
 func (s *tournamentServer) CreateTournament(ctx context.Context, req *tournament_management.CreateTournamentRequest) (*tournament_management.CreateTournamentResponse, error) {
-    tournament, err := s.tournamentService.CreateTournament(ctx, req)
-    if err != nil {
-        log.Printf("Error creating tournament: %v", err)
-        return nil, status.Errorf(codes.Internal, "Failed to create tournament: %v", err)
-    }
-    return &tournament_management.CreateTournamentResponse{
-        Tournament: tournament,
-    }, nil
+	tournament, err := s.tournamentService.CreateTournament(ctx, req)
+	if err != nil {
+		log.Printf("Error creating tournament: %v", err)
+		return nil, status.Errorf(codes.Internal, "Failed to create tournament: %v", err)
+	}
+	return &tournament_management.CreateTournamentResponse{
+		Tournament: tournament,
+	}, nil
 }
 
 func (s *tournamentServer) GetTournament(ctx context.Context, req *tournament_management.GetTournamentRequest) (*tournament_management.GetTournamentResponse, error) {
@@ -184,35 +183,35 @@ func (s *tournamentServer) DeleteTournament(ctx context.Context, req *tournament
 }
 
 func (s *tournamentServer) GetInvitationsByUser(ctx context.Context, req *tournament_management.GetInvitationsByUserRequest) (*tournament_management.GetInvitationsByUserResponse, error) {
-    response, err := s.invitationService.GetInvitationsByUser(ctx, req)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to get invitations for user: %v", err)
-    }
-    return response, nil
+	response, err := s.invitationService.GetInvitationsByUser(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get invitations for user: %v", err)
+	}
+	return response, nil
 }
 
 func (s *tournamentServer) GetInvitationsByTournament(ctx context.Context, req *tournament_management.GetInvitationsByTournamentRequest) (*tournament_management.GetInvitationsByTournamentResponse, error) {
-    response, err := s.invitationService.GetInvitationsByTournament(ctx, req)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to get invitations for tournament: %v", err)
-    }
-    return response, nil
+	response, err := s.invitationService.GetInvitationsByTournament(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get invitations for tournament: %v", err)
+	}
+	return response, nil
 }
 
 func (s *tournamentServer) UpdateInvitationStatus(ctx context.Context, req *tournament_management.UpdateInvitationStatusRequest) (*tournament_management.UpdateInvitationStatusResponse, error) {
-    response, err := s.invitationService.UpdateInvitationStatus(ctx, req)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to update invitation status: %v", err)
-    }
-    return response, nil
+	response, err := s.invitationService.UpdateInvitationStatus(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to update invitation status: %v", err)
+	}
+	return response, nil
 }
 
 func (s *tournamentServer) BulkUpdateInvitationStatus(ctx context.Context, req *tournament_management.BulkUpdateInvitationStatusRequest) (*tournament_management.BulkUpdateInvitationStatusResponse, error) {
-    response, err := s.invitationService.BulkUpdateInvitationStatus(ctx, req)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to bulk update invitation statuses: %v", err)
-    }
-    return response, nil
+	response, err := s.invitationService.BulkUpdateInvitationStatus(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to bulk update invitation statuses: %v", err)
+	}
+	return response, nil
 }
 
 func (s *tournamentServer) ResendInvitation(ctx context.Context, req *tournament_management.ResendInvitationRequest) (*tournament_management.ResendInvitationResponse, error) {

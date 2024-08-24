@@ -190,8 +190,8 @@ Endpoint: `TournamentService.ListTournaments`
 Request:
 ```json
 {
-  "pageSize": 10,
-  "pageToken": 0,
+  "page_size": 10,
+  "page_token": 0,
   "token": "your_auth_token_here"
 }
 ```

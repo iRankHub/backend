@@ -52,7 +52,7 @@ func getAuthEmailTemplate(content string) string {
 			</div>
 		</body>
 		</html>
-	`, logoURL,content)
+	`, logoURL, content)
 }
 
 func sendAuthEmail(to, subject, body string) error {
@@ -148,8 +148,8 @@ func SendTwoFactorOTPEmail(to, otp string) error {
 }
 
 func SendTemporaryPasswordEmail(to, firstName, temporaryPassword string) error {
-    subject := "Welcome to iRankHub - Your Temporary Password"
-    content := fmt.Sprintf(`
+	subject := "Welcome to iRankHub - Your Temporary Password"
+	content := fmt.Sprintf(`
         <p>Hello, %s!</p>
         <p>Welcome to iRankHub! Your account has been created as part of a batch import process.</p>
         <p>Your temporary password is: <strong>%s</strong></p>
@@ -157,6 +157,6 @@ func SendTemporaryPasswordEmail(to, firstName, temporaryPassword string) error {
         <p>If you have any questions or concerns, please contact our support team.</p>
         <p>Best regards,<br>The iRankHub Team</p>
     `, firstName, temporaryPassword)
-    body := getAuthEmailTemplate(content)
-    return sendAuthEmail(to, subject, body)
+	body := getAuthEmailTemplate(content)
+	return sendAuthEmail(to, subject, body)
 }

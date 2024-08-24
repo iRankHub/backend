@@ -26,8 +26,8 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 	}
 
 	if gender != "male" && gender != "female" && gender != "non-binary" {
-        return fmt.Errorf("invalid gender. Must be 'male', 'female', or 'non-binary'")
-    }
+		return fmt.Errorf("invalid gender. Must be 'male', 'female', or 'non-binary'")
+	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -47,7 +47,6 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 		return fmt.Errorf("error checking email uniqueness: %v", err)
 	}
 
-
 	hashedPassword, err := utils.HashPassword(password)
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %v", err)
@@ -59,17 +58,16 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 	}
 
 	user, err := queries.CreateUser(ctx, models.CreateUserParams{
-        Name:     firstName + " " + lastName,
-        Email:    email,
-        Password: hashedPassword,
-        Userrole: userRole,
-        Status:   status,
-        Gender:   sql.NullString{String: gender, Valid: true},
-    })
+		Name:     firstName + " " + lastName,
+		Email:    email,
+		Password: hashedPassword,
+		Userrole: userRole,
+		Status:   status,
+		Gender:   sql.NullString{String: gender, Valid: true},
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create user: %v", err)
 	}
-
 
 	switch userRole {
 	case "student":
@@ -147,70 +145,70 @@ func (s *SignUpService) createStudentRecord(ctx context.Context, queries *models
 	}
 
 	_, err = queries.CreateStudent(ctx, models.CreateStudentParams{
-        Firstname:   firstName,
-        Lastname:    lastName,
-        Grade:       grade,
-        Dateofbirth: sql.NullTime{Time: dateOfBirth, Valid: true},
-        Email:       sql.NullString{String: email, Valid: true},
-        Password:    hashedPassword,
-        Schoolid:    schoolID,
-        Userid:      userID,
-        Gender:      sql.NullString{String: gender, Valid: true},
-    })
-    if err != nil {
-        return fmt.Errorf("failed to create student record: %v", err)
-    }
-    return nil
+		Firstname:   firstName,
+		Lastname:    lastName,
+		Grade:       grade,
+		Dateofbirth: sql.NullTime{Time: dateOfBirth, Valid: true},
+		Email:       sql.NullString{String: email, Valid: true},
+		Password:    hashedPassword,
+		Schoolid:    schoolID,
+		Userid:      userID,
+		Gender:      sql.NullString{String: gender, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create student record: %v", err)
+	}
+	return nil
 }
 
 func (s *SignUpService) createSchoolRecord(ctx context.Context, queries *models.Queries, userID int32, email string, additionalInfo map[string]interface{}) error {
-    schoolName, ok := additionalInfo["schoolName"].(string)
-    if !ok || schoolName == "" {
-        return fmt.Errorf("school name is missing or invalid")
-    }
+	schoolName, ok := additionalInfo["schoolName"].(string)
+	if !ok || schoolName == "" {
+		return fmt.Errorf("school name is missing or invalid")
+	}
 
-    address, ok := additionalInfo["address"].(string)
-    if !ok || address == "" {
-        return fmt.Errorf("address is missing or invalid")
-    }
+	address, ok := additionalInfo["address"].(string)
+	if !ok || address == "" {
+		return fmt.Errorf("address is missing or invalid")
+	}
 
-    country, ok := additionalInfo["country"].(string)
-    if !ok || country == "" {
-        return fmt.Errorf("country is missing or invalid")
-    }
+	country, ok := additionalInfo["country"].(string)
+	if !ok || country == "" {
+		return fmt.Errorf("country is missing or invalid")
+	}
 
-    province, ok := additionalInfo["province"].(string)
-    if !ok || province == "" {
-        return fmt.Errorf("province is missing or invalid")
-    }
+	province, ok := additionalInfo["province"].(string)
+	if !ok || province == "" {
+		return fmt.Errorf("province is missing or invalid")
+	}
 
-    district, ok := additionalInfo["district"].(string)
-    if !ok || district == "" {
-        return fmt.Errorf("district is missing or invalid")
-    }
+	district, ok := additionalInfo["district"].(string)
+	if !ok || district == "" {
+		return fmt.Errorf("district is missing or invalid")
+	}
 
-    contactEmail, ok := additionalInfo["contactEmail"].(string)
-    if !ok || contactEmail == "" {
-        return fmt.Errorf("contact email is missing or invalid")
-    }
+	contactEmail, ok := additionalInfo["contactEmail"].(string)
+	if !ok || contactEmail == "" {
+		return fmt.Errorf("contact email is missing or invalid")
+	}
 
-    schoolType, ok := additionalInfo["schoolType"].(string)
-    if !ok || schoolType == "" {
-        return fmt.Errorf("school type is missing or invalid")
-    }
+	schoolType, ok := additionalInfo["schoolType"].(string)
+	if !ok || schoolType == "" {
+		return fmt.Errorf("school type is missing or invalid")
+	}
 
-    _, err := queries.CreateSchool(ctx, models.CreateSchoolParams{
-        Schoolname:      schoolName,
-        Address:         address,
-        Country:         sql.NullString{String: country, Valid: true},
-        Province:        sql.NullString{String: province, Valid: true},
-        District:        sql.NullString{String: district, Valid: true},
-        Contactpersonid: userID,
-        Contactemail:    contactEmail,
-        Schoolemail:     email,
-        Schooltype:      schoolType,
-    })
-    return err
+	_, err := queries.CreateSchool(ctx, models.CreateSchoolParams{
+		Schoolname:      schoolName,
+		Address:         address,
+		Country:         sql.NullString{String: country, Valid: true},
+		Province:        sql.NullString{String: province, Valid: true},
+		District:        sql.NullString{String: district, Valid: true},
+		Contactpersonid: userID,
+		Contactemail:    contactEmail,
+		Schoolemail:     email,
+		Schooltype:      schoolType,
+	})
+	return err
 }
 
 func (s *SignUpService) createVolunteerRecord(ctx context.Context, queries *models.Queries, userID int32, firstName, lastName, gender, hashedPassword string, additionalInfo map[string]interface{}) error {
@@ -243,23 +241,23 @@ func (s *SignUpService) createVolunteerRecord(ctx context.Context, queries *mode
 		return fmt.Errorf("internship information is missing or invalid")
 	}
 
-    isEnrolledInUniversity, ok := additionalInfo["isEnrolledInUniversity"].(bool)
-    if !ok {
-        return fmt.Errorf("university enrollment information is missing or invalid")
-    }
+	isEnrolledInUniversity, ok := additionalInfo["isEnrolledInUniversity"].(bool)
+	if !ok {
+		return fmt.Errorf("university enrollment information is missing or invalid")
+	}
 
-    _, err = queries.CreateVolunteer(ctx, models.CreateVolunteerParams{
-        Firstname:              firstName,
-        Lastname:               lastName,
-        Dateofbirth:            sql.NullTime{Time: dateOfBirth, Valid: true},
-        Role:                   roleInterestedIn,
-        Graduateyear:           sql.NullInt32{Int32: graduationYear, Valid: true},
-        Password:               hashedPassword,
-        Safeguardcertificate:   sql.NullBool{Bool: safeguardingCertificate, Valid: true},
-        Hasinternship:          sql.NullBool{Bool: hasInternship, Valid: true},
-        Userid:                 userID,
-        Isenrolledinuniversity: sql.NullBool{Bool: isEnrolledInUniversity, Valid: true},
-        Gender:                 sql.NullString{String: gender, Valid: true},
-    })
-    return err
+	_, err = queries.CreateVolunteer(ctx, models.CreateVolunteerParams{
+		Firstname:              firstName,
+		Lastname:               lastName,
+		Dateofbirth:            sql.NullTime{Time: dateOfBirth, Valid: true},
+		Role:                   roleInterestedIn,
+		Graduateyear:           sql.NullInt32{Int32: graduationYear, Valid: true},
+		Password:               hashedPassword,
+		Safeguardcertificate:   sql.NullBool{Bool: safeguardingCertificate, Valid: true},
+		Hasinternship:          sql.NullBool{Bool: hasInternship, Valid: true},
+		Userid:                 userID,
+		Isenrolledinuniversity: sql.NullBool{Bool: isEnrolledInUniversity, Valid: true},
+		Gender:                 sql.NullString{String: gender, Valid: true},
+	})
+	return err
 }
