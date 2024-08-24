@@ -28,6 +28,8 @@ type Ballot struct {
 	Team2debatercscore    sql.NullString `json:"team2debatercscore"`
 	Team2debaterccomments sql.NullString `json:"team2debaterccomments"`
 	Team2totalscore       sql.NullString `json:"team2totalscore"`
+	Recordingstatus       string         `json:"recordingstatus"`
+	Verdict               string         `json:"verdict"`
 }
 
 type Communication struct {
@@ -45,22 +47,32 @@ type Countrycode struct {
 }
 
 type Debate struct {
-	Debateid     int32        `json:"debateid"`
-	Roundid      int32        `json:"roundid"`
-	Tournamentid int32        `json:"tournamentid"`
-	Team1id      int32        `json:"team1id"`
-	Team2id      int32        `json:"team2id"`
-	Starttime    time.Time    `json:"starttime"`
-	Endtime      sql.NullTime `json:"endtime"`
-	Roomid       int32        `json:"roomid"`
-	Status       string       `json:"status"`
+	Debateid           int32        `json:"debateid"`
+	Roundid            int32        `json:"roundid"`
+	Roundnumber        int32        `json:"roundnumber"`
+	Iseliminationround bool         `json:"iseliminationround"`
+	Tournamentid       int32        `json:"tournamentid"`
+	Team1id            int32        `json:"team1id"`
+	Team2id            int32        `json:"team2id"`
+	Starttime          time.Time    `json:"starttime"`
+	Endtime            sql.NullTime `json:"endtime"`
+	Roomid             int32        `json:"roomid"`
+	Status             string       `json:"status"`
+}
+
+type Debatejudge struct {
+	Debateid int32 `json:"debateid"`
+	Judgeid  int32 `json:"judgeid"`
 }
 
 type Judgeassignment struct {
-	Assignmentid int32 `json:"assignmentid"`
-	Volunteerid  int32 `json:"volunteerid"`
-	Tournamentid int32 `json:"tournamentid"`
-	Debateid     int32 `json:"debateid"`
+	Assignmentid  int32 `json:"assignmentid"`
+	Tournamentid  int32 `json:"tournamentid"`
+	Judgeid       int32 `json:"judgeid"`
+	Debateid      int32 `json:"debateid"`
+	Roundnumber   int32 `json:"roundnumber"`
+	Iselimination bool  `json:"iselimination"`
+	Isheadjudge   bool  `json:"isheadjudge"`
 }
 
 type Judgereview struct {
@@ -98,6 +110,15 @@ type Notificationpreference struct {
 	Inappnotifications sql.NullBool   `json:"inappnotifications"`
 }
 
+type Pairinghistory struct {
+	Historyid     int32 `json:"historyid"`
+	Tournamentid  int32 `json:"tournamentid"`
+	Team1id       int32 `json:"team1id"`
+	Team2id       int32 `json:"team2id"`
+	Roundnumber   int32 `json:"roundnumber"`
+	Iselimination bool  `json:"iselimination"`
+}
+
 type Result struct {
 	Resultid     int32          `json:"resultid"`
 	Tournamentid int32          `json:"tournamentid"`
@@ -114,11 +135,12 @@ type Room struct {
 }
 
 type Roombooking struct {
-	Bookingid    int32     `json:"bookingid"`
-	Tournamentid int32     `json:"tournamentid"`
-	Roomid       int32     `json:"roomid"`
-	Starttime    time.Time `json:"starttime"`
-	Endtime      time.Time `json:"endtime"`
+	Bookingid     int32 `json:"bookingid"`
+	Tournamentid  int32 `json:"tournamentid"`
+	Roomid        int32 `json:"roomid"`
+	Roundnumber   int32 `json:"roundnumber"`
+	Iselimination bool  `json:"iselimination"`
+	Isoccupied    bool  `json:"isoccupied"`
 }
 
 type Round struct {
@@ -148,6 +170,15 @@ type School struct {
 	Contactemail    string         `json:"contactemail"`
 	Schoolemail     string         `json:"schoolemail"`
 	Schooltype      string         `json:"schooltype"`
+}
+
+type Speakerscore struct {
+	Scoreid       int32          `json:"scoreid"`
+	Ballotid      int32          `json:"ballotid"`
+	Speakerid     int32          `json:"speakerid"`
+	Speakerrank   int32          `json:"speakerrank"`
+	Speakerpoints string         `json:"speakerpoints"`
+	Feedback      sql.NullString `json:"feedback"`
 }
 
 type Student struct {

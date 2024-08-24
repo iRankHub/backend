@@ -9,7 +9,6 @@ import (
 	"github.com/iRankHub/backend/internal/grpc/proto/debate_management"
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
-
 )
 
 type BallotService struct {
@@ -27,8 +26,8 @@ func (s *BallotService) GetBallots(ctx context.Context, req *debate_management.G
 
 	queries := models.New(s.db)
 	ballots, err := queries.GetBallotsByTournamentAndRound(ctx, models.GetBallotsByTournamentAndRoundParams{
-		Tournamentid:  req.GetTournamentId(),
-		Roundnumber:   req.GetRoundNumber(),
+		Tournamentid:       req.GetTournamentId(),
+		Roundnumber:        req.GetRoundNumber(),
 		Iseliminationround: req.GetIsElimination(),
 	})
 	if err != nil {
@@ -68,7 +67,7 @@ func (s *BallotService) UpdateBallot(ctx context.Context, req *debate_management
 
 	// Update main ballot information
 	err = queries.UpdateBallot(ctx, models.UpdateBallotParams{
-		Ballotid:        req.GetBallot().GetBallotId(),
+		Ballotid: req.GetBallot().GetBallotId(),
 		Team1totalscore: sql.NullString{
 			String: fmt.Sprintf("%.2f", req.GetBallot().GetTeam1().GetTotalPoints()),
 			Valid:  true,
@@ -84,19 +83,19 @@ func (s *BallotService) UpdateBallot(ctx context.Context, req *debate_management
 		return nil, fmt.Errorf("failed to update ballot: %v", err)
 	}
 
-    // Update speaker scores
-    for _, speaker := range req.GetBallot().GetTeam1().GetSpeakers() {
-        err = updateSpeakerScore(ctx, queries, speaker)
-        if err != nil {
-            return nil, err
-        }
-    }
-    for _, speaker := range req.GetBallot().GetTeam2().GetSpeakers() {
-        err = updateSpeakerScore(ctx, queries, speaker)
-        if err != nil {
-            return nil, err
-        }
-    }
+	// Update speaker scores
+	for _, speaker := range req.GetBallot().GetTeam1().GetSpeakers() {
+		err = updateSpeakerScore(ctx, queries, speaker)
+		if err != nil {
+			return nil, err
+		}
+	}
+	for _, speaker := range req.GetBallot().GetTeam2().GetSpeakers() {
+		err = updateSpeakerScore(ctx, queries, speaker)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %v", err)
@@ -113,10 +112,10 @@ func (s *BallotService) UpdateBallot(ctx context.Context, req *debate_management
 
 func updateSpeakerScore(ctx context.Context, queries *models.Queries, speaker *debate_management.Speaker) error {
 	err := queries.UpdateSpeakerScore(ctx, models.UpdateSpeakerScoreParams{
-		Scoreid:      speaker.GetScoreId(),
-		Speakerrank:  int32(speaker.GetRank()),
+		Scoreid:       speaker.GetScoreId(),
+		Speakerrank:   int32(speaker.GetRank()),
 		Speakerpoints: fmt.Sprintf("%.2f", speaker.GetPoints()),
-		Feedback:     sql.NullString{String: speaker.GetFeedback(), Valid: speaker.GetFeedback() !=""},
+		Feedback:      sql.NullString{String: speaker.GetFeedback(), Valid: speaker.GetFeedback() != ""},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to update speaker score: %v", err)
@@ -154,7 +153,6 @@ func convertBallots(dbBallots []models.GetBallotsByTournamentAndRoundRow) []*deb
 	return ballots
 }
 
-
 func convertBallot(dbBallot models.GetBallotByIDRow) *debate_management.Ballot {
 	team1TotalPoints, _ := strconv.ParseFloat(dbBallot.Team1totalscore.String, 64)
 	team2TotalPoints, _ := strconv.ParseFloat(dbBallot.Team2totalscore.String, 64)
@@ -185,7 +183,6 @@ func convertBallot(dbBallot models.GetBallotByIDRow) *debate_management.Ballot {
 		Verdict:         dbBallot.Verdict,
 	}
 }
-
 
 func (s *BallotService) GetSpeakerScores(ctx context.Context, ballotID int32) ([]*debate_management.Speaker, error) {
 	queries := models.New(s.db)

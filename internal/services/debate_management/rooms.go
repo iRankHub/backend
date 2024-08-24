@@ -8,7 +8,6 @@ import (
 	"github.com/iRankHub/backend/internal/grpc/proto/debate_management"
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
-
 )
 
 type RoomService struct {
@@ -38,66 +37,66 @@ func (s *RoomService) GetRooms(ctx context.Context, req *debate_management.GetRo
 }
 
 func (s *RoomService) GetRoom(ctx context.Context, req *debate_management.GetRoomRequest) (*debate_management.Room, error) {
-    if err := s.validateAuthentication(req.GetToken()); err != nil {
-        return nil, err
-    }
+	if err := s.validateAuthentication(req.GetToken()); err != nil {
+		return nil, err
+	}
 
-    queries := models.New(s.db)
-    roomData, err := queries.GetRoomByID(ctx, req.GetRoomId())
-    if err != nil {
-        return nil, fmt.Errorf("failed to get room: %v", err)
-    }
+	queries := models.New(s.db)
+	roomData, err := queries.GetRoomByID(ctx, req.GetRoomId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get room: %v", err)
+	}
 
-    return convertRoomWithStatus(roomData), nil
+	return convertRoomWithStatus(roomData), nil
 }
 
 func convertRoomWithStatus(dbRoomData []models.GetRoomByIDRow) *debate_management.Room {
-    if len(dbRoomData) == 0 {
-        return nil
-    }
+	if len(dbRoomData) == 0 {
+		return nil
+	}
 
-    room := &debate_management.Room{
-        RoomId:   dbRoomData[0].Roomid,
-        RoomName: dbRoomData[0].Roomname,
-        RoundStatus: make([]*debate_management.RoundStatus, len(dbRoomData)),
-    }
+	room := &debate_management.Room{
+		RoomId:      dbRoomData[0].Roomid,
+		RoomName:    dbRoomData[0].Roomname,
+		RoundStatus: make([]*debate_management.RoundStatus, len(dbRoomData)),
+	}
 
-    for i, data := range dbRoomData {
-        room.RoundStatus[i] = &debate_management.RoundStatus{
-            RoundNumber:   data.Roundnumber.Int32,
-            IsElimination: data.Iselimination.Bool,
-            IsOccupied:    data.Isoccupied.Bool,
-        }
-    }
+	for i, data := range dbRoomData {
+		room.RoundStatus[i] = &debate_management.RoundStatus{
+			RoundNumber:   data.Roundnumber.Int32,
+			IsElimination: data.Iselimination.Bool,
+			IsOccupied:    data.Isoccupied.Bool,
+		}
+	}
 
-    return room
+	return room
 }
 
 func (s *RoomService) UpdateRoom(ctx context.Context, req *debate_management.UpdateRoomRequest) (*debate_management.Room, error) {
-    _, err := s.validateAdminRole(req.GetToken())
-    if err != nil {
-        return nil, err
-    }
+	_, err := s.validateAdminRole(req.GetToken())
+	if err != nil {
+		return nil, err
+	}
 
-    queries := models.New(s.db)
+	queries := models.New(s.db)
 
-    // Update the room name
-    _, err = queries.UpdateRoom(ctx, models.UpdateRoomParams{
-        Roomid:   req.GetRoom().GetRoomId(),
-        Roomname: req.GetRoom().GetRoomName(),
-    })
-    if err != nil {
-        return nil, fmt.Errorf("failed to update room: %v", err)
-    }
+	// Update the room name
+	_, err = queries.UpdateRoom(ctx, models.UpdateRoomParams{
+		Roomid:   req.GetRoom().GetRoomId(),
+		Roomname: req.GetRoom().GetRoomName(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to update room: %v", err)
+	}
 
-    // Fetch the updated room data, including round status
-    updatedRoomData, err := queries.GetRoomByID(ctx, req.GetRoom().GetRoomId())
-    if err != nil {
-        return nil, fmt.Errorf("failed to fetch updated room data: %v", err)
-    }
+	// Fetch the updated room data, including round status
+	updatedRoomData, err := queries.GetRoomByID(ctx, req.GetRoom().GetRoomId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch updated room data: %v", err)
+	}
 
-    // Convert the updated room data to the debate_management.Room type
-    return convertRoomWithStatus(updatedRoomData), nil
+	// Convert the updated room data to the debate_management.Room type
+	return convertRoomWithStatus(updatedRoomData), nil
 }
 func (s *RoomService) AssignRoomsToDebates(ctx context.Context, tournamentID int32, roundNumber int32, isElimination bool) error {
 	queries := models.New(s.db)
@@ -114,8 +113,8 @@ func (s *RoomService) AssignRoomsToDebates(ctx context.Context, tournamentID int
 
 	// Get debates without rooms
 	debatesWithoutRooms, err := queries.GetDebatesWithoutRooms(ctx, models.GetDebatesWithoutRoomsParams{
-		Tournamentid:  tournamentID,
-		Roundnumber:   roundNumber,
+		Tournamentid:       tournamentID,
+		Roundnumber:        roundNumber,
 		Iseliminationround: isElimination,
 	})
 	if err != nil {
@@ -123,23 +122,22 @@ func (s *RoomService) AssignRoomsToDebates(ctx context.Context, tournamentID int
 	}
 
 	// Assign rooms to debates
-    for i, debate := range debatesWithoutRooms {
-        if i >= len(availableRooms) {
-            return fmt.Errorf("not enough rooms for all debates")
-        }
+	for i, debate := range debatesWithoutRooms {
+		if i >= len(availableRooms) {
+			return fmt.Errorf("not enough rooms for all debates")
+		}
 
-        err := queries.AssignRoomToDebate(ctx, models.AssignRoomToDebateParams{
-            Debateid: debate.Debateid,
-            Roomid:   availableRooms[i].Roomid,
-        })
-        if err != nil {
-            return fmt.Errorf("failed to assign room to debate: %v", err)
-        }
-    }
+		err := queries.AssignRoomToDebate(ctx, models.AssignRoomToDebateParams{
+			Debateid: debate.Debateid,
+			Roomid:   availableRooms[i].Roomid,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to assign room to debate: %v", err)
+		}
+	}
 
 	return nil
 }
-
 
 func (s *RoomService) validateAdminRole(token string) (map[string]interface{}, error) {
 	claims, err := utils.ValidateToken(token)
@@ -164,19 +162,19 @@ func (s *RoomService) validateAuthentication(token string) error {
 }
 
 func convertRooms(dbRooms []models.GetRoomsByTournamentAndRoundRow) []*debate_management.Room {
-    rooms := make([]*debate_management.Room, len(dbRooms))
-    for i, dbRoom := range dbRooms {
-        rooms[i] = &debate_management.Room{
-            RoomId:   dbRoom.Roomid,
-            RoomName: dbRoom.Roomname,
-            RoundStatus: []*debate_management.RoundStatus{
-                {
-                    RoundNumber:   dbRoom.Roundnumber,
-                    IsElimination: dbRoom.Iselimination,
-                    IsOccupied:    dbRoom.Isoccupied,
-                },
-            },
-        }
-    }
-    return rooms
+	rooms := make([]*debate_management.Room, len(dbRooms))
+	for i, dbRoom := range dbRooms {
+		rooms[i] = &debate_management.Room{
+			RoomId:   dbRoom.Roomid,
+			RoomName: dbRoom.Roomname,
+			RoundStatus: []*debate_management.RoundStatus{
+				{
+					RoundNumber:   dbRoom.Roundnumber,
+					IsElimination: dbRoom.Iselimination,
+					IsOccupied:    dbRoom.Isoccupied,
+				},
+			},
+		}
+	}
+	return rooms
 }

@@ -10,13 +10,13 @@ import (
 )
 
 type EnvoyConfig struct {
-	ENVOY_LISTENER_PORT         int
-	ENVOY_ROUTE_TIMEOUT         string
-	ENVOY_CORS_MAX_AGE          string
+	ENVOY_LISTENER_PORT           int
+	ENVOY_ROUTE_TIMEOUT           string
+	ENVOY_CORS_MAX_AGE            string
 	ENVOY_BACKEND_CONNECT_TIMEOUT string
-	BACKEND_SERVICE_HOST        string
-	BACKEND_SERVICE_PORT        int
-	ENVOY_ADMIN_PORT            int
+	BACKEND_SERVICE_HOST          string
+	BACKEND_SERVICE_PORT          int
+	ENVOY_ADMIN_PORT              int
 }
 
 func main() {
@@ -27,13 +27,13 @@ func main() {
 	}
 
 	config := EnvoyConfig{
-		ENVOY_LISTENER_PORT:         viper.GetInt("ENVOY_LISTENER_PORT"),
-		ENVOY_ROUTE_TIMEOUT:         viper.GetString("ENVOY_ROUTE_TIMEOUT"),
-		ENVOY_CORS_MAX_AGE:          viper.GetString("ENVOY_CORS_MAX_AGE"),
+		ENVOY_LISTENER_PORT:           viper.GetInt("ENVOY_LISTENER_PORT"),
+		ENVOY_ROUTE_TIMEOUT:           viper.GetString("ENVOY_ROUTE_TIMEOUT"),
+		ENVOY_CORS_MAX_AGE:            viper.GetString("ENVOY_CORS_MAX_AGE"),
 		ENVOY_BACKEND_CONNECT_TIMEOUT: viper.GetString("ENVOY_BACKEND_CONNECT_TIMEOUT"),
-		BACKEND_SERVICE_HOST:        viper.GetString("BACKEND_SERVICE_HOST"),
-		BACKEND_SERVICE_PORT:        viper.GetInt("BACKEND_SERVICE_PORT"),
-		ENVOY_ADMIN_PORT:            viper.GetInt("ENVOY_ADMIN_PORT"),
+		BACKEND_SERVICE_HOST:          viper.GetString("BACKEND_SERVICE_HOST"),
+		BACKEND_SERVICE_PORT:          viper.GetInt("BACKEND_SERVICE_PORT"),
+		ENVOY_ADMIN_PORT:              viper.GetInt("ENVOY_ADMIN_PORT"),
 	}
 
 	templatePath, _ := filepath.Abs("./envoy/envoy.yaml.template")

@@ -2,7 +2,6 @@ package pairing_algorithm
 
 import (
 	"testing"
-
 )
 
 func TestPreliminaryPairings(t *testing.T) {
@@ -118,95 +117,101 @@ func TestPreliminaryPairings(t *testing.T) {
 }
 
 func TestAssignRoomsAndJudges(t *testing.T) {
-	testCases := []struct {
-		name     string
-		pairings [][][]int
-		rooms    []int
-		judges   []int
-	}{
-		{
-			name: "Single round",
-			pairings: [][][]int{
-				{{1, 2}, {3, 4}, {5, 6}},
-			},
-			rooms:  []int{101, 102, 103},
-			judges: []int{1, 2, 3},
-		},
-		{
-			name: "Multiple rounds",
-			pairings: [][][]int{
-				{{1, 2}, {3, 4}, {5, 6}},
-				{{1, 3}, {2, 5}, {4, 6}},
-				{{1, 4}, {2, 6}, {3, 5}},
-			},
-			rooms:  []int{101, 102, 103},
-			judges: []int{1, 2, 3},
-		},
-		{
-			name: "Larger tournament",
-			pairings: [][][]int{
-				{{1, 2}, {3, 4}, {5, 6}, {7, 8}, {9, 10}},
-				{{1, 3}, {2, 5}, {4, 7}, {6, 9}, {8, 10}},
-			},
-			rooms:  []int{101, 102, 103, 104, 105},
-			judges: []int{1, 2, 3, 4, 5},
-		},
-	}
+    testCases := []struct {
+        name     string
+        pairings [][]*Debate
+        rooms    []int
+        judges   []*Judge
+    }{
+        {
+            name: "Single round",
+            pairings: [][]*Debate{
+                {
+                    {Team1: &Team{ID: 1}, Team2: &Team{ID: 2}},
+                    {Team1: &Team{ID: 3}, Team2: &Team{ID: 4}},
+                    {Team1: &Team{ID: 5}, Team2: &Team{ID: 6}},
+                },
+            },
+            rooms:  []int{101, 102, 103},
+            judges: []*Judge{{ID: 1}, {ID: 2}, {ID: 3}},
+        },
+        {
+            name: "Multiple rounds",
+            pairings: [][]*Debate{
+                {
+                    {Team1: &Team{ID: 1}, Team2: &Team{ID: 2}},
+                    {Team1: &Team{ID: 3}, Team2: &Team{ID: 4}},
+                    {Team1: &Team{ID: 5}, Team2: &Team{ID: 6}},
+                },
+                {
+                    {Team1: &Team{ID: 1}, Team2: &Team{ID: 3}},
+                    {Team1: &Team{ID: 2}, Team2: &Team{ID: 5}},
+                    {Team1: &Team{ID: 4}, Team2: &Team{ID: 6}},
+                },
+                {
+                    {Team1: &Team{ID: 1}, Team2: &Team{ID: 4}},
+                    {Team1: &Team{ID: 2}, Team2: &Team{ID: 6}},
+                    {Team1: &Team{ID: 3}, Team2: &Team{ID: 5}},
+                },
+            },
+            rooms:  []int{101, 102, 103},
+            judges: []*Judge{{ID: 1}, {ID: 2}, {ID: 3}},
+        },
+        {
+            name: "Larger tournament",
+            pairings: [][]*Debate{
+                {
+                    {Team1: &Team{ID: 1}, Team2: &Team{ID: 2}},
+                    {Team1: &Team{ID: 3}, Team2: &Team{ID: 4}},
+                    {Team1: &Team{ID: 5}, Team2: &Team{ID: 6}},
+                    {Team1: &Team{ID: 7}, Team2: &Team{ID: 8}},
+                    {Team1: &Team{ID: 9}, Team2: &Team{ID: 10}},
+                },
+                {
+                    {Team1: &Team{ID: 1}, Team2: &Team{ID: 3}},
+                    {Team1: &Team{ID: 2}, Team2: &Team{ID: 5}},
+                    {Team1: &Team{ID: 4}, Team2: &Team{ID: 7}},
+                    {Team1: &Team{ID: 6}, Team2: &Team{ID: 9}},
+                    {Team1: &Team{ID: 8}, Team2: &Team{ID: 10}},
+                },
+            },
+            rooms:  []int{101, 102, 103, 104, 105},
+            judges: []*Judge{{ID: 1}, {ID: 2}, {ID: 3}, {ID: 4}, {ID: 5}},
+        },
+    }
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			debates, err := AssignRoomsAndJudges(tc.pairings, tc.rooms, tc.judges)
+    for _, tc := range testCases {
+        t.Run(tc.name, func(t *testing.T) {
+            for _, roundPairings := range tc.pairings {
+                assignedDebates := assignJudgesAndRooms(roundPairings, tc.judges, tc.rooms, 1)
 
-			if err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
+                if len(assignedDebates) != len(roundPairings) {
+                    t.Errorf("Expected %d debates, got %d", len(roundPairings), len(assignedDebates))
+                }
 
-			if len(debates) != len(tc.pairings) {
-				t.Errorf("Expected %d rounds of debates, got %d", len(tc.pairings), len(debates))
-			}
+                usedRooms := make(map[int]bool)
+                usedJudges := make(map[int]bool)
 
-			for round, roundDebates := range debates {
-				if len(roundDebates) != len(tc.pairings[round]) {
-					t.Errorf("Round %d: Expected %d debates, got %d", round, len(tc.pairings[round]), len(roundDebates))
-				}
+                for _, debate := range assignedDebates {
+                    if debate.Room == 0 {
+                        t.Errorf("Debate not assigned a room")
+                    }
+                    if usedRooms[debate.Room] {
+                        t.Errorf("Room %d assigned more than once", debate.Room)
+                    }
+                    usedRooms[debate.Room] = true
 
-				usedJudges := make(map[int]bool)
-
-				for _, debate := range roundDebates {
-					// Check if room is within the provided range
-					if debate.Room < tc.rooms[0] || debate.Room > tc.rooms[len(tc.rooms)-1] {
-						t.Errorf("Invalid room assigned: %d", debate.Room)
-					}
-
-					// Check if judge is within the provided range
-					if debate.Judge < tc.judges[0] || debate.Judge > tc.judges[len(tc.judges)-1] {
-						t.Errorf("Invalid judge assigned: %d", debate.Judge)
-					}
-
-					// Check if judge is already assigned in this round
-					if usedJudges[debate.Judge] {
-						t.Errorf("Judge %d assigned more than once in round %d", debate.Judge, round)
-					}
-					usedJudges[debate.Judge] = true
-
-					// Check if teams are correctly assigned
-					team1Found, team2Found := false, false
-					for _, pairing := range tc.pairings[round] {
-						if pairing[0] == debate.Team1 && pairing[1] == debate.Team2 {
-							team1Found, team2Found = true, true
-							break
-						}
-					}
-					if !team1Found || !team2Found {
-						t.Errorf("Incorrect team pairing in round %d: %d vs %d", round, debate.Team1, debate.Team2)
-					}
-				}
-
-				// Check if all debates have been assigned a room and judge
-				if len(usedJudges) != len(roundDebates) {
-					t.Errorf("Round %d: Not all debates were assigned a judge", round)
-				}
-			}
-		})
-	}
+                    if len(debate.Judges) == 0 {
+                        t.Errorf("Debate not assigned a judge")
+                    }
+                    for _, judge := range debate.Judges {
+                        if usedJudges[judge.ID] {
+                            t.Errorf("Judge %d assigned more than once", judge.ID)
+                        }
+                        usedJudges[judge.ID] = true
+                    }
+                }
+            }
+        })
+    }
 }

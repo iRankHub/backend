@@ -50,6 +50,17 @@ WHERE u.UserID = $1;
 INSERT INTO JudgeAssignments (TournamentID, JudgeID, DebateID, RoundNumber, IsElimination, IsHeadJudge)
 VALUES ($1, $2, $3, $4, $5, $6);
 
+-- name: GetAvailableJudges :many
+SELECT u.UserID, u.Name, u.Email
+FROM Users u
+JOIN Volunteers v ON u.UserID = v.UserID
+LEFT JOIN JudgeAssignments ja ON u.UserID = ja.JudgeID AND ja.TournamentID = $1
+WHERE v.Role = 'Judge' AND ja.JudgeID IS NULL;
+
+-- name: DeletePairingsForTournament :exec
+DELETE FROM Debates
+WHERE TournamentID = $1;
+
 -- name: GetPairingsByTournamentAndRound :many
 SELECT d.DebateID, d.RoundNumber, d.IsEliminationRound,
        d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,
@@ -117,16 +128,33 @@ UPDATE SpeakerScores
 SET SpeakerRank = $2, SpeakerPoints = $3, Feedback = $4
 WHERE ScoreID = $1;
 
+-- name: GetTeamWins :one
+SELECT COUNT(*) as wins
+FROM Debates d
+JOIN Ballots b ON d.DebateID = b.DebateID
+WHERE (d.Team1ID = $1 AND b.Team1TotalScore > b.Team2TotalScore)
+   OR (d.Team2ID = $1 AND b.Team2TotalScore > b.Team1TotalScore)
+   AND d.TournamentID = $2;
+
 -- name: CreateDebate :one
 INSERT INTO Debates (TournamentID, RoundNumber, IsEliminationRound, Team1ID, Team2ID)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING *;
+RETURNING DebateID;
 
 -- name: GetTeamsByTournament :many
-SELECT t.TeamID, t.Name
+SELECT t.TeamID, t.Name, t.TournamentID,
+       array_agg(tm.StudentID) as SpeakerIDs,
+       (SELECT COUNT(*)
+        FROM Debates d
+        JOIN Ballots b ON d.DebateID = b.DebateID
+        WHERE ((d.Team1ID = t.TeamID AND b.Team1TotalScore > b.Team2TotalScore)
+           OR (d.Team2ID = t.TeamID AND b.Team2TotalScore > b.Team1TotalScore))
+           AND d.TournamentID = $1) as Wins
 FROM Teams t
-JOIN TournamentInvitations ti ON t.InvitationID = ti.InvitationID
-WHERE ti.TournamentID = $1 AND ti.Status = 'accepted';
+LEFT JOIN TeamMembers tm ON t.TeamID = tm.TeamID
+WHERE t.TournamentID = $1
+GROUP BY t.TeamID, t.Name, t.TournamentID;
+
 
 -- name: GetPreviousPairings :many
 SELECT Team1ID, Team2ID
@@ -136,3 +164,36 @@ WHERE TournamentID = $1 AND RoundNumber < $2;
 -- name: CreatePairingHistory :exec
 INSERT INTO PairingHistory (TournamentID, Team1ID, Team2ID, RoundNumber, IsElimination)
 VALUES ($1, $2, $3, $4, $5);
+
+-- name: CreateTeam :one
+INSERT INTO Teams (Name, TournamentID)
+VALUES ($1, $2)
+RETURNING TeamID, Name, TournamentID;
+
+-- name: AddTeamMember :one
+INSERT INTO TeamMembers (TeamID, StudentID)
+VALUES ($1, $2)
+RETURNING TeamID, StudentID;
+
+-- name: GetTeamByID :one
+SELECT t.TeamID, t.Name, t.TournamentID,
+       array_agg(tm.StudentID) as SpeakerIDs
+FROM Teams t
+LEFT JOIN TeamMembers tm ON t.TeamID = tm.TeamID
+WHERE t.TeamID = $1
+GROUP BY t.TeamID, t.Name, t.TournamentID;
+
+-- name: UpdateTeam :exec
+UPDATE Teams
+SET Name = $2
+WHERE TeamID = $1;
+
+-- name: RemoveTeamMembers :exec
+DELETE FROM TeamMembers
+WHERE TeamID = $1;
+
+-- name: GetTeamMembers :many
+SELECT tm.TeamID, tm.StudentID, s.FirstName, s.LastName
+FROM TeamMembers tm
+JOIN Students s ON tm.StudentID = s.StudentID
+WHERE tm.TeamID = $1;

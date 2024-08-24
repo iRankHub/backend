@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/iRankHub/backend/internal/models"
-
 )
 
 func init() {
@@ -48,23 +47,23 @@ func SendReminderEmails(ctx context.Context, invitations []models.GetPendingInvi
 }
 
 func sendSingleReminderEmail(invitation models.GetPendingInvitationsRow) error {
-    timeUntilTournament := time.Until(invitation.Tournamentstartdate)
-    reminderType := getShouldSendReminder(timeUntilTournament, invitation.Status, invitation.Inviteerole == "school")
+	timeUntilTournament := time.Until(invitation.Tournamentstartdate)
+	reminderType := getShouldSendReminder(timeUntilTournament, invitation.Status, invitation.Inviteerole == "school")
 
-    if reminderType == "none" {
-        return nil
-    }
+	if reminderType == "none" {
+		return nil
+	}
 
-    recipient, recipientType, err := getRecipientInfo(invitation)
-    if err != nil {
-        return err
-    }
+	recipient, recipientType, err := getRecipientInfo(invitation)
+	if err != nil {
+		return err
+	}
 
-    subject := fmt.Sprintf("Reminder: %s Tournament", invitation.Tournamentname)
-    content := prepareReminderEmailContent(recipientType, invitation.Tournamentname, timeUntilTournament, invitation.Invitationid, reminderType)
-    body := GetEmailTemplate(content)
+	subject := fmt.Sprintf("Reminder: %s Tournament", invitation.Tournamentname)
+	content := prepareReminderEmailContent(recipientType, invitation.Tournamentname, timeUntilTournament, invitation.Invitationid, reminderType)
+	body := GetEmailTemplate(content)
 
-    return SendEmail(recipient, subject, body)
+	return SendEmail(recipient, subject, body)
 }
 
 func prepareReminderEmailContent(recipientType, tournamentName string, timeUntilTournament time.Duration, invitationID int32, reminderType string) string {
@@ -131,16 +130,16 @@ func prepareReminderEmailContent(recipientType, tournamentName string, timeUntil
 }
 
 func getRecipientInfo(invitation models.GetPendingInvitationsRow) (string, string, error) {
-    switch invitation.Inviteerole {
-    case "school":
-        return invitation.Inviteeemail.(string), "school", nil
-    case "volunteer":
-        return invitation.Inviteeemail.(string), "volunteer", nil
-    case "student":
-        return invitation.Inviteeemail.(string), "student", nil
-    default:
-        return "", "", fmt.Errorf("invalid invitation role: %s", invitation.Inviteerole)
-    }
+	switch invitation.Inviteerole {
+	case "school":
+		return invitation.Inviteeemail.(string), "school", nil
+	case "volunteer":
+		return invitation.Inviteeemail.(string), "volunteer", nil
+	case "student":
+		return invitation.Inviteeemail.(string), "student", nil
+	default:
+		return "", "", fmt.Errorf("invalid invitation role: %s", invitation.Inviteerole)
+	}
 }
 
 func getShouldSendReminder(timeUntilTournament time.Duration, invitationStatus string, isSchool bool) string {

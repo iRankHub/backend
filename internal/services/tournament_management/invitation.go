@@ -11,7 +11,6 @@ import (
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
 	emails "github.com/iRankHub/backend/internal/utils/emails"
-
 )
 
 type InvitationService struct {
@@ -23,38 +22,38 @@ func NewInvitationService(db *sql.DB) *InvitationService {
 }
 
 func (s *InvitationService) GetInvitationsByUser(ctx context.Context, req *tournament_management.GetInvitationsByUserRequest) (*tournament_management.GetInvitationsByUserResponse, error) {
-    claims, err := utils.ValidateToken(req.GetToken())
-    if err != nil {
-        return nil, fmt.Errorf("authentication failed: %v", err)
-    }
+	claims, err := utils.ValidateToken(req.GetToken())
+	if err != nil {
+		return nil, fmt.Errorf("authentication failed: %v", err)
+	}
 
-    userIDFloat, ok := claims["user_id"].(float64)
-    if !ok {
-        return nil, fmt.Errorf("invalid user ID in token")
-    }
-    userID := int32(userIDFloat)
+	userIDFloat, ok := claims["user_id"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("invalid user ID in token")
+	}
+	userID := int32(userIDFloat)
 
-    queries := models.New(s.db)
-    invitations, err := queries.GetInvitationsByUser(ctx, userID)
-    if err != nil {
-        return nil, fmt.Errorf("failed to get invitations: %v", err)
-    }
+	queries := models.New(s.db)
+	invitations, err := queries.GetInvitationsByUser(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get invitations: %v", err)
+	}
 
-    invitationInfos := make([]*tournament_management.InvitationInfo, len(invitations))
-    for i, inv := range invitations {
-        invitationInfos[i] = &tournament_management.InvitationInfo{
-            InvitationId: inv.Invitationid,
-            Status:       inv.Status,
-            IdebateId:    inv.Inviteeid,
-            InviteeRole:  inv.Inviteerole,
-            CreatedAt:    inv.CreatedAt.Time.Format(time.RFC3339),
-            UpdatedAt:    inv.UpdatedAt.Time.Format(time.RFC3339),
-        }
-    }
+	invitationInfos := make([]*tournament_management.InvitationInfo, len(invitations))
+	for i, inv := range invitations {
+		invitationInfos[i] = &tournament_management.InvitationInfo{
+			InvitationId: inv.Invitationid,
+			Status:       inv.Status,
+			IdebateId:    inv.Inviteeid,
+			InviteeRole:  inv.Inviteerole,
+			CreatedAt:    inv.CreatedAt.Time.Format(time.RFC3339),
+			UpdatedAt:    inv.UpdatedAt.Time.Format(time.RFC3339),
+		}
+	}
 
-    return &tournament_management.GetInvitationsByUserResponse{
-        Invitations: invitationInfos,
-    }, nil
+	return &tournament_management.GetInvitationsByUserResponse{
+		Invitations: invitationInfos,
+	}, nil
 }
 
 func (s *InvitationService) GetInvitationsByTournament(ctx context.Context, req *tournament_management.GetInvitationsByTournamentRequest) (*tournament_management.GetInvitationsByTournamentResponse, error) {
@@ -113,8 +112,8 @@ func (s *InvitationService) BulkUpdateInvitationStatus(ctx context.Context, req 
 
 	queries := models.New(s.db)
 	updatedInvitations, err := queries.BulkUpdateInvitationStatus(ctx, models.BulkUpdateInvitationStatusParams{
-		Column1:       req.GetInvitationIds(),
-		Status:        req.GetNewStatus(),
+		Column1: req.GetInvitationIds(),
+		Status:  req.GetNewStatus(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to bulk update invitation statuses: %v", err)
@@ -195,98 +194,97 @@ func (s *InvitationService) BulkResendInvitations(ctx context.Context, req *tour
 }
 
 func (s *InvitationService) sendInvitationEmailAsync(invitationID int32) {
-    ctx := context.Background()
-    queries := models.New(s.db)
+	ctx := context.Background()
+	queries := models.New(s.db)
 
-    invitation, err := queries.GetInvitationByID(ctx, invitationID)
-    if err != nil {
-        log.Printf("Failed to get invitation for ID %d: %v", invitationID, err)
-        return
-    }
+	invitation, err := queries.GetInvitationByID(ctx, invitationID)
+	if err != nil {
+		log.Printf("Failed to get invitation for ID %d: %v", invitationID, err)
+		return
+	}
 
-    tournament, err := queries.GetTournamentByID(ctx, invitation.Tournamentid)
-    if err != nil {
-        log.Printf("Failed to get tournament for invitation %d: %v", invitationID, err)
-        return
-    }
+	tournament, err := queries.GetTournamentByID(ctx, invitation.Tournamentid)
+	if err != nil {
+		log.Printf("Failed to get tournament for invitation %d: %v", invitationID, err)
+		return
+	}
 
-    league, err := queries.GetLeagueByID(ctx, tournament.Leagueid.Int32)
-    if err != nil {
-        log.Printf("Failed to get league for tournament %d: %v", tournament.Tournamentid, err)
-        return
-    }
+	league, err := queries.GetLeagueByID(ctx, tournament.Leagueid.Int32)
+	if err != nil {
+		log.Printf("Failed to get league for tournament %d: %v", tournament.Tournamentid, err)
+		return
+	}
 
-    format, err := queries.GetTournamentFormatByID(ctx, tournament.Formatid)
-    if err != nil {
-        log.Printf("Failed to get tournament format for tournament %d: %v", tournament.Tournamentid, err)
-        return
-    }
+	format, err := queries.GetTournamentFormatByID(ctx, tournament.Formatid)
+	if err != nil {
+		log.Printf("Failed to get tournament format for tournament %d: %v", tournament.Tournamentid, err)
+		return
+	}
 
-    tournamentModel := models.Tournament{
-        Tournamentid:               tournament.Tournamentid,
-        Name:                       tournament.Name,
-        Startdate:                  tournament.Startdate,
-        Enddate:                    tournament.Enddate,
-        Location:                   tournament.Location,
-        Formatid:                   tournament.Formatid,
-        Leagueid:                   tournament.Leagueid,
-        Coordinatorid:              tournament.Coordinatorid,
-        Numberofpreliminaryrounds:  tournament.Numberofpreliminaryrounds,
-        Numberofeliminationrounds:  tournament.Numberofeliminationrounds,
-        Judgesperdebatepreliminary: tournament.Judgesperdebatepreliminary,
-        Judgesperdebateelimination: tournament.Judgesperdebateelimination,
-        Tournamentfee:              tournament.Tournamentfee,
-    }
+	tournamentModel := models.Tournament{
+		Tournamentid:               tournament.Tournamentid,
+		Name:                       tournament.Name,
+		Startdate:                  tournament.Startdate,
+		Enddate:                    tournament.Enddate,
+		Location:                   tournament.Location,
+		Formatid:                   tournament.Formatid,
+		Leagueid:                   tournament.Leagueid,
+		Coordinatorid:              tournament.Coordinatorid,
+		Numberofpreliminaryrounds:  tournament.Numberofpreliminaryrounds,
+		Numberofeliminationrounds:  tournament.Numberofeliminationrounds,
+		Judgesperdebatepreliminary: tournament.Judgesperdebatepreliminary,
+		Judgesperdebateelimination: tournament.Judgesperdebateelimination,
+		Tournamentfee:              tournament.Tournamentfee,
+	}
 
-    var subject, content string
-    var email string
+	var subject, content string
+	var email string
 
-    switch invitation.Inviteerole {
-    case "student":
-        student, err := queries.GetStudentByIDebateID(ctx, sql.NullString{String: invitation.Inviteeid, Valid: invitation.Inviteeid !=""})
-        if err != nil {
-            log.Printf("Failed to get student details: %v", err)
-            return
-        }
-        subject = fmt.Sprintf("Reminder: Invitation to Participate in %s Tournament", tournament.Name)
-        content = emails.PrepareStudentInvitationContent(student, tournamentModel, league, format)
-        email = student.Email.String
-    case "school":
-        school, err := queries.GetSchoolByIDebateID(ctx, sql.NullString{String: invitation.Inviteeid, Valid: invitation.Inviteeid !=""})
-        if err != nil {
-            log.Printf("Failed to get school details: %v", err)
-            return
-        }
-        subject = fmt.Sprintf("Reminder: Invitation to %s Tournament", tournament.Name)
-        content = emails.PrepareSchoolInvitationContent(school, tournamentModel, league, format)
-        email = school.Contactemail
-    case "volunteer":
-        volunteer, err := queries.GetVolunteerByIDebateID(ctx, sql.NullString{String: invitation.Inviteeid, Valid: invitation.Inviteeid !=""})
-        if err != nil {
-            log.Printf("Failed to get volunteer details: %v", err)
-            return
-        }
-        user, err := queries.GetUserByID(ctx, volunteer.Userid)
-        if err != nil {
-            log.Printf("Failed to get user details: %v", err)
-            return
-        }
-        subject = fmt.Sprintf("Reminder: Invitation to Judge at %s Tournament", tournament.Name)
-        content = emails.PrepareVolunteerInvitationContent(volunteer, tournamentModel, league, format)
-        email = user.Email
-    default:
-        log.Printf("Unknown invitee role: %s", invitation.Inviteerole)
-        return
-    }
+	switch invitation.Inviteerole {
+	case "student":
+		student, err := queries.GetStudentByIDebateID(ctx, sql.NullString{String: invitation.Inviteeid, Valid: invitation.Inviteeid != ""})
+		if err != nil {
+			log.Printf("Failed to get student details: %v", err)
+			return
+		}
+		subject = fmt.Sprintf("Reminder: Invitation to Participate in %s Tournament", tournament.Name)
+		content = emails.PrepareStudentInvitationContent(student, tournamentModel, league, format)
+		email = student.Email.String
+	case "school":
+		school, err := queries.GetSchoolByIDebateID(ctx, sql.NullString{String: invitation.Inviteeid, Valid: invitation.Inviteeid != ""})
+		if err != nil {
+			log.Printf("Failed to get school details: %v", err)
+			return
+		}
+		subject = fmt.Sprintf("Reminder: Invitation to %s Tournament", tournament.Name)
+		content = emails.PrepareSchoolInvitationContent(school, tournamentModel, league, format)
+		email = school.Contactemail
+	case "volunteer":
+		volunteer, err := queries.GetVolunteerByIDebateID(ctx, sql.NullString{String: invitation.Inviteeid, Valid: invitation.Inviteeid != ""})
+		if err != nil {
+			log.Printf("Failed to get volunteer details: %v", err)
+			return
+		}
+		user, err := queries.GetUserByID(ctx, volunteer.Userid)
+		if err != nil {
+			log.Printf("Failed to get user details: %v", err)
+			return
+		}
+		subject = fmt.Sprintf("Reminder: Invitation to Judge at %s Tournament", tournament.Name)
+		content = emails.PrepareVolunteerInvitationContent(volunteer, tournamentModel, league, format)
+		email = user.Email
+	default:
+		log.Printf("Unknown invitee role: %s", invitation.Inviteerole)
+		return
+	}
 
-    err = emails.SendEmail(email, subject, content)
-    if err != nil {
-        log.Printf("Failed to send invitation email to %s for invitation ID %d: %v", email, invitationID, err)
-    } else {
-        log.Printf("Successfully sent invitation email to %s for invitation ID %d", email, invitationID)
-    }
+	err = emails.SendEmail(email, subject, content)
+	if err != nil {
+		log.Printf("Failed to send invitation email to %s for invitation ID %d: %v", email, invitationID, err)
+	} else {
+		log.Printf("Successfully sent invitation email to %s for invitation ID %d", email, invitationID)
+	}
 }
-
 
 func (s *InvitationService) validateAdminRole(token string) (map[string]interface{}, error) {
 	claims, err := utils.ValidateToken(token)

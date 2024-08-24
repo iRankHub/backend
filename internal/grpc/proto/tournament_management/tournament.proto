@@ -35,6 +35,7 @@ service TournamentService {
   rpc BulkUpdateInvitationStatus(BulkUpdateInvitationStatusRequest) returns (BulkUpdateInvitationStatusResponse);
   rpc ResendInvitation(ResendInvitationRequest) returns (ResendInvitationResponse);
   rpc BulkResendInvitations(BulkResendInvitationsRequest) returns (BulkResendInvitationsResponse);
+
 }
 
 // Enum definitions

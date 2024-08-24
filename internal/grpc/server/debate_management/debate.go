@@ -9,7 +9,6 @@ import (
 
 	"github.com/iRankHub/backend/internal/grpc/proto/debate_management"
 	services "github.com/iRankHub/backend/internal/services/debate_management"
-
 )
 
 type debateServer struct {
@@ -18,6 +17,7 @@ type debateServer struct {
 	judgeService   *services.JudgeService
 	pairingService *services.PairingService
 	ballotService  *services.BallotService
+	teamService    *services.TeamService
 }
 
 func NewDebateServer(db *sql.DB) (debate_management.DebateServiceServer, error) {
@@ -26,6 +26,7 @@ func NewDebateServer(db *sql.DB) (debate_management.DebateServiceServer, error) 
 		judgeService:   services.NewJudgeService(db),
 		pairingService: services.NewPairingService(db),
 		ballotService:  services.NewBallotService(db),
+		teamService:    services.NewTeamService(db),
 	}, nil
 }
 
@@ -119,6 +120,39 @@ func (s *debateServer) UpdateBallot(ctx context.Context, req *debate_management.
 		return nil, status.Errorf(codes.Internal, "Failed to update ballot: %v", err)
 	}
 	return &debate_management.UpdateBallotResponse{Ballot: ballot}, nil
+}
+
+// Team operations
+func (s *debateServer) CreateTeam(ctx context.Context, req *debate_management.CreateTeamRequest) (*debate_management.Team, error) {
+	team, err := s.teamService.CreateTeam(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to create team: %v", err)
+	}
+	return team, nil
+}
+
+func (s *debateServer) GetTeam(ctx context.Context, req *debate_management.GetTeamRequest) (*debate_management.Team, error) {
+	team, err := s.teamService.GetTeam(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get team: %v", err)
+	}
+	return team, nil
+}
+
+func (s *debateServer) UpdateTeam(ctx context.Context, req *debate_management.UpdateTeamRequest) (*debate_management.Team, error) {
+	team, err := s.teamService.UpdateTeam(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to update team: %v", err)
+	}
+	return team, nil
+}
+
+func (s *debateServer) GetTeamsByTournament(ctx context.Context, req *debate_management.GetTeamsByTournamentRequest) (*debate_management.GetTeamsByTournamentResponse, error) {
+	teams, err := s.teamService.GetTeamsByTournament(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get teams: %v", err)
+	}
+	return &debate_management.GetTeamsByTournamentResponse{Teams: teams}, nil
 }
 
 // Algorithm integration

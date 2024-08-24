@@ -15,22 +15,22 @@ import (
 
 type userManagementServer struct {
 	user_management.UnimplementedUserManagementServiceServer
-	db *sql.DB
-	userManagementService           *services.UserManagementService
-	countryManagementService        *services.CountryService
-	schoolsManagementService         *services.SchoolService
-	studentsManagementService        *services.StudentService
-	volunteersManagementService      *services.VolunteerService
+	db                          *sql.DB
+	userManagementService       *services.UserManagementService
+	countryManagementService    *services.CountryService
+	schoolsManagementService    *services.SchoolService
+	studentsManagementService   *services.StudentService
+	volunteersManagementService *services.VolunteerService
 }
 
 func NewUserManagementServer(db *sql.DB) (user_management.UserManagementServiceServer, error) {
 	return &userManagementServer{
-		db:                    db,
-		userManagementService: services.NewUserManagementService(db),
-		countryManagementService:         services.NewCountryManagementService(db),
-		schoolsManagementService:         services.NewSchoolsManagementService(db),
-		studentsManagementService:        services.NewStudentsManagementService(db),
-		volunteersManagementService:      services.NewVolunteersManagementService(db),
+		db:                          db,
+		userManagementService:       services.NewUserManagementService(db),
+		countryManagementService:    services.NewCountryManagementService(db),
+		schoolsManagementService:    services.NewSchoolsManagementService(db),
+		studentsManagementService:   services.NewStudentsManagementService(db),
+		volunteersManagementService: services.NewVolunteersManagementService(db),
 	}, nil
 }
 
@@ -52,8 +52,8 @@ func (s *userManagementServer) GetPendingUsers(ctx context.Context, req *user_ma
 			Email:      user.Email,
 			UserRole:   user.Userrole,
 			SignUpDate: signUpDate,
-			Gender: 	user.Gender.String,
-			Status: 	user.Status.String,
+			Gender:     user.Gender.String,
+			Status:     user.Status.String,
 		})
 	}
 
@@ -63,51 +63,51 @@ func (s *userManagementServer) GetPendingUsers(ctx context.Context, req *user_ma
 }
 
 func (s *userManagementServer) GetUserDetails(ctx context.Context, req *user_management.GetUserDetailsRequest) (*user_management.GetUserDetailsResponse, error) {
-    user, profile, err := s.userManagementService.GetUserDetails(ctx, req.Token, req.UserID)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to get user details: %v", err)
-    }
+	user, profile, err := s.userManagementService.GetUserDetails(ctx, req.Token, req.UserID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get user details: %v", err)
+	}
 
-    signUpDate := ""
-    if user.CreatedAt.Valid {
-        signUpDate = user.CreatedAt.Time.Format("2006-01-02 15:04:05")
-    }
+	signUpDate := ""
+	if user.CreatedAt.Valid {
+		signUpDate = user.CreatedAt.Time.Format("2006-01-02 15:04:05")
+	}
 
-    userDetails := &user_management.UserDetails{
-        UserID:     user.Userid,
-        Name:       user.Name,
-        Email:      user.Email,
-        UserRole:   user.Userrole,
-        SignUpDate: signUpDate,
-        Gender:     user.Gender.String,
-        Profile: &user_management.UserProfile{
-            Address:        profile.Address.String,
-            Phone:          profile.Phone.String,
-            Bio:            profile.Bio.String,
-            ProfilePicture: profile.Profilepicture,
-            Gender:         profile.Gender.String,
-        },
-    }
+	userDetails := &user_management.UserDetails{
+		UserID:     user.Userid,
+		Name:       user.Name,
+		Email:      user.Email,
+		UserRole:   user.Userrole,
+		SignUpDate: signUpDate,
+		Gender:     user.Gender.String,
+		Profile: &user_management.UserProfile{
+			Address:        profile.Address.String,
+			Phone:          profile.Phone.String,
+			Bio:            profile.Bio.String,
+			ProfilePicture: profile.Profilepicture,
+			Gender:         profile.Gender.String,
+		},
+	}
 
-    return &user_management.GetUserDetailsResponse{
-        User: userDetails,
-    }, nil
+	return &user_management.GetUserDetailsResponse{
+		User: userDetails,
+	}, nil
 }
 
 func (s *userManagementServer) ApproveUser(ctx context.Context, req *user_management.ApproveUserRequest) (*user_management.ApproveUserResponse, error) {
-    err := s.userManagementService.ApproveUser(ctx, req.Token, req.UserID)
-    if err != nil {
-        log.Printf("Failed to approve user: %v", err)
-        return &user_management.ApproveUserResponse{
-            Success: false,
-            Message: fmt.Sprintf("Failed to approve user: %v", err),
-        }, status.Errorf(codes.Internal, "Failed to approve user: %v", err)
-    }
+	err := s.userManagementService.ApproveUser(ctx, req.Token, req.UserID)
+	if err != nil {
+		log.Printf("Failed to approve user: %v", err)
+		return &user_management.ApproveUserResponse{
+			Success: false,
+			Message: fmt.Sprintf("Failed to approve user: %v", err),
+		}, status.Errorf(codes.Internal, "Failed to approve user: %v", err)
+	}
 
-    return &user_management.ApproveUserResponse{
-        Success: true,
-        Message: "User approved successfully",
-    }, nil
+	return &user_management.ApproveUserResponse{
+		Success: true,
+		Message: "User approved successfully",
+	}, nil
 }
 func (s *userManagementServer) RejectUser(ctx context.Context, req *user_management.RejectUserRequest) (*user_management.RejectUserResponse, error) {
 	err := s.userManagementService.RejectUser(ctx, req.Token, req.UserID)
@@ -176,44 +176,44 @@ func (s *userManagementServer) DeleteUsers(ctx context.Context, req *user_manage
 }
 
 func (s *userManagementServer) GetAllUsers(ctx context.Context, req *user_management.GetAllUsersRequest) (*user_management.GetAllUsersResponse, error) {
-    users, totalCount, err := s.userManagementService.GetAllUsers(ctx, req.Token, req.Page, req.PageSize)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to get all users: %v", err)
-    }
+	users, totalCount, err := s.userManagementService.GetAllUsers(ctx, req.Token, req.Page, req.PageSize)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get all users: %v", err)
+	}
 
-    var userSummaries []*user_management.UserSummary
-    for _, user := range users {
-        signUpDate := ""
-        if user.CreatedAt.Valid {
-            signUpDate = user.CreatedAt.Time.Format("2006-01-02 15:04:05")
-        }
-        userSummaries = append(userSummaries, &user_management.UserSummary{
-            UserID:     user.Userid,
-            Name:       user.Name,
-            Email:      user.Email,
-            UserRole:   user.Userrole,
-            SignUpDate: signUpDate,
-            Gender:     user.Gender.String,
-			Status:     user.Gender.String,
-        })
-    }
+	var userSummaries []*user_management.UserSummary
+	for _, user := range users {
+		signUpDate := ""
+		if user.CreatedAt.Valid {
+			signUpDate = user.CreatedAt.Time.Format("2006-01-02 15:04:05")
+		}
+		userSummaries = append(userSummaries, &user_management.UserSummary{
+			UserID:     user.Userid,
+			Name:       user.Name,
+			Email:      user.Email,
+			UserRole:   user.Userrole,
+			SignUpDate: signUpDate,
+			Gender:     user.Gender.String,
+			Status:     user.Status.String,
+		})
+	}
 
-    return &user_management.GetAllUsersResponse{
-        Users:      userSummaries,
-        TotalCount: totalCount,
-    }, nil
+	return &user_management.GetAllUsersResponse{
+		Users:      userSummaries,
+		TotalCount: totalCount,
+	}, nil
 }
 
 func (s *userManagementServer) UpdateUserProfile(ctx context.Context, req *user_management.UpdateUserProfileRequest) (*user_management.UpdateUserProfileResponse, error) {
-    err := s.userManagementService.UpdateUserProfile(ctx, req.Token, req.UserID, req.Name, req.Email, req.Address, req.Phone, req.Bio, req.ProfilePicture, req.Gender)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to update user profile: %v", err)
-    }
+	err := s.userManagementService.UpdateUserProfile(ctx, req.Token, req.UserID, req.Name, req.Email, req.Address, req.Phone, req.Bio, req.ProfilePicture, req.Gender)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to update user profile: %v", err)
+	}
 
-    return &user_management.UpdateUserProfileResponse{
-        Success: true,
-        Message: "User profile updated successfully",
-    }, nil
+	return &user_management.UpdateUserProfileResponse{
+		Success: true,
+		Message: "User profile updated successfully",
+	}, nil
 }
 
 func (s *userManagementServer) DeleteUserProfile(ctx context.Context, req *user_management.DeleteUserProfileRequest) (*user_management.DeleteUserProfileResponse, error) {
@@ -338,15 +338,15 @@ func (s *userManagementServer) GetSchools(ctx context.Context, req *user_managem
 	var protoSchools []*user_management.School
 	for _, school := range schools {
 		protoSchools = append(protoSchools, &user_management.School{
-			SchoolID:         school.Schoolid,
-			Name:             school.Schoolname,
-			Address:          school.Address,
-			Country:          school.Country.String,
-			Province:         school.Province.String,
-			District:         school.District.String,
-			SchoolType:       school.Schooltype,
-			ContactEmail:     school.Contactemail,
-			SchoolEmail:      school.Schoolemail,
+			SchoolID:     school.Schoolid,
+			Name:         school.Schoolname,
+			Address:      school.Address,
+			Country:      school.Country.String,
+			Province:     school.Province.String,
+			District:     school.District.String,
+			SchoolType:   school.Schooltype,
+			ContactEmail: school.Contactemail,
+			SchoolEmail:  school.Schoolemail,
 		})
 	}
 
@@ -409,15 +409,15 @@ func (s *userManagementServer) GetSchoolsNoAuth(ctx context.Context, req *user_m
 	var protoSchools []*user_management.School
 	for _, school := range schools {
 		protoSchools = append(protoSchools, &user_management.School{
-			SchoolID:         school.Schoolid,
-			Name:             school.Schoolname,
-			Address:          school.Address,
-			Country:          school.Country.String,
-			Province:         school.Province.String,
-			District:         school.District.String,
-			SchoolType:       school.Schooltype,
-			ContactEmail:     school.Contactemail,
-			SchoolEmail:      school.Schoolemail,
+			SchoolID:     school.Schoolid,
+			Name:         school.Schoolname,
+			Address:      school.Address,
+			Country:      school.Country.String,
+			Province:     school.Province.String,
+			District:     school.District.String,
+			SchoolType:   school.Schooltype,
+			ContactEmail: school.Contactemail,
+			SchoolEmail:  school.Schoolemail,
 		})
 	}
 

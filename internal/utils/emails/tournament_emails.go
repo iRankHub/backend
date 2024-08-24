@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/iRankHub/backend/internal/models"
-
 )
 
 func SendTournamentInvitations(ctx context.Context, tournament models.Tournament, league models.League, format models.Tournamentformat, queries *models.Queries) error {
@@ -76,58 +75,58 @@ func worker(ctx context.Context, jobs <-chan models.GetPendingInvitationsRow, er
 }
 
 func sendInvitation(ctx context.Context, invitation models.GetPendingInvitationsRow, tournament models.Tournament, league models.League, format models.Tournamentformat, queries *models.Queries) error {
-    var subject, content string
-    var email string
+	var subject, content string
+	var email string
 
-    switch invitation.Inviteerole {
-    case "student":
-        student, err := queries.GetStudentByIDebateID(ctx, sql.NullString{String: invitation.Inviteeid, Valid: invitation.Inviteeid !=""})
-        if err != nil {
-            return fmt.Errorf("failed to get student details: %v", err)
-        }
-        subject = fmt.Sprintf("Invitation to Participate in %s Tournament", tournament.Name)
-        content = PrepareStudentInvitationContent(student, tournament, league, format)
-        email = invitation.Inviteeemail.(string)
-    case "school":
-        school, err := queries.GetSchoolByIDebateID(ctx, sql.NullString{String: invitation.Inviteeid, Valid: invitation.Inviteeid !=""})
-        if err != nil {
-            return fmt.Errorf("failed to get school details: %v", err)
-        }
-        subject = fmt.Sprintf("Invitation to %s Tournament", tournament.Name)
-        content = PrepareSchoolInvitationContent(school, tournament, league, format)
-        email = invitation.Inviteeemail.(string)
-    case "volunteer":
-        volunteer, err := queries.GetVolunteerByIDebateID(ctx, sql.NullString{String: invitation.Inviteeid, Valid: invitation.Inviteeid !=""})
-        if err != nil {
-            return fmt.Errorf("failed to get volunteer details: %v", err)
-        }
-        subject = fmt.Sprintf("Invitation to Judge at %s Tournament", tournament.Name)
-        content = PrepareVolunteerInvitationContent(volunteer, tournament, league, format)
-        email = invitation.Inviteeemail.(string)
-    default:
-        return fmt.Errorf("unknown invitee role: %s", invitation.Inviteerole)
-    }
+	switch invitation.Inviteerole {
+	case "student":
+		student, err := queries.GetStudentByIDebateID(ctx, sql.NullString{String: invitation.Inviteeid, Valid: invitation.Inviteeid != ""})
+		if err != nil {
+			return fmt.Errorf("failed to get student details: %v", err)
+		}
+		subject = fmt.Sprintf("Invitation to Participate in %s Tournament", tournament.Name)
+		content = PrepareStudentInvitationContent(student, tournament, league, format)
+		email = invitation.Inviteeemail.(string)
+	case "school":
+		school, err := queries.GetSchoolByIDebateID(ctx, sql.NullString{String: invitation.Inviteeid, Valid: invitation.Inviteeid != ""})
+		if err != nil {
+			return fmt.Errorf("failed to get school details: %v", err)
+		}
+		subject = fmt.Sprintf("Invitation to %s Tournament", tournament.Name)
+		content = PrepareSchoolInvitationContent(school, tournament, league, format)
+		email = invitation.Inviteeemail.(string)
+	case "volunteer":
+		volunteer, err := queries.GetVolunteerByIDebateID(ctx, sql.NullString{String: invitation.Inviteeid, Valid: invitation.Inviteeid != ""})
+		if err != nil {
+			return fmt.Errorf("failed to get volunteer details: %v", err)
+		}
+		subject = fmt.Sprintf("Invitation to Judge at %s Tournament", tournament.Name)
+		content = PrepareVolunteerInvitationContent(volunteer, tournament, league, format)
+		email = invitation.Inviteeemail.(string)
+	default:
+		return fmt.Errorf("unknown invitee role: %s", invitation.Inviteerole)
+	}
 
-    log.Printf("Sending invitation email to %s for invitation ID %d", email, invitation.Invitationid)
+	log.Printf("Sending invitation email to %s for invitation ID %d", email, invitation.Invitationid)
 
-    err := SendEmail(email, subject, content)
-    if err != nil {
-        log.Printf("Failed to send invitation email to %s for invitation ID %d: %v", email, invitation.Invitationid, err)
-        return fmt.Errorf("failed to send invitation to email %s for invitation ID %d: %v", email, invitation.Invitationid, err)
-    }
+	err := SendEmail(email, subject, content)
+	if err != nil {
+		log.Printf("Failed to send invitation email to %s for invitation ID %d: %v", email, invitation.Invitationid, err)
+		return fmt.Errorf("failed to send invitation to email %s for invitation ID %d: %v", email, invitation.Invitationid, err)
+	}
 
-    // Update the reminder sent timestamp
-    _, err = queries.UpdateReminderSentAt(ctx, models.UpdateReminderSentAtParams{
-        Invitationid:   invitation.Invitationid,
-        Remindersentat: sql.NullTime{Time: time.Now(), Valid: true},
-    })
-    if err != nil {
-        log.Printf("Failed to update reminder sent timestamp for invitation ID %d: %v", invitation.Invitationid, err)
-        return fmt.Errorf("failed to update reminder sent timestamp for invitation %d: %v", invitation.Invitationid, err)
-    }
+	// Update the reminder sent timestamp
+	_, err = queries.UpdateReminderSentAt(ctx, models.UpdateReminderSentAtParams{
+		Invitationid:   invitation.Invitationid,
+		Remindersentat: sql.NullTime{Time: time.Now(), Valid: true},
+	})
+	if err != nil {
+		log.Printf("Failed to update reminder sent timestamp for invitation ID %d: %v", invitation.Invitationid, err)
+		return fmt.Errorf("failed to update reminder sent timestamp for invitation %d: %v", invitation.Invitationid, err)
+	}
 
-    log.Printf("Successfully sent invitation email and updated timestamp for invitation ID %d", invitation.Invitationid)
-    return nil
+	log.Printf("Successfully sent invitation email and updated timestamp for invitation ID %d", invitation.Invitationid)
+	return nil
 }
 func SendTournamentCreationConfirmation(to, name, tournamentName string) error {
 	subject := "Tournament Created Successfully"

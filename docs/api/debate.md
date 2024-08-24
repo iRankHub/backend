@@ -11,8 +11,6 @@ Request:
 ```json
 {
   "tournament_id": 1,
-  "round_number": 1,
-  "is_elimination_round": false,
   "token": "your_auth_token_here"
 }
 ```
@@ -26,7 +24,19 @@ Request:
 {
   "tournament_id": 1,
   "round_number": 1,
-  "is_elimination_round": false,
+  "is_elimination": false,
+  "token": "your_auth_token_here"
+}
+```
+
+### GetPairing
+
+Endpoint: `DebateService.GetPairing`
+
+Request:
+```json
+{
+  "pairing_id": 1,
   "token": "your_auth_token_here"
 }
 ```
@@ -39,10 +49,29 @@ Authorization: Admin only
 Request:
 ```json
 {
-  "pairing_id": 1,
-  "team1_id": 2,
-  "team2_id": 3,
-  "room_id": 4,
+  "pairing": {
+    "pairing_id": 1,
+    "team1": {
+      "team_id": 2
+    },
+    "team2": {
+      "team_id": 3
+    },
+    "room_id": 4
+  },
+  "token": "your_auth_token_here"
+}
+```
+
+### RegeneratePairings
+
+Endpoint: `DebateService.RegeneratePairings`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "tournament_id": 1,
   "token": "your_auth_token_here"
 }
 ```
@@ -58,7 +87,19 @@ Request:
 {
   "tournament_id": 1,
   "round_number": 1,
-  "is_elimination_round": false,
+  "is_elimination": false,
+  "token": "your_auth_token_here"
+}
+```
+
+### GetRoom
+
+Endpoint: `DebateService.GetRoom`
+
+Request:
+```json
+{
+  "room_id": 1,
   "token": "your_auth_token_here"
 }
 ```
@@ -71,23 +112,10 @@ Authorization: Admin only
 Request:
 ```json
 {
-  "room_id": 1,
-  "room_name": "Updated Room Name",
-  "token": "your_auth_token_here"
-}
-```
-
-### AssignRoomsToDebates
-
-Endpoint: `DebateService.AssignRoomsToDebates`
-Authorization: Admin only
-
-Request:
-```json
-{
-  "tournament_id": 1,
-  "round_number": 1,
-  "is_elimination_round": false,
+  "room": {
+    "room_id": 1,
+    "room_name": "Updated Room Name"
+  },
   "token": "your_auth_token_here"
 }
 ```
@@ -103,25 +131,34 @@ Request:
 {
   "tournament_id": 1,
   "round_number": 1,
-  "is_elimination_round": false,
+  "is_elimination": false,
   "token": "your_auth_token_here"
 }
 ```
 
-### AssignJudgeToDebate
+### GetJudge
 
-Endpoint: `DebateService.AssignJudgeToDebate`
+Endpoint: `DebateService.GetJudge`
+
+Request:
+```json
+{
+  "judge_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+### AssignJudges
+
+Endpoint: `DebateService.AssignJudges`
 Authorization: Admin only
 
 Request:
 ```json
 {
   "tournament_id": 1,
-  "judge_id": 2,
-  "debate_id": 3,
   "round_number": 1,
-  "is_elimination_round": false,
-  "is_head_judge": true,
+  "is_elimination": false,
   "token": "your_auth_token_here"
 }
 ```
@@ -137,7 +174,7 @@ Request:
 {
   "tournament_id": 1,
   "round_number": 1,
-  "is_elimination_round": false,
+  "is_elimination": false,
   "token": "your_auth_token_here"
 }
 ```
@@ -162,25 +199,105 @@ Authorization: Judge or Admin
 Request:
 ```json
 {
-  "ballot_id": 1,
-  "team1_total_score": 75.5,
-  "team2_total_score": 78.0,
-  "recording_status": "completed",
-  "verdict": "team2_win",
+  "ballot": {
+    "ballot_id": 1,
+    "team1": {
+      "total_points": 75.5,
+      "speakers": [
+        {
+          "score_id": 1,
+          "rank": 1,
+          "points": 37.5,
+          "feedback": "Excellent argumentation"
+        }
+      ]
+    },
+    "team2": {
+      "total_points": 78.0,
+      "speakers": [
+        {
+          "score_id": 2,
+          "rank": 2,
+          "points": 36.0,
+          "feedback": "Strong rebuttal"
+        }
+      ]
+    },
+    "recording_status": "completed",
+    "verdict": "team2_win"
+  },
+  "token": "your_auth_token_here"
+}
+```
+
+## Team Management
+
+### CreateTeam
+
+Endpoint: `DebateService.CreateTeam`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "name": "New Team",
+  "tournament_id": 1,
   "speakers": [
     {
-      "score_id": 1,
-      "rank": 1,
-      "points": 37.5,
-      "feedback": "Excellent argumentation"
+      "speaker_id": 1
     },
     {
-      "score_id": 2,
-      "rank": 2,
-      "points": 36.0,
-      "feedback": "Strong rebuttal"
+      "speaker_id": 2
     }
   ],
+  "token": "your_auth_token_here"
+}
+```
+
+### GetTeam
+
+Endpoint: `DebateService.GetTeam`
+
+Request:
+```json
+{
+  "team_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+### UpdateTeam
+
+Endpoint: `DebateService.UpdateTeam`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "team": {
+    "team_id": 1,
+    "name": "Updated Team Name",
+    "speakers": [
+      {
+        "speaker_id": 1
+      },
+      {
+        "speaker_id": 3
+      }
+    ]
+  },
+  "token": "your_auth_token_here"
+}
+```
+
+### GetTeamsByTournament
+
+Endpoint: `DebateService.GetTeamsByTournament`
+
+Request:
+```json
+{
+  "tournament_id": 1,
   "token": "your_auth_token_here"
 }
 ```
@@ -193,35 +310,37 @@ To test the debate management features:
 2. Include the token in the request body for subsequent authenticated requests.
 3. Test the following scenarios:
 
-   a. Pairing Generation and Management:
-   - Use `GeneratePairings` to create pairings for a tournament round.
+   a. Team Management:
+   - Use `CreateTeam` to create a new team for a tournament.
+   - Use `GetTeam` to retrieve team details.
+   - Use `UpdateTeam` to modify team information.
+   - Use `GetTeamsByTournament` to list all teams in a tournament.
+
+   b. Pairing Generation and Management:
+   - Use `GeneratePairings` to create pairings for a tournament.
    - Use `GetPairings` to retrieve the generated pairings.
+   - Use `GetPairing` to retrieve a specific pairing.
    - Use `UpdatePairing` to modify a specific pairing.
+   - Use `RegeneratePairings` to recreate pairings for a tournament.
 
-   b. Room Management:
+   c. Room Management:
    - Use `GetRooms` to retrieve available rooms for a tournament round.
+   - Use `GetRoom` to retrieve details of a specific room.
    - Use `UpdateRoom` to modify room details.
-   - Use `AssignRoomsToDebates` to automatically assign rooms to debates.
 
-   c. Judge Management:
+   d. Judge Management:
    - Use `GetJudges` to retrieve available judges for a tournament round.
-   - Use `AssignJudgeToDebate` to assign a judge to a specific debate.
+   - Use `GetJudge` to retrieve details of a specific judge.
+   - Use `AssignJudges` to automatically assign judges to debates in a round.
 
-   d. Ballot Management:
+   e. Ballot Management:
    - Use `GetBallots` to retrieve all ballots for a tournament round.
    - Use `GetBallot` to retrieve a specific ballot.
    - Use `UpdateBallot` to submit or modify ballot results and speaker scores.
 
-4. For each test, verify that the appropriate actions are taken:
-   - Pairings are generated correctly and can be modified.
-   - Rooms are assigned to debates efficiently.
-   - Judges are assigned to debates according to tournament rules.
-   - Ballots can be submitted and updated with accurate scoring.
+4. For each test, verify that the appropriate actions are taken and data is correctly managed.
 
-5. Test error scenarios:
-   - Attempt to generate pairings for a non-existent tournament or round.
-   - Try to assign more judges than available to a debate.
-   - Attempt to submit a ballot with invalid scores or for a non-existent debate.
+5. Test error scenarios and edge cases for each endpoint.
 
 Remember to include the authentication token in the request body for each request:
 - Key: `token`

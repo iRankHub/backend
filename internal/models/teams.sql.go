@@ -9,30 +9,6 @@ import (
 	"context"
 )
 
-const createTeam = `-- name: CreateTeam :one
-INSERT INTO Teams (Name, SchoolID, TournamentID)
-VALUES ($1, $2, $3)
-RETURNING teamid, name, schoolid, tournamentid
-`
-
-type CreateTeamParams struct {
-	Name         string `json:"name"`
-	Schoolid     int32  `json:"schoolid"`
-	Tournamentid int32  `json:"tournamentid"`
-}
-
-func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (Team, error) {
-	row := q.db.QueryRowContext(ctx, createTeam, arg.Name, arg.Schoolid, arg.Tournamentid)
-	var i Team
-	err := row.Scan(
-		&i.Teamid,
-		&i.Name,
-		&i.Schoolid,
-		&i.Tournamentid,
-	)
-	return i, err
-}
-
 const deleteTeam = `-- name: DeleteTeam :exec
 DELETE FROM Teams WHERE TeamID = $1
 `
@@ -88,35 +64,4 @@ func (q *Queries) GetTeams(ctx context.Context) ([]Team, error) {
 		return nil, err
 	}
 	return items, nil
-}
-
-const updateTeam = `-- name: UpdateTeam :one
-UPDATE Teams
-SET Name = $2, SchoolID = $3, TournamentID = $4
-WHERE TeamID = $1
-RETURNING teamid, name, schoolid, tournamentid
-`
-
-type UpdateTeamParams struct {
-	Teamid       int32  `json:"teamid"`
-	Name         string `json:"name"`
-	Schoolid     int32  `json:"schoolid"`
-	Tournamentid int32  `json:"tournamentid"`
-}
-
-func (q *Queries) UpdateTeam(ctx context.Context, arg UpdateTeamParams) (Team, error) {
-	row := q.db.QueryRowContext(ctx, updateTeam,
-		arg.Teamid,
-		arg.Name,
-		arg.Schoolid,
-		arg.Tournamentid,
-	)
-	var i Team
-	err := row.Scan(
-		&i.Teamid,
-		&i.Name,
-		&i.Schoolid,
-		&i.Tournamentid,
-	)
-	return i, err
 }

@@ -42,25 +42,25 @@ func (s *LoginService) Login(ctx context.Context, emailOrId, password string) (*
 	}
 
 	user := &models.User{
-		Userid:               userRow.Userid,
-		Webauthnuserid:       userRow.Webauthnuserid,
-		Name:                 userRow.Name,
-		Email:                userRow.Email,
-		Password:             userRow.Password,
-		Userrole:             userRow.Userrole,
-		Status:               userRow.Status,
-		Verificationstatus:   userRow.Verificationstatus,
-		Deactivatedat:        userRow.Deactivatedat,
-		TwoFactorSecret:      userRow.TwoFactorSecret,
-		TwoFactorEnabled:     userRow.TwoFactorEnabled,
-		FailedLoginAttempts:  userRow.FailedLoginAttempts,
-		LastLoginAttempt:     userRow.LastLoginAttempt,
-		LastLogout:           userRow.LastLogout,
-		ResetToken:           userRow.ResetToken,
-		ResetTokenExpires:    userRow.ResetTokenExpires,
-		CreatedAt:            userRow.CreatedAt,
-		UpdatedAt:            userRow.UpdatedAt,
-		DeletedAt:            userRow.DeletedAt,
+		Userid:              userRow.Userid,
+		Webauthnuserid:      userRow.Webauthnuserid,
+		Name:                userRow.Name,
+		Email:               userRow.Email,
+		Password:            userRow.Password,
+		Userrole:            userRow.Userrole,
+		Status:              userRow.Status,
+		Verificationstatus:  userRow.Verificationstatus,
+		Deactivatedat:       userRow.Deactivatedat,
+		TwoFactorSecret:     userRow.TwoFactorSecret,
+		TwoFactorEnabled:    userRow.TwoFactorEnabled,
+		FailedLoginAttempts: userRow.FailedLoginAttempts,
+		LastLoginAttempt:    userRow.LastLoginAttempt,
+		LastLogout:          userRow.LastLogout,
+		ResetToken:          userRow.ResetToken,
+		ResetTokenExpires:   userRow.ResetTokenExpires,
+		CreatedAt:           userRow.CreatedAt,
+		UpdatedAt:           userRow.UpdatedAt,
+		DeletedAt:           userRow.DeletedAt,
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -90,37 +90,36 @@ func (s *LoginService) Login(ctx context.Context, emailOrId, password string) (*
 }
 
 func (s *LoginService) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
-    tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-    if err != nil {
-        return nil, fmt.Errorf("failed to start transaction: %v", err)
-    }
-    defer tx.Rollback()
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, fmt.Errorf("failed to start transaction: %v", err)
+	}
+	defer tx.Rollback()
 
-    queries := models.New(tx)
+	queries := models.New(tx)
 
-    user, err := queries.GetUserByEmail(ctx, email)
-    if err != nil {
-        if err == sql.ErrNoRows {
-            return nil, fmt.Errorf("user not found")
-        }
-        return nil, fmt.Errorf("failed to retrieve user: %v", err)
-    }
+	user, err := queries.GetUserByEmail(ctx, email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("user not found")
+		}
+		return nil, fmt.Errorf("failed to retrieve user: %v", err)
+	}
 
-    if err := tx.Commit(); err != nil {
-        return nil, fmt.Errorf("failed to commit transaction: %v", err)
-    }
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %v", err)
+	}
 
-    return &user, nil
+	return &user, nil
 }
 
 func (s *LoginService) HandleFailedLoginAttempt(ctx context.Context, user *models.User) error {
 
-
 	queries := models.New(s.db)
 
-    updatedUser, err := queries.IncrementAndGetFailedLoginAttempts(ctx, user.Userid)
-    if err != nil {
-        return fmt.Errorf("failed to update and get login attempts: %v", err)
+	updatedUser, err := queries.IncrementAndGetFailedLoginAttempts(ctx, user.Userid)
+	if err != nil {
+		return fmt.Errorf("failed to update and get login attempts: %v", err)
 
 	}
 

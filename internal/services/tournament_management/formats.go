@@ -62,7 +62,6 @@ func (s *FormatService) CreateTournamentFormat(ctx context.Context, req *tournam
 	}, nil
 }
 
-
 func (s *FormatService) GetTournamentFormat(ctx context.Context, req *tournament_management.GetTournamentFormatRequest) (*tournament_management.TournamentFormat, error) {
 	if err := s.validateAuthentication(req.GetToken()); err != nil {
 		return nil, err

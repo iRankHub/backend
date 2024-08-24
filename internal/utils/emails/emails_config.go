@@ -5,7 +5,6 @@ import (
 	"net/smtp"
 
 	"github.com/spf13/viper"
-
 )
 
 func GetEmailTemplate(content string) string {
