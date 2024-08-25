@@ -31,11 +31,12 @@ func main() {
 		User:     viper.GetString("DB_USER"),
 		Password: viper.GetString("DB_PASSWORD"),
 		Name:     viper.GetString("DB_NAME"),
+		Ssl: 	  viper.GetString("DB_SSL"),
 	}
 
 	// Connect to the database
-	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
-		dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.Name)
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.Name, dbConfig.Ssl)
 	db, err := sql.Open("pgx", connString)
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)

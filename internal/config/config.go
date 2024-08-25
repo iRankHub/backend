@@ -12,6 +12,7 @@ type DatabaseConfig struct {
 	User     string
 	Password string
 	Name     string
+	Ssl		 string
 }
 
 func LoadDatabaseConfig() (*DatabaseConfig, error) {
@@ -27,6 +28,7 @@ func LoadDatabaseConfig() (*DatabaseConfig, error) {
 		User:     viper.GetString("DB_USER"),
 		Password: viper.GetString("DB_PASSWORD"),
 		Name:     viper.GetString("DB_NAME"),
+		Ssl: 	  viper.GetString("DB_SSL"), // Optional: Set to "disable" to disable SSL/TLS connection.
 	}
 
 	return dbConfig, nil
