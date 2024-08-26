@@ -476,7 +476,6 @@ func convertModelProfileToProto(profile *models.GetUserProfileRow) *user_managem
 				Grade:       profile.Grade.String,
 				DateOfBirth: profile.Dateofbirth.Time.Format("2006-01-02"),
 				SchoolID:    profile.Schoolid.Int32,
-				SchoolName:  profile.Schoolname.String,
 			},
 		}
 	case "school":
