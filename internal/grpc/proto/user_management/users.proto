@@ -6,12 +6,12 @@ package user_management;
 
 service UserManagementService {
   rpc GetPendingUsers(GetPendingUsersRequest) returns (GetPendingUsersResponse) {}
-  rpc GetUserDetails(GetUserDetailsRequest) returns (GetUserDetailsResponse) {}
   rpc ApproveUser(ApproveUserRequest) returns (ApproveUserResponse) {}
   rpc RejectUser(RejectUserRequest) returns (RejectUserResponse) {}
   rpc ApproveUsers(ApproveUsersRequest) returns (ApproveUsersResponse) {}
   rpc RejectUsers(RejectUsersRequest) returns (RejectUsersResponse) {}
   rpc DeleteUsers(DeleteUsersRequest) returns (DeleteUsersResponse) {}
+  rpc GetUserProfile(GetUserProfileRequest) returns (GetUserProfileResponse) {}
   rpc UpdateUserProfile(UpdateUserProfileRequest) returns (UpdateUserProfileResponse) {}
   rpc DeleteUserProfile(DeleteUserProfileRequest) returns (DeleteUserProfileResponse) {}
   rpc DeactivateAccount(DeactivateAccountRequest) returns (DeactivateAccountResponse) {}
@@ -55,60 +55,49 @@ message UserSummary {
   string status = 7;
 }
 
-message GetUserDetailsRequest {
-  string token = 1;
-  int32 userID = 2;
-}
-
-message GetUserDetailsResponse {
-  UserDetails user = 1;
-}
-
-message UserDetails {
+message UserProfile {
   int32 userID = 1;
   string name = 2;
   string email = 3;
   string userRole = 4;
-  string signUpDate = 5;
-  UserProfile profile = 6;
-  oneof role_specific_details {
-    StudentDetails studentDetails = 7;
-    SchoolDetails schoolDetails = 8;
-    VolunteerDetails volunteerDetails = 9;
-  }
-  string gender = 10;
-}
-
-message UserProfile {
-  string address = 1;
-  string phone = 2;
-  string bio = 3;
-  bytes profilePicture = 4;
   string gender = 5;
+  string address = 6;
+  string phone = 7;
+  string bio = 8;
+  bytes profilePicture = 9;
+  bool verificationStatus = 10;
+  string signUpDate = 11;
+  bool twoFactorEnabled = 12;
+  bool biometricAuthEnabled = 13;
+
+  oneof role_specific_details {
+    StudentDetails studentDetails = 14;
+    SchoolDetails schoolDetails = 15;
+    VolunteerDetails volunteerDetails = 16;
+  }
 }
 
 message StudentDetails {
   string grade = 1;
   string dateOfBirth = 2;
   int32 schoolID = 3;
-  string schoolName = 4;
 }
 
 message SchoolDetails {
-  string address = 1;
-  string country = 2;
-  string province = 3;
-  string district = 4;
-  string schoolType = 5;
-  string contactPersonName = 6;
-  string contactPersonNumber = 7;
+  string schoolName = 1;
+  string address = 2;
+  string country = 3;
+  string province = 4;
+  string district = 5;
+  string schoolType = 6;
 }
 
 message VolunteerDetails {
-  string dateOfBirth = 1;
-  int32 graduationYear = 2;
-  string roleInterestedIn = 3;
-  bool safeguardingCertificate = 4;
+  string role = 1;
+  int32 graduateYear = 2;
+  bool safeGuardCertificate = 3;
+  bool hasInternship = 4;
+  bool isEnrolledInUniversity = 5;
 }
 
 message ApproveUserRequest {
@@ -164,16 +153,33 @@ message DeleteUsersResponse {
   repeated int32 failedUserIDs = 3;
 }
 
+message GetUserProfileRequest {
+  string token = 1;
+  int32 userID = 2;
+}
+
+message GetUserProfileResponse {
+  UserProfile profile = 1;
+}
+
 message UpdateUserProfileRequest {
   string token = 1;
   int32 userID = 2;
   string name = 3;
   string email = 4;
-  string address = 5;
-  string phone = 6;
-  string bio = 7;
-  bytes profilePicture = 8;
-  string gender = 9;
+  string gender = 5;
+  string address = 6;
+  string phone = 7;
+  string bio = 8;
+  bytes profilePicture = 9;
+  bool twoFactorEnabled = 10;
+  string password = 11;
+
+  oneof role_specific_details {
+    StudentDetails studentDetails = 12;
+    SchoolDetails schoolDetails = 13;
+    VolunteerDetails volunteerDetails = 14;
+  }
 }
 
 message UpdateUserProfileResponse {

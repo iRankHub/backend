@@ -70,36 +70,6 @@ func (s *UserManagementService) GetAllUsers(ctx context.Context, token string, p
 	return users, int32(totalCount), nil
 }
 
-func (s *UserManagementService) GetUserDetails(ctx context.Context, token string, userID int32) (models.User, models.Userprofile, error) {
-	claims, err := utils.ValidateToken(token)
-	if err != nil {
-		return models.User{}, models.Userprofile{}, fmt.Errorf("invalid token: %v", err)
-	}
-
-	tokenUserID := int32(claims["user_id"].(float64))
-	userRole := claims["user_role"].(string)
-
-	if tokenUserID != userID && userRole != "admin" {
-		return models.User{}, models.Userprofile{}, fmt.Errorf("you can only access your own details unless you're an admin")
-	}
-
-	queries := models.New(s.db)
-	user, err := queries.GetUserByID(ctx, userID)
-	if err != nil {
-		return models.User{}, models.Userprofile{}, fmt.Errorf("failed to get user details: %v", err)
-	}
-
-	profile, err := queries.GetUserProfile(ctx, userID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return user, models.Userprofile{}, nil
-		}
-		return models.User{}, models.Userprofile{}, fmt.Errorf("failed to get user profile: %v", err)
-	}
-
-	return user, profile, nil
-}
-
 func (s *UserManagementService) ApproveUser(ctx context.Context, token string, userID int32) error {
 	claims, err := utils.ValidateToken(token)
 	if err != nil {
@@ -372,15 +342,39 @@ func (s *UserManagementService) DeleteUsers(ctx context.Context, token string, u
 	return failedUserIDs, nil
 }
 
-func (s *UserManagementService) UpdateUserProfile(ctx context.Context, token string, userID int32, name, email, address, phone, bio string, profilePicture []byte, gender string) error {
+func (s *UserManagementService) GetUserProfile(ctx context.Context, token string, userID int32) (*models.GetUserProfileRow, error) {
+	claims, err := utils.ValidateToken(token)
+	if err != nil {
+		return nil, fmt.Errorf("invalid token: %v", err)
+	}
+
+	tokenUserID := int32(claims["user_id"].(float64))
+	userRole := claims["user_role"].(string)
+
+	if tokenUserID != userID && userRole != "admin" {
+		return nil, fmt.Errorf("you can only access your own profile unless you're an admin")
+	}
+
+	queries := models.New(s.db)
+	profile, err := queries.GetUserProfile(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user profile: %v", err)
+	}
+
+	return &profile, nil
+}
+
+func (s *UserManagementService) UpdateUserProfile(ctx context.Context, token string, updateParams *models.UpdateUserProfileParams, studentParams *models.UpdateStudentProfileParams, schoolParams *models.UpdateSchoolProfileParams, volunteerParams *models.UpdateVolunteerProfileParams, newPassword string) error {
 	claims, err := utils.ValidateToken(token)
 	if err != nil {
 		return fmt.Errorf("invalid token: %v", err)
 	}
 
 	tokenUserID := int32(claims["user_id"].(float64))
-	if tokenUserID != userID {
-		return fmt.Errorf("you can only update your own profile")
+	userRole := claims["user_role"].(string)
+
+	if tokenUserID != updateParams.Userid && userRole != "admin" {
+		return fmt.Errorf("you can only update your own profile unless you're an admin")
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -391,47 +385,63 @@ func (s *UserManagementService) UpdateUserProfile(ctx context.Context, token str
 
 	queries := models.New(tx)
 
-	// Get the user's role
-	user, err := queries.GetUserByID(ctx, userID)
+	// Fetch current user profile to compare and update only changed fields
+	currentProfile, err := queries.GetUserProfile(ctx, updateParams.Userid)
 	if err != nil {
-		return fmt.Errorf("failed to get user details: %v", err)
+		return fmt.Errorf("failed to fetch current user profile: %v", err)
 	}
 
-	// Update UserProfiles table
-	_, err = queries.UpdateUserProfile(ctx, models.UpdateUserProfileParams{
-		Userid:         userID,
-		Name:           name,
-		Email:          email,
-		Address:        sql.NullString{String: address, Valid: address != ""},
-		Phone:          sql.NullString{String: phone, Valid: phone != ""},
-		Bio:            sql.NullString{String: bio, Valid: bio != ""},
-		Profilepicture: profilePicture,
-		Gender:         sql.NullString{String: gender, Valid: gender != ""},
-	})
+	// Update only provided fields
+	if updateParams.Name == "" {
+		updateParams.Name = currentProfile.Name
+	}
+	if updateParams.Email == "" {
+		updateParams.Email = currentProfile.Email
+	}
+	if !updateParams.Gender.Valid {
+		updateParams.Gender = currentProfile.Gender
+	}
+	if !updateParams.Address.Valid {
+		updateParams.Address = currentProfile.Address
+	}
+	if !updateParams.Phone.Valid {
+		updateParams.Phone = currentProfile.Phone
+	}
+	if !updateParams.Bio.Valid {
+		updateParams.Bio = currentProfile.Bio
+	}
+	if len(updateParams.Profilepicture) == 0 {
+		updateParams.Profilepicture = currentProfile.Profilepicture
+	}
+
+	// Handle password update
+	if newPassword != "" {
+		hashedPassword, err := utils.HashPassword(newPassword)
+		if err != nil {
+			return fmt.Errorf("failed to hash password: %v", err)
+		}
+		updateParams.Password = hashedPassword
+	} else {
+		updateParams.Password = currentProfile.Password
+	}
+
+	// Update Users and UserProfiles tables
+	_, err = queries.UpdateUserProfile(ctx, *updateParams)
 	if err != nil {
 		return fmt.Errorf("failed to update user profile: %v", err)
 	}
 
-	// Update Users table
-	_, err = queries.UpdateUser(ctx, models.UpdateUserParams{
-		Userid: userID,
-		Name:   name,
-		Email:  email,
-		Gender: sql.NullString{String: gender, Valid: gender != ""},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to update user: %v", err)
+	// Update role-specific tables
+	if studentParams != nil {
+		err = queries.UpdateStudentProfile(ctx, *studentParams)
+	} else if schoolParams != nil {
+		err = queries.UpdateSchoolProfile(ctx, *schoolParams)
+	} else if volunteerParams != nil {
+		err = queries.UpdateVolunteerProfile(ctx, *volunteerParams)
 	}
 
-	// If the user is a school, update the school's address
-	if user.Userrole == "school" && address != "" {
-		_, err = queries.UpdateSchoolAddress(ctx, models.UpdateSchoolAddressParams{
-			Contactpersonid: userID,
-			Address:         address,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to update school address: %v", err)
-		}
+	if err != nil {
+		return fmt.Errorf("failed to update role-specific details: %v", err)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -454,21 +464,11 @@ func (s *UserManagementService) DeleteUserProfile(ctx context.Context, token str
 		return fmt.Errorf("you can only delete your own profile unless you're an admin")
 	}
 
-	tx, err := s.db.BeginTx(ctx, nil)
+	queries := models.New(s.db)
+
+	err = queries.SoftDeleteUserProfile(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("failed to start transaction: %v", err)
-	}
-	defer tx.Rollback()
-
-	queries := models.New(tx)
-
-	err = queries.DeleteUserProfile(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("failed to delete user profile: %v", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %v", err)
+		return fmt.Errorf("failed to soft delete user profile: %v", err)
 	}
 
 	return nil

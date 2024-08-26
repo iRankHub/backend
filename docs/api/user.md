@@ -12,19 +12,6 @@ Request:
 }
 ```
 
-### GetUserDetails
-
-Endpoint: `UserManagementService.GetUserDetails`
-Authorization: User can access their own details, Admin can access any user's details
-
-Request:
-```json
-{
-  "token": "your_auth_token_here",
-  "userID": 123
-}
-```
-
 ### ApproveUser
 
 Endpoint: `UserManagementService.ApproveUser`
@@ -51,10 +38,23 @@ Request:
 }
 ```
 
+### GetUserProfile
+
+Endpoint: `UserManagementService.GetUserProfile`
+Authorization: User can retrieve their own profile, Admin can retrieve any profile
+
+Request:
+```json
+{
+  "token": "your_auth_token_here",
+  "userID": 123
+}
+```
+
 ### UpdateUserProfile
 
 Endpoint: `UserManagementService.UpdateUserProfile`
-Authorization: User can update their own profile
+Authorization: User can update their own profile, Admin can update any profile
 
 Request:
 ```json
@@ -63,12 +63,46 @@ Request:
   "userID": 123,
   "name": "John Doe",
   "email": "john.doe@example.com",
+  "gender": "male",
   "address": "123 Main St",
   "phone": "555-1234",
   "bio": "A brief bio",
-  "profilePicture": ""
+  "profilePicture": "base64_encoded_image",
+  "password": "new_password",
+  "roleSpecificDetails": {
+    "oneOf": [
+      {
+        "studentDetails": {
+          "grade": "10",
+          "dateOfBirth": "2005-05-15",
+          "schoolID": 456
+        }
+      },
+      {
+        "schoolDetails": {
+          "schoolName": "Example High School",
+          "address": "456 School Ave",
+          "country": "United States",
+          "province": "California",
+          "district": "Los Angeles",
+          "schoolType": "Public"
+        }
+      },
+      {
+        "volunteerDetails": {
+          "role": "Mentor",
+          "graduateYear": 2020,
+          "safeGuardCertificate": true,
+          "hasInternship": false,
+          "isEnrolledInUniversity": true
+        }
+      }
+    ]
+  }
 }
 ```
+
+Note: The `roleSpecificDetails` field should contain only one of `studentDetails`, `schoolDetails`, or `volunteerDetails`, depending on the user's role.
 
 ### DeleteUserProfile
 
@@ -82,6 +116,8 @@ Request:
   "userID": 123
 }
 ```
+
+Note: This operation performs a soft delete, marking the user's account as deleted but retaining the data for potential future recovery or auditing purposes.
 
 ### DeactivateAccount
 
@@ -301,7 +337,7 @@ To test the user management features:
    k. Country Information:
    - Use `GetCountries` to retrieve a list of countries and their codes.
    - Verify the country information is correct and complete.
-  
+
    l. User Management:
    - Use `GetAllUsers` to retrieve a list of users.
 

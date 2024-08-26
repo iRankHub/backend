@@ -62,75 +62,225 @@ func (q *Queries) CreateUserProfile(ctx context.Context, arg CreateUserProfilePa
 	return i, err
 }
 
-const deleteUserProfile = `-- name: DeleteUserProfile :exec
-DELETE FROM UserProfiles
-WHERE UserID = $1
+const getUserProfile = `-- name: GetUserProfile :one
+SELECT
+    u.UserID, u.Name, u.Email, u.UserRole, u.password, u.Gender, u.VerificationStatus,
+    u.two_factor_enabled, u.created_at AS SignUpDate,
+    up.Address, up.Phone, up.Bio, up.ProfilePicture,
+    s.Grade, s.DateOfBirth, s.SchoolID,
+    sch.SchoolName, sch.Address AS SchoolAddress, sch.Country, sch.Province, sch.District, sch.SchoolType,
+    v.Role AS VolunteerRole, v.GraduateYear, v.SafeGuardCertificate, v.HasInternship, v.IsEnrolledInUniversity,
+    CASE WHEN EXISTS (
+        SELECT 1 FROM WebAuthnCredentials wac WHERE wac.UserID = u.UserID
+    ) THEN true ELSE false END AS biometric_auth_enabled
+FROM Users u
+LEFT JOIN UserProfiles up ON u.UserID = up.UserID
+LEFT JOIN Students s ON u.UserID = s.UserID
+LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
+LEFT JOIN Volunteers v ON u.UserID = v.UserID
+WHERE u.UserID = $1 AND u.deleted_at IS NULL
 `
 
-func (q *Queries) DeleteUserProfile(ctx context.Context, userid int32) error {
-	_, err := q.db.ExecContext(ctx, deleteUserProfile, userid)
-	return err
+type GetUserProfileRow struct {
+	Userid                 int32          `json:"userid"`
+	Name                   string         `json:"name"`
+	Email                  string         `json:"email"`
+	Userrole               string         `json:"userrole"`
+	Password               string         `json:"password"`
+	Gender                 sql.NullString `json:"gender"`
+	Verificationstatus     sql.NullBool   `json:"verificationstatus"`
+	TwoFactorEnabled       sql.NullBool   `json:"two_factor_enabled"`
+	Signupdate             sql.NullTime   `json:"signupdate"`
+	Address                sql.NullString `json:"address"`
+	Phone                  sql.NullString `json:"phone"`
+	Bio                    sql.NullString `json:"bio"`
+	Profilepicture         []byte         `json:"profilepicture"`
+	Grade                  sql.NullString `json:"grade"`
+	Dateofbirth            sql.NullTime   `json:"dateofbirth"`
+	Schoolid               sql.NullInt32  `json:"schoolid"`
+	Schoolname             sql.NullString `json:"schoolname"`
+	Schooladdress          sql.NullString `json:"schooladdress"`
+	Country                sql.NullString `json:"country"`
+	Province               sql.NullString `json:"province"`
+	District               sql.NullString `json:"district"`
+	Schooltype             sql.NullString `json:"schooltype"`
+	Volunteerrole          sql.NullString `json:"volunteerrole"`
+	Graduateyear           sql.NullInt32  `json:"graduateyear"`
+	Safeguardcertificate   sql.NullBool   `json:"safeguardcertificate"`
+	Hasinternship          sql.NullBool   `json:"hasinternship"`
+	Isenrolledinuniversity sql.NullBool   `json:"isenrolledinuniversity"`
+	BiometricAuthEnabled   bool           `json:"biometric_auth_enabled"`
 }
 
-const getUserProfile = `-- name: GetUserProfile :one
-SELECT profileid, userid, name, userrole, email, password, gender, address, phone, bio, profilepicture, verificationstatus FROM UserProfiles
-WHERE UserID = $1
-`
-
-func (q *Queries) GetUserProfile(ctx context.Context, userid int32) (Userprofile, error) {
+func (q *Queries) GetUserProfile(ctx context.Context, userid int32) (GetUserProfileRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserProfile, userid)
-	var i Userprofile
+	var i GetUserProfileRow
 	err := row.Scan(
-		&i.Profileid,
 		&i.Userid,
 		&i.Name,
-		&i.Userrole,
 		&i.Email,
+		&i.Userrole,
 		&i.Password,
 		&i.Gender,
+		&i.Verificationstatus,
+		&i.TwoFactorEnabled,
+		&i.Signupdate,
 		&i.Address,
 		&i.Phone,
 		&i.Bio,
 		&i.Profilepicture,
-		&i.Verificationstatus,
+		&i.Grade,
+		&i.Dateofbirth,
+		&i.Schoolid,
+		&i.Schoolname,
+		&i.Schooladdress,
+		&i.Country,
+		&i.Province,
+		&i.District,
+		&i.Schooltype,
+		&i.Volunteerrole,
+		&i.Graduateyear,
+		&i.Safeguardcertificate,
+		&i.Hasinternship,
+		&i.Isenrolledinuniversity,
+		&i.BiometricAuthEnabled,
 	)
 	return i, err
 }
 
-const updateUserProfile = `-- name: UpdateUserProfile :one
-UPDATE UserProfiles
-SET Name = $2, UserRole = $3, Email = $4, VerificationStatus = $5, Address = $6, Phone = $7, Bio = $8, ProfilePicture = $9, Gender = $10
+const softDeleteUserProfile = `-- name: SoftDeleteUserProfile :exec
+UPDATE Users
+SET deleted_at = CURRENT_TIMESTAMP
 WHERE UserID = $1
-RETURNING profileid, userid, name, userrole, email, password, gender, address, phone, bio, profilepicture, verificationstatus
+`
+
+func (q *Queries) SoftDeleteUserProfile(ctx context.Context, userid int32) error {
+	_, err := q.db.ExecContext(ctx, softDeleteUserProfile, userid)
+	return err
+}
+
+const updateSchoolProfile = `-- name: UpdateSchoolProfile :exec
+UPDATE Schools
+SET SchoolName = $2, Address = $3, Country = $4, Province = $5, District = $6, SchoolType = $7
+WHERE ContactPersonID = $1
+`
+
+type UpdateSchoolProfileParams struct {
+	Contactpersonid int32          `json:"contactpersonid"`
+	Schoolname      string         `json:"schoolname"`
+	Address         string         `json:"address"`
+	Country         sql.NullString `json:"country"`
+	Province        sql.NullString `json:"province"`
+	District        sql.NullString `json:"district"`
+	Schooltype      string         `json:"schooltype"`
+}
+
+func (q *Queries) UpdateSchoolProfile(ctx context.Context, arg UpdateSchoolProfileParams) error {
+	_, err := q.db.ExecContext(ctx, updateSchoolProfile,
+		arg.Contactpersonid,
+		arg.Schoolname,
+		arg.Address,
+		arg.Country,
+		arg.Province,
+		arg.District,
+		arg.Schooltype,
+	)
+	return err
+}
+
+const updateStudentProfile = `-- name: UpdateStudentProfile :exec
+UPDATE Students
+SET Grade = $2, DateOfBirth = $3, SchoolID = $4
+WHERE UserID = $1
+`
+
+type UpdateStudentProfileParams struct {
+	Userid      int32        `json:"userid"`
+	Grade       string       `json:"grade"`
+	Dateofbirth sql.NullTime `json:"dateofbirth"`
+	Schoolid    int32        `json:"schoolid"`
+}
+
+func (q *Queries) UpdateStudentProfile(ctx context.Context, arg UpdateStudentProfileParams) error {
+	_, err := q.db.ExecContext(ctx, updateStudentProfile,
+		arg.Userid,
+		arg.Grade,
+		arg.Dateofbirth,
+		arg.Schoolid,
+	)
+	return err
+}
+
+const updateUserProfile = `-- name: UpdateUserProfile :one
+WITH updated_user AS (
+    UPDATE Users
+    SET
+        Name = COALESCE($2, Name),
+        Email = COALESCE($3, Email),
+        Gender = COALESCE($4, Gender),
+        Password = COALESCE($5, Password),
+        updated_at = CURRENT_TIMESTAMP
+    WHERE Users.UserID = $1
+    RETURNING UserID
+)
+UPDATE UserProfiles
+SET
+    Name = COALESCE($2, Name),
+    Email = COALESCE($3, Email),
+    Gender = COALESCE($4, Gender),
+    Address = COALESCE($6, Address),
+    Phone = COALESCE($7, Phone),
+    Bio = COALESCE($8, Bio),
+    ProfilePicture = COALESCE($9, ProfilePicture)
+WHERE UserID = (SELECT UserID FROM updated_user)
+RETURNING
+    userprofiles.profileid, userprofiles.userid, userprofiles.name, userprofiles.userrole, userprofiles.email, userprofiles.password, userprofiles.gender, userprofiles.address, userprofiles.phone, userprofiles.bio, userprofiles.profilepicture, userprofiles.verificationstatus,
+    (SELECT Password FROM Users WHERE UserID = UserProfiles.UserID) AS Password,
+    (SELECT updated_at FROM Users WHERE UserID = UserProfiles.UserID) AS updated_at
 `
 
 type UpdateUserProfileParams struct {
+	Userid         int32          `json:"userid"`
+	Name           string         `json:"name"`
+	Email          string         `json:"email"`
+	Gender         sql.NullString `json:"gender"`
+	Password       string         `json:"password"`
+	Address        sql.NullString `json:"address"`
+	Phone          sql.NullString `json:"phone"`
+	Bio            sql.NullString `json:"bio"`
+	Profilepicture []byte         `json:"profilepicture"`
+}
+
+type UpdateUserProfileRow struct {
+	Profileid          int32          `json:"profileid"`
 	Userid             int32          `json:"userid"`
 	Name               string         `json:"name"`
 	Userrole           string         `json:"userrole"`
 	Email              string         `json:"email"`
-	Verificationstatus sql.NullBool   `json:"verificationstatus"`
+	Password           string         `json:"password"`
+	Gender             sql.NullString `json:"gender"`
 	Address            sql.NullString `json:"address"`
 	Phone              sql.NullString `json:"phone"`
 	Bio                sql.NullString `json:"bio"`
 	Profilepicture     []byte         `json:"profilepicture"`
-	Gender             sql.NullString `json:"gender"`
+	Verificationstatus sql.NullBool   `json:"verificationstatus"`
+	Password_2         string         `json:"password_2"`
+	UpdatedAt          sql.NullTime   `json:"updated_at"`
 }
 
-func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (Userprofile, error) {
+func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (UpdateUserProfileRow, error) {
 	row := q.db.QueryRowContext(ctx, updateUserProfile,
 		arg.Userid,
 		arg.Name,
-		arg.Userrole,
 		arg.Email,
-		arg.Verificationstatus,
+		arg.Gender,
+		arg.Password,
 		arg.Address,
 		arg.Phone,
 		arg.Bio,
 		arg.Profilepicture,
-		arg.Gender,
 	)
-	var i Userprofile
+	var i UpdateUserProfileRow
 	err := row.Scan(
 		&i.Profileid,
 		&i.Userid,
@@ -144,45 +294,35 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.Bio,
 		&i.Profilepicture,
 		&i.Verificationstatus,
+		&i.Password_2,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
-const updateUserProfileBasicInfo = `-- name: UpdateUserProfileBasicInfo :one
-UPDATE UserProfiles
-SET Name = $2, Email = $3, Gender = $4
+const updateVolunteerProfile = `-- name: UpdateVolunteerProfile :exec
+UPDATE Volunteers
+SET Role = $2, GraduateYear = $3, SafeGuardCertificate = $4, HasInternship = $5, IsEnrolledInUniversity = $6
 WHERE UserID = $1
-RETURNING profileid, userid, name, userrole, email, password, gender, address, phone, bio, profilepicture, verificationstatus
 `
 
-type UpdateUserProfileBasicInfoParams struct {
-	Userid int32          `json:"userid"`
-	Name   string         `json:"name"`
-	Email  string         `json:"email"`
-	Gender sql.NullString `json:"gender"`
+type UpdateVolunteerProfileParams struct {
+	Userid                 int32         `json:"userid"`
+	Role                   string        `json:"role"`
+	Graduateyear           sql.NullInt32 `json:"graduateyear"`
+	Safeguardcertificate   sql.NullBool  `json:"safeguardcertificate"`
+	Hasinternship          sql.NullBool  `json:"hasinternship"`
+	Isenrolledinuniversity sql.NullBool  `json:"isenrolledinuniversity"`
 }
 
-func (q *Queries) UpdateUserProfileBasicInfo(ctx context.Context, arg UpdateUserProfileBasicInfoParams) (Userprofile, error) {
-	row := q.db.QueryRowContext(ctx, updateUserProfileBasicInfo,
+func (q *Queries) UpdateVolunteerProfile(ctx context.Context, arg UpdateVolunteerProfileParams) error {
+	_, err := q.db.ExecContext(ctx, updateVolunteerProfile,
 		arg.Userid,
-		arg.Name,
-		arg.Email,
-		arg.Gender,
+		arg.Role,
+		arg.Graduateyear,
+		arg.Safeguardcertificate,
+		arg.Hasinternship,
+		arg.Isenrolledinuniversity,
 	)
-	var i Userprofile
-	err := row.Scan(
-		&i.Profileid,
-		&i.Userid,
-		&i.Name,
-		&i.Userrole,
-		&i.Email,
-		&i.Password,
-		&i.Gender,
-		&i.Address,
-		&i.Phone,
-		&i.Bio,
-		&i.Profilepicture,
-		&i.Verificationstatus,
-	)
-	return i, err
+	return err
 }
