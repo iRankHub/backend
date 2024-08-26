@@ -385,13 +385,44 @@ func (s *UserManagementService) UpdateUserProfile(ctx context.Context, token str
 
 	queries := models.New(tx)
 
-	// Hash the new password if provided
+	// Fetch current user profile to compare and update only changed fields
+	currentProfile, err := queries.GetUserProfile(ctx, updateParams.Userid)
+	if err != nil {
+		return fmt.Errorf("failed to fetch current user profile: %v", err)
+	}
+
+	// Update only provided fields
+	if updateParams.Name == "" {
+		updateParams.Name = currentProfile.Name
+	}
+	if updateParams.Email == "" {
+		updateParams.Email = currentProfile.Email
+	}
+	if !updateParams.Gender.Valid {
+		updateParams.Gender = currentProfile.Gender
+	}
+	if !updateParams.Address.Valid {
+		updateParams.Address = currentProfile.Address
+	}
+	if !updateParams.Phone.Valid {
+		updateParams.Phone = currentProfile.Phone
+	}
+	if !updateParams.Bio.Valid {
+		updateParams.Bio = currentProfile.Bio
+	}
+	if len(updateParams.Profilepicture) == 0 {
+		updateParams.Profilepicture = currentProfile.Profilepicture
+	}
+
+	// Handle password update
 	if newPassword != "" {
 		hashedPassword, err := utils.HashPassword(newPassword)
 		if err != nil {
 			return fmt.Errorf("failed to hash password: %v", err)
 		}
 		updateParams.Password = hashedPassword
+	} else {
+		updateParams.Password = currentProfile.Password
 	}
 
 	// Update Users and UserProfiles tables

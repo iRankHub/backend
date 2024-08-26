@@ -24,12 +24,24 @@ WHERE u.UserID = $1 AND u.deleted_at IS NULL;
 -- name: UpdateUserProfile :one
 WITH updated_user AS (
     UPDATE Users
-    SET Name = $2, Email = $3, Gender = $4, Password = $5, updated_at = CURRENT_TIMESTAMP
+    SET
+        Name = COALESCE($2, Name),
+        Email = COALESCE($3, Email),
+        Gender = COALESCE($4, Gender),
+        Password = COALESCE($5, Password),
+        updated_at = CURRENT_TIMESTAMP
     WHERE Users.UserID = $1
     RETURNING UserID
 )
 UPDATE UserProfiles
-SET Name = $2, Email = $3, Gender = $4, Address = $6, Phone = $7, Bio = $8, ProfilePicture = $9
+SET
+    Name = COALESCE($2, Name),
+    Email = COALESCE($3, Email),
+    Gender = COALESCE($4, Gender),
+    Address = COALESCE($6, Address),
+    Phone = COALESCE($7, Phone),
+    Bio = COALESCE($8, Bio),
+    ProfilePicture = COALESCE($9, ProfilePicture)
 WHERE UserID = (SELECT UserID FROM updated_user)
 RETURNING
     UserProfiles.*,
