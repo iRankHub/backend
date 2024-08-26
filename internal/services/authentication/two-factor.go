@@ -52,10 +52,14 @@ func (s *TwoFactorService) GenerateTwoFactorOTP(ctx context.Context, email strin
 		return fmt.Errorf("failed to generate OTP: %v", err)
 	}
 
-	err = emails.SendTwoFactorOTPEmail(user.Email, otp)
-	if err != nil {
-		return fmt.Errorf("failed to send OTP email: %v", err)
-	}
+	// Send email in a goroutine to avoid blocking
+	go func() {
+		err := emails.SendTwoFactorOTPEmail(user.Email, otp)
+		if err != nil {
+			// Log the error, but don't return it as the goroutine is running independently
+			fmt.Printf("failed to send OTP email: %v\n", err)
+		}
+	}()
 
 	return nil
 }
@@ -75,6 +79,78 @@ func (s *TwoFactorService) VerifyTwoFactor(ctx context.Context, email, code stri
 	valid := totp.Validate(code, user.TwoFactorSecret.String)
 
 	return valid, nil
+}
+
+func (s *TwoFactorService) EnableTwoFactor(ctx context.Context, userID int32) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %v", err)
+	}
+	defer tx.Rollback()
+
+	queries := models.New(tx)
+
+	user, err := queries.GetUserByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user: %v", err)
+	}
+
+	secret, err := s.GenerateSecret()
+	if err != nil {
+		return fmt.Errorf("failed to generate secret: %v", err)
+	}
+
+	err = queries.UpdateAndEnableTwoFactor(ctx, models.UpdateAndEnableTwoFactorParams{
+		Userid:           userID,
+		TwoFactorSecret:  sql.NullString{String: secret, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to enable two-factor authentication: %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	// Generate OTP and send email in a goroutine
+	go func() {
+		otp, err := s.GenerateOTP(secret)
+		if err != nil {
+			fmt.Printf("failed to generate OTP: %v\n", err)
+			return
+		}
+
+		err = emails.SendTwoFactorOTPEmail(user.Email, otp)
+		if err != nil {
+			fmt.Printf("failed to send OTP email: %v\n", err)
+		}
+	}()
+
+	return nil
+}
+
+func (s *TwoFactorService) DisableTwoFactor(ctx context.Context, userID int32) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %v", err)
+	}
+	defer tx.Rollback()
+
+	queries := models.New(tx)
+
+	err = queries.UpdateAndEnableTwoFactor(ctx, models.UpdateAndEnableTwoFactorParams{
+		Userid:           userID,
+		TwoFactorSecret:  sql.NullString{String: "", Valid: false},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to disable two-factor authentication: %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	return nil
 }
 
 func (s *TwoFactorService) ValidateCode(secret, code string) bool {

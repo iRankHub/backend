@@ -141,6 +141,34 @@ Note: The login process now has two steps when 2FA is enabled:
 1. Initial login attempt with email/ID and password
 2. If 2FA is required, use the `VerifyTwoFactor` endpoint to complete the authentication
 
+### Enable Two-Factor Authentication
+
+Endpoint: `AuthService.EnableTwoFactor`
+
+Description: Enable two-factor authentication for a user account. Requires authentication.
+
+Demo Data:
+```json
+{
+  "userID": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+### Disable Two-Factor Authentication
+
+Endpoint: `AuthService.DisableTwoFactor`
+
+Description: Disable two-factor authentication for a user account. Requires authentication.
+
+Demo Data:
+```json
+{
+  "userID": 1,
+  "token": "your_auth_token_here"
+}
+```
+
 ### Generate Two-Factor Authentication OTP
 
 Endpoint: `AuthService.GenerateTwoFactorOTP`
@@ -151,14 +179,6 @@ Demo Data:
 ```json
 {
   "email": "user@example.com"
-}
-```
-
-Response:
-```json
-{
-  "success": true,
-  "message": "Two-factor authentication OTP sent. Please check your email."
 }
 ```
 
@@ -176,25 +196,17 @@ Demo Data:
 }
 ```
 
-Response:
-```json
-{
-  "success": true,
-  "message": "Two-factor authentication verified successfully."
-}
-```
-
 ## Testing Two-Factor Authentication
 
 To test the two-factor authentication flow:
 
 1. Log in using the `Login` endpoint to obtain an authentication token.
 2. Use the `EnableTwoFactor` endpoint with the obtained token to enable 2FA for the user.
-3. The response will include a secret and a QR code URL. Use an authenticator app to scan the QR code or manually enter the secret.
-4. Generate a 2FA code using the authenticator app.
-5. Use the `VerifyTwoFactor` endpoint with the generated code and the token to verify and complete the 2FA setup.
-6. For subsequent logins, the `Login` endpoint will return `requireTwoFactor: true` if 2FA is enabled.
-7. Provide the 2FA code and the token using the `VerifyTwoFactor` endpoint to complete the login process.
+3. The system will send an email with the initial verification code to the user's email address.
+4. Use the `VerifyTwoFactor` endpoint with the received code to complete the 2FA setup.
+5. For subsequent logins, the `Login` endpoint will return `requireTwoFactor: true` if 2FA is enabled.
+6. Use the `GenerateTwoFactorOTP` endpoint to request a new OTP, which will be sent to the user's email.
+7. Provide the new OTP using the `VerifyTwoFactor` endpoint to complete the login process.
 8. To disable 2FA, use the `DisableTwoFactor` endpoint with a valid authentication token.
 
 ### Request Password Reset

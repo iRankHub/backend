@@ -8,6 +8,8 @@ service AuthService {
   rpc SignUp(SignUpRequest) returns (SignUpResponse) {}
   rpc BatchImportUsers(BatchImportUsersRequest) returns (BatchImportUsersResponse) {}
   rpc Login(LoginRequest) returns (LoginResponse) {}
+  rpc EnableTwoFactor(EnableTwoFactorRequest) returns (EnableTwoFactorResponse) {}
+  rpc DisableTwoFactor(DisableTwoFactorRequest) returns (DisableTwoFactorResponse) {}
   rpc GenerateTwoFactorOTP(GenerateTwoFactorOTPRequest) returns (GenerateTwoFactorOTPResponse) {}
   rpc VerifyTwoFactor(VerifyTwoFactorRequest) returns (LoginResponse) {}
   rpc RequestPasswordReset(PasswordResetRequest) returns (PasswordResetResponse) {}
@@ -101,6 +103,26 @@ message LoginResponse {
   bool require_password_reset = 6;
   string message = 7;
   string status = 8;
+}
+
+message EnableTwoFactorRequest {
+  string token = 1;
+  int32 userID = 2;
+}
+
+message EnableTwoFactorResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message DisableTwoFactorRequest {
+  string token = 1;
+  int32 userID = 2;
+}
+
+message DisableTwoFactorResponse {
+  bool success = 1;
+  string message = 2;
 }
 
 message GenerateTwoFactorOTPRequest {

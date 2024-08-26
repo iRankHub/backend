@@ -152,6 +152,52 @@ func (s *authServer) Logout(ctx context.Context, req *authentication.LogoutReque
 	}, nil
 }
 
+func (s *authServer) EnableTwoFactor(ctx context.Context, req *authentication.EnableTwoFactorRequest) (*authentication.EnableTwoFactorResponse, error) {
+	// Validate the token
+	claims, err := utils.ValidateToken(req.Token)
+	if err != nil {
+		return nil, fmt.Errorf("invalid token: %v", err)
+	}
+
+	userID := int32(claims["user_id"].(float64))
+	if userID != req.UserID {
+		return nil, fmt.Errorf("unauthorized: token does not match user ID")
+	}
+
+	err = s.twoFactorService.EnableTwoFactor(ctx, req.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to enable two-factor authentication: %v", err)
+	}
+
+	return &authentication.EnableTwoFactorResponse{
+		Success: true,
+		Message: "Two-factor authentication has been enabled. Please check your email for the verification code.",
+	}, nil
+}
+
+func (s *authServer) DisableTwoFactor(ctx context.Context, req *authentication.DisableTwoFactorRequest) (*authentication.DisableTwoFactorResponse, error) {
+	// Validate the token
+	claims, err := utils.ValidateToken(req.Token)
+	if err != nil {
+		return nil, fmt.Errorf("invalid token: %v", err)
+	}
+
+	userID := int32(claims["user_id"].(float64))
+	if userID != req.UserID {
+		return nil, fmt.Errorf("unauthorized: token does not match user ID")
+	}
+
+	err = s.twoFactorService.DisableTwoFactor(ctx, req.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to disable two-factor authentication: %v", err)
+	}
+
+	return &authentication.DisableTwoFactorResponse{
+		Success: true,
+		Message: "Two-factor authentication has been disabled for your account.",
+	}, nil
+}
+
 func (s *authServer) GenerateTwoFactorOTP(ctx context.Context, req *authentication.GenerateTwoFactorOTPRequest) (*authentication.GenerateTwoFactorOTPResponse, error) {
 	err := s.twoFactorService.GenerateTwoFactorOTP(ctx, req.Email)
 	if err != nil {
