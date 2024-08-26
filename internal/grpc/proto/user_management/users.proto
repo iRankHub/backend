@@ -81,7 +81,6 @@ message StudentDetails {
   string grade = 1;
   string dateOfBirth = 2;
   int32 schoolID = 3;
-  string schoolName = 4;
 }
 
 message SchoolDetails {
