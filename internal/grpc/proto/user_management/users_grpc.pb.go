@@ -20,12 +20,12 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	UserManagementService_GetPendingUsers_FullMethodName        = "/user_management.UserManagementService/GetPendingUsers"
-	UserManagementService_GetUserDetails_FullMethodName         = "/user_management.UserManagementService/GetUserDetails"
 	UserManagementService_ApproveUser_FullMethodName            = "/user_management.UserManagementService/ApproveUser"
 	UserManagementService_RejectUser_FullMethodName             = "/user_management.UserManagementService/RejectUser"
 	UserManagementService_ApproveUsers_FullMethodName           = "/user_management.UserManagementService/ApproveUsers"
 	UserManagementService_RejectUsers_FullMethodName            = "/user_management.UserManagementService/RejectUsers"
 	UserManagementService_DeleteUsers_FullMethodName            = "/user_management.UserManagementService/DeleteUsers"
+	UserManagementService_GetUserProfile_FullMethodName         = "/user_management.UserManagementService/GetUserProfile"
 	UserManagementService_UpdateUserProfile_FullMethodName      = "/user_management.UserManagementService/UpdateUserProfile"
 	UserManagementService_DeleteUserProfile_FullMethodName      = "/user_management.UserManagementService/DeleteUserProfile"
 	UserManagementService_DeactivateAccount_FullMethodName      = "/user_management.UserManagementService/DeactivateAccount"
@@ -45,12 +45,12 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type UserManagementServiceClient interface {
 	GetPendingUsers(ctx context.Context, in *GetPendingUsersRequest, opts ...grpc.CallOption) (*GetPendingUsersResponse, error)
-	GetUserDetails(ctx context.Context, in *GetUserDetailsRequest, opts ...grpc.CallOption) (*GetUserDetailsResponse, error)
 	ApproveUser(ctx context.Context, in *ApproveUserRequest, opts ...grpc.CallOption) (*ApproveUserResponse, error)
 	RejectUser(ctx context.Context, in *RejectUserRequest, opts ...grpc.CallOption) (*RejectUserResponse, error)
 	ApproveUsers(ctx context.Context, in *ApproveUsersRequest, opts ...grpc.CallOption) (*ApproveUsersResponse, error)
 	RejectUsers(ctx context.Context, in *RejectUsersRequest, opts ...grpc.CallOption) (*RejectUsersResponse, error)
 	DeleteUsers(ctx context.Context, in *DeleteUsersRequest, opts ...grpc.CallOption) (*DeleteUsersResponse, error)
+	GetUserProfile(ctx context.Context, in *GetUserProfileRequest, opts ...grpc.CallOption) (*GetUserProfileResponse, error)
 	UpdateUserProfile(ctx context.Context, in *UpdateUserProfileRequest, opts ...grpc.CallOption) (*UpdateUserProfileResponse, error)
 	DeleteUserProfile(ctx context.Context, in *DeleteUserProfileRequest, opts ...grpc.CallOption) (*DeleteUserProfileResponse, error)
 	DeactivateAccount(ctx context.Context, in *DeactivateAccountRequest, opts ...grpc.CallOption) (*DeactivateAccountResponse, error)
@@ -77,16 +77,6 @@ func (c *userManagementServiceClient) GetPendingUsers(ctx context.Context, in *G
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetPendingUsersResponse)
 	err := c.cc.Invoke(ctx, UserManagementService_GetPendingUsers_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *userManagementServiceClient) GetUserDetails(ctx context.Context, in *GetUserDetailsRequest, opts ...grpc.CallOption) (*GetUserDetailsResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetUserDetailsResponse)
-	err := c.cc.Invoke(ctx, UserManagementService_GetUserDetails_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -137,6 +127,16 @@ func (c *userManagementServiceClient) DeleteUsers(ctx context.Context, in *Delet
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(DeleteUsersResponse)
 	err := c.cc.Invoke(ctx, UserManagementService_DeleteUsers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userManagementServiceClient) GetUserProfile(ctx context.Context, in *GetUserProfileRequest, opts ...grpc.CallOption) (*GetUserProfileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetUserProfileResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_GetUserProfile_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -268,12 +268,12 @@ func (c *userManagementServiceClient) GetSchoolsNoAuth(ctx context.Context, in *
 // for forward compatibility.
 type UserManagementServiceServer interface {
 	GetPendingUsers(context.Context, *GetPendingUsersRequest) (*GetPendingUsersResponse, error)
-	GetUserDetails(context.Context, *GetUserDetailsRequest) (*GetUserDetailsResponse, error)
 	ApproveUser(context.Context, *ApproveUserRequest) (*ApproveUserResponse, error)
 	RejectUser(context.Context, *RejectUserRequest) (*RejectUserResponse, error)
 	ApproveUsers(context.Context, *ApproveUsersRequest) (*ApproveUsersResponse, error)
 	RejectUsers(context.Context, *RejectUsersRequest) (*RejectUsersResponse, error)
 	DeleteUsers(context.Context, *DeleteUsersRequest) (*DeleteUsersResponse, error)
+	GetUserProfile(context.Context, *GetUserProfileRequest) (*GetUserProfileResponse, error)
 	UpdateUserProfile(context.Context, *UpdateUserProfileRequest) (*UpdateUserProfileResponse, error)
 	DeleteUserProfile(context.Context, *DeleteUserProfileRequest) (*DeleteUserProfileResponse, error)
 	DeactivateAccount(context.Context, *DeactivateAccountRequest) (*DeactivateAccountResponse, error)
@@ -299,9 +299,6 @@ type UnimplementedUserManagementServiceServer struct{}
 func (UnimplementedUserManagementServiceServer) GetPendingUsers(context.Context, *GetPendingUsersRequest) (*GetPendingUsersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPendingUsers not implemented")
 }
-func (UnimplementedUserManagementServiceServer) GetUserDetails(context.Context, *GetUserDetailsRequest) (*GetUserDetailsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetUserDetails not implemented")
-}
 func (UnimplementedUserManagementServiceServer) ApproveUser(context.Context, *ApproveUserRequest) (*ApproveUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ApproveUser not implemented")
 }
@@ -316,6 +313,9 @@ func (UnimplementedUserManagementServiceServer) RejectUsers(context.Context, *Re
 }
 func (UnimplementedUserManagementServiceServer) DeleteUsers(context.Context, *DeleteUsersRequest) (*DeleteUsersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteUsers not implemented")
+}
+func (UnimplementedUserManagementServiceServer) GetUserProfile(context.Context, *GetUserProfileRequest) (*GetUserProfileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetUserProfile not implemented")
 }
 func (UnimplementedUserManagementServiceServer) UpdateUserProfile(context.Context, *UpdateUserProfileRequest) (*UpdateUserProfileResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateUserProfile not implemented")
@@ -388,24 +388,6 @@ func _UserManagementService_GetPendingUsers_Handler(srv interface{}, ctx context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(UserManagementServiceServer).GetPendingUsers(ctx, req.(*GetPendingUsersRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _UserManagementService_GetUserDetails_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetUserDetailsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(UserManagementServiceServer).GetUserDetails(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: UserManagementService_GetUserDetails_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserManagementServiceServer).GetUserDetails(ctx, req.(*GetUserDetailsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -496,6 +478,24 @@ func _UserManagementService_DeleteUsers_Handler(srv interface{}, ctx context.Con
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(UserManagementServiceServer).DeleteUsers(ctx, req.(*DeleteUsersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserManagementService_GetUserProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserProfileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).GetUserProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_GetUserProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).GetUserProfile(ctx, req.(*GetUserProfileRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -728,10 +728,6 @@ var UserManagementService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _UserManagementService_GetPendingUsers_Handler,
 		},
 		{
-			MethodName: "GetUserDetails",
-			Handler:    _UserManagementService_GetUserDetails_Handler,
-		},
-		{
 			MethodName: "ApproveUser",
 			Handler:    _UserManagementService_ApproveUser_Handler,
 		},
@@ -750,6 +746,10 @@ var UserManagementService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteUsers",
 			Handler:    _UserManagementService_DeleteUsers_Handler,
+		},
+		{
+			MethodName: "GetUserProfile",
+			Handler:    _UserManagementService_GetUserProfile_Handler,
 		},
 		{
 			MethodName: "UpdateUserProfile",

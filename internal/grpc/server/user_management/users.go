@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/user_management"
+	"github.com/iRankHub/backend/internal/models"
 	services "github.com/iRankHub/backend/internal/services/user_management"
 )
 
@@ -59,38 +61,6 @@ func (s *userManagementServer) GetPendingUsers(ctx context.Context, req *user_ma
 
 	return &user_management.GetPendingUsersResponse{
 		Users: userSummaries,
-	}, nil
-}
-
-func (s *userManagementServer) GetUserDetails(ctx context.Context, req *user_management.GetUserDetailsRequest) (*user_management.GetUserDetailsResponse, error) {
-	user, profile, err := s.userManagementService.GetUserDetails(ctx, req.Token, req.UserID)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to get user details: %v", err)
-	}
-
-	signUpDate := ""
-	if user.CreatedAt.Valid {
-		signUpDate = user.CreatedAt.Time.Format("2006-01-02 15:04:05")
-	}
-
-	userDetails := &user_management.UserDetails{
-		UserID:     user.Userid,
-		Name:       user.Name,
-		Email:      user.Email,
-		UserRole:   user.Userrole,
-		SignUpDate: signUpDate,
-		Gender:     user.Gender.String,
-		Profile: &user_management.UserProfile{
-			Address:        profile.Address.String,
-			Phone:          profile.Phone.String,
-			Bio:            profile.Bio.String,
-			ProfilePicture: profile.Profilepicture,
-			Gender:         profile.Gender.String,
-		},
-	}
-
-	return &user_management.GetUserDetailsResponse{
-		User: userDetails,
 	}, nil
 }
 
@@ -204,8 +174,65 @@ func (s *userManagementServer) GetAllUsers(ctx context.Context, req *user_manage
 	}, nil
 }
 
+func (s *userManagementServer) GetUserProfile(ctx context.Context, req *user_management.GetUserProfileRequest) (*user_management.GetUserProfileResponse, error) {
+	profile, err := s.userManagementService.GetUserProfile(ctx, req.Token, req.UserID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get user profile: %v", err)
+	}
+
+	return &user_management.GetUserProfileResponse{
+		Profile: convertModelProfileToProto(profile),
+	}, nil
+}
+
 func (s *userManagementServer) UpdateUserProfile(ctx context.Context, req *user_management.UpdateUserProfileRequest) (*user_management.UpdateUserProfileResponse, error) {
-	err := s.userManagementService.UpdateUserProfile(ctx, req.Token, req.UserID, req.Name, req.Email, req.Address, req.Phone, req.Bio, req.ProfilePicture, req.Gender)
+	updateParams := &models.UpdateUserProfileParams{
+		Userid:         req.UserID,
+		Name:           req.Name,
+		Email:          req.Email,
+		Gender:         sql.NullString{String: req.Gender, Valid: req.Gender != ""},
+		Address:        sql.NullString{String: req.Address, Valid: req.Address != ""},
+		Phone:          sql.NullString{String: req.Phone, Valid: req.Phone != ""},
+		Bio:            sql.NullString{String: req.Bio, Valid: req.Bio != ""},
+		Profilepicture: req.ProfilePicture,
+	}
+
+	var studentParams *models.UpdateStudentProfileParams
+	var schoolParams *models.UpdateSchoolProfileParams
+	var volunteerParams *models.UpdateVolunteerProfileParams
+
+	// Handle role-specific details
+	switch details := req.RoleSpecificDetails.(type) {
+	case *user_management.UpdateUserProfileRequest_StudentDetails:
+		dateOfBirth, _ := time.Parse("2006-01-02", details.StudentDetails.DateOfBirth)
+		studentParams = &models.UpdateStudentProfileParams{
+			Userid:      req.UserID,
+			Grade:       details.StudentDetails.Grade,
+			Dateofbirth: sql.NullTime{Time: dateOfBirth, Valid: true},
+			Schoolid:    details.StudentDetails.SchoolID,
+		}
+	case *user_management.UpdateUserProfileRequest_SchoolDetails:
+		schoolParams = &models.UpdateSchoolProfileParams{
+			Contactpersonid: req.UserID,
+			Schoolname:      details.SchoolDetails.SchoolName,
+			Address:         details.SchoolDetails.Address,
+			Country:         sql.NullString{String: details.SchoolDetails.Country, Valid: true},
+			Province:        sql.NullString{String: details.SchoolDetails.Province, Valid: true},
+			District:        sql.NullString{String: details.SchoolDetails.District, Valid: true},
+			Schooltype:      details.SchoolDetails.SchoolType,
+		}
+	case *user_management.UpdateUserProfileRequest_VolunteerDetails:
+		volunteerParams = &models.UpdateVolunteerProfileParams{
+			Userid:                 req.UserID,
+			Role:                   details.VolunteerDetails.Role,
+			Graduateyear:           sql.NullInt32{Int32: details.VolunteerDetails.GraduateYear, Valid: true},
+			Safeguardcertificate:   sql.NullBool{Bool: details.VolunteerDetails.SafeGuardCertificate, Valid: true},
+			Hasinternship:          sql.NullBool{Bool: details.VolunteerDetails.HasInternship, Valid: true},
+			Isenrolledinuniversity: sql.NullBool{Bool: details.VolunteerDetails.IsEnrolledInUniversity, Valid: true},
+		}
+	}
+
+	err := s.userManagementService.UpdateUserProfile(ctx, req.Token, updateParams, studentParams, schoolParams, volunteerParams, req.Password)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to update user profile: %v", err)
 	}
@@ -227,7 +254,6 @@ func (s *userManagementServer) DeleteUserProfile(ctx context.Context, req *user_
 		Message: "User profile deleted successfully",
 	}, nil
 }
-
 func (s *userManagementServer) DeactivateAccount(ctx context.Context, req *user_management.DeactivateAccountRequest) (*user_management.DeactivateAccountResponse, error) {
 	err := s.userManagementService.DeactivateAccount(ctx, req.Token, req.UserID)
 	if err != nil {
@@ -425,4 +451,56 @@ func (s *userManagementServer) GetSchoolsNoAuth(ctx context.Context, req *user_m
 		Schools:    protoSchools,
 		TotalCount: totalCount,
 	}, nil
+}
+func convertModelProfileToProto(profile *models.GetUserProfileRow) *user_management.UserProfile {
+	protoProfile := &user_management.UserProfile{
+		UserID:               profile.Userid,
+		Name:                 profile.Name,
+		Email:                profile.Email,
+		UserRole:             profile.Userrole,
+		Gender:               profile.Gender.String,
+		Address:              profile.Address.String,
+		Phone:                profile.Phone.String,
+		Bio:                  profile.Bio.String,
+		ProfilePicture:       profile.Profilepicture,
+		VerificationStatus:   profile.Verificationstatus.Bool,
+		SignUpDate:           profile.Signupdate.Time.Format("2006-01-02 15:04:05"),
+		TwoFactorEnabled:     profile.TwoFactorEnabled.Bool,
+		BiometricAuthEnabled: profile.BiometricAuthEnabled,
+	}
+
+	switch profile.Userrole {
+	case "student":
+		protoProfile.RoleSpecificDetails = &user_management.UserProfile_StudentDetails{
+			StudentDetails: &user_management.StudentDetails{
+				Grade:       profile.Grade.String,
+				DateOfBirth: profile.Dateofbirth.Time.Format("2006-01-02"),
+				SchoolID:    profile.Schoolid.Int32,
+				SchoolName:  profile.Schoolname.String,
+			},
+		}
+	case "school":
+		protoProfile.RoleSpecificDetails = &user_management.UserProfile_SchoolDetails{
+			SchoolDetails: &user_management.SchoolDetails{
+				SchoolName: profile.Schoolname.String,
+				Address:    profile.Schooladdress.String,
+				Country:    profile.Country.String,
+				Province:   profile.Province.String,
+				District:   profile.District.String,
+				SchoolType: profile.Schooltype.String,
+			},
+		}
+	case "volunteer":
+		protoProfile.RoleSpecificDetails = &user_management.UserProfile_VolunteerDetails{
+			VolunteerDetails: &user_management.VolunteerDetails{
+				Role:                   profile.Volunteerrole.String,
+				GraduateYear:           profile.Graduateyear.Int32,
+				SafeGuardCertificate:   profile.Safeguardcertificate.Bool,
+				HasInternship:          profile.Hasinternship.Bool,
+				IsEnrolledInUniversity: profile.Isenrolledinuniversity.Bool,
+			},
+		}
+	}
+
+	return protoProfile
 }
