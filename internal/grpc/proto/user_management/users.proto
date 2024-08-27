@@ -172,13 +172,11 @@ message UpdateUserProfileRequest {
   string phone = 7;
   string bio = 8;
   bytes profilePicture = 9;
-  bool twoFactorEnabled = 10;
-  string password = 11;
 
   oneof role_specific_details {
-    StudentDetails studentDetails = 12;
-    SchoolDetails schoolDetails = 13;
-    VolunteerDetails volunteerDetails = 14;
+    StudentDetails studentDetails = 10;
+    SchoolDetails schoolDetails = 11;
+    VolunteerDetails volunteerDetails = 12;
   }
 }
 
@@ -186,6 +184,7 @@ message UpdateUserProfileResponse {
   bool success = 1;
   string message = 2;
 }
+
 
 message DeleteUserProfileRequest {
   string token = 1;

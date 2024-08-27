@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -186,61 +185,15 @@ func (s *userManagementServer) GetUserProfile(ctx context.Context, req *user_man
 }
 
 func (s *userManagementServer) UpdateUserProfile(ctx context.Context, req *user_management.UpdateUserProfileRequest) (*user_management.UpdateUserProfileResponse, error) {
-	updateParams := &models.UpdateUserProfileParams{
-		Userid:         req.UserID,
-		Name:           req.Name,
-		Email:          req.Email,
-		Gender:         sql.NullString{String: req.Gender, Valid: req.Gender != ""},
-		Address:        sql.NullString{String: req.Address, Valid: req.Address != ""},
-		Phone:          sql.NullString{String: req.Phone, Valid: req.Phone != ""},
-		Bio:            sql.NullString{String: req.Bio, Valid: req.Bio != ""},
-		Profilepicture: req.ProfilePicture,
-	}
+    err := s.userManagementService.UpdateUserProfile(ctx, req.Token, req)
+    if err != nil {
+        return nil, status.Errorf(codes.Internal, "Failed to update user profile: %v", err)
+    }
 
-	var studentParams *models.UpdateStudentProfileParams
-	var schoolParams *models.UpdateSchoolProfileParams
-	var volunteerParams *models.UpdateVolunteerProfileParams
-
-	// Handle role-specific details
-	switch details := req.RoleSpecificDetails.(type) {
-	case *user_management.UpdateUserProfileRequest_StudentDetails:
-		dateOfBirth, _ := time.Parse("2006-01-02", details.StudentDetails.DateOfBirth)
-		studentParams = &models.UpdateStudentProfileParams{
-			Userid:      req.UserID,
-			Grade:       details.StudentDetails.Grade,
-			Dateofbirth: sql.NullTime{Time: dateOfBirth, Valid: true},
-			Schoolid:    details.StudentDetails.SchoolID,
-		}
-	case *user_management.UpdateUserProfileRequest_SchoolDetails:
-		schoolParams = &models.UpdateSchoolProfileParams{
-			Contactpersonid: req.UserID,
-			Schoolname:      details.SchoolDetails.SchoolName,
-			Address:         details.SchoolDetails.Address,
-			Country:         sql.NullString{String: details.SchoolDetails.Country, Valid: true},
-			Province:        sql.NullString{String: details.SchoolDetails.Province, Valid: true},
-			District:        sql.NullString{String: details.SchoolDetails.District, Valid: true},
-			Schooltype:      details.SchoolDetails.SchoolType,
-		}
-	case *user_management.UpdateUserProfileRequest_VolunteerDetails:
-		volunteerParams = &models.UpdateVolunteerProfileParams{
-			Userid:                 req.UserID,
-			Role:                   details.VolunteerDetails.Role,
-			Graduateyear:           sql.NullInt32{Int32: details.VolunteerDetails.GraduateYear, Valid: true},
-			Safeguardcertificate:   sql.NullBool{Bool: details.VolunteerDetails.SafeGuardCertificate, Valid: true},
-			Hasinternship:          sql.NullBool{Bool: details.VolunteerDetails.HasInternship, Valid: true},
-			Isenrolledinuniversity: sql.NullBool{Bool: details.VolunteerDetails.IsEnrolledInUniversity, Valid: true},
-		}
-	}
-
-	err := s.userManagementService.UpdateUserProfile(ctx, req.Token, updateParams, studentParams, schoolParams, volunteerParams, req.Password)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to update user profile: %v", err)
-	}
-
-	return &user_management.UpdateUserProfileResponse{
-		Success: true,
-		Message: "User profile updated successfully",
-	}, nil
+    return &user_management.UpdateUserProfileResponse{
+        Success: true,
+        Message: "User profile updated successfully",
+    }, nil
 }
 
 func (s *userManagementServer) DeleteUserProfile(ctx context.Context, req *user_management.DeleteUserProfileRequest) (*user_management.DeleteUserProfileResponse, error) {
