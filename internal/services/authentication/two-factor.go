@@ -32,7 +32,11 @@ func (s *TwoFactorService) GenerateSecret() (string, error) {
 }
 
 func (s *TwoFactorService) GenerateOTP(secret string) (string, error) {
-	return totp.GenerateCode(secret, time.Now().Add(15*time.Minute))
+	return totp.GenerateCodeCustom(secret, time.Now(), totp.ValidateOpts{
+		Period:    900, // 15 minutes in seconds
+		Skew:      1,   // Allow 1 period before and after
+		Digits:    6,
+	})
 }
 
 func (s *TwoFactorService) GenerateTwoFactorOTP(ctx context.Context, email string) error {
@@ -52,11 +56,9 @@ func (s *TwoFactorService) GenerateTwoFactorOTP(ctx context.Context, email strin
 		return fmt.Errorf("failed to generate OTP: %v", err)
 	}
 
-	// Send email in a goroutine to avoid blocking
 	go func() {
 		err := emails.SendTwoFactorOTPEmail(user.Email, otp)
 		if err != nil {
-			// Log the error, but don't return it as the goroutine is running independently
 			fmt.Printf("failed to send OTP email: %v\n", err)
 		}
 	}()
@@ -76,7 +78,15 @@ func (s *TwoFactorService) VerifyTwoFactor(ctx context.Context, email, code stri
 		return false, fmt.Errorf("two-factor authentication not enabled for this user")
 	}
 
-	valid := totp.Validate(code, user.TwoFactorSecret.String)
+	valid, err := totp.ValidateCustom(code, user.TwoFactorSecret.String, time.Now(), totp.ValidateOpts{
+		Period:    900, // 15 minutes in seconds
+		Skew:      1,   // Allow 1 period before and after
+		Digits:    6,
+	})
+
+	if err != nil {
+		return false, fmt.Errorf("error validating OTP: %v", err)
+	}
 
 	return valid, nil
 }
@@ -112,11 +122,9 @@ func (s *TwoFactorService) EnableTwoFactor(ctx context.Context, userID int32) er
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	// Generate OTP and send email in a goroutine
 	go func() {
 		otp, err := s.GenerateOTP(secret)
 		if err != nil {
-			fmt.Printf("failed to generate OTP: %v\n", err)
 			return
 		}
 
@@ -153,6 +161,10 @@ func (s *TwoFactorService) DisableTwoFactor(ctx context.Context, userID int32) e
 	return nil
 }
 
-func (s *TwoFactorService) ValidateCode(secret, code string) bool {
-	return totp.Validate(code, secret)
+func (s *TwoFactorService) ValidateCode(secret, code string) (bool, error) {
+	return totp.ValidateCustom(code, secret, time.Now(), totp.ValidateOpts{
+		Period:    900, // 15 minutes in seconds
+		Skew:      1,   // Allow 1 period before and after
+		Digits:    6,
+	})
 }

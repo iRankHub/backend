@@ -21,46 +21,54 @@ LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
 LEFT JOIN Volunteers v ON u.UserID = v.UserID
 WHERE u.UserID = $1 AND u.deleted_at IS NULL;
 
--- name: UpdateUserProfile :one
-WITH updated_user AS (
-    UPDATE Users
-    SET
-        Name = COALESCE($2, Name),
-        Email = COALESCE($3, Email),
-        Gender = COALESCE($4, Gender),
-        Password = COALESCE($5, Password),
-        updated_at = CURRENT_TIMESTAMP
-    WHERE Users.UserID = $1
-    RETURNING UserID
-)
+-- name: UpdateUserBasicInfo :exec
+UPDATE Users
+SET
+    Name = COALESCE($2, Name),
+    Email = COALESCE($3, Email),
+    Gender = COALESCE($4, Gender),
+    updated_at = CURRENT_TIMESTAMP
+WHERE UserID = $1;
+
+-- name: UpdateUserProfile :exec
 UPDATE UserProfiles
 SET
     Name = COALESCE($2, Name),
     Email = COALESCE($3, Email),
     Gender = COALESCE($4, Gender),
-    Address = COALESCE($6, Address),
-    Phone = COALESCE($7, Phone),
-    Bio = COALESCE($8, Bio),
-    ProfilePicture = COALESCE($9, ProfilePicture)
-WHERE UserID = (SELECT UserID FROM updated_user)
-RETURNING
-    UserProfiles.*,
-    (SELECT Password FROM Users WHERE UserID = UserProfiles.UserID) AS Password,
-    (SELECT updated_at FROM Users WHERE UserID = UserProfiles.UserID) AS updated_at;
+    Address = COALESCE($5, Address),
+    Phone = COALESCE($6, Phone),
+    Bio = COALESCE($7, Bio),
+    ProfilePicture = COALESCE($8, ProfilePicture)
+WHERE UserID = $1;
 
 -- name: UpdateStudentProfile :exec
 UPDATE Students
-SET Grade = $2, DateOfBirth = $3, SchoolID = $4
+SET
+    Grade = COALESCE($2, Grade),
+    DateOfBirth = COALESCE($3, DateOfBirth),
+    SchoolID = COALESCE($4, SchoolID)
 WHERE UserID = $1;
 
 -- name: UpdateSchoolProfile :exec
 UPDATE Schools
-SET SchoolName = $2, Address = $3, Country = $4, Province = $5, District = $6, SchoolType = $7
+SET
+    SchoolName = COALESCE($2, SchoolName),
+    Address = COALESCE($3, Address),
+    Country = COALESCE($4, Country),
+    Province = COALESCE($5, Province),
+    District = COALESCE($6, District),
+    SchoolType = COALESCE($7, SchoolType)
 WHERE ContactPersonID = $1;
 
 -- name: UpdateVolunteerProfile :exec
 UPDATE Volunteers
-SET Role = $2, GraduateYear = $3, SafeGuardCertificate = $4, HasInternship = $5, IsEnrolledInUniversity = $6
+SET
+    Role = COALESCE($2, Role),
+    GraduateYear = COALESCE($3, GraduateYear),
+    SafeGuardCertificate = COALESCE($4, SafeGuardCertificate),
+    HasInternship = COALESCE($5, HasInternship),
+    IsEnrolledInUniversity = COALESCE($6, IsEnrolledInUniversity)
 WHERE UserID = $1;
 
 -- name: SoftDeleteUserProfile :exec
