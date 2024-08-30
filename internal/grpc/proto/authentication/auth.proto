@@ -44,11 +44,12 @@ message UserData {
   string contactEmail = 13;
   int32 graduationYear = 14;
   string roleInterestedIn = 15;
-  bool safeguardingCertificate = 16;
-  string grade = 17;
-  bool hasInternship = 18;
-  bool isEnrolledInUniversity = 19;
-  string gender = 20;
+  string nationalID = 16;
+  bytes safeguardingCertificate = 17;
+  string grade = 18;
+  bool hasInternship = 19;
+  bool isEnrolledInUniversity = 20;
+  string gender = 21;
 }
 
 message BatchImportUsersResponse {
@@ -79,11 +80,11 @@ message SignUpRequest {
   string schoolAttended = 18;
   int32 graduationYear = 19;
   string roleInterestedIn = 20;
-  bool safeguardingCertificate = 21;
-  string grade = 22;
-  bool hasInternship = 23;
-  bool isEnrolledInUniversity = 24;
-  string gender = 25;
+  string grade = 21;
+  bool hasInternship = 22;
+  bool isEnrolledInUniversity = 23;
+  string gender = 24;
+  bytes safeguardingCertificate = 25;
 }
 
 message SignUpResponse {

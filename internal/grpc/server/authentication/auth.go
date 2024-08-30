@@ -70,13 +70,12 @@ func (s *authServer) SignUp(ctx context.Context, req *authentication.SignUpReque
 		"schoolType":              req.SchoolType,
 		"roleInterestedIn":        req.RoleInterestedIn,
 		"graduationYear":          req.GraduationYear,
-		"safeguardingCertificate": req.SafeguardingCertificate,
 		"grade":                   req.Grade,
 		"hasInternship":           req.HasInternship,
 		"isEnrolledInUniversity":  req.IsEnrolledInUniversity,
 	}
 
-	err := s.signUpService.SignUp(ctx, req.FirstName, req.LastName, req.Email, req.Password, req.UserRole, req.Gender, additionalInfo)
+	err := s.signUpService.SignUp(ctx, req.FirstName, req.LastName, req.Email, req.Password, req.UserRole, req.Gender, req.NationalID, req.SafeguardingCertificate, additionalInfo)
 	if err != nil {
 		return nil, err
 	}

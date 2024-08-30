@@ -28,40 +28,7 @@ func (q *Queries) GetTeam(ctx context.Context, teamid int32) (Team, error) {
 	err := row.Scan(
 		&i.Teamid,
 		&i.Name,
-		&i.Schoolid,
 		&i.Tournamentid,
 	)
 	return i, err
-}
-
-const getTeams = `-- name: GetTeams :many
-SELECT teamid, name, schoolid, tournamentid FROM Teams
-`
-
-func (q *Queries) GetTeams(ctx context.Context) ([]Team, error) {
-	rows, err := q.db.QueryContext(ctx, getTeams)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Team{}
-	for rows.Next() {
-		var i Team
-		if err := rows.Scan(
-			&i.Teamid,
-			&i.Name,
-			&i.Schoolid,
-			&i.Tournamentid,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }

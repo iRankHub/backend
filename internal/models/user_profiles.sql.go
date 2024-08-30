@@ -106,7 +106,7 @@ type GetUserProfileRow struct {
 	Schooltype             sql.NullString `json:"schooltype"`
 	Volunteerrole          sql.NullString `json:"volunteerrole"`
 	Graduateyear           sql.NullInt32  `json:"graduateyear"`
-	Safeguardcertificate   sql.NullBool   `json:"safeguardcertificate"`
+	Safeguardcertificate   []byte         `json:"safeguardcertificate"`
 	Hasinternship          sql.NullBool   `json:"hasinternship"`
 	Isenrolledinuniversity sql.NullBool   `json:"isenrolledinuniversity"`
 	BiometricAuthEnabled   bool           `json:"biometric_auth_enabled"`
@@ -300,7 +300,7 @@ type UpdateVolunteerProfileParams struct {
 	Userid                 int32         `json:"userid"`
 	Role                   string        `json:"role"`
 	Graduateyear           sql.NullInt32 `json:"graduateyear"`
-	Safeguardcertificate   sql.NullBool  `json:"safeguardcertificate"`
+	Safeguardcertificate   []byte        `json:"safeguardcertificate"`
 	Hasinternship          sql.NullBool  `json:"hasinternship"`
 	Isenrolledinuniversity sql.NullBool  `json:"isenrolledinuniversity"`
 }

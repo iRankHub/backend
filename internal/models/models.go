@@ -159,17 +159,18 @@ type Schedule struct {
 }
 
 type School struct {
-	Schoolid        int32          `json:"schoolid"`
-	Idebateschoolid sql.NullString `json:"idebateschoolid"`
-	Schoolname      string         `json:"schoolname"`
-	Address         string         `json:"address"`
-	Country         sql.NullString `json:"country"`
-	Province        sql.NullString `json:"province"`
-	District        sql.NullString `json:"district"`
-	Contactpersonid int32          `json:"contactpersonid"`
-	Contactemail    string         `json:"contactemail"`
-	Schoolemail     string         `json:"schoolemail"`
-	Schooltype      string         `json:"schooltype"`
+	Schoolid                int32          `json:"schoolid"`
+	Idebateschoolid         sql.NullString `json:"idebateschoolid"`
+	Schoolname              string         `json:"schoolname"`
+	Address                 string         `json:"address"`
+	Country                 sql.NullString `json:"country"`
+	Province                sql.NullString `json:"province"`
+	District                sql.NullString `json:"district"`
+	Contactpersonid         int32          `json:"contactpersonid"`
+	Contactpersonnationalid sql.NullString `json:"contactpersonnationalid"`
+	Contactemail            string         `json:"contactemail"`
+	Schoolemail             string         `json:"schoolemail"`
+	Schooltype              string         `json:"schooltype"`
 }
 
 type Speakerscore struct {
@@ -213,11 +214,9 @@ type Studenttransfer struct {
 }
 
 type Team struct {
-	Teamid       int32         `json:"teamid"`
-	Name         string        `json:"name"`
-	Schoolid     int32         `json:"schoolid"`
-	Invitationid sql.NullInt32 `json:"invitationid"`
-	Tournamentid int32         `json:"tournamentid"`
+	Teamid       int32  `json:"teamid"`
+	Name         string `json:"name"`
+	Tournamentid int32  `json:"tournamentid"`
 }
 
 type Teammember struct {
@@ -309,10 +308,11 @@ type Volunteer struct {
 	Lastname               string         `json:"lastname"`
 	Gender                 sql.NullString `json:"gender"`
 	Dateofbirth            sql.NullTime   `json:"dateofbirth"`
+	Nationalid             sql.NullString `json:"nationalid"`
 	Role                   string         `json:"role"`
 	Graduateyear           sql.NullInt32  `json:"graduateyear"`
 	Password               string         `json:"password"`
-	Safeguardcertificate   sql.NullBool   `json:"safeguardcertificate"`
+	Safeguardcertificate   []byte         `json:"safeguardcertificate"`
 	Hasinternship          sql.NullBool   `json:"hasinternship"`
 	Isenrolledinuniversity sql.NullBool   `json:"isenrolledinuniversity"`
 	Userid                 int32          `json:"userid"`

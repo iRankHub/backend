@@ -95,7 +95,7 @@ message SchoolDetails {
 message VolunteerDetails {
   string role = 1;
   int32 graduateYear = 2;
-  bool safeGuardCertificate = 3;
+  bytes safeGuardCertificate = 3;
   bool hasInternship = 4;
   bool isEnrolledInUniversity = 5;
 }
@@ -302,7 +302,7 @@ message Volunteer {
   string dateOfBirth = 4;
   string role = 5;
   int32 graduateYear = 6;
-  bool safeGuardCertificate = 7;
+  bytes safeGuardCertificate = 7;
   string email = 8;
 }
 

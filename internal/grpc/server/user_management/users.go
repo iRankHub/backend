@@ -298,7 +298,7 @@ func (s *userManagementServer) GetVolunteers(ctx context.Context, req *user_mana
 			DateOfBirth:          dateOfBirth,
 			Role:                 volunteer.Role,
 			GraduateYear:         graduateYear,
-			SafeGuardCertificate: volunteer.Safeguardcertificate.Bool,
+			SafeGuardCertificate: volunteer.Safeguardcertificate,
 		})
 	}
 
@@ -447,7 +447,7 @@ func convertModelProfileToProto(profile *models.GetUserProfileRow) *user_managem
 			VolunteerDetails: &user_management.VolunteerDetails{
 				Role:                   profile.Volunteerrole.String,
 				GraduateYear:           profile.Graduateyear.Int32,
-				SafeGuardCertificate:   profile.Safeguardcertificate.Bool,
+				SafeGuardCertificate:   profile.Safeguardcertificate,
 				HasInternship:          profile.Hasinternship.Bool,
 				IsEnrolledInUniversity: profile.Isenrolledinuniversity.Bool,
 			},

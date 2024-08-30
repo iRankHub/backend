@@ -135,6 +135,7 @@ CREATE TABLE Schools (
    Province VARCHAR(255),
    District VARCHAR(255),
    ContactPersonID INTEGER NOT NULL REFERENCES Users(UserID),
+   ContactPersonNationalID VARCHAR(50),
    ContactEmail VARCHAR(255) NOT NULL UNIQUE,
    SchoolEmail VARCHAR(255) NOT NULL UNIQUE,
    SchoolType VARCHAR(50) NOT NULL CHECK (SchoolType IN ('Private', 'Public', 'Government Aided', 'International'))
@@ -161,10 +162,11 @@ CREATE TABLE Volunteers (
    LastName VARCHAR(255) NOT NULL,
    Gender VARCHAR(10) CHECK (Gender IN ('male', 'female', 'non-binary')),
    DateOfBirth DATE,
+   NationalID VARCHAR(50),
    Role VARCHAR(50) NOT NULL,
    GraduateYear INTEGER CHECK (GraduateYear >= 2000 AND GraduateYear <= EXTRACT(YEAR FROM CURRENT_DATE)),
    Password VARCHAR(255) NOT NULL,
-   SafeGuardCertificate BOOLEAN DEFAULT FALSE,
+   SafeGuardCertificate BYTEA,
    HasInternship BOOLEAN DEFAULT FALSE,
    IsEnrolledInUniversity BOOLEAN DEFAULT FALSE,
    UserID INTEGER NOT NULL REFERENCES Users(UserID)

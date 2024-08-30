@@ -42,6 +42,7 @@ Demo Data:
   "password": "schoolAdmin456!",
   "userRole": "school",
   "gender": "female",
+  "nationalID":"1232434234",
   "schoolName": "Springfield High",
   "address": "KK 123 St",
   "country": "United States of America",
@@ -62,11 +63,12 @@ Demo Data:
   "userRole": "volunteer",
   "gender": "female",
   "dateOfBirth": "1990-08-20",
+  "nationalID":"232423423",
   "roleInterestedIn": "Mentor",
   "graduationYear": 2012,
   "hasInternship": true,
   "isEnrolledInUniversity": true,
-  "safeguardingCertificate": true
+  "safeguardingCertificate": "base64encodedupload"
 }
 ```
 
@@ -95,6 +97,8 @@ Demo Data:
       "lastName": "Smith",
       "email": "jane.smith@example.com",
       "userRole": "school",
+      "gender": "female",
+      "nationalID":"1232434234",
       "schoolName": "Springfield High",
       "address": "KK 123 St",
       "country": "United States of America",
@@ -110,6 +114,7 @@ Demo Data:
       "userRole": "volunteer",
       "gender": "female",
       "dateOfBirth": "1990-08-20",
+      "nationalID":"1232434234",
       "roleInterestedIn": "Mentor",
       "graduationYear": 2012,
       "hasInternship": true,

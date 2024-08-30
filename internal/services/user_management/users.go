@@ -437,7 +437,7 @@ func (s *UserManagementService) UpdateUserProfile(ctx context.Context, token str
             Userid:                 req.UserID,
             Role:                   details.VolunteerDetails.Role,
             Graduateyear:           sql.NullInt32{Int32: details.VolunteerDetails.GraduateYear, Valid: details.VolunteerDetails.GraduateYear != 0},
-            Safeguardcertificate:   sql.NullBool{Bool: details.VolunteerDetails.SafeGuardCertificate, Valid: true},
+            Safeguardcertificate:   details.VolunteerDetails.SafeGuardCertificate,
             Hasinternship:          sql.NullBool{Bool: details.VolunteerDetails.HasInternship, Valid: true},
             Isenrolledinuniversity: sql.NullBool{Bool: details.VolunteerDetails.IsEnrolledInUniversity, Valid: true},
         })

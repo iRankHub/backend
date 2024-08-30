@@ -11,21 +11,25 @@ import (
 )
 
 const createSchool = `-- name: CreateSchool :one
-INSERT INTO Schools (SchoolName, Address, Country, Province, District, ContactPersonID, ContactEmail, SchoolEmail, SchoolType)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schoolemail, schooltype
+INSERT INTO Schools (
+  SchoolName, Address, Country, Province, District, ContactPersonID,
+  ContactEmail, SchoolEmail, SchoolType, ContactPersonNationalID
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactpersonnationalid, contactemail, schoolemail, schooltype
 `
 
 type CreateSchoolParams struct {
-	Schoolname      string         `json:"schoolname"`
-	Address         string         `json:"address"`
-	Country         sql.NullString `json:"country"`
-	Province        sql.NullString `json:"province"`
-	District        sql.NullString `json:"district"`
-	Contactpersonid int32          `json:"contactpersonid"`
-	Contactemail    string         `json:"contactemail"`
-	Schoolemail     string         `json:"schoolemail"`
-	Schooltype      string         `json:"schooltype"`
+	Schoolname              string         `json:"schoolname"`
+	Address                 string         `json:"address"`
+	Country                 sql.NullString `json:"country"`
+	Province                sql.NullString `json:"province"`
+	District                sql.NullString `json:"district"`
+	Contactpersonid         int32          `json:"contactpersonid"`
+	Contactemail            string         `json:"contactemail"`
+	Schoolemail             string         `json:"schoolemail"`
+	Schooltype              string         `json:"schooltype"`
+	Contactpersonnationalid sql.NullString `json:"contactpersonnationalid"`
 }
 
 func (q *Queries) CreateSchool(ctx context.Context, arg CreateSchoolParams) (School, error) {
@@ -39,6 +43,7 @@ func (q *Queries) CreateSchool(ctx context.Context, arg CreateSchoolParams) (Sch
 		arg.Contactemail,
 		arg.Schoolemail,
 		arg.Schooltype,
+		arg.Contactpersonnationalid,
 	)
 	var i School
 	err := row.Scan(
@@ -50,6 +55,7 @@ func (q *Queries) CreateSchool(ctx context.Context, arg CreateSchoolParams) (Sch
 		&i.Province,
 		&i.District,
 		&i.Contactpersonid,
+		&i.Contactpersonnationalid,
 		&i.Contactemail,
 		&i.Schoolemail,
 		&i.Schooltype,
@@ -68,7 +74,7 @@ func (q *Queries) DeleteSchool(ctx context.Context, schoolid int32) error {
 }
 
 const getSchoolByContactEmail = `-- name: GetSchoolByContactEmail :one
-SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schoolemail, schooltype FROM Schools
+SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactpersonnationalid, contactemail, schoolemail, schooltype FROM Schools
 WHERE ContactEmail = $1
 `
 
@@ -84,6 +90,7 @@ func (q *Queries) GetSchoolByContactEmail(ctx context.Context, contactemail stri
 		&i.Province,
 		&i.District,
 		&i.Contactpersonid,
+		&i.Contactpersonnationalid,
 		&i.Contactemail,
 		&i.Schoolemail,
 		&i.Schooltype,
@@ -92,7 +99,7 @@ func (q *Queries) GetSchoolByContactEmail(ctx context.Context, contactemail stri
 }
 
 const getSchoolByID = `-- name: GetSchoolByID :one
-SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schoolemail, schooltype FROM Schools
+SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactpersonnationalid, contactemail, schoolemail, schooltype FROM Schools
 WHERE SchoolID = $1
 `
 
@@ -108,6 +115,7 @@ func (q *Queries) GetSchoolByID(ctx context.Context, schoolid int32) (School, er
 		&i.Province,
 		&i.District,
 		&i.Contactpersonid,
+		&i.Contactpersonnationalid,
 		&i.Contactemail,
 		&i.Schoolemail,
 		&i.Schooltype,
@@ -116,7 +124,7 @@ func (q *Queries) GetSchoolByID(ctx context.Context, schoolid int32) (School, er
 }
 
 const getSchoolByIDebateID = `-- name: GetSchoolByIDebateID :one
-SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schoolemail, schooltype FROM Schools
+SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactpersonnationalid, contactemail, schoolemail, schooltype FROM Schools
 WHERE iDebateSchoolID = $1
 `
 
@@ -132,6 +140,7 @@ func (q *Queries) GetSchoolByIDebateID(ctx context.Context, idebateschoolid sql.
 		&i.Province,
 		&i.District,
 		&i.Contactpersonid,
+		&i.Contactpersonnationalid,
 		&i.Contactemail,
 		&i.Schoolemail,
 		&i.Schooltype,
@@ -140,7 +149,7 @@ func (q *Queries) GetSchoolByIDebateID(ctx context.Context, idebateschoolid sql.
 }
 
 const getSchoolByUserID = `-- name: GetSchoolByUserID :one
-SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schoolemail, schooltype FROM Schools WHERE ContactPersonID = $1
+SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactpersonnationalid, contactemail, schoolemail, schooltype FROM Schools WHERE ContactPersonID = $1
 `
 
 func (q *Queries) GetSchoolByUserID(ctx context.Context, contactpersonid int32) (School, error) {
@@ -155,6 +164,7 @@ func (q *Queries) GetSchoolByUserID(ctx context.Context, contactpersonid int32) 
 		&i.Province,
 		&i.District,
 		&i.Contactpersonid,
+		&i.Contactpersonnationalid,
 		&i.Contactemail,
 		&i.Schoolemail,
 		&i.Schooltype,
@@ -163,7 +173,7 @@ func (q *Queries) GetSchoolByUserID(ctx context.Context, contactpersonid int32) 
 }
 
 const getSchoolsByCountry = `-- name: GetSchoolsByCountry :many
-SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schoolemail, schooltype FROM Schools
+SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactpersonnationalid, contactemail, schoolemail, schooltype FROM Schools
 WHERE Country = $1
 `
 
@@ -185,6 +195,7 @@ func (q *Queries) GetSchoolsByCountry(ctx context.Context, country sql.NullStrin
 			&i.Province,
 			&i.District,
 			&i.Contactpersonid,
+			&i.Contactpersonnationalid,
 			&i.Contactemail,
 			&i.Schoolemail,
 			&i.Schooltype,
@@ -203,7 +214,7 @@ func (q *Queries) GetSchoolsByCountry(ctx context.Context, country sql.NullStrin
 }
 
 const getSchoolsByDistrict = `-- name: GetSchoolsByDistrict :many
-SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schoolemail, schooltype FROM Schools
+SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactpersonnationalid, contactemail, schoolemail, schooltype FROM Schools
 WHERE District = $1
 `
 
@@ -225,6 +236,7 @@ func (q *Queries) GetSchoolsByDistrict(ctx context.Context, district sql.NullStr
 			&i.Province,
 			&i.District,
 			&i.Contactpersonid,
+			&i.Contactpersonnationalid,
 			&i.Contactemail,
 			&i.Schoolemail,
 			&i.Schooltype,
@@ -243,7 +255,7 @@ func (q *Queries) GetSchoolsByDistrict(ctx context.Context, district sql.NullStr
 }
 
 const getSchoolsByLeague = `-- name: GetSchoolsByLeague :many
-SELECT s.schoolid, s.idebateschoolid, s.schoolname, s.address, s.country, s.province, s.district, s.contactpersonid, s.contactemail, s.schoolemail, s.schooltype
+SELECT s.schoolid, s.idebateschoolid, s.schoolname, s.address, s.country, s.province, s.district, s.contactpersonid, s.contactpersonnationalid, s.contactemail, s.schoolemail, s.schooltype
 FROM Schools s
 JOIN Leagues l ON l.LeagueID = $1
 WHERE
@@ -270,6 +282,7 @@ func (q *Queries) GetSchoolsByLeague(ctx context.Context, leagueid int32) ([]Sch
 			&i.Province,
 			&i.District,
 			&i.Contactpersonid,
+			&i.Contactpersonnationalid,
 			&i.Contactemail,
 			&i.Schoolemail,
 			&i.Schooltype,
@@ -288,7 +301,7 @@ func (q *Queries) GetSchoolsByLeague(ctx context.Context, leagueid int32) ([]Sch
 }
 
 const getSchoolsPaginated = `-- name: GetSchoolsPaginated :many
-SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schoolemail, schooltype
+SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactpersonnationalid, contactemail, schoolemail, schooltype
 FROM Schools
 ORDER BY SchoolID
 LIMIT $1 OFFSET $2
@@ -317,6 +330,7 @@ func (q *Queries) GetSchoolsPaginated(ctx context.Context, arg GetSchoolsPaginat
 			&i.Province,
 			&i.District,
 			&i.Contactpersonid,
+			&i.Contactpersonnationalid,
 			&i.Contactemail,
 			&i.Schoolemail,
 			&i.Schooltype,
@@ -347,22 +361,25 @@ func (q *Queries) GetTotalSchoolCount(ctx context.Context) (int64, error) {
 
 const updateSchool = `-- name: UpdateSchool :one
 UPDATE Schools
-SET SchoolName = $2, Address = $3, Country = $4, Province = $5, District = $6, ContactPersonID = $7, ContactEmail = $8, SchoolEmail = $9, SchoolType = $10
+SET SchoolName = $2, Address = $3, Country = $4, Province = $5, District = $6,
+    ContactPersonID = $7, ContactEmail = $8, SchoolEmail = $9, SchoolType = $10,
+    ContactPersonNationalID = $11
 WHERE SchoolID = $1
-RETURNING schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schoolemail, schooltype
+RETURNING schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactpersonnationalid, contactemail, schoolemail, schooltype
 `
 
 type UpdateSchoolParams struct {
-	Schoolid        int32          `json:"schoolid"`
-	Schoolname      string         `json:"schoolname"`
-	Address         string         `json:"address"`
-	Country         sql.NullString `json:"country"`
-	Province        sql.NullString `json:"province"`
-	District        sql.NullString `json:"district"`
-	Contactpersonid int32          `json:"contactpersonid"`
-	Contactemail    string         `json:"contactemail"`
-	Schoolemail     string         `json:"schoolemail"`
-	Schooltype      string         `json:"schooltype"`
+	Schoolid                int32          `json:"schoolid"`
+	Schoolname              string         `json:"schoolname"`
+	Address                 string         `json:"address"`
+	Country                 sql.NullString `json:"country"`
+	Province                sql.NullString `json:"province"`
+	District                sql.NullString `json:"district"`
+	Contactpersonid         int32          `json:"contactpersonid"`
+	Contactemail            string         `json:"contactemail"`
+	Schoolemail             string         `json:"schoolemail"`
+	Schooltype              string         `json:"schooltype"`
+	Contactpersonnationalid sql.NullString `json:"contactpersonnationalid"`
 }
 
 func (q *Queries) UpdateSchool(ctx context.Context, arg UpdateSchoolParams) (School, error) {
@@ -377,6 +394,7 @@ func (q *Queries) UpdateSchool(ctx context.Context, arg UpdateSchoolParams) (Sch
 		arg.Contactemail,
 		arg.Schoolemail,
 		arg.Schooltype,
+		arg.Contactpersonnationalid,
 	)
 	var i School
 	err := row.Scan(
@@ -388,6 +406,7 @@ func (q *Queries) UpdateSchool(ctx context.Context, arg UpdateSchoolParams) (Sch
 		&i.Province,
 		&i.District,
 		&i.Contactpersonid,
+		&i.Contactpersonnationalid,
 		&i.Contactemail,
 		&i.Schoolemail,
 		&i.Schooltype,
@@ -399,7 +418,7 @@ const updateSchoolAddress = `-- name: UpdateSchoolAddress :one
 UPDATE Schools
 SET Address = $2
 WHERE ContactPersonID = $1
-RETURNING schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactemail, schoolemail, schooltype
+RETURNING schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactpersonnationalid, contactemail, schoolemail, schooltype
 `
 
 type UpdateSchoolAddressParams struct {
@@ -419,6 +438,7 @@ func (q *Queries) UpdateSchoolAddress(ctx context.Context, arg UpdateSchoolAddre
 		&i.Province,
 		&i.District,
 		&i.Contactpersonid,
+		&i.Contactpersonnationalid,
 		&i.Contactemail,
 		&i.Schoolemail,
 		&i.Schooltype,

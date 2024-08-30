@@ -40,13 +40,18 @@ WHERE
     (l.LeagueType = 'international' AND s.Country = ANY(SELECT jsonb_array_elements_text(l.Details->'countries')));
 
 -- name: CreateSchool :one
-INSERT INTO Schools (SchoolName, Address, Country, Province, District, ContactPersonID, ContactEmail, SchoolEmail, SchoolType)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO Schools (
+  SchoolName, Address, Country, Province, District, ContactPersonID,
+  ContactEmail, SchoolEmail, SchoolType, ContactPersonNationalID
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING *;
 
 -- name: UpdateSchool :one
 UPDATE Schools
-SET SchoolName = $2, Address = $3, Country = $4, Province = $5, District = $6, ContactPersonID = $7, ContactEmail = $8, SchoolEmail = $9, SchoolType = $10
+SET SchoolName = $2, Address = $3, Country = $4, Province = $5, District = $6,
+    ContactPersonID = $7, ContactEmail = $8, SchoolEmail = $9, SchoolType = $10,
+    ContactPersonNationalID = $11
 WHERE SchoolID = $1
 RETURNING *;
 
