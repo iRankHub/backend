@@ -278,7 +278,33 @@ Request:
 }
 ```
 
-... [Rest of the API documentation remains unchanged] ...
+### InitiatePasswordUpdate
+
+Endpoint: `UserManagementService.InitiatePasswordUpdate`
+Authorization: Authenticated user (can only initiate for their own account)
+
+Request:
+```json
+{
+  "token": "your_auth_token_here",
+  "userID": 123
+}
+```
+
+### VerifyAndUpdatePassword
+
+Endpoint: `UserManagementService.VerifyAndUpdatePassword`
+Authorization: Authenticated user (can only update their own password)
+
+Request:
+```json
+{
+  "token": "your_auth_token_here",
+  "userID": 123,
+  "verificationCode": "123456",
+  "newPassword": "new_secure_password"
+}
+```
 
 ## Testing User Management Features
 
@@ -341,23 +367,39 @@ To test the user management features:
    l. User Management:
    - Use `GetAllUsers` to retrieve a list of users.
 
-5. For each test, verify that the appropriate email notifications are sent:
+   m. Password Update:
+   - Use `InitiatePasswordUpdate` to start the password update process for a user.
+   - Verify that a verification email is sent to the user's email address.
+   - Use `VerifyAndUpdatePassword` with the correct verification code and new password.
+   - Attempt to log in with the old password (should fail).
+   - Verify successful login with the new password.
+   - Test with incorrect verification codes and expired codes (should fail).
+   - Attempt to update password for a different user ID (should fail).
+
+1. For each test, verify that the appropriate email notifications are sent:
    - Single user operations: approval, rejection, deletion, deactivation, reactivation
    - Batch operations: verify that emails are sent for each successfully processed user
 
-6. Test pagination for endpoints that support it (GetStudents, GetVolunteers, GetSchools) by varying the page and pageSize parameters.
+2. Test pagination for endpoints that support it (GetStudents, GetVolunteers, GetSchools) by varying the page and pageSize parameters.
 
-7. Performance Testing for Batch Operations:
+3. Performance Testing for Batch Operations:
    - Test `ApproveUsers`, `RejectUsers`, and `DeleteUsers` with varying numbers of user IDs (e.g., 10, 100, 1000) to ensure the system can handle large batches efficiently.
    - Monitor response times and system resources during these tests.
 
-8. Concurrency Testing:
+4. Concurrency Testing:
    - Simulate multiple admins performing batch operations simultaneously to ensure data consistency and proper handling of concurrent requests.
 
-9. Edge Cases for Batch Operations:
+5. Edge Cases for Batch Operations:
    - Test with an empty list of user IDs.
    - Test with a list containing only invalid user IDs.
    - Test with a very large list of user IDs to verify any upper limits on batch size.
 
-10. Authorization Testing:
+6.  Authorization Testing:
     - Attempt to use batch operations with non-admin user tokens to ensure proper access control.
+  
+7. Password Update Testing:
+    - Test initiating password update for non-existent users.
+    - Test verifying with incorrect or expired verification codes.
+    - Test password update with weak passwords (if password strength rules are implemented).
+    - Verify that password update emails are sent and contain the correct information.
+    - Test the expiration of verification codes (e.g., try using a code after 15 minutes).

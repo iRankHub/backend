@@ -158,3 +158,25 @@ LIMIT $1 OFFSET $2;
 -- name: GetTotalVolunteersAndAdminsCount :one
 SELECT COUNT(*) FROM Users
 WHERE UserRole IN ('volunteer', 'admin') AND deleted_at IS NULL;
+
+-- name: UpdatePasswordAndClearResetCode :exec
+WITH updated_users AS (
+    UPDATE Users
+    SET Password = $2, reset_token = NULL, reset_token_expires = NULL
+    WHERE Users.UserID = $1
+    RETURNING UserID
+)
+UPDATE UserProfiles
+SET Password = $2
+WHERE UserProfiles.UserID = (SELECT UserID FROM updated_users);
+
+-- name: SetPasswordResetCodeAndGetUser :one
+UPDATE Users
+SET reset_token = $2, reset_token_expires = $3
+WHERE UserID = $1
+RETURNING UserID, Email, Name;
+
+-- name: ValidateResetCodeAndGetUser :one
+SELECT UserID, Email, Name, reset_token, reset_token_expires
+FROM Users
+WHERE UserID = $1 AND reset_token IS NOT NULL AND reset_token_expires > NOW();

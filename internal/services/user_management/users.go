@@ -2,11 +2,15 @@ package services
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/base32"
 	"fmt"
 	"log"
 	"math"
 	"time"
+
+	"github.com/pquerna/otp/totp"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/user_management"
 	"github.com/iRankHub/backend/internal/models"
@@ -618,4 +622,147 @@ func (s *UserManagementService) GetVolunteersAndAdmins(ctx context.Context, toke
 	}
 
 	return users, int32(totalCount), nil
+}
+
+func (s *UserManagementService) generateSecret() (string, error) {
+	bytes := make([]byte, 20)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate random bytes: %v", err)
+	}
+	return base32.StdEncoding.EncodeToString(bytes), nil
+}
+
+func (s *UserManagementService) InitiatePasswordUpdate(ctx context.Context, token string, userID int32) error {
+	claims, err := utils.ValidateToken(token)
+	if err != nil {
+		return fmt.Errorf("invalid token: %v", err)
+	}
+
+	tokenUserID := int32(claims["user_id"].(float64))
+	if tokenUserID != userID {
+		return fmt.Errorf("unauthorized: token does not match user ID")
+	}
+
+	// Generate secret for TOTP
+	secret, err := s.generateSecret()
+	if err != nil {
+		return fmt.Errorf("failed to generate secret: %v", err)
+	}
+
+	// Set expiration time (15 minutes from now)
+	expiresAt := time.Now().Add(15 * time.Minute)
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %v", err)
+	}
+	defer tx.Rollback()
+
+	queries := models.New(tx)
+
+	// Store the secret and expiration time, and get user details
+	user, err := queries.SetPasswordResetCodeAndGetUser(ctx, models.SetPasswordResetCodeAndGetUserParams{
+		Userid:            userID,
+		ResetToken:        sql.NullString{String: secret, Valid: true},
+		ResetTokenExpires: sql.NullTime{Time: expiresAt, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to set password reset code: %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	// Generate verification code
+	verificationCode, err := totp.GenerateCodeCustom(secret, time.Now(), totp.ValidateOpts{
+		Period:    900, // 15 minutes in seconds
+		Skew:      1,   // Allow 1 period before and after
+		Digits:    6,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to generate verification code: %v", err)
+	}
+
+	// Send verification code via email in a goroutine
+	go func() {
+		err := email.SendPasswordUpdateVerificationEmail(user.Email, user.Name, verificationCode)
+		if err != nil {
+			fmt.Printf("Failed to send verification email: %v\n", err)
+		}
+	}()
+
+	return nil
+}
+
+func (s *UserManagementService) VerifyAndUpdatePassword(ctx context.Context, token string, userID int32, verificationCode string, newPassword string) error {
+	claims, err := utils.ValidateToken(token)
+	if err != nil {
+		return fmt.Errorf("invalid token: %v", err)
+	}
+
+	tokenUserID := int32(claims["user_id"].(float64))
+	if tokenUserID != userID {
+		return fmt.Errorf("unauthorized: token does not match user ID")
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %v", err)
+	}
+	defer tx.Rollback()
+
+	queries := models.New(tx)
+
+	// Get user details and reset code
+	user, err := queries.ValidateResetCodeAndGetUser(ctx, userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("no reset code found or reset code expired")
+		}
+		return fmt.Errorf("failed to get user details: %v", err)
+	}
+
+	// Validate the verification code
+	valid, err := totp.ValidateCustom(verificationCode, user.ResetToken.String, time.Now(), totp.ValidateOpts{
+		Period:    900, // 15 minutes in seconds
+		Skew:      1,   // Allow 1 period before and after
+		Digits:    6,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to validate verification code: %v", err)
+	}
+	if !valid {
+		return fmt.Errorf("invalid verification code")
+	}
+
+	// Hash the new password
+	hashedPassword, err := utils.HashPassword(newPassword)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %v", err)
+	}
+
+	// Update the password in both tables and clear the reset code
+	err = queries.UpdatePasswordAndClearResetCode(ctx, models.UpdatePasswordAndClearResetCodeParams{
+		Userid:   userID,
+		Password: hashedPassword,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update password: %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	// Send password update confirmation email in a goroutine
+	go func() {
+		err := email.SendPasswordUpdateConfirmationEmail(user.Email, user.Name)
+		if err != nil {
+			fmt.Printf("Failed to send password update confirmation email: %v\n", err)
+		}
+	}()
+
+	return nil
 }

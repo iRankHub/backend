@@ -405,6 +405,31 @@ func (s *userManagementServer) GetSchoolsNoAuth(ctx context.Context, req *user_m
 		TotalCount: totalCount,
 	}, nil
 }
+
+func (s *userManagementServer) InitiatePasswordUpdate(ctx context.Context, req *user_management.InitiatePasswordUpdateRequest) (*user_management.InitiatePasswordUpdateResponse, error) {
+	err := s.userManagementService.InitiatePasswordUpdate(ctx, req.Token, req.UserID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to initiate password update: %v", err)
+	}
+
+	return &user_management.InitiatePasswordUpdateResponse{
+		Success: true,
+		Message: "Password update initiated. Please check your email for the verification code.",
+	}, nil
+}
+
+func (s *userManagementServer) VerifyAndUpdatePassword(ctx context.Context, req *user_management.VerifyAndUpdatePasswordRequest) (*user_management.VerifyAndUpdatePasswordResponse, error) {
+	err := s.userManagementService.VerifyAndUpdatePassword(ctx, req.Token, req.UserID, req.VerificationCode, req.NewPassword)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to verify and update password: %v", err)
+	}
+
+	return &user_management.VerifyAndUpdatePasswordResponse{
+		Success: true,
+		Message: "Password updated successfully.",
+	}, nil
+}
+
 func convertModelProfileToProto(profile *models.GetUserProfileRow) *user_management.UserProfile {
 	protoProfile := &user_management.UserProfile{
 		UserID:               profile.Userid,

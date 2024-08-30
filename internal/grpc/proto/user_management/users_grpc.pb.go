@@ -19,25 +19,27 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	UserManagementService_GetPendingUsers_FullMethodName        = "/user_management.UserManagementService/GetPendingUsers"
-	UserManagementService_ApproveUser_FullMethodName            = "/user_management.UserManagementService/ApproveUser"
-	UserManagementService_RejectUser_FullMethodName             = "/user_management.UserManagementService/RejectUser"
-	UserManagementService_ApproveUsers_FullMethodName           = "/user_management.UserManagementService/ApproveUsers"
-	UserManagementService_RejectUsers_FullMethodName            = "/user_management.UserManagementService/RejectUsers"
-	UserManagementService_DeleteUsers_FullMethodName            = "/user_management.UserManagementService/DeleteUsers"
-	UserManagementService_GetUserProfile_FullMethodName         = "/user_management.UserManagementService/GetUserProfile"
-	UserManagementService_UpdateUserProfile_FullMethodName      = "/user_management.UserManagementService/UpdateUserProfile"
-	UserManagementService_DeleteUserProfile_FullMethodName      = "/user_management.UserManagementService/DeleteUserProfile"
-	UserManagementService_DeactivateAccount_FullMethodName      = "/user_management.UserManagementService/DeactivateAccount"
-	UserManagementService_ReactivateAccount_FullMethodName      = "/user_management.UserManagementService/ReactivateAccount"
-	UserManagementService_GetAccountStatus_FullMethodName       = "/user_management.UserManagementService/GetAccountStatus"
-	UserManagementService_GetCountries_FullMethodName           = "/user_management.UserManagementService/GetCountries"
-	UserManagementService_GetSchools_FullMethodName             = "/user_management.UserManagementService/GetSchools"
-	UserManagementService_GetStudents_FullMethodName            = "/user_management.UserManagementService/GetStudents"
-	UserManagementService_GetVolunteers_FullMethodName          = "/user_management.UserManagementService/GetVolunteers"
-	UserManagementService_GetAllUsers_FullMethodName            = "/user_management.UserManagementService/GetAllUsers"
-	UserManagementService_GetVolunteersAndAdmins_FullMethodName = "/user_management.UserManagementService/GetVolunteersAndAdmins"
-	UserManagementService_GetSchoolsNoAuth_FullMethodName       = "/user_management.UserManagementService/GetSchoolsNoAuth"
+	UserManagementService_GetPendingUsers_FullMethodName         = "/user_management.UserManagementService/GetPendingUsers"
+	UserManagementService_ApproveUser_FullMethodName             = "/user_management.UserManagementService/ApproveUser"
+	UserManagementService_RejectUser_FullMethodName              = "/user_management.UserManagementService/RejectUser"
+	UserManagementService_ApproveUsers_FullMethodName            = "/user_management.UserManagementService/ApproveUsers"
+	UserManagementService_RejectUsers_FullMethodName             = "/user_management.UserManagementService/RejectUsers"
+	UserManagementService_DeleteUsers_FullMethodName             = "/user_management.UserManagementService/DeleteUsers"
+	UserManagementService_GetUserProfile_FullMethodName          = "/user_management.UserManagementService/GetUserProfile"
+	UserManagementService_UpdateUserProfile_FullMethodName       = "/user_management.UserManagementService/UpdateUserProfile"
+	UserManagementService_DeleteUserProfile_FullMethodName       = "/user_management.UserManagementService/DeleteUserProfile"
+	UserManagementService_DeactivateAccount_FullMethodName       = "/user_management.UserManagementService/DeactivateAccount"
+	UserManagementService_ReactivateAccount_FullMethodName       = "/user_management.UserManagementService/ReactivateAccount"
+	UserManagementService_GetAccountStatus_FullMethodName        = "/user_management.UserManagementService/GetAccountStatus"
+	UserManagementService_GetCountries_FullMethodName            = "/user_management.UserManagementService/GetCountries"
+	UserManagementService_GetSchools_FullMethodName              = "/user_management.UserManagementService/GetSchools"
+	UserManagementService_GetStudents_FullMethodName             = "/user_management.UserManagementService/GetStudents"
+	UserManagementService_GetVolunteers_FullMethodName           = "/user_management.UserManagementService/GetVolunteers"
+	UserManagementService_GetAllUsers_FullMethodName             = "/user_management.UserManagementService/GetAllUsers"
+	UserManagementService_GetVolunteersAndAdmins_FullMethodName  = "/user_management.UserManagementService/GetVolunteersAndAdmins"
+	UserManagementService_GetSchoolsNoAuth_FullMethodName        = "/user_management.UserManagementService/GetSchoolsNoAuth"
+	UserManagementService_InitiatePasswordUpdate_FullMethodName  = "/user_management.UserManagementService/InitiatePasswordUpdate"
+	UserManagementService_VerifyAndUpdatePassword_FullMethodName = "/user_management.UserManagementService/VerifyAndUpdatePassword"
 )
 
 // UserManagementServiceClient is the client API for UserManagementService service.
@@ -63,6 +65,8 @@ type UserManagementServiceClient interface {
 	GetAllUsers(ctx context.Context, in *GetAllUsersRequest, opts ...grpc.CallOption) (*GetAllUsersResponse, error)
 	GetVolunteersAndAdmins(ctx context.Context, in *GetVolunteersAndAdminsRequest, opts ...grpc.CallOption) (*GetVolunteersAndAdminsResponse, error)
 	GetSchoolsNoAuth(ctx context.Context, in *GetSchoolsNoAuthRequest, opts ...grpc.CallOption) (*GetSchoolsNoAuthResponse, error)
+	InitiatePasswordUpdate(ctx context.Context, in *InitiatePasswordUpdateRequest, opts ...grpc.CallOption) (*InitiatePasswordUpdateResponse, error)
+	VerifyAndUpdatePassword(ctx context.Context, in *VerifyAndUpdatePasswordRequest, opts ...grpc.CallOption) (*VerifyAndUpdatePasswordResponse, error)
 }
 
 type userManagementServiceClient struct {
@@ -263,6 +267,26 @@ func (c *userManagementServiceClient) GetSchoolsNoAuth(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *userManagementServiceClient) InitiatePasswordUpdate(ctx context.Context, in *InitiatePasswordUpdateRequest, opts ...grpc.CallOption) (*InitiatePasswordUpdateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InitiatePasswordUpdateResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_InitiatePasswordUpdate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userManagementServiceClient) VerifyAndUpdatePassword(ctx context.Context, in *VerifyAndUpdatePasswordRequest, opts ...grpc.CallOption) (*VerifyAndUpdatePasswordResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VerifyAndUpdatePasswordResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_VerifyAndUpdatePassword_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserManagementServiceServer is the server API for UserManagementService service.
 // All implementations must embed UnimplementedUserManagementServiceServer
 // for forward compatibility.
@@ -286,6 +310,8 @@ type UserManagementServiceServer interface {
 	GetAllUsers(context.Context, *GetAllUsersRequest) (*GetAllUsersResponse, error)
 	GetVolunteersAndAdmins(context.Context, *GetVolunteersAndAdminsRequest) (*GetVolunteersAndAdminsResponse, error)
 	GetSchoolsNoAuth(context.Context, *GetSchoolsNoAuthRequest) (*GetSchoolsNoAuthResponse, error)
+	InitiatePasswordUpdate(context.Context, *InitiatePasswordUpdateRequest) (*InitiatePasswordUpdateResponse, error)
+	VerifyAndUpdatePassword(context.Context, *VerifyAndUpdatePasswordRequest) (*VerifyAndUpdatePasswordResponse, error)
 	mustEmbedUnimplementedUserManagementServiceServer()
 }
 
@@ -352,6 +378,12 @@ func (UnimplementedUserManagementServiceServer) GetVolunteersAndAdmins(context.C
 }
 func (UnimplementedUserManagementServiceServer) GetSchoolsNoAuth(context.Context, *GetSchoolsNoAuthRequest) (*GetSchoolsNoAuthResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSchoolsNoAuth not implemented")
+}
+func (UnimplementedUserManagementServiceServer) InitiatePasswordUpdate(context.Context, *InitiatePasswordUpdateRequest) (*InitiatePasswordUpdateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method InitiatePasswordUpdate not implemented")
+}
+func (UnimplementedUserManagementServiceServer) VerifyAndUpdatePassword(context.Context, *VerifyAndUpdatePasswordRequest) (*VerifyAndUpdatePasswordResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VerifyAndUpdatePassword not implemented")
 }
 func (UnimplementedUserManagementServiceServer) mustEmbedUnimplementedUserManagementServiceServer() {}
 func (UnimplementedUserManagementServiceServer) testEmbeddedByValue()                               {}
@@ -716,6 +748,42 @@ func _UserManagementService_GetSchoolsNoAuth_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserManagementService_InitiatePasswordUpdate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InitiatePasswordUpdateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).InitiatePasswordUpdate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_InitiatePasswordUpdate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).InitiatePasswordUpdate(ctx, req.(*InitiatePasswordUpdateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserManagementService_VerifyAndUpdatePassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VerifyAndUpdatePasswordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).VerifyAndUpdatePassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_VerifyAndUpdatePassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).VerifyAndUpdatePassword(ctx, req.(*VerifyAndUpdatePasswordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // UserManagementService_ServiceDesc is the grpc.ServiceDesc for UserManagementService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -798,6 +866,14 @@ var UserManagementService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSchoolsNoAuth",
 			Handler:    _UserManagementService_GetSchoolsNoAuth_Handler,
+		},
+		{
+			MethodName: "InitiatePasswordUpdate",
+			Handler:    _UserManagementService_InitiatePasswordUpdate_Handler,
+		},
+		{
+			MethodName: "VerifyAndUpdatePassword",
+			Handler:    _UserManagementService_VerifyAndUpdatePassword_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

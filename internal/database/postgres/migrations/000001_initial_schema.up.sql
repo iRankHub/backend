@@ -365,7 +365,6 @@ CREATE INDEX idx_tournaments_coordinator_id ON Tournaments(CoordinatorID);
 CREATE INDEX IF NOT EXISTS idx_tournaments_startdate ON Tournaments(StartDate);
 CREATE INDEX IF NOT EXISTS idx_tournament_invitations_status ON TournamentInvitations(Status);
 CREATE INDEX IF NOT EXISTS idx_tournament_invitations_tournament_id ON TournamentInvitations(TournamentID);
-CREATE INDEX IF NOT EXISTS idx_teams_invitationid ON Teams(InvitationID);
 CREATE INDEX IF NOT EXISTS idx_team_members_teamid ON TeamMembers(TeamID);
 CREATE INDEX IF NOT EXISTS idx_debates_roundid ON Debates(RoundID);
 CREATE INDEX IF NOT EXISTS idx_debates_tournamentid ON Debates(TournamentID);

@@ -151,3 +151,28 @@ func SendAccountReactivationNotification(to, name string) error {
 	body := getUserEmailTemplate("Account Reactivation", content)
 	return sendUserEmail(to, subject, body)
 }
+
+func SendPasswordUpdateVerificationEmail(to, name, verificationCode string) error {
+	subject := "iRankHub Password Update Verification"
+	content := fmt.Sprintf(`
+		<p>Dear %s,</p>
+		<p>We received a request to update your iRankHub account password. To complete this process, please use the following verification code:</p>
+		<h2>%s</h2>
+		<p>This code will expire in 15 minutes. If you did not request a password update, please ignore this email and contact our support team immediately.</p>
+		<p>Best regards,<br>The iRankHub Team</p>
+	`, name, verificationCode)
+	body := getUserEmailTemplate("Password Update Verification", content)
+	return sendUserEmail(to, subject, body)
+}
+
+func SendPasswordUpdateConfirmationEmail(to, name string) error {
+	subject := "iRankHub Password Update Confirmation"
+	content := fmt.Sprintf(`
+		<p>Dear %s,</p>
+		<p>Your iRankHub account password has been successfully updated.</p>
+		<p>If you did not make this change, please contact our support team immediately.</p>
+		<p>Best regards,<br>The iRankHub Team</p>
+	`, name)
+	body := getUserEmailTemplate("Password Update Confirmation", content)
+	return sendUserEmail(to, subject, body)
+}

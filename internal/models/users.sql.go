@@ -775,6 +775,32 @@ func (q *Queries) ResetFailedLoginAttempts(ctx context.Context, userid int32) er
 	return err
 }
 
+const setPasswordResetCodeAndGetUser = `-- name: SetPasswordResetCodeAndGetUser :one
+UPDATE Users
+SET reset_token = $2, reset_token_expires = $3
+WHERE UserID = $1
+RETURNING UserID, Email, Name
+`
+
+type SetPasswordResetCodeAndGetUserParams struct {
+	Userid            int32          `json:"userid"`
+	ResetToken        sql.NullString `json:"reset_token"`
+	ResetTokenExpires sql.NullTime   `json:"reset_token_expires"`
+}
+
+type SetPasswordResetCodeAndGetUserRow struct {
+	Userid int32  `json:"userid"`
+	Email  string `json:"email"`
+	Name   string `json:"name"`
+}
+
+func (q *Queries) SetPasswordResetCodeAndGetUser(ctx context.Context, arg SetPasswordResetCodeAndGetUserParams) (SetPasswordResetCodeAndGetUserRow, error) {
+	row := q.db.QueryRowContext(ctx, setPasswordResetCodeAndGetUser, arg.Userid, arg.ResetToken, arg.ResetTokenExpires)
+	var i SetPasswordResetCodeAndGetUserRow
+	err := row.Scan(&i.Userid, &i.Email, &i.Name)
+	return i, err
+}
+
 const setResetToken = `-- name: SetResetToken :exec
 UPDATE Users SET reset_token = $2, reset_token_expires = $3 WHERE UserID = $1
 `
@@ -864,6 +890,28 @@ func (q *Queries) UpdateLastLogout(ctx context.Context, arg UpdateLastLogoutPara
 	return err
 }
 
+const updatePasswordAndClearResetCode = `-- name: UpdatePasswordAndClearResetCode :exec
+WITH updated_users AS (
+    UPDATE Users
+    SET Password = $2, reset_token = NULL, reset_token_expires = NULL
+    WHERE Users.UserID = $1
+    RETURNING UserID
+)
+UPDATE UserProfiles
+SET Password = $2
+WHERE UserProfiles.UserID = (SELECT UserID FROM updated_users)
+`
+
+type UpdatePasswordAndClearResetCodeParams struct {
+	Userid   int32  `json:"userid"`
+	Password string `json:"password"`
+}
+
+func (q *Queries) UpdatePasswordAndClearResetCode(ctx context.Context, arg UpdatePasswordAndClearResetCodeParams) error {
+	_, err := q.db.ExecContext(ctx, updatePasswordAndClearResetCode, arg.Userid, arg.Password)
+	return err
+}
+
 const updateUser = `-- name: UpdateUser :one
 UPDATE Users
 SET Name = $2, Email = $3, Password = $4, UserRole = $5, VerificationStatus = $6, Status = $7, Gender = $8
@@ -949,4 +997,31 @@ type UpdateUserStatusParams struct {
 func (q *Queries) UpdateUserStatus(ctx context.Context, arg UpdateUserStatusParams) error {
 	_, err := q.db.ExecContext(ctx, updateUserStatus, arg.Userid, arg.Status)
 	return err
+}
+
+const validateResetCodeAndGetUser = `-- name: ValidateResetCodeAndGetUser :one
+SELECT UserID, Email, Name, reset_token, reset_token_expires
+FROM Users
+WHERE UserID = $1 AND reset_token IS NOT NULL AND reset_token_expires > NOW()
+`
+
+type ValidateResetCodeAndGetUserRow struct {
+	Userid            int32          `json:"userid"`
+	Email             string         `json:"email"`
+	Name              string         `json:"name"`
+	ResetToken        sql.NullString `json:"reset_token"`
+	ResetTokenExpires sql.NullTime   `json:"reset_token_expires"`
+}
+
+func (q *Queries) ValidateResetCodeAndGetUser(ctx context.Context, userid int32) (ValidateResetCodeAndGetUserRow, error) {
+	row := q.db.QueryRowContext(ctx, validateResetCodeAndGetUser, userid)
+	var i ValidateResetCodeAndGetUserRow
+	err := row.Scan(
+		&i.Userid,
+		&i.Email,
+		&i.Name,
+		&i.ResetToken,
+		&i.ResetTokenExpires,
+	)
+	return i, err
 }
