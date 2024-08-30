@@ -104,32 +104,60 @@ func (s *authServer) BatchImportUsers(ctx context.Context, req *authentication.B
 	}, nil
 }
 
-func (s *authServer) Login(ctx context.Context, req *authentication.LoginRequest) (*authentication.LoginResponse, error) {
+func (s *authServer) AdminLogin(ctx context.Context, req *authentication.LoginRequest) (*authentication.LoginResponse, error) {
+	return s.loginWithRoleCheck(ctx, req, "admin")
+}
+
+func (s *authServer) StudentLogin(ctx context.Context, req *authentication.LoginRequest) (*authentication.LoginResponse, error) {
+	return s.loginWithRoleCheck(ctx, req, "student")
+}
+
+func (s *authServer) VolunteerLogin(ctx context.Context, req *authentication.LoginRequest) (*authentication.LoginResponse, error) {
+	return s.loginWithRoleCheck(ctx, req, "volunteer")
+}
+
+func (s *authServer) SchoolLogin(ctx context.Context, req *authentication.LoginRequest) (*authentication.LoginResponse, error) {
+	return s.loginWithRoleCheck(ctx, req, "school")
+}
+
+func (s *authServer) loginWithRoleCheck(ctx context.Context, req *authentication.LoginRequest, expectedRole string) (*authentication.LoginResponse, error) {
 	user, err := s.loginService.Login(ctx, req.EmailOrId, req.Password)
 	if err != nil {
-		if err.Error() == "two factor authentication required" {
-			err := s.twoFactorService.GenerateTwoFactorOTP(ctx, req.EmailOrId)
-			if err != nil {
-				return nil, fmt.Errorf("failed to generate two-factor OTP: %v", err)
-			}
-			return &authentication.LoginResponse{
-				Success:          false,
-				RequireTwoFactor: true,
-				Message:          "Two-factor authentication required. An OTP has been sent to your email.",
-			}, nil
-		}
-		if err.Error() == "forced password reset required" {
-			return &authentication.LoginResponse{
-				Success:              false,
-				RequirePasswordReset: true,
-				Message:              "A password reset is required for your account. Please check your email for instructions.",
-			}, nil
-		}
-		return &authentication.LoginResponse{Success: false, Message: "Invalid email/ID or password"}, nil
+		return s.handleLoginError(ctx, req.EmailOrId, err)
+	}
+
+	if user.Userrole != expectedRole {
+		return &authentication.LoginResponse{
+			Success: false,
+			Message: "Unauthorized access. Please use the correct login endpoint for your role.",
+		}, nil
 	}
 
 	return s.generateSuccessfulLoginResponse(user)
 }
+
+func (s *authServer) handleLoginError(ctx context.Context, emailOrId string, err error) (*authentication.LoginResponse, error) {
+	if err.Error() == "two factor authentication required" {
+		err := s.twoFactorService.GenerateTwoFactorOTP(ctx, emailOrId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate two-factor OTP: %v", err)
+		}
+		return &authentication.LoginResponse{
+			Success:          false,
+			RequireTwoFactor: true,
+			Message:          "Two-factor authentication required. An OTP has been sent to your email.",
+		}, nil
+	}
+	if err.Error() == "forced password reset required" {
+		return &authentication.LoginResponse{
+			Success:              false,
+			RequirePasswordReset: true,
+			Message:              "A password reset is required for your account. Please check your email for instructions.",
+		}, nil
+	}
+	return &authentication.LoginResponse{Success: false, Message: "Invalid email/ID or password"}, nil
+}
+
 
 func (s *authServer) Logout(ctx context.Context, req *authentication.LogoutRequest) (*authentication.LogoutResponse, error) {
 	// Validate the token
