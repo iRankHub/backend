@@ -184,8 +184,6 @@ CREATE TABLE TournamentInvitations (
 CREATE TABLE Teams (
    TeamID SERIAL PRIMARY KEY,
    Name VARCHAR(255) NOT NULL,
-   SchoolID INTEGER NOT NULL REFERENCES Schools(SchoolID),
-   InvitationID INTEGER REFERENCES TournamentInvitations(InvitationID),
    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID)
 );
 
