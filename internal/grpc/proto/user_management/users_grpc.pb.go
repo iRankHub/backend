@@ -26,7 +26,8 @@ const (
 	UserManagementService_RejectUsers_FullMethodName             = "/user_management.UserManagementService/RejectUsers"
 	UserManagementService_DeleteUsers_FullMethodName             = "/user_management.UserManagementService/DeleteUsers"
 	UserManagementService_GetUserProfile_FullMethodName          = "/user_management.UserManagementService/GetUserProfile"
-	UserManagementService_UpdateUserProfile_FullMethodName       = "/user_management.UserManagementService/UpdateUserProfile"
+	UserManagementService_UpdateAdminProfile_FullMethodName      = "/user_management.UserManagementService/UpdateAdminProfile"
+	UserManagementService_UpdateSchoolProfile_FullMethodName     = "/user_management.UserManagementService/UpdateSchoolProfile"
 	UserManagementService_DeleteUserProfile_FullMethodName       = "/user_management.UserManagementService/DeleteUserProfile"
 	UserManagementService_DeactivateAccount_FullMethodName       = "/user_management.UserManagementService/DeactivateAccount"
 	UserManagementService_ReactivateAccount_FullMethodName       = "/user_management.UserManagementService/ReactivateAccount"
@@ -53,7 +54,8 @@ type UserManagementServiceClient interface {
 	RejectUsers(ctx context.Context, in *RejectUsersRequest, opts ...grpc.CallOption) (*RejectUsersResponse, error)
 	DeleteUsers(ctx context.Context, in *DeleteUsersRequest, opts ...grpc.CallOption) (*DeleteUsersResponse, error)
 	GetUserProfile(ctx context.Context, in *GetUserProfileRequest, opts ...grpc.CallOption) (*GetUserProfileResponse, error)
-	UpdateUserProfile(ctx context.Context, in *UpdateUserProfileRequest, opts ...grpc.CallOption) (*UpdateUserProfileResponse, error)
+	UpdateAdminProfile(ctx context.Context, in *UpdateAdminProfileRequest, opts ...grpc.CallOption) (*UpdateAdminProfileResponse, error)
+	UpdateSchoolProfile(ctx context.Context, in *UpdateSchoolProfileRequest, opts ...grpc.CallOption) (*UpdateSchoolProfileResponse, error)
 	DeleteUserProfile(ctx context.Context, in *DeleteUserProfileRequest, opts ...grpc.CallOption) (*DeleteUserProfileResponse, error)
 	DeactivateAccount(ctx context.Context, in *DeactivateAccountRequest, opts ...grpc.CallOption) (*DeactivateAccountResponse, error)
 	ReactivateAccount(ctx context.Context, in *ReactivateAccountRequest, opts ...grpc.CallOption) (*ReactivateAccountResponse, error)
@@ -147,10 +149,20 @@ func (c *userManagementServiceClient) GetUserProfile(ctx context.Context, in *Ge
 	return out, nil
 }
 
-func (c *userManagementServiceClient) UpdateUserProfile(ctx context.Context, in *UpdateUserProfileRequest, opts ...grpc.CallOption) (*UpdateUserProfileResponse, error) {
+func (c *userManagementServiceClient) UpdateAdminProfile(ctx context.Context, in *UpdateAdminProfileRequest, opts ...grpc.CallOption) (*UpdateAdminProfileResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UpdateUserProfileResponse)
-	err := c.cc.Invoke(ctx, UserManagementService_UpdateUserProfile_FullMethodName, in, out, cOpts...)
+	out := new(UpdateAdminProfileResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_UpdateAdminProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userManagementServiceClient) UpdateSchoolProfile(ctx context.Context, in *UpdateSchoolProfileRequest, opts ...grpc.CallOption) (*UpdateSchoolProfileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateSchoolProfileResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_UpdateSchoolProfile_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +310,8 @@ type UserManagementServiceServer interface {
 	RejectUsers(context.Context, *RejectUsersRequest) (*RejectUsersResponse, error)
 	DeleteUsers(context.Context, *DeleteUsersRequest) (*DeleteUsersResponse, error)
 	GetUserProfile(context.Context, *GetUserProfileRequest) (*GetUserProfileResponse, error)
-	UpdateUserProfile(context.Context, *UpdateUserProfileRequest) (*UpdateUserProfileResponse, error)
+	UpdateAdminProfile(context.Context, *UpdateAdminProfileRequest) (*UpdateAdminProfileResponse, error)
+	UpdateSchoolProfile(context.Context, *UpdateSchoolProfileRequest) (*UpdateSchoolProfileResponse, error)
 	DeleteUserProfile(context.Context, *DeleteUserProfileRequest) (*DeleteUserProfileResponse, error)
 	DeactivateAccount(context.Context, *DeactivateAccountRequest) (*DeactivateAccountResponse, error)
 	ReactivateAccount(context.Context, *ReactivateAccountRequest) (*ReactivateAccountResponse, error)
@@ -343,8 +356,11 @@ func (UnimplementedUserManagementServiceServer) DeleteUsers(context.Context, *De
 func (UnimplementedUserManagementServiceServer) GetUserProfile(context.Context, *GetUserProfileRequest) (*GetUserProfileResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUserProfile not implemented")
 }
-func (UnimplementedUserManagementServiceServer) UpdateUserProfile(context.Context, *UpdateUserProfileRequest) (*UpdateUserProfileResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateUserProfile not implemented")
+func (UnimplementedUserManagementServiceServer) UpdateAdminProfile(context.Context, *UpdateAdminProfileRequest) (*UpdateAdminProfileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateAdminProfile not implemented")
+}
+func (UnimplementedUserManagementServiceServer) UpdateSchoolProfile(context.Context, *UpdateSchoolProfileRequest) (*UpdateSchoolProfileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateSchoolProfile not implemented")
 }
 func (UnimplementedUserManagementServiceServer) DeleteUserProfile(context.Context, *DeleteUserProfileRequest) (*DeleteUserProfileResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteUserProfile not implemented")
@@ -532,20 +548,38 @@ func _UserManagementService_GetUserProfile_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
-func _UserManagementService_UpdateUserProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateUserProfileRequest)
+func _UserManagementService_UpdateAdminProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateAdminProfileRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(UserManagementServiceServer).UpdateUserProfile(ctx, in)
+		return srv.(UserManagementServiceServer).UpdateAdminProfile(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: UserManagementService_UpdateUserProfile_FullMethodName,
+		FullMethod: UserManagementService_UpdateAdminProfile_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserManagementServiceServer).UpdateUserProfile(ctx, req.(*UpdateUserProfileRequest))
+		return srv.(UserManagementServiceServer).UpdateAdminProfile(ctx, req.(*UpdateAdminProfileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserManagementService_UpdateSchoolProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateSchoolProfileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).UpdateSchoolProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_UpdateSchoolProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).UpdateSchoolProfile(ctx, req.(*UpdateSchoolProfileRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -820,8 +854,12 @@ var UserManagementService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _UserManagementService_GetUserProfile_Handler,
 		},
 		{
-			MethodName: "UpdateUserProfile",
-			Handler:    _UserManagementService_UpdateUserProfile_Handler,
+			MethodName: "UpdateAdminProfile",
+			Handler:    _UserManagementService_UpdateAdminProfile_Handler,
+		},
+		{
+			MethodName: "UpdateSchoolProfile",
+			Handler:    _UserManagementService_UpdateSchoolProfile_Handler,
 		},
 		{
 			MethodName: "DeleteUserProfile",

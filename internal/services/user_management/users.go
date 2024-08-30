@@ -16,6 +16,7 @@ import (
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
 	email "github.com/iRankHub/backend/internal/utils/emails"
+
 )
 
 type UserManagementService struct {
@@ -370,7 +371,7 @@ func (s *UserManagementService) GetUserProfile(ctx context.Context, token string
 	return &profile, nil
 }
 
-func (s *UserManagementService) UpdateUserProfile(ctx context.Context, token string, req *user_management.UpdateUserProfileRequest) error {
+func (s *UserManagementService) UpdateAdminProfile(ctx context.Context, token string, req *user_management.UpdateAdminProfileRequest) error {
     claims, err := utils.ValidateToken(token)
     if err != nil {
         return fmt.Errorf("invalid token: %v", err)
@@ -379,8 +380,50 @@ func (s *UserManagementService) UpdateUserProfile(ctx context.Context, token str
     tokenUserID := int32(claims["user_id"].(float64))
     userRole := claims["user_role"].(string)
 
-    if tokenUserID != req.UserID && userRole != "admin" {
-        return fmt.Errorf("you can only update your own profile unless you're an admin")
+    if tokenUserID != req.UserID || userRole != "admin" {
+        return fmt.Errorf("unauthorized: only admins can update their own profile")
+    }
+
+    tx, err := s.db.BeginTx(ctx, nil)
+    if err != nil {
+        return fmt.Errorf("failed to start transaction: %v", err)
+    }
+    defer tx.Rollback()
+
+    queries := models.New(tx)
+
+    err = queries.UpdateAdminProfile(ctx, models.UpdateAdminProfileParams{
+        Userid:         req.UserID,
+        Name:           req.Name,
+        Gender:         sql.NullString{String: req.Gender, Valid: req.Gender != ""},
+		Email: 			req.Email,
+        Address:        sql.NullString{String: req.Address, Valid: req.Address != ""},
+        Bio:            sql.NullString{String: req.Bio, Valid: req.Bio != ""},
+        Phone:          sql.NullString{String: req.Phone, Valid: req.Phone != ""},
+        Profilepicture: req.ProfilePicture,
+    })
+    if err != nil {
+        return fmt.Errorf("failed to update admin profile: %v", err)
+    }
+
+    if err := tx.Commit(); err != nil {
+        return fmt.Errorf("failed to commit transaction: %v", err)
+    }
+
+    return nil
+}
+
+func (s *UserManagementService) UpdateSchoolProfile(ctx context.Context, token string, req *user_management.UpdateSchoolProfileRequest) error {
+    claims, err := utils.ValidateToken(token)
+    if err != nil {
+        return fmt.Errorf("invalid token: %v", err)
+    }
+
+    tokenUserID := int32(claims["user_id"].(float64))
+    userRole := claims["user_role"].(string)
+
+    if tokenUserID != req.UserID || userRole != "school" {
+        return fmt.Errorf("unauthorized: only school contact persons can update their school profile")
     }
 
     tx, err := s.db.BeginTx(ctx, nil)
@@ -392,21 +435,21 @@ func (s *UserManagementService) UpdateUserProfile(ctx context.Context, token str
     queries := models.New(tx)
 
     // Update Users table
-    err = queries.UpdateUserBasicInfo(ctx, models.UpdateUserBasicInfoParams{
+    err = queries.UpdateSchoolUser(ctx, models.UpdateSchoolUserParams{
         Userid: req.UserID,
-        Name:   req.Name,
-        Email:  req.Email,
+        Name:   req.ContactPersonName,
         Gender: sql.NullString{String: req.Gender, Valid: req.Gender != ""},
+        Email:  req.ContactEmail,
     })
     if err != nil {
-        return fmt.Errorf("failed to update user basic info: %v", err)
+        return fmt.Errorf("failed to update user: %v", err)
     }
 
     // Update UserProfiles table
-    err = queries.UpdateUserProfile(ctx, models.UpdateUserProfileParams{
+    err = queries.UpdateSchoolUserProfile(ctx, models.UpdateSchoolUserProfileParams{
         Userid:         req.UserID,
-        Name:           req.Name,
-        Email:          req.Email,
+        Name:           req.ContactPersonName,
+        Email:          req.ContactEmail,
         Gender:         sql.NullString{String: req.Gender, Valid: req.Gender != ""},
         Address:        sql.NullString{String: req.Address, Valid: req.Address != ""},
         Phone:          sql.NullString{String: req.Phone, Valid: req.Phone != ""},
@@ -417,38 +460,18 @@ func (s *UserManagementService) UpdateUserProfile(ctx context.Context, token str
         return fmt.Errorf("failed to update user profile: %v", err)
     }
 
-    // Update role-specific tables
-    switch details := req.RoleSpecificDetails.(type) {
-    case *user_management.UpdateUserProfileRequest_StudentDetails:
-        err = queries.UpdateStudentProfile(ctx, models.UpdateStudentProfileParams{
-            Userid:      req.UserID,
-            Grade:       details.StudentDetails.Grade,
-            Dateofbirth: sql.NullTime{Time: parseDate(details.StudentDetails.DateOfBirth), Valid: details.StudentDetails.DateOfBirth != ""},
-            Schoolid:    details.StudentDetails.SchoolID,
-        })
-    case *user_management.UpdateUserProfileRequest_SchoolDetails:
-        err = queries.UpdateSchoolProfile(ctx, models.UpdateSchoolProfileParams{
-            Contactpersonid: req.UserID,
-            Schoolname:      details.SchoolDetails.SchoolName,
-            Address:         req.Address,
-            Country:         sql.NullString{String: details.SchoolDetails.Country, Valid: details.SchoolDetails.Country != ""},
-            Province:        sql.NullString{String: details.SchoolDetails.Province, Valid: details.SchoolDetails.Province != ""},
-            District:        sql.NullString{String: details.SchoolDetails.District, Valid: details.SchoolDetails.District != ""},
-            Schooltype:      details.SchoolDetails.SchoolType,
-        })
-    case *user_management.UpdateUserProfileRequest_VolunteerDetails:
-        err = queries.UpdateVolunteerProfile(ctx, models.UpdateVolunteerProfileParams{
-            Userid:                 req.UserID,
-            Role:                   details.VolunteerDetails.Role,
-            Graduateyear:           sql.NullInt32{Int32: details.VolunteerDetails.GraduateYear, Valid: details.VolunteerDetails.GraduateYear != 0},
-            Safeguardcertificate:   details.VolunteerDetails.SafeGuardCertificate,
-            Hasinternship:          sql.NullBool{Bool: details.VolunteerDetails.HasInternship, Valid: true},
-            Isenrolledinuniversity: sql.NullBool{Bool: details.VolunteerDetails.IsEnrolledInUniversity, Valid: true},
-        })
-    }
-
+    // Update Schools table
+    err = queries.UpdateSchoolDetails(ctx, models.UpdateSchoolDetailsParams{
+        Contactpersonid:         req.UserID,
+        Contactpersonnationalid: sql.NullString{String: req.ContactPersonNationalId, Valid: req.ContactPersonNationalId != ""},
+        Schoolname:              req.SchoolName,
+        Address:                 req.Address,
+        Schoolemail:             req.SchoolEmail,
+        Schooltype:              req.SchoolType,
+        Contactemail:            req.ContactEmail,
+    })
     if err != nil {
-        return fmt.Errorf("failed to update role-specific details: %v", err)
+        return fmt.Errorf("failed to update school details: %v", err)
     }
 
     if err := tx.Commit(); err != nil {
@@ -456,12 +479,6 @@ func (s *UserManagementService) UpdateUserProfile(ctx context.Context, token str
     }
 
     return nil
-}
-
-// Helper function to parse date string
-func parseDate(dateStr string) time.Time {
-    t, _ := time.Parse("2006-01-02", dateStr)
-    return t
 }
 
 func (s *UserManagementService) DeleteUserProfile(ctx context.Context, token string, userID int32) error {

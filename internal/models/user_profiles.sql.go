@@ -159,63 +159,143 @@ func (q *Queries) SoftDeleteUserProfile(ctx context.Context, userid int32) error
 	return err
 }
 
-const updateSchoolProfile = `-- name: UpdateSchoolProfile :exec
-UPDATE Schools
-SET
-    SchoolName = COALESCE($2, SchoolName),
-    Address = COALESCE($3, Address),
-    Country = COALESCE($4, Country),
-    Province = COALESCE($5, Province),
-    District = COALESCE($6, District),
-    SchoolType = COALESCE($7, SchoolType)
-WHERE ContactPersonID = $1
+const updateAdminProfile = `-- name: UpdateAdminProfile :exec
+WITH updated_admin AS (
+    UPDATE Users
+    SET Name = COALESCE($2, Name),
+        Gender = COALESCE($3, Gender),
+        Email = COALESCE($4, Email)
+    WHERE Users.UserID = $1
+    RETURNING Users.UserID
+)
+UPDATE UserProfiles
+SET Name = COALESCE($2, Name),
+    Gender = COALESCE($3, Gender),
+    Email = COALESCE($4, Email),
+    Address = COALESCE($5, Address),
+    Bio = COALESCE($6, Bio),
+    Phone = COALESCE($7, Phone),
+    ProfilePicture = COALESCE($8, ProfilePicture)
+WHERE UserProfiles.UserID = (SELECT UserID FROM updated_admin)
 `
 
-type UpdateSchoolProfileParams struct {
-	Contactpersonid int32          `json:"contactpersonid"`
-	Schoolname      string         `json:"schoolname"`
-	Address         string         `json:"address"`
-	Country         sql.NullString `json:"country"`
-	Province        sql.NullString `json:"province"`
-	District        sql.NullString `json:"district"`
-	Schooltype      string         `json:"schooltype"`
+type UpdateAdminProfileParams struct {
+	Userid         int32          `json:"userid"`
+	Name           string         `json:"name"`
+	Gender         sql.NullString `json:"gender"`
+	Email          string         `json:"email"`
+	Address        sql.NullString `json:"address"`
+	Bio            sql.NullString `json:"bio"`
+	Phone          sql.NullString `json:"phone"`
+	Profilepicture []byte         `json:"profilepicture"`
 }
 
-func (q *Queries) UpdateSchoolProfile(ctx context.Context, arg UpdateSchoolProfileParams) error {
-	_, err := q.db.ExecContext(ctx, updateSchoolProfile,
-		arg.Contactpersonid,
-		arg.Schoolname,
+func (q *Queries) UpdateAdminProfile(ctx context.Context, arg UpdateAdminProfileParams) error {
+	_, err := q.db.ExecContext(ctx, updateAdminProfile,
+		arg.Userid,
+		arg.Name,
+		arg.Gender,
+		arg.Email,
 		arg.Address,
-		arg.Country,
-		arg.Province,
-		arg.District,
-		arg.Schooltype,
+		arg.Bio,
+		arg.Phone,
+		arg.Profilepicture,
 	)
 	return err
 }
 
-const updateStudentProfile = `-- name: UpdateStudentProfile :exec
-UPDATE Students
-SET
-    Grade = COALESCE($2, Grade),
-    DateOfBirth = COALESCE($3, DateOfBirth),
-    SchoolID = COALESCE($4, SchoolID)
+const updateSchoolDetails = `-- name: UpdateSchoolDetails :exec
+UPDATE Schools
+SET ContactPersonNationalID = COALESCE($2, ContactPersonNationalID),
+    SchoolName = COALESCE($3, SchoolName),
+    Address = COALESCE($4, Address),
+    SchoolEmail = COALESCE($5, SchoolEmail),
+    SchoolType = COALESCE($6, SchoolType),
+    ContactEmail = COALESCE($7, ContactEmail)
+WHERE ContactPersonID = $1
+`
+
+type UpdateSchoolDetailsParams struct {
+	Contactpersonid         int32          `json:"contactpersonid"`
+	Contactpersonnationalid sql.NullString `json:"contactpersonnationalid"`
+	Schoolname              string         `json:"schoolname"`
+	Address                 string         `json:"address"`
+	Schoolemail             string         `json:"schoolemail"`
+	Schooltype              string         `json:"schooltype"`
+	Contactemail            string         `json:"contactemail"`
+}
+
+func (q *Queries) UpdateSchoolDetails(ctx context.Context, arg UpdateSchoolDetailsParams) error {
+	_, err := q.db.ExecContext(ctx, updateSchoolDetails,
+		arg.Contactpersonid,
+		arg.Contactpersonnationalid,
+		arg.Schoolname,
+		arg.Address,
+		arg.Schoolemail,
+		arg.Schooltype,
+		arg.Contactemail,
+	)
+	return err
+}
+
+const updateSchoolUser = `-- name: UpdateSchoolUser :exec
+UPDATE Users
+SET Name = COALESCE($2, Name),
+    Gender = COALESCE($3, Gender),
+    Email = COALESCE($4, Email)
 WHERE UserID = $1
 `
 
-type UpdateStudentProfileParams struct {
-	Userid      int32        `json:"userid"`
-	Grade       string       `json:"grade"`
-	Dateofbirth sql.NullTime `json:"dateofbirth"`
-	Schoolid    int32        `json:"schoolid"`
+type UpdateSchoolUserParams struct {
+	Userid int32          `json:"userid"`
+	Name   string         `json:"name"`
+	Gender sql.NullString `json:"gender"`
+	Email  string         `json:"email"`
 }
 
-func (q *Queries) UpdateStudentProfile(ctx context.Context, arg UpdateStudentProfileParams) error {
-	_, err := q.db.ExecContext(ctx, updateStudentProfile,
+func (q *Queries) UpdateSchoolUser(ctx context.Context, arg UpdateSchoolUserParams) error {
+	_, err := q.db.ExecContext(ctx, updateSchoolUser,
 		arg.Userid,
-		arg.Grade,
-		arg.Dateofbirth,
-		arg.Schoolid,
+		arg.Name,
+		arg.Gender,
+		arg.Email,
+	)
+	return err
+}
+
+const updateSchoolUserProfile = `-- name: UpdateSchoolUserProfile :exec
+UPDATE UserProfiles
+SET Name = COALESCE($2, Name),
+    Email = COALESCE($3, Email),
+    Gender = COALESCE($4, Gender),
+    Address = COALESCE($5, Address),
+    Phone = COALESCE($6, Phone),
+    Bio = COALESCE($7, Bio),
+    ProfilePicture = COALESCE($8, ProfilePicture)
+WHERE UserProfiles.UserID = $1
+`
+
+type UpdateSchoolUserProfileParams struct {
+	Userid         int32          `json:"userid"`
+	Name           string         `json:"name"`
+	Email          string         `json:"email"`
+	Gender         sql.NullString `json:"gender"`
+	Address        sql.NullString `json:"address"`
+	Phone          sql.NullString `json:"phone"`
+	Bio            sql.NullString `json:"bio"`
+	Profilepicture []byte         `json:"profilepicture"`
+}
+
+func (q *Queries) UpdateSchoolUserProfile(ctx context.Context, arg UpdateSchoolUserProfileParams) error {
+	_, err := q.db.ExecContext(ctx, updateSchoolUserProfile,
+		arg.Userid,
+		arg.Name,
+		arg.Email,
+		arg.Gender,
+		arg.Address,
+		arg.Phone,
+		arg.Bio,
+		arg.Profilepicture,
 	)
 	return err
 }
@@ -243,76 +323,6 @@ func (q *Queries) UpdateUserBasicInfo(ctx context.Context, arg UpdateUserBasicIn
 		arg.Name,
 		arg.Email,
 		arg.Gender,
-	)
-	return err
-}
-
-const updateUserProfile = `-- name: UpdateUserProfile :exec
-UPDATE UserProfiles
-SET
-    Name = COALESCE($2, Name),
-    Email = COALESCE($3, Email),
-    Gender = COALESCE($4, Gender),
-    Address = COALESCE($5, Address),
-    Phone = COALESCE($6, Phone),
-    Bio = COALESCE($7, Bio),
-    ProfilePicture = COALESCE($8, ProfilePicture)
-WHERE UserID = $1
-`
-
-type UpdateUserProfileParams struct {
-	Userid         int32          `json:"userid"`
-	Name           string         `json:"name"`
-	Email          string         `json:"email"`
-	Gender         sql.NullString `json:"gender"`
-	Address        sql.NullString `json:"address"`
-	Phone          sql.NullString `json:"phone"`
-	Bio            sql.NullString `json:"bio"`
-	Profilepicture []byte         `json:"profilepicture"`
-}
-
-func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) error {
-	_, err := q.db.ExecContext(ctx, updateUserProfile,
-		arg.Userid,
-		arg.Name,
-		arg.Email,
-		arg.Gender,
-		arg.Address,
-		arg.Phone,
-		arg.Bio,
-		arg.Profilepicture,
-	)
-	return err
-}
-
-const updateVolunteerProfile = `-- name: UpdateVolunteerProfile :exec
-UPDATE Volunteers
-SET
-    Role = COALESCE($2, Role),
-    GraduateYear = COALESCE($3, GraduateYear),
-    SafeGuardCertificate = COALESCE($4, SafeGuardCertificate),
-    HasInternship = COALESCE($5, HasInternship),
-    IsEnrolledInUniversity = COALESCE($6, IsEnrolledInUniversity)
-WHERE UserID = $1
-`
-
-type UpdateVolunteerProfileParams struct {
-	Userid                 int32         `json:"userid"`
-	Role                   string        `json:"role"`
-	Graduateyear           sql.NullInt32 `json:"graduateyear"`
-	Safeguardcertificate   []byte        `json:"safeguardcertificate"`
-	Hasinternship          sql.NullBool  `json:"hasinternship"`
-	Isenrolledinuniversity sql.NullBool  `json:"isenrolledinuniversity"`
-}
-
-func (q *Queries) UpdateVolunteerProfile(ctx context.Context, arg UpdateVolunteerProfileParams) error {
-	_, err := q.db.ExecContext(ctx, updateVolunteerProfile,
-		arg.Userid,
-		arg.Role,
-		arg.Graduateyear,
-		arg.Safeguardcertificate,
-		arg.Hasinternship,
-		arg.Isenrolledinuniversity,
 	)
 	return err
 }

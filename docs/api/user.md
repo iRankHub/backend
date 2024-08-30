@@ -51,10 +51,10 @@ Request:
 }
 ```
 
-### UpdateUserProfile
+### UpdateAdminProfile
 
-Endpoint: `UserManagementService.UpdateUserProfile`
-Authorization: User can update their own profile, Admin can update any profile
+Endpoint: `UserManagementService.UpdateAdminProfile`
+Authorization: Admin only (can only update their own profile)
 
 Request:
 ```json
@@ -62,47 +62,41 @@ Request:
   "token": "your_auth_token_here",
   "userID": 123,
   "name": "John Doe",
-  "email": "john.doe@example.com",
   "gender": "male",
-  "address": "123 Main St",
+  "address": "123 Admin St",
+  "bio": "Experienced administrator",
   "phone": "555-1234",
-  "bio": "A brief bio",
-  "profilePicture": "base64_encoded_image",
-  "password": "new_password",
-  "roleSpecificDetails": {
-    "oneOf": [
-      {
-        "studentDetails": {
-          "grade": "10",
-          "dateOfBirth": "2005-05-15",
-          "schoolID": 456
-        }
-      },
-      {
-        "schoolDetails": {
-          "schoolName": "Example High School",
-          "address": "456 School Ave",
-          "country": "United States",
-          "province": "California",
-          "district": "Los Angeles",
-          "schoolType": "Public"
-        }
-      },
-      {
-        "volunteerDetails": {
-          "role": "Mentor",
-          "graduateYear": 2020,
-          "safeGuardCertificate": true,
-          "hasInternship": false,
-          "isEnrolledInUniversity": true
-        }
-      }
-    ]
-  }
+  "profilePicture": "base64encodedimage"
 }
 ```
 
-Note: The `roleSpecificDetails` field should contain only one of `studentDetails`, `schoolDetails`, or `volunteerDetails`, depending on the user's role.
+Note: All fields required. Whether you updated it or not send it back in the request.
+
+### UpdateSchoolProfile
+
+Endpoint: `UserManagementService.UpdateSchoolProfile`
+Authorization: School contact person only (can only update their own school's profile)
+
+Request:
+```json
+{
+  "token": "your_auth_token_here",
+  "userID": 123,
+  "contactPersonName": "Jane Smith",
+  "gender": "female",
+  "address": "456 School Ave",
+  "schoolName": "New Example High School",
+  "schoolEmail": "contact@newexample.edu",
+  "schoolType": "Private",
+  "contactEmail": "jane.smith@newexample.edu",
+  "contactPersonNationalId": "ID12345678",
+  "phone": "555-5678",
+  "profilePicture": "base64_encoded_image",
+  "bio": "Dedicated school administrator"
+}
+```
+
+Note: All fields are required. Whether you updated it or not. It must be included in the request body. Also Only `Approved Users` can update their profile because they are the only one who have their userprofile row filled.
 
 ### DeleteUserProfile
 
@@ -376,28 +370,41 @@ To test the user management features:
    - Test with incorrect verification codes and expired codes (should fail).
    - Attempt to update password for a different user ID (should fail).
 
-1. For each test, verify that the appropriate email notifications are sent:
+   n. Admin Profile Update:
+   - Use `UpdateAdminProfile` to modify an admin's profile information.
+   - Verify that only admins can use this endpoint.
+   - Attempt to update another admin's profile (should fail).
+   - Use `GetUserProfile` to verify the changes.
+
+   o. School Profile Update:
+   - Use `UpdateSchoolProfile` to modify a school's profile information.
+   - Verify that only school contact persons can use this endpoint.
+   - Attempt to update another school's profile (should fail).
+   - Use `GetUserProfile` and `GetSchools` to verify the changes.
+
+
+5. For each test, verify that the appropriate email notifications are sent:
    - Single user operations: approval, rejection, deletion, deactivation, reactivation
    - Batch operations: verify that emails are sent for each successfully processed user
 
-2. Test pagination for endpoints that support it (GetStudents, GetVolunteers, GetSchools) by varying the page and pageSize parameters.
+6. Test pagination for endpoints that support it (GetStudents, GetVolunteers, GetSchools) by varying the page and pageSize parameters.
 
-3. Performance Testing for Batch Operations:
+7. Performance Testing for Batch Operations:
    - Test `ApproveUsers`, `RejectUsers`, and `DeleteUsers` with varying numbers of user IDs (e.g., 10, 100, 1000) to ensure the system can handle large batches efficiently.
    - Monitor response times and system resources during these tests.
 
-4. Concurrency Testing:
+8. Concurrency Testing:
    - Simulate multiple admins performing batch operations simultaneously to ensure data consistency and proper handling of concurrent requests.
 
-5. Edge Cases for Batch Operations:
+9. Edge Cases for Batch Operations:
    - Test with an empty list of user IDs.
    - Test with a list containing only invalid user IDs.
    - Test with a very large list of user IDs to verify any upper limits on batch size.
 
-6.  Authorization Testing:
+10. Authorization Testing:
     - Attempt to use batch operations with non-admin user tokens to ensure proper access control.
-  
-7. Password Update Testing:
+
+11. Password Update Testing:
     - Test initiating password update for non-existent users.
     - Test verifying with incorrect or expired verification codes.
     - Test password update with weak passwords (if password strength rules are implemented).

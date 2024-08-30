@@ -12,7 +12,8 @@ service UserManagementService {
   rpc RejectUsers(RejectUsersRequest) returns (RejectUsersResponse) {}
   rpc DeleteUsers(DeleteUsersRequest) returns (DeleteUsersResponse) {}
   rpc GetUserProfile(GetUserProfileRequest) returns (GetUserProfileResponse) {}
-  rpc UpdateUserProfile(UpdateUserProfileRequest) returns (UpdateUserProfileResponse) {}
+  rpc UpdateAdminProfile(UpdateAdminProfileRequest) returns (UpdateAdminProfileResponse) {}
+  rpc UpdateSchoolProfile(UpdateSchoolProfileRequest) returns (UpdateSchoolProfileResponse) {}
   rpc DeleteUserProfile(DeleteUserProfileRequest) returns (DeleteUserProfileResponse) {}
   rpc DeactivateAccount(DeactivateAccountRequest) returns (DeactivateAccountResponse) {}
   rpc ReactivateAccount(ReactivateAccountRequest) returns (ReactivateAccountResponse) {}
@@ -164,29 +165,43 @@ message GetUserProfileResponse {
   UserProfile profile = 1;
 }
 
-message UpdateUserProfileRequest {
+message UpdateAdminProfileRequest {
   string token = 1;
   int32 userID = 2;
   string name = 3;
-  string email = 4;
-  string gender = 5;
-  string address = 6;
+  string gender = 4;
+  string address = 5;
+  string bio = 6;
   string phone = 7;
-  string bio = 8;
-  bytes profilePicture = 9;
-
-  oneof role_specific_details {
-    StudentDetails studentDetails = 10;
-    SchoolDetails schoolDetails = 11;
-    VolunteerDetails volunteerDetails = 12;
-  }
+  bytes profilePicture = 8;
+  string email = 9;
 }
 
-message UpdateUserProfileResponse {
+message UpdateAdminProfileResponse {
   bool success = 1;
   string message = 2;
 }
 
+message UpdateSchoolProfileRequest {
+  string token = 1;
+  int32 userID = 2;
+  string contactPersonName = 3;
+  string gender = 4;
+  string address = 5;
+  string schoolName = 6;
+  string schoolEmail = 7;
+  string schoolType = 8;
+  string contactEmail = 9;
+  string contactPersonNationalId = 10;
+  string phone = 11;
+  bytes profilePicture = 12;
+  string bio = 13;
+}
+
+message UpdateSchoolProfileResponse {
+  bool success = 1;
+  string message = 2;
+}
 
 message DeleteUserProfileRequest {
   string token = 1;

@@ -12,6 +12,7 @@ import (
 	"github.com/iRankHub/backend/internal/grpc/proto/user_management"
 	"github.com/iRankHub/backend/internal/models"
 	services "github.com/iRankHub/backend/internal/services/user_management"
+
 )
 
 type userManagementServer struct {
@@ -184,15 +185,27 @@ func (s *userManagementServer) GetUserProfile(ctx context.Context, req *user_man
 	}, nil
 }
 
-func (s *userManagementServer) UpdateUserProfile(ctx context.Context, req *user_management.UpdateUserProfileRequest) (*user_management.UpdateUserProfileResponse, error) {
-    err := s.userManagementService.UpdateUserProfile(ctx, req.Token, req)
+func (s *userManagementServer) UpdateAdminProfile(ctx context.Context, req *user_management.UpdateAdminProfileRequest) (*user_management.UpdateAdminProfileResponse, error) {
+    err := s.userManagementService.UpdateAdminProfile(ctx, req.Token, req)
     if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to update user profile: %v", err)
+        return nil, status.Errorf(codes.Internal, "Failed to update admin profile: %v", err)
     }
 
-    return &user_management.UpdateUserProfileResponse{
+    return &user_management.UpdateAdminProfileResponse{
         Success: true,
-        Message: "User profile updated successfully",
+        Message: "Admin profile updated successfully",
+    }, nil
+}
+
+func (s *userManagementServer) UpdateSchoolProfile(ctx context.Context, req *user_management.UpdateSchoolProfileRequest) (*user_management.UpdateSchoolProfileResponse, error) {
+    err := s.userManagementService.UpdateSchoolProfile(ctx, req.Token, req)
+    if err != nil {
+        return nil, status.Errorf(codes.Internal, "Failed to update school profile: %v", err)
+    }
+
+    return &user_management.UpdateSchoolProfileResponse{
+        Success: true,
+        Message: "School profile updated successfully",
     }, nil
 }
 

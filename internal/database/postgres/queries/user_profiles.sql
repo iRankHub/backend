@@ -30,46 +30,52 @@ SET
     updated_at = CURRENT_TIMESTAMP
 WHERE UserID = $1;
 
--- name: UpdateUserProfile :exec
+-- name: UpdateAdminProfile :exec
+WITH updated_admin AS (
+    UPDATE Users
+    SET Name = COALESCE($2, Name),
+        Gender = COALESCE($3, Gender),
+        Email = COALESCE($4, Email)
+    WHERE Users.UserID = $1
+    RETURNING Users.UserID
+)
 UPDATE UserProfiles
-SET
-    Name = COALESCE($2, Name),
+SET Name = COALESCE($2, Name),
+    Gender = COALESCE($3, Gender),
+    Email = COALESCE($4, Email),
+    Address = COALESCE($5, Address),
+    Bio = COALESCE($6, Bio),
+    Phone = COALESCE($7, Phone),
+    ProfilePicture = COALESCE($8, ProfilePicture)
+WHERE UserProfiles.UserID = (SELECT UserID FROM updated_admin);
+
+-- name: UpdateSchoolUser :exec
+UPDATE Users
+SET Name = COALESCE($2, Name),
+    Gender = COALESCE($3, Gender),
+    Email = COALESCE($4, Email)
+WHERE UserID = $1;
+
+-- name: UpdateSchoolUserProfile :exec
+UPDATE UserProfiles
+SET Name = COALESCE($2, Name),
     Email = COALESCE($3, Email),
     Gender = COALESCE($4, Gender),
     Address = COALESCE($5, Address),
     Phone = COALESCE($6, Phone),
     Bio = COALESCE($7, Bio),
     ProfilePicture = COALESCE($8, ProfilePicture)
-WHERE UserID = $1;
+WHERE UserProfiles.UserID = $1;
 
--- name: UpdateStudentProfile :exec
-UPDATE Students
-SET
-    Grade = COALESCE($2, Grade),
-    DateOfBirth = COALESCE($3, DateOfBirth),
-    SchoolID = COALESCE($4, SchoolID)
-WHERE UserID = $1;
-
--- name: UpdateSchoolProfile :exec
+-- name: UpdateSchoolDetails :exec
 UPDATE Schools
-SET
-    SchoolName = COALESCE($2, SchoolName),
-    Address = COALESCE($3, Address),
-    Country = COALESCE($4, Country),
-    Province = COALESCE($5, Province),
-    District = COALESCE($6, District),
-    SchoolType = COALESCE($7, SchoolType)
+SET ContactPersonNationalID = COALESCE($2, ContactPersonNationalID),
+    SchoolName = COALESCE($3, SchoolName),
+    Address = COALESCE($4, Address),
+    SchoolEmail = COALESCE($5, SchoolEmail),
+    SchoolType = COALESCE($6, SchoolType),
+    ContactEmail = COALESCE($7, ContactEmail)
 WHERE ContactPersonID = $1;
-
--- name: UpdateVolunteerProfile :exec
-UPDATE Volunteers
-SET
-    Role = COALESCE($2, Role),
-    GraduateYear = COALESCE($3, GraduateYear),
-    SafeGuardCertificate = COALESCE($4, SafeGuardCertificate),
-    HasInternship = COALESCE($5, HasInternship),
-    IsEnrolledInUniversity = COALESCE($6, IsEnrolledInUniversity)
-WHERE UserID = $1;
 
 -- name: SoftDeleteUserProfile :exec
 UPDATE Users
