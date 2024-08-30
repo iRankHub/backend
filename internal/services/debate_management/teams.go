@@ -167,6 +167,7 @@ func convertTeam(dbTeam interface{}, dbSpeakers []models.GetTeamMembersRow) *deb
     for i, dbSpeaker := range dbSpeakers {
         speakers[i] = &debate_management.Speaker{
             SpeakerId: dbSpeaker.Studentid,
+			Name: dbSpeaker.Firstname + " " + dbSpeaker.Lastname,
         }
     }
 
