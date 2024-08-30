@@ -146,32 +146,46 @@ func (s *userManagementServer) DeleteUsers(ctx context.Context, req *user_manage
 }
 
 func (s *userManagementServer) GetAllUsers(ctx context.Context, req *user_management.GetAllUsersRequest) (*user_management.GetAllUsersResponse, error) {
-	users, totalCount, err := s.userManagementService.GetAllUsers(ctx, req.Token, req.Page, req.PageSize)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to get all users: %v", err)
-	}
+    users, totalCount, err := s.userManagementService.GetAllUsers(ctx, req.Token, req.Page, req.PageSize)
+    if err != nil {
+        return nil, status.Errorf(codes.Internal, "Failed to get all users: %v", err)
+    }
 
-	var userSummaries []*user_management.UserSummary
-	for _, user := range users {
-		signUpDate := ""
-		if user.CreatedAt.Valid {
-			signUpDate = user.CreatedAt.Time.Format("2006-01-02 15:04:05")
-		}
-		userSummaries = append(userSummaries, &user_management.UserSummary{
-			UserID:     user.Userid,
-			Name:       user.Name,
-			Email:      user.Email,
-			UserRole:   user.Userrole,
-			SignUpDate: signUpDate,
-			Gender:     user.Gender.String,
-			Status:     user.Status.String,
-		})
-	}
+    var userSummaries []*user_management.UserSummary
+    for _, user := range users {
+        signUpDate := ""
+        if user.CreatedAt.Valid {
+            signUpDate = user.CreatedAt.Time.Format("2006-01-02 15:04:05")
+        }
 
-	return &user_management.GetAllUsersResponse{
-		Users:      userSummaries,
-		TotalCount: totalCount,
-	}, nil
+        var idebateID string
+        if user.Idebateid != nil {
+            switch v := user.Idebateid.(type) {
+            case string:
+                idebateID = v
+            case []byte:
+                idebateID = string(v)
+            default:
+                idebateID = fmt.Sprintf("%v", v)
+            }
+        }
+
+        userSummaries = append(userSummaries, &user_management.UserSummary{
+            UserID:     user.Userid,
+            Name:       user.Name,
+            Email:      user.Email,
+            UserRole:   user.Userrole,
+            SignUpDate: signUpDate,
+            Gender:     user.Gender.String,
+            Status:     user.Status.String,
+            IdebateID:  idebateID,
+        })
+    }
+
+    return &user_management.GetAllUsersResponse{
+        Users:      userSummaries,
+        TotalCount: totalCount,
+    }, nil
 }
 
 func (s *userManagementServer) GetUserProfile(ctx context.Context, req *user_management.GetUserProfileRequest) (*user_management.GetUserProfileResponse, error) {
@@ -206,6 +220,30 @@ func (s *userManagementServer) UpdateSchoolProfile(ctx context.Context, req *use
     return &user_management.UpdateSchoolProfileResponse{
         Success: true,
         Message: "School profile updated successfully",
+    }, nil
+}
+
+func (s *userManagementServer) UpdateStudentProfile(ctx context.Context, req *user_management.UpdateStudentProfileRequest) (*user_management.UpdateStudentProfileResponse, error) {
+    err := s.userManagementService.UpdateStudentProfile(ctx, req.Token, req)
+    if err != nil {
+        return nil, status.Errorf(codes.Internal, "Failed to update student profile: %v", err)
+    }
+
+    return &user_management.UpdateStudentProfileResponse{
+        Success: true,
+        Message: "Student profile updated successfully",
+    }, nil
+}
+
+func (s *userManagementServer) UpdateVolunteerProfile(ctx context.Context, req *user_management.UpdateVolunteerProfileRequest) (*user_management.UpdateVolunteerProfileResponse, error) {
+    err := s.userManagementService.UpdateVolunteerProfile(ctx, req.Token, req)
+    if err != nil {
+        return nil, status.Errorf(codes.Internal, "Failed to update volunteer profile: %v", err)
+    }
+
+    return &user_management.UpdateVolunteerProfileResponse{
+        Success: true,
+        Message: "Volunteer profile updated successfully",
     }, nil
 }
 

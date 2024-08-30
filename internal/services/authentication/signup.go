@@ -77,7 +77,7 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 	case "volunteer":
 		err = s.createVolunteerRecord(ctx, queries, user.Userid, firstName, lastName, gender, hashedPassword, nationalID, safeguardingCertificate, additionalInfo)
 	case "admin":
-		// No additional record needed for admin
+		err = s.createAdminProfile(ctx, queries, user)
 	default:
 		return fmt.Errorf("invalid user role")
 	}
@@ -90,19 +90,17 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	// This go routine run in the background as to not impact performance
+	// This go routine runs in the background as to not impact performance
 	go func() {
 		if userRole == "admin" {
 			if err := emails.SendAdminWelcomeEmail(email, firstName); err != nil {
 				log.Printf("Failed to send admin welcome email: %v", err)
 			}
 		} else {
-			if userRole != "admin" {
-				ctx := context.Background()
-				queries := models.New(s.db)
-				if err := s.notifyAdminOfNewSignUp(ctx, queries, user.Userid, userRole); err != nil {
-					log.Printf("Failed to notify admin of new signup: %v", err)
-				}
+			ctx := context.Background()
+			queries := models.New(s.db)
+			if err := s.notifyAdminOfNewSignUp(ctx, queries, user.Userid, userRole); err != nil {
+				log.Printf("Failed to notify admin of new signup: %v", err)
 			}
 			if err := emails.SendWelcomeEmail(email, firstName); err != nil {
 				log.Printf("Failed to send welcome email: %v", err)
@@ -113,7 +111,6 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 	return nil
 }
 
-// Update the notifyAdminOfNewSignUp function to accept a db connection
 func (s *SignUpService) notifyAdminOfNewSignUp(ctx context.Context, queries *models.Queries, userID int32, userRole string) error {
 	message := fmt.Sprintf("New %s user signed up and needs approval", userRole)
 	_, err := queries.CreateNotification(ctx, models.CreateNotificationParams{
@@ -257,4 +254,24 @@ func (s *SignUpService) createVolunteerRecord(ctx context.Context, queries *mode
 			Nationalid:             sql.NullString{String: nationalID, Valid: true},
 		})
 	return err
+}
+
+func (s *SignUpService) createAdminProfile(ctx context.Context, queries *models.Queries, user models.User) error {
+	_, err := queries.CreateUserProfile(ctx, models.CreateUserProfileParams{
+		Userid:             user.Userid,
+		Name:               user.Name,
+		Userrole:           user.Userrole,
+		Email:              user.Email,
+		Password:           user.Password,
+		Verificationstatus: user.Verificationstatus,
+		Address:            sql.NullString{},
+		Phone:              sql.NullString{},
+		Bio:                sql.NullString{},
+		Profilepicture:     nil,
+		Gender:             user.Gender,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create admin user profile: %v", err)
+	}
+	return nil
 }

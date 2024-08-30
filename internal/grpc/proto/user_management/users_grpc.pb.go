@@ -28,6 +28,8 @@ const (
 	UserManagementService_GetUserProfile_FullMethodName          = "/user_management.UserManagementService/GetUserProfile"
 	UserManagementService_UpdateAdminProfile_FullMethodName      = "/user_management.UserManagementService/UpdateAdminProfile"
 	UserManagementService_UpdateSchoolProfile_FullMethodName     = "/user_management.UserManagementService/UpdateSchoolProfile"
+	UserManagementService_UpdateStudentProfile_FullMethodName    = "/user_management.UserManagementService/UpdateStudentProfile"
+	UserManagementService_UpdateVolunteerProfile_FullMethodName  = "/user_management.UserManagementService/UpdateVolunteerProfile"
 	UserManagementService_DeleteUserProfile_FullMethodName       = "/user_management.UserManagementService/DeleteUserProfile"
 	UserManagementService_DeactivateAccount_FullMethodName       = "/user_management.UserManagementService/DeactivateAccount"
 	UserManagementService_ReactivateAccount_FullMethodName       = "/user_management.UserManagementService/ReactivateAccount"
@@ -56,6 +58,8 @@ type UserManagementServiceClient interface {
 	GetUserProfile(ctx context.Context, in *GetUserProfileRequest, opts ...grpc.CallOption) (*GetUserProfileResponse, error)
 	UpdateAdminProfile(ctx context.Context, in *UpdateAdminProfileRequest, opts ...grpc.CallOption) (*UpdateAdminProfileResponse, error)
 	UpdateSchoolProfile(ctx context.Context, in *UpdateSchoolProfileRequest, opts ...grpc.CallOption) (*UpdateSchoolProfileResponse, error)
+	UpdateStudentProfile(ctx context.Context, in *UpdateStudentProfileRequest, opts ...grpc.CallOption) (*UpdateStudentProfileResponse, error)
+	UpdateVolunteerProfile(ctx context.Context, in *UpdateVolunteerProfileRequest, opts ...grpc.CallOption) (*UpdateVolunteerProfileResponse, error)
 	DeleteUserProfile(ctx context.Context, in *DeleteUserProfileRequest, opts ...grpc.CallOption) (*DeleteUserProfileResponse, error)
 	DeactivateAccount(ctx context.Context, in *DeactivateAccountRequest, opts ...grpc.CallOption) (*DeactivateAccountResponse, error)
 	ReactivateAccount(ctx context.Context, in *ReactivateAccountRequest, opts ...grpc.CallOption) (*ReactivateAccountResponse, error)
@@ -163,6 +167,26 @@ func (c *userManagementServiceClient) UpdateSchoolProfile(ctx context.Context, i
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(UpdateSchoolProfileResponse)
 	err := c.cc.Invoke(ctx, UserManagementService_UpdateSchoolProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userManagementServiceClient) UpdateStudentProfile(ctx context.Context, in *UpdateStudentProfileRequest, opts ...grpc.CallOption) (*UpdateStudentProfileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateStudentProfileResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_UpdateStudentProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userManagementServiceClient) UpdateVolunteerProfile(ctx context.Context, in *UpdateVolunteerProfileRequest, opts ...grpc.CallOption) (*UpdateVolunteerProfileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateVolunteerProfileResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_UpdateVolunteerProfile_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -312,6 +336,8 @@ type UserManagementServiceServer interface {
 	GetUserProfile(context.Context, *GetUserProfileRequest) (*GetUserProfileResponse, error)
 	UpdateAdminProfile(context.Context, *UpdateAdminProfileRequest) (*UpdateAdminProfileResponse, error)
 	UpdateSchoolProfile(context.Context, *UpdateSchoolProfileRequest) (*UpdateSchoolProfileResponse, error)
+	UpdateStudentProfile(context.Context, *UpdateStudentProfileRequest) (*UpdateStudentProfileResponse, error)
+	UpdateVolunteerProfile(context.Context, *UpdateVolunteerProfileRequest) (*UpdateVolunteerProfileResponse, error)
 	DeleteUserProfile(context.Context, *DeleteUserProfileRequest) (*DeleteUserProfileResponse, error)
 	DeactivateAccount(context.Context, *DeactivateAccountRequest) (*DeactivateAccountResponse, error)
 	ReactivateAccount(context.Context, *ReactivateAccountRequest) (*ReactivateAccountResponse, error)
@@ -361,6 +387,12 @@ func (UnimplementedUserManagementServiceServer) UpdateAdminProfile(context.Conte
 }
 func (UnimplementedUserManagementServiceServer) UpdateSchoolProfile(context.Context, *UpdateSchoolProfileRequest) (*UpdateSchoolProfileResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateSchoolProfile not implemented")
+}
+func (UnimplementedUserManagementServiceServer) UpdateStudentProfile(context.Context, *UpdateStudentProfileRequest) (*UpdateStudentProfileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateStudentProfile not implemented")
+}
+func (UnimplementedUserManagementServiceServer) UpdateVolunteerProfile(context.Context, *UpdateVolunteerProfileRequest) (*UpdateVolunteerProfileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateVolunteerProfile not implemented")
 }
 func (UnimplementedUserManagementServiceServer) DeleteUserProfile(context.Context, *DeleteUserProfileRequest) (*DeleteUserProfileResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteUserProfile not implemented")
@@ -580,6 +612,42 @@ func _UserManagementService_UpdateSchoolProfile_Handler(srv interface{}, ctx con
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(UserManagementServiceServer).UpdateSchoolProfile(ctx, req.(*UpdateSchoolProfileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserManagementService_UpdateStudentProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateStudentProfileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).UpdateStudentProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_UpdateStudentProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).UpdateStudentProfile(ctx, req.(*UpdateStudentProfileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserManagementService_UpdateVolunteerProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateVolunteerProfileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).UpdateVolunteerProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_UpdateVolunteerProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).UpdateVolunteerProfile(ctx, req.(*UpdateVolunteerProfileRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -860,6 +928,14 @@ var UserManagementService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateSchoolProfile",
 			Handler:    _UserManagementService_UpdateSchoolProfile_Handler,
+		},
+		{
+			MethodName: "UpdateStudentProfile",
+			Handler:    _UserManagementService_UpdateStudentProfile_Handler,
+		},
+		{
+			MethodName: "UpdateVolunteerProfile",
+			Handler:    _UserManagementService_UpdateVolunteerProfile_Handler,
 		},
 		{
 			MethodName: "DeleteUserProfile",

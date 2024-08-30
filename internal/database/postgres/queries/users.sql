@@ -48,9 +48,21 @@ WHERE UserID = $1
 RETURNING *;
 
 -- name: GetAllUsers :many
-SELECT * FROM Users
-WHERE deleted_at IS NULL
-ORDER BY created_at DESC
+SELECT
+    u.*,
+    CASE
+        WHEN u.UserRole = 'student' THEN s.iDebateStudentID
+        WHEN u.UserRole = 'volunteer' THEN v.iDebateVolunteerID
+        WHEN u.UserRole = 'school' THEN sch.iDebateSchoolID
+        WHEN u.UserRole = 'admin' THEN 'iDebate'
+        ELSE NULL
+    END AS iDebateID
+FROM Users u
+LEFT JOIN Students s ON u.UserID = s.UserID
+LEFT JOIN Volunteers v ON u.UserID = v.UserID
+LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
+WHERE u.deleted_at IS NULL
+ORDER BY u.created_at DESC
 LIMIT $1 OFFSET $2;
 
 -- name: GetTotalUserCount :one
@@ -164,11 +176,21 @@ WITH updated_users AS (
     UPDATE Users
     SET Password = $2, reset_token = NULL, reset_token_expires = NULL
     WHERE Users.UserID = $1
-    RETURNING UserID
+    RETURNING UserID, UserRole
 )
 UPDATE UserProfiles
 SET Password = $2
 WHERE UserProfiles.UserID = (SELECT UserID FROM updated_users);
+
+UPDATE Students
+SET Password = $2
+WHERE Students.UserID = (SELECT UserID FROM updated_users)
+  AND (SELECT UserRole FROM updated_users) = 'student';
+
+UPDATE Volunteers
+SET Password = $2
+WHERE Volunteers.UserID = (SELECT UserID FROM updated_users)
+  AND (SELECT UserRole FROM updated_users) = 'volunteer';
 
 -- name: SetPasswordResetCodeAndGetUser :one
 UPDATE Users

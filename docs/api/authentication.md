@@ -132,16 +132,19 @@ Note:
 
 ### Login
 
-Endpoint: `AuthService.Login`
+Endpoint: `AuthService.AdminLogin` / `AuthService.StudentLogin` / `AuthService.VolunteerLogin` / `AuthService.SchoolLogin`
+Authorization: None required
 
-Demo Data:
-
+Request:
 ```json
 {
   "email_or_id": "user@example.com",
-  "password": "password123"
+  "password": "secure_password"
 }
 ```
+
+Note: Use the appropriate login endpoint based on the user role (AdminLogin, StudentLogin, VolunteerLogin, or SchoolLogin).
+
 Note: The login process now has two steps when 2FA is enabled:
 1. Initial login attempt with email/ID and password
 2. If 2FA is required, use the `VerifyTwoFactor` endpoint to complete the authentication

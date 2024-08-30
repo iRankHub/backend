@@ -77,6 +77,64 @@ SET ContactPersonNationalID = COALESCE($2, ContactPersonNationalID),
     ContactEmail = COALESCE($7, ContactEmail)
 WHERE ContactPersonID = $1;
 
+-- name: UpdateStudentUser :exec
+UPDATE Users
+SET Name = COALESCE($2 || ' ' || $3, Name),
+    Gender = COALESCE($4, Gender),
+    Email = COALESCE($5, Email)
+WHERE UserID = $1;
+
+-- name: UpdateStudentUserProfile :exec
+UPDATE UserProfiles
+SET Name = COALESCE($2 || ' ' || $3, Name),
+    Gender = COALESCE($4, Gender),
+    Email = COALESCE($5, Email),
+    Address = COALESCE($6, Address),
+    Bio = COALESCE($7, Bio),
+    ProfilePicture = COALESCE($8, ProfilePicture),
+    Phone = COALESCE($9, Phone)
+WHERE UserID = $1;
+
+-- name: UpdateStudentDetails :exec
+UPDATE Students
+SET FirstName = COALESCE($2, FirstName),
+    LastName = COALESCE($3, LastName),
+    Gender = COALESCE($4, Gender),
+    Email = COALESCE($5, Email),
+    Grade = COALESCE($6, Grade),
+    DateOfBirth = COALESCE($7::DATE, DateOfBirth)
+WHERE UserID = $1;
+
+-- name: UpdateVolunteerUser :exec
+UPDATE Users
+SET Name = COALESCE($2 || ' ' || $3, Name),
+    Gender = COALESCE($4, Gender),
+    Email = COALESCE($5, Email)
+WHERE UserID = $1;
+
+-- name: UpdateVolunteerUserProfile :exec
+UPDATE UserProfiles
+SET Name = COALESCE($2 || ' ' || $3, Name),
+    Gender = COALESCE($4, Gender),
+    Email = COALESCE($5, Email),
+    Address = COALESCE($6, Address),
+    Bio = COALESCE($7, Bio),
+    ProfilePicture = COALESCE($8, ProfilePicture),
+    Phone = COALESCE($9, Phone)
+WHERE UserID = $1;
+
+-- name: UpdateVolunteerDetails :exec
+UPDATE Volunteers
+SET FirstName = COALESCE($2, FirstName),
+    LastName = COALESCE($3, LastName),
+    Gender = COALESCE($4, Gender),
+    NationalID = COALESCE($5, NationalID),
+    GraduateYear = COALESCE($6, GraduateYear),
+    IsEnrolledInUniversity = COALESCE($7, IsEnrolledInUniversity),
+    HasInternship = COALESCE($8, HasInternship),
+    Role = COALESCE($9, Role)
+WHERE UserID = $1;
+
 -- name: SoftDeleteUserProfile :exec
 UPDATE Users
 SET deleted_at = CURRENT_TIMESTAMP

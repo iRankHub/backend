@@ -12,6 +12,20 @@ Request:
 }
 ```
 
+### GetAllUsers
+
+Endpoint: `UserManagementService.GetAllUsers`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "token": "your_auth_token_here",
+  "page": 1,
+  "pageSize": 10
+}
+```
+
 ### ApproveUser
 
 Endpoint: `UserManagementService.ApproveUser`
@@ -97,6 +111,59 @@ Request:
 ```
 
 Note: All fields are required. Whether you updated it or not. It must be included in the request body. Also Only `Approved Users` can update their profile because they are the only one who have their userprofile row filled.
+
+### UpdateStudentProfile
+
+Endpoint: `UserManagementService.UpdateStudentProfile`
+Authorization: Student only (can only update their own profile)
+
+Request:
+```json
+{
+  "token": "your_auth_token_here",
+  "userID": 123,
+  "firstName": "John",
+  "lastName": "Doe",
+  "gender": "male",
+  "email": "john.doe@example.com",
+  "grade": "10th",
+  "dateOfBirth": "2005-01-15",
+  "address": "123 Student St",
+  "bio": "Dedicated student",
+  "profilePicture": "base64_encoded_image",
+  "phone": "555-1234"
+}
+```
+
+Note: All fields are required. Whether you updated it or not, it must be included in the request body. Also, only `Approved Users` can update their profile because they are the only ones who have their userprofile row filled.
+
+### UpdateVolunteerProfile
+
+Endpoint: `UserManagementService.UpdateVolunteerProfile`
+Authorization: Volunteer only (can only update their own profile)
+
+Request:
+```json
+{
+  "token": "your_auth_token_here",
+  "userID": 123,
+  "firstName": "Jane",
+  "lastName": "Smith",
+  "gender": "female",
+  "email": "jane.smith@example.com",
+  "nationalID": "ID87654321",
+  "graduateYear": 2022,
+  "isEnrolledInUniversity": true,
+  "hasInternship": false,
+  "address": "456 Volunteer Ave",
+  "bio": "Passionate volunteer",
+  "profilePicture": "base64_encoded_image",
+  "role": "Mentor",
+  "phone": "555-5678"
+}
+```
+
+Note: All fields are required. Whether you updated it or not, it must be included in the request body. Also, only `Approved Users` can update their profile because they are the only ones who have their userprofile row filled.
 
 ### DeleteUserProfile
 

@@ -44,37 +44,36 @@ func (s *UserManagementService) GetPendingUsers(ctx context.Context, token strin
 	return queries.GetUsersByStatus(ctx, sql.NullString{String: "pending", Valid: true})
 }
 
-func (s *UserManagementService) GetAllUsers(ctx context.Context, token string, page, pageSize int32) ([]models.User, int32, error) {
-	claims, err := utils.ValidateToken(token)
-	if err != nil {
-		return nil, 0, fmt.Errorf("invalid token: %v", err)
-	}
+func (s *UserManagementService) GetAllUsers(ctx context.Context, token string, page, pageSize int32) ([]models.GetAllUsersRow, int32, error) {
+    claims, err := utils.ValidateToken(token)
+    if err != nil {
+        return nil, 0, fmt.Errorf("invalid token: %v", err)
+    }
 
-	userRole, ok := claims["user_role"].(string)
-	if !ok || userRole != "admin" {
-		return nil, 0, fmt.Errorf("only admins can get all users")
-	}
+    userRole, ok := claims["user_role"].(string)
+    if !ok || userRole != "admin" {
+        return nil, 0, fmt.Errorf("only admins can get all users")
+    }
 
-	queries := models.New(s.db)
-	users, err := queries.GetAllUsers(ctx, models.GetAllUsersParams{
-		Limit:  pageSize,
-		Offset: (page - 1) * pageSize,
-	})
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to get users: %v", err)
-	}
+    queries := models.New(s.db)
+    users, err := queries.GetAllUsers(ctx, models.GetAllUsersParams{
+        Limit:  pageSize,
+        Offset: (page - 1) * pageSize,
+    })
+    if err != nil {
+        return nil, 0, fmt.Errorf("failed to get users: %v", err)
+    }
 
-	totalCount, err := queries.GetTotalUserCount(ctx)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to get total user count: %v", err)
-	}
+    totalCount, err := queries.GetTotalUserCount(ctx)
+    if err != nil {
+        return nil, 0, fmt.Errorf("failed to get total user count: %v", err)
+    }
 
-	// Convert int64 to int32, checking for overflow
-	if totalCount > math.MaxInt32 {
-		return nil, 0, fmt.Errorf("total user count exceeds maximum value for int32")
-	}
+    if totalCount > math.MaxInt32 {
+        return nil, 0, fmt.Errorf("total user count exceeds maximum value for int32")
+    }
 
-	return users, int32(totalCount), nil
+    return users, int32(totalCount), nil
 }
 
 func (s *UserManagementService) ApproveUser(ctx context.Context, token string, userID int32) error {
@@ -125,6 +124,7 @@ func (s *UserManagementService) ApproveUser(ctx context.Context, token string, u
 		Name:               user.Name,
 		Userrole:           user.Userrole,
 		Email:              user.Email,
+		Password: 			user.Password,
 		Verificationstatus: user.Verificationstatus,
 		Address:            address,
 		Phone:              sql.NullString{},
@@ -472,6 +472,153 @@ func (s *UserManagementService) UpdateSchoolProfile(ctx context.Context, token s
     })
     if err != nil {
         return fmt.Errorf("failed to update school details: %v", err)
+    }
+
+    if err := tx.Commit(); err != nil {
+        return fmt.Errorf("failed to commit transaction: %v", err)
+    }
+
+    return nil
+}
+
+func (s *UserManagementService) UpdateStudentProfile(ctx context.Context, token string, req *user_management.UpdateStudentProfileRequest) error {
+    claims, err := utils.ValidateToken(token)
+    if err != nil {
+        return fmt.Errorf("invalid token: %v", err)
+    }
+
+    tokenUserID := int32(claims["user_id"].(float64))
+    userRole := claims["user_role"].(string)
+
+    if tokenUserID != req.UserID || userRole != "student" {
+        return fmt.Errorf("unauthorized: only students can update their own profile")
+    }
+
+    tx, err := s.db.BeginTx(ctx, nil)
+    if err != nil {
+        return fmt.Errorf("failed to start transaction: %v", err)
+    }
+    defer tx.Rollback()
+
+	queries := models.New(tx)
+
+    // Update Users table
+    err = queries.UpdateStudentUser(ctx, models.UpdateStudentUserParams{
+        Userid:  req.UserID,
+        Column2: sql.NullString{String: req.FirstName, Valid: req.FirstName != ""},
+        Column3: sql.NullString{String: req.LastName, Valid: req.LastName != ""},
+        Gender:  sql.NullString{String: req.Gender, Valid: req.Gender != ""},
+        Email:   req.Email,
+    })
+    if err != nil {
+        return fmt.Errorf("failed to update user: %v", err)
+    }
+
+    // Update UserProfiles table
+    err = queries.UpdateStudentUserProfile(ctx, models.UpdateStudentUserProfileParams{
+        Userid:         req.UserID,
+        Column2:        sql.NullString{String: req.FirstName, Valid: req.FirstName != ""},
+        Column3:        sql.NullString{String: req.LastName, Valid: req.LastName != ""},
+        Gender:         sql.NullString{String: req.Gender, Valid: req.Gender != ""},
+        Email:          req.Email,
+        Address:        sql.NullString{String: req.Address, Valid: req.Address != ""},
+        Bio:            sql.NullString{String: req.Bio, Valid: req.Bio != ""},
+        Profilepicture: req.ProfilePicture,
+        Phone:          sql.NullString{String: req.Phone, Valid: req.Phone != ""},
+    })
+    if err != nil {
+        return fmt.Errorf("failed to update user profile: %v", err)
+    }
+
+    // Update Students table
+    dateOfBirth, err := time.Parse("2006-01-02", req.DateOfBirth)
+    if err != nil {
+        return fmt.Errorf("invalid date format for date of birth: %v", err)
+    }
+
+    err = queries.UpdateStudentDetails(ctx, models.UpdateStudentDetailsParams{
+        Userid:    req.UserID,
+        Firstname: req.FirstName,
+        Lastname:  req.LastName,
+        Gender:    sql.NullString{String: req.Gender, Valid: req.Gender != ""},
+        Email:     sql.NullString{String: req.Email, Valid: req.Email != ""},
+        Grade:     req.Grade,
+        Column7:   dateOfBirth,
+    })
+    if err != nil {
+        return fmt.Errorf("failed to update student details: %v", err)
+    }
+
+    if err := tx.Commit(); err != nil {
+        return fmt.Errorf("failed to commit transaction: %v", err)
+    }
+
+    return nil
+}
+
+func (s *UserManagementService) UpdateVolunteerProfile(ctx context.Context, token string, req *user_management.UpdateVolunteerProfileRequest) error {
+    claims, err := utils.ValidateToken(token)
+    if err != nil {
+        return fmt.Errorf("invalid token: %v", err)
+    }
+
+    tokenUserID := int32(claims["user_id"].(float64))
+    userRole := claims["user_role"].(string)
+
+    if tokenUserID != req.UserID || userRole != "volunteer" {
+        return fmt.Errorf("unauthorized: only volunteers can update their own profile")
+    }
+
+    tx, err := s.db.BeginTx(ctx, nil)
+    if err != nil {
+        return fmt.Errorf("failed to start transaction: %v", err)
+    }
+    defer tx.Rollback()
+
+    queries := models.New(tx)
+
+    // Update Users table
+    err = queries.UpdateVolunteerUser(ctx, models.UpdateVolunteerUserParams{
+        Userid:  req.UserID,
+        Column2: sql.NullString{String: req.FirstName, Valid: req.FirstName != ""},
+        Column3: sql.NullString{String: req.LastName, Valid: req.LastName != ""},
+        Gender:  sql.NullString{String: req.Gender, Valid: req.Gender != ""},
+        Email:   req.Email,
+    })
+    if err != nil {
+        return fmt.Errorf("failed to update user: %v", err)
+    }
+
+    // Update UserProfiles table
+    err = queries.UpdateVolunteerUserProfile(ctx, models.UpdateVolunteerUserProfileParams{
+        Userid:         req.UserID,
+        Column2:        sql.NullString{String: req.FirstName, Valid: req.FirstName != ""},
+        Column3:        sql.NullString{String: req.LastName, Valid: req.LastName != ""},
+        Gender:         sql.NullString{String: req.Gender, Valid: req.Gender != ""},
+        Email:          req.Email,
+        Address:        sql.NullString{String: req.Address, Valid: req.Address != ""},
+        Bio:            sql.NullString{String: req.Bio, Valid: req.Bio != ""},
+        Profilepicture: req.ProfilePicture,
+        Phone:          sql.NullString{String: req.Phone, Valid: req.Phone != ""},
+    })
+    if err != nil {
+        return fmt.Errorf("failed to update user profile: %v", err)
+    }
+
+    // Update Volunteers table
+    err = queries.UpdateVolunteerDetails(ctx, models.UpdateVolunteerDetailsParams{
+        Userid:                 req.UserID,
+        Firstname:              req.FirstName,
+        Lastname:               req.LastName,
+        Gender:                 sql.NullString{String: req.Gender, Valid: req.Gender != ""},
+        Nationalid:             sql.NullString{String: req.NationalID, Valid: req.NationalID != ""},
+        Graduateyear:           sql.NullInt32{Int32: req.GraduateYear, Valid: req.GraduateYear != 0},
+        Isenrolledinuniversity: sql.NullBool{Bool: req.IsEnrolledInUniversity, Valid: true},
+        Hasinternship:          sql.NullBool{Bool: req.HasInternship, Valid: true},
+        Role:                   req.Role,
+    })
+    if err != nil {
+        return fmt.Errorf("failed to update volunteer details: %v", err)
     }
 
     if err := tx.Commit(); err != nil {

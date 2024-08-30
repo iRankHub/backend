@@ -14,6 +14,8 @@ service UserManagementService {
   rpc GetUserProfile(GetUserProfileRequest) returns (GetUserProfileResponse) {}
   rpc UpdateAdminProfile(UpdateAdminProfileRequest) returns (UpdateAdminProfileResponse) {}
   rpc UpdateSchoolProfile(UpdateSchoolProfileRequest) returns (UpdateSchoolProfileResponse) {}
+  rpc UpdateStudentProfile(UpdateStudentProfileRequest) returns (UpdateStudentProfileResponse) {}
+  rpc UpdateVolunteerProfile(UpdateVolunteerProfileRequest) returns (UpdateVolunteerProfileResponse) {}
   rpc DeleteUserProfile(DeleteUserProfileRequest) returns (DeleteUserProfileResponse) {}
   rpc DeactivateAccount(DeactivateAccountRequest) returns (DeactivateAccountResponse) {}
   rpc ReactivateAccount(ReactivateAccountRequest) returns (ReactivateAccountResponse) {}
@@ -56,6 +58,7 @@ message UserSummary {
   string signUpDate = 5;
   string gender = 6;
   string status = 7;
+  string idebateID = 8;
 }
 
 message UserProfile {
@@ -199,6 +202,49 @@ message UpdateSchoolProfileRequest {
 }
 
 message UpdateSchoolProfileResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message UpdateStudentProfileRequest {
+  string token = 1;
+  int32 userID = 2;
+  string firstName = 3;
+  string lastName = 4;
+  string gender = 5;
+  string email = 6;
+  string grade = 7;
+  string dateOfBirth = 8;
+  string address = 9;
+  string bio = 10;
+  bytes profilePicture = 11;
+  string phone = 12;
+}
+
+message UpdateStudentProfileResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message UpdateVolunteerProfileRequest {
+  string token = 1;
+  int32 userID = 2;
+  string firstName = 3;
+  string lastName = 4;
+  string gender = 5;
+  string email = 6;
+  string nationalID = 7;
+  int32 graduateYear = 8;
+  bool isEnrolledInUniversity = 9;
+  bool hasInternship = 10;
+  string address = 11;
+  string bio = 12;
+  bytes profilePicture = 13;
+  string role = 14;
+  string phone = 15;
+}
+
+message UpdateVolunteerProfileResponse {
   bool success = 1;
   string message = 2;
 }

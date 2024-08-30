@@ -109,9 +109,21 @@ func (q *Queries) GetAccountStatus(ctx context.Context, userid int32) (string, e
 }
 
 const getAllUsers = `-- name: GetAllUsers :many
-SELECT userid, webauthnuserid, name, gender, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at FROM Users
-WHERE deleted_at IS NULL
-ORDER BY created_at DESC
+SELECT
+    u.userid, u.webauthnuserid, u.name, u.gender, u.email, u.password, u.userrole, u.status, u.verificationstatus, u.deactivatedat, u.two_factor_secret, u.two_factor_enabled, u.failed_login_attempts, u.last_login_attempt, u.last_logout, u.reset_token, u.reset_token_expires, u.created_at, u.updated_at, u.deleted_at,
+    CASE
+        WHEN u.UserRole = 'student' THEN s.iDebateStudentID
+        WHEN u.UserRole = 'volunteer' THEN v.iDebateVolunteerID
+        WHEN u.UserRole = 'school' THEN sch.iDebateSchoolID
+        WHEN u.UserRole = 'admin' THEN 'iDebate'
+        ELSE NULL
+    END AS iDebateID
+FROM Users u
+LEFT JOIN Students s ON u.UserID = s.UserID
+LEFT JOIN Volunteers v ON u.UserID = v.UserID
+LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
+WHERE u.deleted_at IS NULL
+ORDER BY u.created_at DESC
 LIMIT $1 OFFSET $2
 `
 
@@ -120,15 +132,39 @@ type GetAllUsersParams struct {
 	Offset int32 `json:"offset"`
 }
 
-func (q *Queries) GetAllUsers(ctx context.Context, arg GetAllUsersParams) ([]User, error) {
+type GetAllUsersRow struct {
+	Userid              int32          `json:"userid"`
+	Webauthnuserid      []byte         `json:"webauthnuserid"`
+	Name                string         `json:"name"`
+	Gender              sql.NullString `json:"gender"`
+	Email               string         `json:"email"`
+	Password            string         `json:"password"`
+	Userrole            string         `json:"userrole"`
+	Status              sql.NullString `json:"status"`
+	Verificationstatus  sql.NullBool   `json:"verificationstatus"`
+	Deactivatedat       sql.NullTime   `json:"deactivatedat"`
+	TwoFactorSecret     sql.NullString `json:"two_factor_secret"`
+	TwoFactorEnabled    sql.NullBool   `json:"two_factor_enabled"`
+	FailedLoginAttempts sql.NullInt32  `json:"failed_login_attempts"`
+	LastLoginAttempt    sql.NullTime   `json:"last_login_attempt"`
+	LastLogout          sql.NullTime   `json:"last_logout"`
+	ResetToken          sql.NullString `json:"reset_token"`
+	ResetTokenExpires   sql.NullTime   `json:"reset_token_expires"`
+	CreatedAt           sql.NullTime   `json:"created_at"`
+	UpdatedAt           sql.NullTime   `json:"updated_at"`
+	DeletedAt           sql.NullTime   `json:"deleted_at"`
+	Idebateid           interface{}    `json:"idebateid"`
+}
+
+func (q *Queries) GetAllUsers(ctx context.Context, arg GetAllUsersParams) ([]GetAllUsersRow, error) {
 	rows, err := q.db.QueryContext(ctx, getAllUsers, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []User{}
+	items := []GetAllUsersRow{}
 	for rows.Next() {
-		var i User
+		var i GetAllUsersRow
 		if err := rows.Scan(
 			&i.Userid,
 			&i.Webauthnuserid,
@@ -150,6 +186,7 @@ func (q *Queries) GetAllUsers(ctx context.Context, arg GetAllUsersParams) ([]Use
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.Idebateid,
 		); err != nil {
 			return nil, err
 		}
@@ -895,7 +932,7 @@ WITH updated_users AS (
     UPDATE Users
     SET Password = $2, reset_token = NULL, reset_token_expires = NULL
     WHERE Users.UserID = $1
-    RETURNING UserID
+    RETURNING UserID, UserRole
 )
 UPDATE UserProfiles
 SET Password = $2
