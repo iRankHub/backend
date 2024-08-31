@@ -178,6 +178,32 @@ func (q *Queries) DeletePairingsForTournament(ctx context.Context, tournamentid 
 	return err
 }
 
+const deleteTeam = `-- name: DeleteTeam :exec
+WITH debate_check AS (
+    SELECT 1
+    FROM Debates
+    WHERE Team1ID = $1 OR Team2ID = $1
+    LIMIT 1
+)
+DELETE FROM Teams
+WHERE TeamID = $1 AND NOT EXISTS (SELECT 1 FROM debate_check)
+`
+
+func (q *Queries) DeleteTeam(ctx context.Context, teamid int32) error {
+	_, err := q.db.ExecContext(ctx, deleteTeam, teamid)
+	return err
+}
+
+const deleteTeamMembers = `-- name: DeleteTeamMembers :exec
+DELETE FROM TeamMembers
+WHERE TeamID = $1
+`
+
+func (q *Queries) DeleteTeamMembers(ctx context.Context, teamid int32) error {
+	_, err := q.db.ExecContext(ctx, deleteTeamMembers, teamid)
+	return err
+}
+
 const getAvailableJudges = `-- name: GetAvailableJudges :many
 SELECT u.UserID, u.Name, u.Email
 FROM Users u

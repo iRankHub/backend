@@ -155,6 +155,17 @@ func (s *debateServer) GetTeamsByTournament(ctx context.Context, req *debate_man
 	return &debate_management.GetTeamsByTournamentResponse{Teams: teams}, nil
 }
 
+func (s *debateServer) DeleteTeam(ctx context.Context, req *debate_management.DeleteTeamRequest) (*debate_management.DeleteTeamResponse, error) {
+	success, message, err := s.teamService.DeleteTeam(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to delete team: %v", err)
+	}
+	return &debate_management.DeleteTeamResponse{
+		Success: success,
+		Message: message,
+	}, nil
+}
+
 // Algorithm integration
 func (s *debateServer) GeneratePairings(ctx context.Context, req *debate_management.GeneratePairingsRequest) (*debate_management.GeneratePairingsResponse, error) {
 	pairings, err := s.pairingService.GeneratePairings(ctx, req)

@@ -36,6 +36,7 @@ const (
 	DebateService_GetTeam_FullMethodName              = "/debate_management.DebateService/GetTeam"
 	DebateService_UpdateTeam_FullMethodName           = "/debate_management.DebateService/UpdateTeam"
 	DebateService_GetTeamsByTournament_FullMethodName = "/debate_management.DebateService/GetTeamsByTournament"
+	DebateService_DeleteTeam_FullMethodName           = "/debate_management.DebateService/DeleteTeam"
 	DebateService_RegeneratePairings_FullMethodName   = "/debate_management.DebateService/RegeneratePairings"
 )
 
@@ -66,6 +67,7 @@ type DebateServiceClient interface {
 	GetTeam(ctx context.Context, in *GetTeamRequest, opts ...grpc.CallOption) (*Team, error)
 	UpdateTeam(ctx context.Context, in *UpdateTeamRequest, opts ...grpc.CallOption) (*Team, error)
 	GetTeamsByTournament(ctx context.Context, in *GetTeamsByTournamentRequest, opts ...grpc.CallOption) (*GetTeamsByTournamentResponse, error)
+	DeleteTeam(ctx context.Context, in *DeleteTeamRequest, opts ...grpc.CallOption) (*DeleteTeamResponse, error)
 	// Regenerate pairings operation
 	RegeneratePairings(ctx context.Context, in *RegeneratePairingsRequest, opts ...grpc.CallOption) (*GeneratePairingsResponse, error)
 }
@@ -248,6 +250,16 @@ func (c *debateServiceClient) GetTeamsByTournament(ctx context.Context, in *GetT
 	return out, nil
 }
 
+func (c *debateServiceClient) DeleteTeam(ctx context.Context, in *DeleteTeamRequest, opts ...grpc.CallOption) (*DeleteTeamResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteTeamResponse)
+	err := c.cc.Invoke(ctx, DebateService_DeleteTeam_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *debateServiceClient) RegeneratePairings(ctx context.Context, in *RegeneratePairingsRequest, opts ...grpc.CallOption) (*GeneratePairingsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GeneratePairingsResponse)
@@ -285,6 +297,7 @@ type DebateServiceServer interface {
 	GetTeam(context.Context, *GetTeamRequest) (*Team, error)
 	UpdateTeam(context.Context, *UpdateTeamRequest) (*Team, error)
 	GetTeamsByTournament(context.Context, *GetTeamsByTournamentRequest) (*GetTeamsByTournamentResponse, error)
+	DeleteTeam(context.Context, *DeleteTeamRequest) (*DeleteTeamResponse, error)
 	// Regenerate pairings operation
 	RegeneratePairings(context.Context, *RegeneratePairingsRequest) (*GeneratePairingsResponse, error)
 	mustEmbedUnimplementedDebateServiceServer()
@@ -347,6 +360,9 @@ func (UnimplementedDebateServiceServer) UpdateTeam(context.Context, *UpdateTeamR
 }
 func (UnimplementedDebateServiceServer) GetTeamsByTournament(context.Context, *GetTeamsByTournamentRequest) (*GetTeamsByTournamentResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTeamsByTournament not implemented")
+}
+func (UnimplementedDebateServiceServer) DeleteTeam(context.Context, *DeleteTeamRequest) (*DeleteTeamResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteTeam not implemented")
 }
 func (UnimplementedDebateServiceServer) RegeneratePairings(context.Context, *RegeneratePairingsRequest) (*GeneratePairingsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegeneratePairings not implemented")
@@ -678,6 +694,24 @@ func _DebateService_GetTeamsByTournament_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DebateService_DeleteTeam_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteTeamRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DebateServiceServer).DeleteTeam(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DebateService_DeleteTeam_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DebateServiceServer).DeleteTeam(ctx, req.(*DeleteTeamRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _DebateService_RegeneratePairings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RegeneratePairingsRequest)
 	if err := dec(in); err != nil {
@@ -770,6 +804,10 @@ var DebateService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTeamsByTournament",
 			Handler:    _DebateService_GetTeamsByTournament_Handler,
+		},
+		{
+			MethodName: "DeleteTeam",
+			Handler:    _DebateService_DeleteTeam_Handler,
 		},
 		{
 			MethodName: "RegeneratePairings",

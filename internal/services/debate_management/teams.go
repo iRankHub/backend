@@ -148,6 +148,42 @@ func (s *TeamService) GetTeamsByTournament(ctx context.Context, req *debate_mana
 	return result, nil
 }
 
+func (s *TeamService) DeleteTeam(ctx context.Context, req *debate_management.DeleteTeamRequest) (bool, string, error) {
+	_, err := s.validateAdminRole(req.GetToken())
+	if err != nil {
+		return false, "", err
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to start transaction: %v", err)
+	}
+	defer tx.Rollback()
+
+	queries := models.New(s.db).WithTx(tx)
+
+	// Delete team members (if any)
+	err = queries.DeleteTeamMembers(ctx, req.GetTeamId())
+	if err != nil {
+		return false, "", fmt.Errorf("failed to delete team members: %v", err)
+	}
+
+	// Try to delete the team
+	err = queries.DeleteTeam(ctx, req.GetTeamId())
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, "Team cannot be deleted because it is associated with one or more debates", nil
+		}
+		return false, "", fmt.Errorf("failed to delete team: %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return false, "", fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	return true, "Team deleted successfully", nil
+}
+
 func convertTeam(dbTeam interface{}, dbSpeakers []models.GetTeamMembersRow) *debate_management.Team {
     var teamId int32
     var name string

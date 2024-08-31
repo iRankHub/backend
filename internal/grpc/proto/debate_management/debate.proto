@@ -33,6 +33,7 @@ service DebateService {
   rpc GetTeam(GetTeamRequest) returns (Team);
   rpc UpdateTeam(UpdateTeamRequest) returns (Team);
   rpc GetTeamsByTournament(GetTeamsByTournamentRequest) returns (GetTeamsByTournamentResponse);
+  rpc DeleteTeam(DeleteTeamRequest) returns (DeleteTeamResponse);
 
   // Regenerate pairings operation
   rpc RegeneratePairings(RegeneratePairingsRequest) returns (GeneratePairingsResponse);
@@ -247,6 +248,16 @@ message GetTeamRequest {
 message UpdateTeamRequest {
   Team team = 1;
   string token = 2;
+}
+
+message DeleteTeamRequest {
+  int32 team_id = 1;
+  string token = 2;
+}
+
+message DeleteTeamResponse {
+  bool success = 1;
+  string message = 2;
 }
 
 message GetTeamsByTournamentRequest {

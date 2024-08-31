@@ -205,3 +205,17 @@ SELECT tm.TeamID, tm.StudentID, s.FirstName, s.LastName
 FROM TeamMembers tm
 JOIN Students s ON tm.StudentID = s.StudentID
 WHERE tm.TeamID = $1;
+
+-- name: DeleteTeam :exec
+WITH debate_check AS (
+    SELECT 1
+    FROM Debates
+    WHERE Team1ID = $1 OR Team2ID = $1
+    LIMIT 1
+)
+DELETE FROM Teams
+WHERE TeamID = $1 AND NOT EXISTS (SELECT 1 FROM debate_check);
+
+-- name: DeleteTeamMembers :exec
+DELETE FROM TeamMembers
+WHERE TeamID = $1;
