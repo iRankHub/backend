@@ -704,12 +704,28 @@ func (q *Queries) ListTournamentFormatsPaginated(ctx context.Context, arg ListTo
 }
 
 const listTournamentsPaginated = `-- name: ListTournamentsPaginated :many
-SELECT t.tournamentid, t.name, t.startdate, t.enddate, t.location, t.formatid, t.leagueid, t.coordinatorid, t.numberofpreliminaryrounds, t.numberofeliminationrounds, t.judgesperdebatepreliminary, t.judgesperdebateelimination, t.tournamentfee, t.imageurl, t.created_at, t.updated_at, t.deleted_at, tf.FormatName, l.Name AS LeagueName
-FROM Tournaments t
-JOIN TournamentFormats tf ON t.FormatID = tf.FormatID
-JOIN Leagues l ON t.LeagueID = l.LeagueID
-WHERE t.deleted_at IS NULL
-ORDER BY t.StartDate DESC
+SELECT
+    t.tournamentid, t.name, t.startdate, t.enddate, t.location, t.formatid, t.leagueid, t.coordinatorid, t.numberofpreliminaryrounds, t.numberofeliminationrounds, t.judgesperdebatepreliminary, t.judgesperdebateelimination, t.tournamentfee, t.imageurl, t.created_at, t.updated_at, t.deleted_at,
+    tf.FormatName,
+    l.Name AS LeagueName,
+    COUNT(DISTINCT CASE WHEN ti.InviteeRole = 'school' AND ti.Status = 'accepted' THEN ti.InvitationID END) AS AcceptedSchoolsCount,
+    COUNT(DISTINCT tm.TeamID) AS TeamsCount
+FROM
+    Tournaments t
+JOIN
+    TournamentFormats tf ON t.FormatID = tf.FormatID
+JOIN
+    Leagues l ON t.LeagueID = l.LeagueID
+LEFT JOIN
+    TournamentInvitations ti ON t.TournamentID = ti.TournamentID
+LEFT JOIN
+    Teams tm ON t.TournamentID = tm.TournamentID
+WHERE
+    t.deleted_at IS NULL
+GROUP BY
+    t.TournamentID, tf.FormatName, l.Name
+ORDER BY
+    t.StartDate DESC
 LIMIT $1 OFFSET $2
 `
 
@@ -738,6 +754,8 @@ type ListTournamentsPaginatedRow struct {
 	DeletedAt                  sql.NullTime   `json:"deleted_at"`
 	Formatname                 string         `json:"formatname"`
 	Leaguename                 string         `json:"leaguename"`
+	Acceptedschoolscount       int64          `json:"acceptedschoolscount"`
+	Teamscount                 int64          `json:"teamscount"`
 }
 
 func (q *Queries) ListTournamentsPaginated(ctx context.Context, arg ListTournamentsPaginatedParams) ([]ListTournamentsPaginatedRow, error) {
@@ -769,6 +787,8 @@ func (q *Queries) ListTournamentsPaginated(ctx context.Context, arg ListTourname
 			&i.DeletedAt,
 			&i.Formatname,
 			&i.Leaguename,
+			&i.Acceptedschoolscount,
+			&i.Teamscount,
 		); err != nil {
 			return nil, err
 		}

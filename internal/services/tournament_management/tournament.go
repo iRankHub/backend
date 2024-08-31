@@ -179,6 +179,8 @@ func tournamentPaginatedRowToProto(t models.ListTournamentsPaginatedRow) *tourna
 		JudgesPerDebatePreliminary: int32(t.Judgesperdebatepreliminary),
 		JudgesPerDebateElimination: int32(t.Judgesperdebateelimination),
 		TournamentFee:              parseFloat64(t.Tournamentfee),
+		NumberOfSchools:            int32(t.Acceptedschoolscount),
+		NumberOfTeams:              int32(t.Teamscount),
 	}
 }
 

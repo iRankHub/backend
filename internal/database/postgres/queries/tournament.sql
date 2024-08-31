@@ -73,12 +73,28 @@ WHERE StartDate > CURRENT_TIMESTAMP
 ORDER BY StartDate;
 
 -- name: ListTournamentsPaginated :many
-SELECT t.*, tf.FormatName, l.Name AS LeagueName
-FROM Tournaments t
-JOIN TournamentFormats tf ON t.FormatID = tf.FormatID
-JOIN Leagues l ON t.LeagueID = l.LeagueID
-WHERE t.deleted_at IS NULL
-ORDER BY t.StartDate DESC
+SELECT
+    t.*,
+    tf.FormatName,
+    l.Name AS LeagueName,
+    COUNT(DISTINCT CASE WHEN ti.InviteeRole = 'school' AND ti.Status = 'accepted' THEN ti.InvitationID END) AS AcceptedSchoolsCount,
+    COUNT(DISTINCT tm.TeamID) AS TeamsCount
+FROM
+    Tournaments t
+JOIN
+    TournamentFormats tf ON t.FormatID = tf.FormatID
+JOIN
+    Leagues l ON t.LeagueID = l.LeagueID
+LEFT JOIN
+    TournamentInvitations ti ON t.TournamentID = ti.TournamentID
+LEFT JOIN
+    Teams tm ON t.TournamentID = tm.TournamentID
+WHERE
+    t.deleted_at IS NULL
+GROUP BY
+    t.TournamentID, tf.FormatName, l.Name
+ORDER BY
+    t.StartDate DESC
 LIMIT $1 OFFSET $2;
 
 -- name: UpdateTournamentDetails :one

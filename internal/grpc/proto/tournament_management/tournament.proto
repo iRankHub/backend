@@ -84,6 +84,8 @@ message Tournament {
   int32 judges_per_debate_elimination = 12;
   double tournament_fee = 13;
   string image_url = 14;
+  int32 number_of_schools = 15;
+  int32 number_of_teams = 16;
 }
 
 // Request messages
