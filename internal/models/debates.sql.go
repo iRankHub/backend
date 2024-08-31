@@ -8,6 +8,7 @@ package models
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 const addTeamMember = `-- name: AddTeamMember :one
@@ -71,17 +72,19 @@ func (q *Queries) AssignRoomToDebate(ctx context.Context, arg AssignRoomToDebate
 }
 
 const createDebate = `-- name: CreateDebate :one
-INSERT INTO Debates (TournamentID, RoundNumber, IsEliminationRound, Team1ID, Team2ID)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO Debates (TournamentID, RoundNumber, IsEliminationRound, Team1ID, Team2ID, RoomID, StartTime)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING DebateID
 `
 
 type CreateDebateParams struct {
-	Tournamentid       int32 `json:"tournamentid"`
-	Roundnumber        int32 `json:"roundnumber"`
-	Iseliminationround bool  `json:"iseliminationround"`
-	Team1id            int32 `json:"team1id"`
-	Team2id            int32 `json:"team2id"`
+	Tournamentid       int32     `json:"tournamentid"`
+	Roundnumber        int32     `json:"roundnumber"`
+	Iseliminationround bool      `json:"iseliminationround"`
+	Team1id            int32     `json:"team1id"`
+	Team2id            int32     `json:"team2id"`
+	Roomid             int32     `json:"roomid"`
+	Starttime          time.Time `json:"starttime"`
 }
 
 func (q *Queries) CreateDebate(ctx context.Context, arg CreateDebateParams) (int32, error) {
@@ -91,6 +94,8 @@ func (q *Queries) CreateDebate(ctx context.Context, arg CreateDebateParams) (int
 		arg.Iseliminationround,
 		arg.Team1id,
 		arg.Team2id,
+		arg.Roomid,
+		arg.Starttime,
 	)
 	var debateid int32
 	err := row.Scan(&debateid)
@@ -121,6 +126,30 @@ func (q *Queries) CreatePairingHistory(ctx context.Context, arg CreatePairingHis
 	return err
 }
 
+const createRoom = `-- name: CreateRoom :one
+INSERT INTO Rooms (RoomName, Location, Capacity)
+VALUES ($1, $2, $3)
+RETURNING roomid, roomname, location, capacity
+`
+
+type CreateRoomParams struct {
+	Roomname string `json:"roomname"`
+	Location string `json:"location"`
+	Capacity int32  `json:"capacity"`
+}
+
+func (q *Queries) CreateRoom(ctx context.Context, arg CreateRoomParams) (Room, error) {
+	row := q.db.QueryRowContext(ctx, createRoom, arg.Roomname, arg.Location, arg.Capacity)
+	var i Room
+	err := row.Scan(
+		&i.Roomid,
+		&i.Roomname,
+		&i.Location,
+		&i.Capacity,
+	)
+	return i, err
+}
+
 const createTeam = `-- name: CreateTeam :one
 INSERT INTO Teams (Name, TournamentID)
 VALUES ($1, $2)
@@ -132,15 +161,9 @@ type CreateTeamParams struct {
 	Tournamentid int32  `json:"tournamentid"`
 }
 
-type CreateTeamRow struct {
-	Teamid       int32  `json:"teamid"`
-	Name         string `json:"name"`
-	Tournamentid int32  `json:"tournamentid"`
-}
-
-func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (CreateTeamRow, error) {
+func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (Team, error) {
 	row := q.db.QueryRowContext(ctx, createTeam, arg.Name, arg.Tournamentid)
-	var i CreateTeamRow
+	var i Team
 	err := row.Scan(&i.Teamid, &i.Name, &i.Tournamentid)
 	return i, err
 }
@@ -968,6 +991,30 @@ func (q *Queries) UpdatePairing(ctx context.Context, arg UpdatePairingParams) er
 		arg.Roomid,
 	)
 	return err
+}
+
+const updateRoom = `-- name: UpdateRoom :one
+UPDATE Rooms
+SET RoomName = $2
+WHERE RoomID = $1
+RETURNING roomid, roomname, location, capacity
+`
+
+type UpdateRoomParams struct {
+	Roomid   int32  `json:"roomid"`
+	Roomname string `json:"roomname"`
+}
+
+func (q *Queries) UpdateRoom(ctx context.Context, arg UpdateRoomParams) (Room, error) {
+	row := q.db.QueryRowContext(ctx, updateRoom, arg.Roomid, arg.Roomname)
+	var i Room
+	err := row.Scan(
+		&i.Roomid,
+		&i.Roomname,
+		&i.Location,
+		&i.Capacity,
+	)
+	return i, err
 }
 
 const updateSpeakerScore = `-- name: UpdateSpeakerScore :exec

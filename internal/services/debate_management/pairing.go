@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/debate_management"
 	"github.com/iRankHub/backend/internal/models"
@@ -76,117 +77,184 @@ func (s *PairingService) UpdatePairing(ctx context.Context, req *debate_manageme
 	return convertSinglePairing(updatedPairing), nil
 }
 func (s *PairingService) GeneratePairings(ctx context.Context, req *debate_management.GeneratePairingsRequest) ([]*debate_management.Pairing, error) {
-	_, err := s.validateAdminRole(req.GetToken())
-	if err != nil {
-		return nil, err
-	}
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start transaction: %v", err)
-	}
-	defer tx.Rollback()
+    _, err := s.validateAdminRole(req.GetToken())
+    if err != nil {
+        return nil, err
+    }
 
-	queries := models.New(s.db).WithTx(tx)
+    tx, err := s.db.BeginTx(ctx, nil)
+    if err != nil {
+        return nil, fmt.Errorf("failed to start transaction: %v", err)
+    }
+    defer tx.Rollback()
 
-	// Get tournament details
-	tournament, err := queries.GetTournamentByID(ctx, req.GetTournamentId())
-	if err != nil {
-		return nil, fmt.Errorf("failed to get tournament: %v", err)
-	}
+    queries := models.New(s.db).WithTx(tx)
 
-	// Get teams for the tournament
-	teams, err := queries.GetTeamsByTournament(ctx, req.GetTournamentId())
-	if err != nil {
-		return nil, fmt.Errorf("failed to get teams: %v", err)
-	}
+    // Get tournament details
+    tournament, err := queries.GetTournamentByID(ctx, req.GetTournamentId())
+    if err != nil {
+        return nil, fmt.Errorf("failed to get tournament: %v", err)
+    }
 
-	// Get previous pairings
-	prevPairings, err := queries.GetPreviousPairings(ctx, models.GetPreviousPairingsParams{
-		Tournamentid: req.GetTournamentId(),
-		Roundnumber:  req.GetRoundNumber(),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get previous pairings: %v", err)
-	}
+    // Get teams for the tournament
+    teams, err := queries.GetTeamsByTournament(ctx, req.GetTournamentId())
+    if err != nil {
+        return nil, fmt.Errorf("failed to get teams: %v", err)
+    }
 
-	// Convert teams and previous pairings to the format expected by the pairing algorithm
-	algorithmTeams := make([]pairing_algorithm.Team, len(teams))
-	for i, team := range teams {
-		algorithmTeams[i] = pairing_algorithm.Team{
-			ID:   int(team.Teamid),
-			Name: team.Name,
-			// We need to implement a way to get the team's wins
-			Wins: 0, // TODO: Implement a method to get team wins
+    // Get previous pairings
+    prevPairings, err := queries.GetPreviousPairings(ctx, models.GetPreviousPairingsParams{
+        Tournamentid: req.GetTournamentId(),
+        Roundnumber:  req.GetRoundNumber(),
+    })
+    if err != nil {
+        return nil, fmt.Errorf("failed to get previous pairings: %v", err)
+    }
+
+    // Convert teams and previous pairings to the format expected by the pairing algorithm
+algorithmTeams := make([]*pairing_algorithm.Team, len(teams))
+
+for i, team := range teams {
+    algorithmTeams[i] = &pairing_algorithm.Team{
+        ID:        int(team.Teamid),
+        Name:      team.Name,
+        Opponents: make(map[int]bool),
+    }
+}
+
+    // Use prevPairings to set up conflicts in algorithmTeams
+    for _, prevPairing := range prevPairings {
+        team1Index := findTeamIndex(algorithmTeams, int(prevPairing.Team1id))
+        team2Index := findTeamIndex(algorithmTeams, int(prevPairing.Team2id))
+        if team1Index != -1 && team2Index != -1 {
+            algorithmTeams[team1Index].Opponents[int(prevPairing.Team2id)] = true
+            algorithmTeams[team2Index].Opponents[int(prevPairing.Team1id)] = true
+        }
+    }
+
+    // Get available judges
+    judges, err := queries.GetAvailableJudges(ctx, req.GetTournamentId())
+    if err != nil {
+        return nil, fmt.Errorf("failed to get available judges: %v", err)
+    }
+
+	algorithmJudges := make([]*pairing_algorithm.Judge, len(judges))
+
+	for i, judge := range judges {
+		algorithmJudges[i] = &pairing_algorithm.Judge{
+			ID:   int(judge.Userid),
+			Name: judge.Name,
 		}
 	}
 
-		// Use prevPairings to set up conflicts in algorithmTeams
-		for _, prevPairing := range prevPairings {
-			team1Index := findTeamIndex(algorithmTeams, int(prevPairing.Team1id))
-			team2Index := findTeamIndex(algorithmTeams, int(prevPairing.Team2id))
-			if team1Index != -1 && team2Index != -1 {
-				algorithmTeams[team1Index].Opponents[int(prevPairing.Team2id)] = true
-				algorithmTeams[team2Index].Opponents[int(prevPairing.Team1id)] = true
-			}
-		}
+    // Create rooms
+    numDebates := len(teams) / 2
+    rooms := make([]int, numDebates)
+    for i := 0; i < numDebates; i++ {
+        room, err := queries.CreateRoom(ctx, models.CreateRoomParams{
+            Roomname:  fmt.Sprintf("Room %d", i+1),
+            Location:  "TBD",
+            Capacity:  int32(tournament.Judgesperdebatepreliminary + 2), // Judges + 2 teams
+        })
+        if err != nil {
+            return nil, fmt.Errorf("failed to create room: %v", err)
+        }
+        rooms[i] = int(room.Roomid)
+    }
 
-	// Generate pairings using the pairing algorithm
-	teamIDs := make([]int, len(algorithmTeams))
-	for i, team := range algorithmTeams {
-		teamIDs[i] = team.ID
-	}
-	pairings, err := pairing_algorithm.GeneratePreliminaryPairings(teamIDs, int(tournament.Numberofpreliminaryrounds))
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate pairings: %v", err)
-	}
-	// Save new pairings to the database
-	dbPairings := make([]*debate_management.Pairing, 0)
-	for roundNumber, roundPairings := range pairings {
-		for _, pair := range roundPairings {
-			debate, err := queries.CreateDebate(ctx, models.CreateDebateParams{
-				Tournamentid:       req.GetTournamentId(),
-				Roundnumber:        int32(roundNumber + 1),
-				Iseliminationround: false,
-				Team1id:            int32(pair[0]),
-				Team2id:            int32(pair[1]),
-			})
-			if err != nil {
-				return nil, fmt.Errorf("failed to create debate: %v", err)
-			}
+    // Generate pairings using the pairing algorithm
+    specs := pairing_algorithm.TournamentSpecs{
+        PreliminaryRounds: int(tournament.Numberofpreliminaryrounds),
+        EliminationRounds: int(tournament.Numberofeliminationrounds),
+        JudgesPerDebate:   int(tournament.Judgesperdebatepreliminary),
+    }
+
+    allPairings, err := pairing_algorithm.GeneratePairings(algorithmTeams, algorithmJudges, rooms, specs)
+    if err != nil {
+        return nil, fmt.Errorf("failed to generate pairings: %v", err)
+    }
+
+    // Save new pairings to the database
+ dbPairings := make([]*debate_management.Pairing, 0)
+    for roundNumber, roundPairings := range allPairings {
+        for _, pair := range roundPairings {
+            startTime := time.Now().Add(time.Duration(roundNumber) * time.Hour) // Example: each round starts 1 hour after the previous
+
+            debate, err := queries.CreateDebate(ctx, models.CreateDebateParams{
+                Tournamentid:       req.GetTournamentId(),
+                Roundnumber:        int32(roundNumber + 1),
+                Iseliminationround: false,
+                Team1id:            int32(pair.Team1.ID),
+                Team2id:            int32(pair.Team2.ID),
+                Roomid:             int32(pair.Room),
+                Starttime:          startTime,
+            })
+            if err != nil {
+                return nil, fmt.Errorf("failed to create debate: %v", err)
+            }
+
+
+            // Assign judges
+            for _, judge := range pair.Judges {
+                err := queries.AssignJudgeToDebate(ctx, models.AssignJudgeToDebateParams{
+                    Tournamentid:  req.GetTournamentId(),
+                    Judgeid:       int32(judge.ID),
+                    Debateid:      debate,
+                    Roundnumber:   int32(roundNumber + 1),
+                    Iselimination: false,
+                    Isheadjudge:   false, // You might want to implement logic to determine head judge
+                })
+                if err != nil {
+                    return nil, fmt.Errorf("failed to assign judge to debate: %v", err)
+                }
+            }
 
             dbPairings = append(dbPairings, &debate_management.Pairing{
                 PairingId:          debate,
                 RoundNumber:        int32(roundNumber + 1),
                 IsEliminationRound: false,
+                RoomId:             int32(pair.Room),
                 Team1: &debate_management.Team{
-                    TeamId: int32(pair[0]),
-                    Name:   getTeamName(algorithmTeams, pair[0]),
+                    TeamId: int32(pair.Team1.ID),
+                    Name:   pair.Team1.Name,
                 },
                 Team2: &debate_management.Team{
-                    TeamId: int32(pair[1]),
-                    Name:   getTeamName(algorithmTeams, pair[1]),
+                    TeamId: int32(pair.Team2.ID),
+                    Name:   pair.Team2.Name,
                 },
+                Judges: convertJudgesToProto(pair.Judges),
             })
 
-			// Record pairing history
-			err = queries.CreatePairingHistory(ctx, models.CreatePairingHistoryParams{
-				Tournamentid:  req.GetTournamentId(),
-				Team1id:       int32(pair[0]),
-				Team2id:       int32(pair[1]),
-				Roundnumber:   int32(roundNumber + 1),
-				Iselimination: false,
-			})
-			if err != nil {
-				return nil, fmt.Errorf("failed to record pairing history: %v", err)
-			}
-		}
-	}
+            // Record pairing history
+            err = queries.CreatePairingHistory(ctx, models.CreatePairingHistoryParams{
+                Tournamentid:  req.GetTournamentId(),
+                Team1id:       int32(pair.Team1.ID),
+                Team2id:       int32(pair.Team2.ID),
+                Roundnumber:   int32(roundNumber + 1),
+                Iselimination: false,
+            })
+            if err != nil {
+                return nil, fmt.Errorf("failed to record pairing history: %v", err)
+            }
+        }
+    }
 
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %v", err)
-	}
+    if err := tx.Commit(); err != nil {
+        return nil, fmt.Errorf("failed to commit transaction: %v", err)
+    }
 
-	return dbPairings, nil
+    return dbPairings, nil
+}
+
+func convertJudgesToProto(judges []*pairing_algorithm.Judge) []*debate_management.Judge {
+    protoJudges := make([]*debate_management.Judge, len(judges))
+    for i, judge := range judges {
+        protoJudges[i] = &debate_management.Judge{
+            JudgeId: int32(judge.ID),
+            Name:    judge.Name,
+        }
+    }
+    return protoJudges
 }
 
 func (s *PairingService) RegeneratePairings(ctx context.Context, req *debate_management.RegeneratePairingsRequest) ([]*debate_management.Pairing, error) {
@@ -311,11 +379,11 @@ func (s *PairingService) validateAdminRole(token string) (map[string]interface{}
 	return claims, nil
 }
 
-func findTeamIndex(teams []pairing_algorithm.Team, teamID int) int {
-	for i, team := range teams {
-		if team.ID == teamID {
-			return i
-		}
-	}
-	return -1
+func findTeamIndex(teams []*pairing_algorithm.Team, teamID int) int {
+    for i, team := range teams {
+        if team.ID == teamID {
+            return i
+        }
+    }
+    return -1
 }

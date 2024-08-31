@@ -10,6 +10,11 @@ FROM Rooms r
 LEFT JOIN RoomBookings rb ON r.RoomID = rb.RoomID
 WHERE r.RoomID = $1;
 
+-- name: CreateRoom :one
+INSERT INTO Rooms (RoomName, Location, Capacity)
+VALUES ($1, $2, $3)
+RETURNING *;
+
 -- name: UpdateRoom :one
 UPDATE Rooms
 SET RoomName = $2
@@ -137,8 +142,8 @@ WHERE (d.Team1ID = $1 AND b.Team1TotalScore > b.Team2TotalScore)
    AND d.TournamentID = $2;
 
 -- name: CreateDebate :one
-INSERT INTO Debates (TournamentID, RoundNumber, IsEliminationRound, Team1ID, Team2ID)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO Debates (TournamentID, RoundNumber, IsEliminationRound, Team1ID, Team2ID, RoomID, StartTime)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING DebateID;
 
 -- name: GetTeamsByTournament :many
