@@ -302,6 +302,18 @@ Request:
 }
 ```
 
+### Delete Team
+
+Endpoint: `DebateService.DeleteTeam`
+
+Request:
+```json
+{
+  "team_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
 ## Testing Debate Management Features
 
 To test the debate management features:
@@ -315,6 +327,7 @@ To test the debate management features:
    - Use `GetTeam` to retrieve team details.
    - Use `UpdateTeam` to modify team information.
    - Use `GetTeamsByTournament` to list all teams in a tournament.
+   - Use `DeleteTeam` to delete the team in that tournament
 
    b. Pairing Generation and Management:
    - Use `GeneratePairings` to create pairings for a tournament.
