@@ -9,15 +9,6 @@ import (
 	"context"
 )
 
-const deleteTeam = `-- name: DeleteTeam :exec
-DELETE FROM Teams WHERE TeamID = $1
-`
-
-func (q *Queries) DeleteTeam(ctx context.Context, teamid int32) error {
-	_, err := q.db.ExecContext(ctx, deleteTeam, teamid)
-	return err
-}
-
 const getTeam = `-- name: GetTeam :one
 SELECT teamid, name, schoolid, tournamentid FROM Teams WHERE TeamID = $1
 `
