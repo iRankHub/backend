@@ -11,6 +11,8 @@ Request:
 ```json
 {
   "tournament_id": 1,
+  "round_number": 1,
+  "is_elimination_round": false,
   "token": "your_auth_token_here"
 }
 ```
