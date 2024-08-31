@@ -71,6 +71,25 @@ func (q *Queries) AssignRoomToDebate(ctx context.Context, arg AssignRoomToDebate
 	return err
 }
 
+const checkExistingTeamMembership = `-- name: CheckExistingTeamMembership :one
+SELECT COUNT(*) > 0 AS has_team
+FROM TeamMembers tm
+JOIN Teams t ON tm.TeamID = t.TeamID
+WHERE t.TournamentID = $1 AND tm.StudentID = $2
+`
+
+type CheckExistingTeamMembershipParams struct {
+	Tournamentid int32 `json:"tournamentid"`
+	Studentid    int32 `json:"studentid"`
+}
+
+func (q *Queries) CheckExistingTeamMembership(ctx context.Context, arg CheckExistingTeamMembershipParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, checkExistingTeamMembership, arg.Tournamentid, arg.Studentid)
+	var has_team bool
+	err := row.Scan(&has_team)
+	return has_team, err
+}
+
 const createDebate = `-- name: CreateDebate :one
 INSERT INTO Debates (TournamentID, RoundNumber, IsEliminationRound, Team1ID, Team2ID, RoomID, StartTime)
 VALUES ($1, $2, $3, $4, $5, $6, $7)

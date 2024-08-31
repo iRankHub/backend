@@ -183,6 +183,12 @@ INSERT INTO TeamMembers (TeamID, StudentID)
 VALUES ($1, $2)
 RETURNING TeamID, StudentID;
 
+-- name: CheckExistingTeamMembership :one
+SELECT COUNT(*) > 0 AS has_team
+FROM TeamMembers tm
+JOIN Teams t ON tm.TeamID = t.TeamID
+WHERE t.TournamentID = $1 AND tm.StudentID = $2;
+
 -- name: GetTeamByID :one
 SELECT t.TeamID, t.Name, t.TournamentID,
        array_agg(tm.StudentID) as SpeakerIDs

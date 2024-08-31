@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/debate_management"
 	"github.com/iRankHub/backend/internal/models"
@@ -19,45 +20,91 @@ func NewTeamService(db *sql.DB) *TeamService {
 }
 
 func (s *TeamService) CreateTeam(ctx context.Context, req *debate_management.CreateTeamRequest) (*debate_management.Team, error) {
+	log.Printf("CreateTeam called with name: %s, tournamentId: %d, speakers: %v", req.GetName(), req.GetTournamentId(), req.GetSpeakers())
+
 	_, err := s.validateAdminRole(req.GetToken())
 	if err != nil {
+		log.Printf("Admin role validation failed: %v", err)
 		return nil, err
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
+		log.Printf("Failed to start transaction: %v", err)
 		return nil, fmt.Errorf("failed to start transaction: %v", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err != nil {
+			log.Printf("Rolling back transaction due to error: %v", err)
+			tx.Rollback()
+		}
+	}()
 
 	queries := models.New(s.db).WithTx(tx)
 
+	// Check if any of the speakers already belong to a team in this tournament
+	for _, speaker := range req.GetSpeakers() {
+		log.Printf("Checking existing team membership for speaker ID: %d", speaker.GetSpeakerId())
+		hasTeam, err := queries.CheckExistingTeamMembership(ctx, models.CheckExistingTeamMembershipParams{
+			Tournamentid: req.GetTournamentId(),
+			Studentid:    speaker.GetSpeakerId(),
+		})
+		if err != nil {
+			log.Printf("Failed to check existing team membership: %v", err)
+			return nil, fmt.Errorf("failed to check existing team membership: %v", err)
+		}
+		if hasTeam {
+			log.Printf("Speaker with ID %d already belongs to a team in this tournament", speaker.GetSpeakerId())
+			return nil, fmt.Errorf("speaker with ID %d already belongs to a team in this tournament", speaker.GetSpeakerId())
+		}
+	}
+
+	log.Printf("Creating team with name: %s, tournamentId: %d", req.GetName(), req.GetTournamentId())
 	// Create the team
 	team, err := queries.CreateTeam(ctx, models.CreateTeamParams{
 		Name:         req.GetName(),
 		Tournamentid: req.GetTournamentId(),
 	})
 	if err != nil {
+		log.Printf("Failed to create team: %v", err)
 		return nil, fmt.Errorf("failed to create team: %v", err)
 	}
+	log.Printf("Team created successfully with ID: %d", team.Teamid)
 
 	// Add speakers to the team
-    for _, speaker := range req.GetSpeakers() {
-        _, err := queries.AddTeamMember(ctx, models.AddTeamMemberParams{
-            Teamid:    team.Teamid,
-            Studentid: speaker.GetSpeakerId(),
-        })
-        if err != nil {
-            return nil, fmt.Errorf("failed to add team member: %v", err)
-        }
-    }
-
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %v", err)
+	var speakers []*debate_management.Speaker
+	for _, speaker := range req.GetSpeakers() {
+		log.Printf("Adding speaker with ID %d to team %d", speaker.GetSpeakerId(), team.Teamid)
+		_, err := queries.AddTeamMember(ctx, models.AddTeamMemberParams{
+			Teamid:    team.Teamid,
+			Studentid: speaker.GetSpeakerId(),
+		})
+		if err != nil {
+			log.Printf("Failed to add team member: %v", err)
+			return nil, fmt.Errorf("failed to add team member: %v", err)
+		}
+		speakers = append(speakers, &debate_management.Speaker{
+			SpeakerId: speaker.GetSpeakerId(),
+			Name:      speaker.GetName(),
+		})
 	}
 
-	return s.GetTeam(ctx, &debate_management.GetTeamRequest{TeamId: team.Teamid, Token: req.GetToken()})
+	if err := tx.Commit(); err != nil {
+		log.Printf("Failed to commit transaction: %v", err)
+		return nil, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+	log.Printf("Transaction committed successfully")
+
+	createdTeam := &debate_management.Team{
+		TeamId:   team.Teamid,
+		Name:     team.Name,
+		Speakers: speakers,
+	}
+	log.Printf("Team created successfully: %+v", createdTeam)
+
+	return createdTeam, nil
 }
+
 
 func (s *TeamService) GetTeam(ctx context.Context, req *debate_management.GetTeamRequest) (*debate_management.Team, error) {
 	if err := s.validateAuthentication(req.GetToken()); err != nil {

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"database/sql"
+	"strings"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -126,7 +127,16 @@ func (s *debateServer) UpdateBallot(ctx context.Context, req *debate_management.
 func (s *debateServer) CreateTeam(ctx context.Context, req *debate_management.CreateTeamRequest) (*debate_management.Team, error) {
 	team, err := s.teamService.CreateTeam(ctx, req)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to create team: %v", err)
+		switch {
+		case strings.Contains(err.Error(), "speaker already in team"):
+			return nil, status.Error(codes.InvalidArgument, "One or more speakers are already assigned to a team in this tournament.")
+		case strings.Contains(err.Error(), "invalid speaker count"):
+			return nil, status.Error(codes.InvalidArgument, "The number of speakers doesn't match the league requirements.")
+		case strings.Contains(err.Error(), "database error"):
+			return nil, status.Error(codes.Internal, "An unexpected error occurred. Please try again later.")
+		default:
+			return nil, status.Error(codes.Internal, "Failed to create team. Please try again.")
+		}
 	}
 	return team, nil
 }
