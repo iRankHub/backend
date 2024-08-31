@@ -154,11 +154,14 @@ SELECT t.TeamID, t.Name, t.TournamentID,
         JOIN Ballots b ON d.DebateID = b.DebateID
         WHERE ((d.Team1ID = t.TeamID AND b.Team1TotalScore > b.Team2TotalScore)
            OR (d.Team2ID = t.TeamID AND b.Team2TotalScore > b.Team1TotalScore))
-           AND d.TournamentID = $1) as Wins
+           AND d.TournamentID = $1) as Wins,
+       l.Name as LeagueName
 FROM Teams t
 LEFT JOIN TeamMembers tm ON t.TeamID = tm.TeamID
+JOIN Tournaments tour ON t.TournamentID = tour.TournamentID
+JOIN Leagues l ON tour.LeagueID = l.LeagueID
 WHERE t.TournamentID = $1
-GROUP BY t.TeamID, t.Name, t.TournamentID;
+GROUP BY t.TeamID, t.Name, t.TournamentID, l.Name;
 
 
 -- name: GetPreviousPairings :many

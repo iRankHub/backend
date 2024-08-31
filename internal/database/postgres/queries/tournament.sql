@@ -210,3 +210,25 @@ WHERE
     ti.TournamentID = $1 AND ti.Status = 'pending'
 ORDER BY
     ti.created_at DESC;
+
+-- name: GetTournamentRegistrations :many
+SELECT
+    DATE(ti.updated_at) AS registration_date,
+    COUNT(*) AS registration_count
+FROM
+    TournamentInvitations ti
+WHERE
+    ti.Status = 'accepted'
+GROUP BY
+    DATE(ti.updated_at)
+ORDER BY
+    registration_date DESC
+LIMIT 30; -- Limiting to last 30 days, adjust as needed
+
+-- name: GetTournamentStats :one
+SELECT
+    COUNT(*) AS total_tournaments,
+    COUNT(CASE WHEN StartDate BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) AS upcoming_tournaments
+FROM Tournaments
+WHERE deleted_at IS NULL;
+

@@ -164,6 +164,48 @@ func (s *TournamentService) ListTournaments(ctx context.Context, req *tournament
 	}, nil
 }
 
+func (s *TournamentService) GetTournamentStats(ctx context.Context, req *tournament_management.GetTournamentStatsRequest) (*tournament_management.GetTournamentStatsResponse, error) {
+	if err := s.validateAuthentication(req.GetToken()); err != nil {
+		return nil, err
+	}
+
+	queries := models.New(s.db)
+	stats, err := queries.GetTournamentStats(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tournament stats: %v", err)
+	}
+
+	return &tournament_management.GetTournamentStatsResponse{
+		TotalTournaments:    int32(stats.TotalTournaments),
+		UpcomingTournaments: int32(stats.UpcomingTournaments),
+	}, nil
+}
+
+func (s *TournamentService) GetTournamentRegistrations(ctx context.Context, req *tournament_management.GetTournamentRegistrationsRequest) (*tournament_management.GetTournamentRegistrationsResponse, error) {
+	if err := s.validateAuthentication(req.GetToken()); err != nil {
+		return nil, err
+	}
+
+	queries := models.New(s.db)
+	registrations, err := queries.GetTournamentRegistrations(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tournament registrations: %v", err)
+	}
+
+	response := &tournament_management.GetTournamentRegistrationsResponse{
+		Registrations: make([]*tournament_management.DailyRegistration, len(registrations)),
+	}
+
+	for i, reg := range registrations {
+		response.Registrations[i] = &tournament_management.DailyRegistration{
+			Date:  reg.RegistrationDate.Format("2006-01-02"),
+			Count: int32(reg.RegistrationCount),
+		}
+	}
+
+	return response, nil
+}
+
 func tournamentPaginatedRowToProto(t models.ListTournamentsPaginatedRow) *tournament_management.Tournament {
 	return &tournament_management.Tournament{
 		TournamentId:               t.Tournamentid,
@@ -181,6 +223,7 @@ func tournamentPaginatedRowToProto(t models.ListTournamentsPaginatedRow) *tourna
 		TournamentFee:              parseFloat64(t.Tournamentfee),
 		NumberOfSchools:            int32(t.Acceptedschoolscount),
 		NumberOfTeams:              int32(t.Teamscount),
+		LeagueName: 				t.Leaguename,
 	}
 }
 

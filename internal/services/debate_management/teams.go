@@ -151,14 +151,17 @@ func (s *TeamService) GetTeamsByTournament(ctx context.Context, req *debate_mana
 func convertTeam(dbTeam interface{}, dbSpeakers []models.GetTeamMembersRow) *debate_management.Team {
     var teamId int32
     var name string
+    var leagueName string
 
     switch t := dbTeam.(type) {
     case models.GetTeamByIDRow:
         teamId = t.Teamid
         name = t.Name
+        leagueName = "" // GetTeamByID doesn't return league name, so we leave it empty
     case models.GetTeamsByTournamentRow:
         teamId = t.Teamid
         name = t.Name
+        leagueName = t.Leaguename
     default:
         // Handle unexpected type
         return nil
@@ -167,14 +170,15 @@ func convertTeam(dbTeam interface{}, dbSpeakers []models.GetTeamMembersRow) *deb
     for i, dbSpeaker := range dbSpeakers {
         speakers[i] = &debate_management.Speaker{
             SpeakerId: dbSpeaker.Studentid,
-			Name: dbSpeaker.Firstname + " " + dbSpeaker.Lastname,
+            Name: dbSpeaker.Firstname + " " + dbSpeaker.Lastname,
         }
     }
 
     return &debate_management.Team{
-        TeamId:   teamId,
-        Name:     name,
-        Speakers: speakers,
+        TeamId:     teamId,
+        Name:       name,
+        Speakers:   speakers,
+        LeagueName: leagueName,
     }
 }
 

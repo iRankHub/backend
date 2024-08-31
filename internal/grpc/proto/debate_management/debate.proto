@@ -117,7 +117,7 @@ message Pairing {
   string room_name = 5;
   Team team1 = 6;
   Team team2 = 7;
-  repeated Judge judges = 8; 
+  repeated Judge judges = 8;
 }
 
 message Team {
@@ -125,6 +125,7 @@ message Team {
   string name = 2;
   repeated Speaker speakers = 3;
   double total_points = 4;
+  string league_name = 5;
 }
 
 message Speaker {

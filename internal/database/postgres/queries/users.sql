@@ -48,6 +48,16 @@ WHERE UserID = $1
 RETURNING *;
 
 -- name: GetAllUsers :many
+WITH ApprovedCount AS (
+    SELECT COUNT(*) AS count
+    FROM Users
+    WHERE Status = 'approved' AND deleted_at IS NULL
+),
+RecentSignupsCount AS (
+    SELECT COUNT(*) AS count
+    FROM Users
+    WHERE created_at >= NOW() - INTERVAL '30 days' AND deleted_at IS NULL
+)
 SELECT
     u.*,
     CASE
@@ -56,7 +66,9 @@ SELECT
         WHEN u.UserRole = 'school' THEN sch.iDebateSchoolID
         WHEN u.UserRole = 'admin' THEN 'iDebate'
         ELSE NULL
-    END AS iDebateID
+    END AS iDebateID,
+    (SELECT count FROM ApprovedCount) AS approved_users_count,
+    (SELECT count FROM RecentSignupsCount) AS recent_signups_count
 FROM Users u
 LEFT JOIN Students s ON u.UserID = s.UserID
 LEFT JOIN Volunteers v ON u.UserID = v.UserID

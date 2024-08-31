@@ -109,6 +109,16 @@ func (q *Queries) GetAccountStatus(ctx context.Context, userid int32) (string, e
 }
 
 const getAllUsers = `-- name: GetAllUsers :many
+WITH ApprovedCount AS (
+    SELECT COUNT(*) AS count
+    FROM Users
+    WHERE Status = 'approved' AND deleted_at IS NULL
+),
+RecentSignupsCount AS (
+    SELECT COUNT(*) AS count
+    FROM Users
+    WHERE created_at >= NOW() - INTERVAL '30 days' AND deleted_at IS NULL
+)
 SELECT
     u.userid, u.webauthnuserid, u.name, u.gender, u.email, u.password, u.userrole, u.status, u.verificationstatus, u.deactivatedat, u.two_factor_secret, u.two_factor_enabled, u.failed_login_attempts, u.last_login_attempt, u.last_logout, u.reset_token, u.reset_token_expires, u.created_at, u.updated_at, u.deleted_at,
     CASE
@@ -117,7 +127,9 @@ SELECT
         WHEN u.UserRole = 'school' THEN sch.iDebateSchoolID
         WHEN u.UserRole = 'admin' THEN 'iDebate'
         ELSE NULL
-    END AS iDebateID
+    END AS iDebateID,
+    (SELECT count FROM ApprovedCount) AS approved_users_count,
+    (SELECT count FROM RecentSignupsCount) AS recent_signups_count
 FROM Users u
 LEFT JOIN Students s ON u.UserID = s.UserID
 LEFT JOIN Volunteers v ON u.UserID = v.UserID
@@ -154,6 +166,8 @@ type GetAllUsersRow struct {
 	UpdatedAt           sql.NullTime   `json:"updated_at"`
 	DeletedAt           sql.NullTime   `json:"deleted_at"`
 	Idebateid           interface{}    `json:"idebateid"`
+	ApprovedUsersCount  int64          `json:"approved_users_count"`
+	RecentSignupsCount  int64          `json:"recent_signups_count"`
 }
 
 func (q *Queries) GetAllUsers(ctx context.Context, arg GetAllUsersParams) ([]GetAllUsersRow, error) {
@@ -187,6 +201,8 @@ func (q *Queries) GetAllUsers(ctx context.Context, arg GetAllUsersParams) ([]Get
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.Idebateid,
+			&i.ApprovedUsersCount,
+			&i.RecentSignupsCount,
 		); err != nil {
 			return nil, err
 		}

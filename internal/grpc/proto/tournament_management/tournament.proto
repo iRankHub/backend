@@ -27,6 +27,8 @@ service TournamentService {
   rpc ListTournaments(ListTournamentsRequest) returns (ListTournamentsResponse);
   rpc UpdateTournament(UpdateTournamentRequest) returns (UpdateTournamentResponse);
   rpc DeleteTournament(DeleteTournamentRequest) returns (DeleteTournamentResponse);
+  rpc GetTournamentStats(GetTournamentStatsRequest) returns (GetTournamentStatsResponse);
+  rpc GetTournamentRegistrations(GetTournamentRegistrationsRequest) returns (GetTournamentRegistrationsResponse);
 
   // Invitation operations
   rpc GetInvitationsByUser(GetInvitationsByUserRequest) returns (GetInvitationsByUserResponse);
@@ -86,6 +88,29 @@ message Tournament {
   string image_url = 14;
   int32 number_of_schools = 15;
   int32 number_of_teams = 16;
+  string league_name = 17;
+}
+
+message GetTournamentStatsRequest {
+  string token = 1;
+}
+
+message GetTournamentStatsResponse {
+  int32 total_tournaments = 1;
+  int32 upcoming_tournaments = 2;
+}
+
+message GetTournamentRegistrationsRequest {
+  string token = 1;
+}
+
+message DailyRegistration {
+  string date = 1;
+  int32 count = 2;
+}
+
+message GetTournamentRegistrationsResponse {
+  repeated DailyRegistration registrations = 1;
 }
 
 // Request messages

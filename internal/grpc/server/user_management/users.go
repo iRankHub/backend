@@ -146,7 +146,7 @@ func (s *userManagementServer) DeleteUsers(ctx context.Context, req *user_manage
 }
 
 func (s *userManagementServer) GetAllUsers(ctx context.Context, req *user_management.GetAllUsersRequest) (*user_management.GetAllUsersResponse, error) {
-    users, totalCount, err := s.userManagementService.GetAllUsers(ctx, req.Token, req.Page, req.PageSize)
+    users, totalCount, approvedUsersCount, recentSignupsCount, err := s.userManagementService.GetAllUsers(ctx, req.Token, req.Page, req.PageSize)
     if err != nil {
         return nil, status.Errorf(codes.Internal, "Failed to get all users: %v", err)
     }
@@ -183,8 +183,10 @@ func (s *userManagementServer) GetAllUsers(ctx context.Context, req *user_manage
     }
 
     return &user_management.GetAllUsersResponse{
-        Users:      userSummaries,
-        TotalCount: totalCount,
+        Users:              userSummaries,
+        TotalCount:         totalCount,
+        ApprovedUsersCount: approvedUsersCount,
+        RecentSignupsCount: recentSignupsCount,
     }, nil
 }
 

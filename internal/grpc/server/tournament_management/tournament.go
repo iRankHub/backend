@@ -161,6 +161,22 @@ func (s *tournamentServer) ListTournaments(ctx context.Context, req *tournament_
 	return response, nil
 }
 
+func (s *tournamentServer) GetTournamentStats(ctx context.Context, req *tournament_management.GetTournamentStatsRequest) (*tournament_management.GetTournamentStatsResponse, error) {
+	response, err := s.tournamentService.GetTournamentStats(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get tournament stats: %v", err)
+	}
+	return response, nil
+}
+
+func (s *tournamentServer) GetTournamentRegistrations(ctx context.Context, req *tournament_management.GetTournamentRegistrationsRequest) (*tournament_management.GetTournamentRegistrationsResponse, error) {
+	response, err := s.tournamentService.GetTournamentRegistrations(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get tournament registrations: %v", err)
+	}
+	return response, nil
+}
+
 func (s *tournamentServer) UpdateTournament(ctx context.Context, req *tournament_management.UpdateTournamentRequest) (*tournament_management.UpdateTournamentResponse, error) {
 	tournament, err := s.tournamentService.UpdateTournament(ctx, req)
 	if err != nil {

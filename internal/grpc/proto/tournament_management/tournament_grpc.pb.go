@@ -34,6 +34,8 @@ const (
 	TournamentService_ListTournaments_FullMethodName            = "/tournament_management.TournamentService/ListTournaments"
 	TournamentService_UpdateTournament_FullMethodName           = "/tournament_management.TournamentService/UpdateTournament"
 	TournamentService_DeleteTournament_FullMethodName           = "/tournament_management.TournamentService/DeleteTournament"
+	TournamentService_GetTournamentStats_FullMethodName         = "/tournament_management.TournamentService/GetTournamentStats"
+	TournamentService_GetTournamentRegistrations_FullMethodName = "/tournament_management.TournamentService/GetTournamentRegistrations"
 	TournamentService_GetInvitationsByUser_FullMethodName       = "/tournament_management.TournamentService/GetInvitationsByUser"
 	TournamentService_GetInvitationsByTournament_FullMethodName = "/tournament_management.TournamentService/GetInvitationsByTournament"
 	TournamentService_UpdateInvitationStatus_FullMethodName     = "/tournament_management.TournamentService/UpdateInvitationStatus"
@@ -64,6 +66,8 @@ type TournamentServiceClient interface {
 	ListTournaments(ctx context.Context, in *ListTournamentsRequest, opts ...grpc.CallOption) (*ListTournamentsResponse, error)
 	UpdateTournament(ctx context.Context, in *UpdateTournamentRequest, opts ...grpc.CallOption) (*UpdateTournamentResponse, error)
 	DeleteTournament(ctx context.Context, in *DeleteTournamentRequest, opts ...grpc.CallOption) (*DeleteTournamentResponse, error)
+	GetTournamentStats(ctx context.Context, in *GetTournamentStatsRequest, opts ...grpc.CallOption) (*GetTournamentStatsResponse, error)
+	GetTournamentRegistrations(ctx context.Context, in *GetTournamentRegistrationsRequest, opts ...grpc.CallOption) (*GetTournamentRegistrationsResponse, error)
 	// Invitation operations
 	GetInvitationsByUser(ctx context.Context, in *GetInvitationsByUserRequest, opts ...grpc.CallOption) (*GetInvitationsByUserResponse, error)
 	GetInvitationsByTournament(ctx context.Context, in *GetInvitationsByTournamentRequest, opts ...grpc.CallOption) (*GetInvitationsByTournamentResponse, error)
@@ -231,6 +235,26 @@ func (c *tournamentServiceClient) DeleteTournament(ctx context.Context, in *Dele
 	return out, nil
 }
 
+func (c *tournamentServiceClient) GetTournamentStats(ctx context.Context, in *GetTournamentStatsRequest, opts ...grpc.CallOption) (*GetTournamentStatsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetTournamentStatsResponse)
+	err := c.cc.Invoke(ctx, TournamentService_GetTournamentStats_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tournamentServiceClient) GetTournamentRegistrations(ctx context.Context, in *GetTournamentRegistrationsRequest, opts ...grpc.CallOption) (*GetTournamentRegistrationsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetTournamentRegistrationsResponse)
+	err := c.cc.Invoke(ctx, TournamentService_GetTournamentRegistrations_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *tournamentServiceClient) GetInvitationsByUser(ctx context.Context, in *GetInvitationsByUserRequest, opts ...grpc.CallOption) (*GetInvitationsByUserResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetInvitationsByUserResponse)
@@ -313,6 +337,8 @@ type TournamentServiceServer interface {
 	ListTournaments(context.Context, *ListTournamentsRequest) (*ListTournamentsResponse, error)
 	UpdateTournament(context.Context, *UpdateTournamentRequest) (*UpdateTournamentResponse, error)
 	DeleteTournament(context.Context, *DeleteTournamentRequest) (*DeleteTournamentResponse, error)
+	GetTournamentStats(context.Context, *GetTournamentStatsRequest) (*GetTournamentStatsResponse, error)
+	GetTournamentRegistrations(context.Context, *GetTournamentRegistrationsRequest) (*GetTournamentRegistrationsResponse, error)
 	// Invitation operations
 	GetInvitationsByUser(context.Context, *GetInvitationsByUserRequest) (*GetInvitationsByUserResponse, error)
 	GetInvitationsByTournament(context.Context, *GetInvitationsByTournamentRequest) (*GetInvitationsByTournamentResponse, error)
@@ -374,6 +400,12 @@ func (UnimplementedTournamentServiceServer) UpdateTournament(context.Context, *U
 }
 func (UnimplementedTournamentServiceServer) DeleteTournament(context.Context, *DeleteTournamentRequest) (*DeleteTournamentResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteTournament not implemented")
+}
+func (UnimplementedTournamentServiceServer) GetTournamentStats(context.Context, *GetTournamentStatsRequest) (*GetTournamentStatsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTournamentStats not implemented")
+}
+func (UnimplementedTournamentServiceServer) GetTournamentRegistrations(context.Context, *GetTournamentRegistrationsRequest) (*GetTournamentRegistrationsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTournamentRegistrations not implemented")
 }
 func (UnimplementedTournamentServiceServer) GetInvitationsByUser(context.Context, *GetInvitationsByUserRequest) (*GetInvitationsByUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetInvitationsByUser not implemented")
@@ -684,6 +716,42 @@ func _TournamentService_DeleteTournament_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TournamentService_GetTournamentStats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTournamentStatsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TournamentServiceServer).GetTournamentStats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TournamentService_GetTournamentStats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TournamentServiceServer).GetTournamentStats(ctx, req.(*GetTournamentStatsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TournamentService_GetTournamentRegistrations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTournamentRegistrationsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TournamentServiceServer).GetTournamentRegistrations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TournamentService_GetTournamentRegistrations_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TournamentServiceServer).GetTournamentRegistrations(ctx, req.(*GetTournamentRegistrationsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _TournamentService_GetInvitationsByUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetInvitationsByUserRequest)
 	if err := dec(in); err != nil {
@@ -858,6 +926,14 @@ var TournamentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteTournament",
 			Handler:    _TournamentService_DeleteTournament_Handler,
+		},
+		{
+			MethodName: "GetTournamentStats",
+			Handler:    _TournamentService_GetTournamentStats_Handler,
+		},
+		{
+			MethodName: "GetTournamentRegistrations",
+			Handler:    _TournamentService_GetTournamentRegistrations_Handler,
 		},
 		{
 			MethodName: "GetInvitationsByUser",
