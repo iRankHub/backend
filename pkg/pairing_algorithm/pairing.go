@@ -2,6 +2,7 @@ package pairing_algorithm
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 )
 
@@ -48,6 +49,14 @@ func GeneratePairings(teams []*Team, judges []*Judge, rooms []int, specs Tournam
 		return nil, err
 	}
 
+	if len(judges) < specs.JudgesPerDebate {
+		return nil, fmt.Errorf("not enough judges: have %d, need at least %d", len(judges), specs.JudgesPerDebate)
+	}
+
+	if len(rooms) < len(teams)/2 {
+		return nil, fmt.Errorf("not enough rooms: have %d, need at least %d", len(rooms), len(teams)/2)
+	}
+
 	for round, roundPairings := range prelimPairings {
 		debates := make([]*Debate, len(roundPairings))
 		for i, pair := range roundPairings {
@@ -87,12 +96,15 @@ func assignJudgesAndRooms(pairings []*Debate, judges []*Judge, rooms []int, judg
 
 	for _, debate := range pairings {
 		// Assign judges
-		debate.Judges = make([]*Judge, judgesPerDebate)
+		debate.Judges = make([]*Judge, 0, judgesPerDebate)
 		for i := 0; i < judgesPerDebate; i++ {
 			if len(availableJudges) > 0 {
 				judgeIndex := rand.Intn(len(availableJudges))
-				debate.Judges[i] = availableJudges[judgeIndex]
+				debate.Judges = append(debate.Judges, availableJudges[judgeIndex])
 				availableJudges = append(availableJudges[:judgeIndex], availableJudges[judgeIndex+1:]...)
+			} else {
+				// If we run out of judges, break the loop
+				break
 			}
 		}
 
@@ -110,6 +122,9 @@ func assignJudgesAndRooms(pairings []*Debate, judges []*Judge, rooms []int, judg
 			roomIndex := rand.Intn(len(availableRooms))
 			debate.Room = availableRooms[roomIndex]
 			availableRooms = append(availableRooms[:roomIndex], availableRooms[roomIndex+1:]...)
+		} else {
+			// If we run out of rooms, assign a placeholder value
+			debate.Room = -1
 		}
 	}
 
