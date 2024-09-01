@@ -272,5 +272,6 @@ message GetTeamsByTournamentResponse {
 // Regenerate pairings message
 message RegeneratePairingsRequest {
   int32 tournament_id = 1;
-  string token = 2;
+  bool is_elimination_round = 2;
+  string token = 3;
 }

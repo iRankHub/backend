@@ -483,6 +483,17 @@ func (s *userManagementServer) VerifyAndUpdatePassword(ctx context.Context, req 
 	}, nil
 }
 
+func (s *userManagementServer) GetSchoolIDsByNames(ctx context.Context, req *user_management.GetSchoolIDsByNamesRequest) (*user_management.GetSchoolIDsByNamesResponse, error) {
+	schoolIDs, err := s.schoolsManagementService.GetSchoolIDsByNames(ctx, req.Token, req.SchoolNames)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get school IDs: %v", err)
+	}
+
+	return &user_management.GetSchoolIDsByNamesResponse{
+		SchoolIds: schoolIDs,
+	}, nil
+}
+
 func convertModelProfileToProto(profile *models.GetUserProfileRow) *user_management.UserProfile {
 	protoProfile := &user_management.UserProfile{
 		UserID:               profile.Userid,

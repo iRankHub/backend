@@ -367,6 +367,22 @@ Request:
 }
 ```
 
+### GetSchoolIDsByNames
+
+Endpoint: `UserManagementService.GetSchoolIDsByNames`
+Authorization: Any authenticated user
+
+Request:
+```json
+{
+  "token": "your_auth_token_here",
+  "school_names": ["School A", "School B", "School C"]
+}
+```
+
+
+Note: This endpoint allows you to retrieve school IDs for multiple school names in a single request. If a school name is not found, it will not be included in the response. This is useful for efficiently mapping school names to their corresponding IDs.
+
 ## Testing User Management Features
 
 To test the user management features:
@@ -448,6 +464,13 @@ To test the user management features:
    - Verify that only school contact persons can use this endpoint.
    - Attempt to update another school's profile (should fail).
    - Use `GetUserProfile` and `GetSchools` to verify the changes.
+   p. School ID Lookup:
+   - Use `GetSchoolIDsByNames` to retrieve IDs for multiple school names.
+   - Test with a mix of existing and non-existing school names.
+   - Verify that only existing schools are returned in the response.
+   - Test with an empty list of school names.
+   - Test with a large number of school names to ensure performance.
+
 
 
 5. For each test, verify that the appropriate email notifications are sent:

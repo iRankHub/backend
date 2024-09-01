@@ -236,3 +236,22 @@ WHERE rb.TournamentID = $1;
 SELECT * FROM Rounds
 WHERE TournamentID = $1 AND RoundNumber = $2 AND IsEliminationRound = $3
 LIMIT 1;
+
+-- name: DeleteJudgeAssignmentsForTournament :exec
+DELETE FROM JudgeAssignments
+WHERE TournamentID = $1;
+
+-- name: DeleteDebatesForTournament :exec
+DELETE FROM Debates
+WHERE TournamentID = $1;
+
+-- name: DeleteRoomBookingsForTournament :exec
+DELETE FROM Rooms;
+
+-- name: DeleteRoundsForTournament :exec
+DELETE FROM Rounds
+WHERE TournamentID = $1;
+
+-- name: DeletePairingHistoryForTournament :exec
+DELETE FROM PairingHistory
+WHERE TournamentID = $1;

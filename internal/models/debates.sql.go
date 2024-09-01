@@ -189,6 +189,36 @@ func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (Team, e
 	return i, err
 }
 
+const deleteDebatesForTournament = `-- name: DeleteDebatesForTournament :exec
+DELETE FROM Debates
+WHERE TournamentID = $1
+`
+
+func (q *Queries) DeleteDebatesForTournament(ctx context.Context, tournamentid int32) error {
+	_, err := q.db.ExecContext(ctx, deleteDebatesForTournament, tournamentid)
+	return err
+}
+
+const deleteJudgeAssignmentsForTournament = `-- name: DeleteJudgeAssignmentsForTournament :exec
+DELETE FROM JudgeAssignments
+WHERE TournamentID = $1
+`
+
+func (q *Queries) DeleteJudgeAssignmentsForTournament(ctx context.Context, tournamentid int32) error {
+	_, err := q.db.ExecContext(ctx, deleteJudgeAssignmentsForTournament, tournamentid)
+	return err
+}
+
+const deletePairingHistoryForTournament = `-- name: DeletePairingHistoryForTournament :exec
+DELETE FROM PairingHistory
+WHERE TournamentID = $1
+`
+
+func (q *Queries) DeletePairingHistoryForTournament(ctx context.Context, tournamentid int32) error {
+	_, err := q.db.ExecContext(ctx, deletePairingHistoryForTournament, tournamentid)
+	return err
+}
+
 const deletePairingsForTournament = `-- name: DeletePairingsForTournament :exec
 DELETE FROM Debates
 WHERE TournamentID = $1
@@ -196,6 +226,25 @@ WHERE TournamentID = $1
 
 func (q *Queries) DeletePairingsForTournament(ctx context.Context, tournamentid int32) error {
 	_, err := q.db.ExecContext(ctx, deletePairingsForTournament, tournamentid)
+	return err
+}
+
+const deleteRoomBookingsForTournament = `-- name: DeleteRoomBookingsForTournament :exec
+DELETE FROM Rooms
+`
+
+func (q *Queries) DeleteRoomBookingsForTournament(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteRoomBookingsForTournament)
+	return err
+}
+
+const deleteRoundsForTournament = `-- name: DeleteRoundsForTournament :exec
+DELETE FROM Rounds
+WHERE TournamentID = $1
+`
+
+func (q *Queries) DeleteRoundsForTournament(ctx context.Context, tournamentid int32) error {
+	_, err := q.db.ExecContext(ctx, deleteRoundsForTournament, tournamentid)
 	return err
 }
 

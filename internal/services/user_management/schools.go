@@ -57,3 +57,24 @@ func (s *SchoolService) GetSchoolsNoAuth(ctx context.Context, page, pageSize int
 
 	return schools, int32(totalCount), nil
 }
+
+func (s *SchoolService) GetSchoolIDsByNames(ctx context.Context, token string, schoolNames []string) (map[string]int32, error) {
+    _, err := utils.ValidateToken(token)
+    if err != nil {
+        return nil, fmt.Errorf("invalid token: %v", err)
+    }
+
+    queries := models.New(s.db)
+    schools, err := queries.GetSchoolIDsByNames(ctx, schoolNames)
+    if err != nil {
+        return nil, fmt.Errorf("failed to fetch school IDs: %v", err)
+    }
+
+    // Convert the result to a map for easier lookup
+    result := make(map[string]int32)
+    for _, school := range schools {
+        result[school.Schoolname] = school.Schoolid
+    }
+
+    return result, nil
+}

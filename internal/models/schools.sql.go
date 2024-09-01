@@ -8,6 +8,8 @@ package models
 import (
 	"context"
 	"database/sql"
+
+	"github.com/lib/pq"
 )
 
 const createSchool = `-- name: CreateSchool :one
@@ -170,6 +172,49 @@ func (q *Queries) GetSchoolByUserID(ctx context.Context, contactpersonid int32) 
 		&i.Schooltype,
 	)
 	return i, err
+}
+
+const getSchoolIDByName = `-- name: GetSchoolIDByName :one
+SELECT SchoolID FROM Schools WHERE SchoolName = $1
+`
+
+func (q *Queries) GetSchoolIDByName(ctx context.Context, schoolname string) (int32, error) {
+	row := q.db.QueryRowContext(ctx, getSchoolIDByName, schoolname)
+	var schoolid int32
+	err := row.Scan(&schoolid)
+	return schoolid, err
+}
+
+const getSchoolIDsByNames = `-- name: GetSchoolIDsByNames :many
+SELECT SchoolID, SchoolName FROM Schools WHERE LOWER(SchoolName) = ANY(ARRAY(SELECT LOWER(unnest($1::text[]))))
+`
+
+type GetSchoolIDsByNamesRow struct {
+	Schoolid   int32  `json:"schoolid"`
+	Schoolname string `json:"schoolname"`
+}
+
+func (q *Queries) GetSchoolIDsByNames(ctx context.Context, dollar_1 []string) ([]GetSchoolIDsByNamesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getSchoolIDsByNames, pq.Array(dollar_1))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetSchoolIDsByNamesRow{}
+	for rows.Next() {
+		var i GetSchoolIDsByNamesRow
+		if err := rows.Scan(&i.Schoolid, &i.Schoolname); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getSchoolsByCountry = `-- name: GetSchoolsByCountry :many

@@ -29,6 +29,7 @@ service UserManagementService {
   rpc GetSchoolsNoAuth(GetSchoolsNoAuthRequest) returns (GetSchoolsNoAuthResponse) {}
   rpc InitiatePasswordUpdate(InitiatePasswordUpdateRequest) returns (InitiatePasswordUpdateResponse) {}
   rpc VerifyAndUpdatePassword(VerifyAndUpdatePasswordRequest) returns (VerifyAndUpdatePasswordResponse) {}
+  rpc GetSchoolIDsByNames(GetSchoolIDsByNamesRequest) returns (GetSchoolIDsByNamesResponse) {}
 }
 
 message GetPendingUsersRequest {
@@ -412,4 +413,13 @@ message VerifyAndUpdatePasswordRequest {
 message VerifyAndUpdatePasswordResponse {
   bool success = 1;
   string message = 2;
+}
+
+message GetSchoolIDsByNamesRequest {
+  string token = 1;
+  repeated string school_names = 2;
+}
+
+message GetSchoolIDsByNamesResponse {
+  map<string, int32> school_ids = 1;
 }

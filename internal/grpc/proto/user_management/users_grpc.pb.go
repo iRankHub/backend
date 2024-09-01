@@ -43,6 +43,7 @@ const (
 	UserManagementService_GetSchoolsNoAuth_FullMethodName        = "/user_management.UserManagementService/GetSchoolsNoAuth"
 	UserManagementService_InitiatePasswordUpdate_FullMethodName  = "/user_management.UserManagementService/InitiatePasswordUpdate"
 	UserManagementService_VerifyAndUpdatePassword_FullMethodName = "/user_management.UserManagementService/VerifyAndUpdatePassword"
+	UserManagementService_GetSchoolIDsByNames_FullMethodName     = "/user_management.UserManagementService/GetSchoolIDsByNames"
 )
 
 // UserManagementServiceClient is the client API for UserManagementService service.
@@ -73,6 +74,7 @@ type UserManagementServiceClient interface {
 	GetSchoolsNoAuth(ctx context.Context, in *GetSchoolsNoAuthRequest, opts ...grpc.CallOption) (*GetSchoolsNoAuthResponse, error)
 	InitiatePasswordUpdate(ctx context.Context, in *InitiatePasswordUpdateRequest, opts ...grpc.CallOption) (*InitiatePasswordUpdateResponse, error)
 	VerifyAndUpdatePassword(ctx context.Context, in *VerifyAndUpdatePasswordRequest, opts ...grpc.CallOption) (*VerifyAndUpdatePasswordResponse, error)
+	GetSchoolIDsByNames(ctx context.Context, in *GetSchoolIDsByNamesRequest, opts ...grpc.CallOption) (*GetSchoolIDsByNamesResponse, error)
 }
 
 type userManagementServiceClient struct {
@@ -323,6 +325,16 @@ func (c *userManagementServiceClient) VerifyAndUpdatePassword(ctx context.Contex
 	return out, nil
 }
 
+func (c *userManagementServiceClient) GetSchoolIDsByNames(ctx context.Context, in *GetSchoolIDsByNamesRequest, opts ...grpc.CallOption) (*GetSchoolIDsByNamesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetSchoolIDsByNamesResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_GetSchoolIDsByNames_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserManagementServiceServer is the server API for UserManagementService service.
 // All implementations must embed UnimplementedUserManagementServiceServer
 // for forward compatibility.
@@ -351,6 +363,7 @@ type UserManagementServiceServer interface {
 	GetSchoolsNoAuth(context.Context, *GetSchoolsNoAuthRequest) (*GetSchoolsNoAuthResponse, error)
 	InitiatePasswordUpdate(context.Context, *InitiatePasswordUpdateRequest) (*InitiatePasswordUpdateResponse, error)
 	VerifyAndUpdatePassword(context.Context, *VerifyAndUpdatePasswordRequest) (*VerifyAndUpdatePasswordResponse, error)
+	GetSchoolIDsByNames(context.Context, *GetSchoolIDsByNamesRequest) (*GetSchoolIDsByNamesResponse, error)
 	mustEmbedUnimplementedUserManagementServiceServer()
 }
 
@@ -432,6 +445,9 @@ func (UnimplementedUserManagementServiceServer) InitiatePasswordUpdate(context.C
 }
 func (UnimplementedUserManagementServiceServer) VerifyAndUpdatePassword(context.Context, *VerifyAndUpdatePasswordRequest) (*VerifyAndUpdatePasswordResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VerifyAndUpdatePassword not implemented")
+}
+func (UnimplementedUserManagementServiceServer) GetSchoolIDsByNames(context.Context, *GetSchoolIDsByNamesRequest) (*GetSchoolIDsByNamesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSchoolIDsByNames not implemented")
 }
 func (UnimplementedUserManagementServiceServer) mustEmbedUnimplementedUserManagementServiceServer() {}
 func (UnimplementedUserManagementServiceServer) testEmbeddedByValue()                               {}
@@ -886,6 +902,24 @@ func _UserManagementService_VerifyAndUpdatePassword_Handler(srv interface{}, ctx
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserManagementService_GetSchoolIDsByNames_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSchoolIDsByNamesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).GetSchoolIDsByNames(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_GetSchoolIDsByNames_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).GetSchoolIDsByNames(ctx, req.(*GetSchoolIDsByNamesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // UserManagementService_ServiceDesc is the grpc.ServiceDesc for UserManagementService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -988,6 +1022,10 @@ var UserManagementService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "VerifyAndUpdatePassword",
 			Handler:    _UserManagementService_VerifyAndUpdatePassword_Handler,
+		},
+		{
+			MethodName: "GetSchoolIDsByNames",
+			Handler:    _UserManagementService_GetSchoolIDsByNames_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

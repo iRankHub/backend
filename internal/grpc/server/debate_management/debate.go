@@ -185,6 +185,23 @@ func (s *debateServer) GeneratePairings(ctx context.Context, req *debate_managem
 	return &debate_management.GeneratePairingsResponse{Pairings: pairings}, nil
 }
 
+
+func (s *debateServer) RegeneratePairings(ctx context.Context, req *debate_management.RegeneratePairingsRequest) (*debate_management.GeneratePairingsResponse, error) {
+    pairings, err := s.pairingService.RegeneratePairings(ctx, req)
+    if err != nil {
+        // Check for specific error types and return appropriate gRPC status codes
+        switch {
+        case strings.Contains(err.Error(), "unauthorized"):
+            return nil, status.Errorf(codes.PermissionDenied, "Unauthorized: %v", err)
+        case strings.Contains(err.Error(), "not found"):
+            return nil, status.Errorf(codes.NotFound, "Tournament not found: %v", err)
+        default:
+            return nil, status.Errorf(codes.Internal, "Failed to regenerate pairings: %v", err)
+        }
+    }
+    return &debate_management.GeneratePairingsResponse{Pairings: pairings}, nil
+}
+
 func (s *debateServer) AssignJudges(ctx context.Context, req *debate_management.AssignJudgesRequest) (*debate_management.AssignJudgesResponse, error) {
 	pairings, err := s.judgeService.AssignJudges(ctx, req)
 	if err != nil {

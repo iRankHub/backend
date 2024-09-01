@@ -64,3 +64,9 @@ UPDATE Schools
 SET Address = $2
 WHERE ContactPersonID = $1
 RETURNING *;
+
+-- name: GetSchoolIDByName :one
+SELECT SchoolID FROM Schools WHERE SchoolName = $1;
+
+-- name: GetSchoolIDsByNames :many
+SELECT SchoolID, SchoolName FROM Schools WHERE LOWER(SchoolName) = ANY(ARRAY(SELECT LOWER(unnest($1::text[]))));
