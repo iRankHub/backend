@@ -68,7 +68,12 @@ func (q *Queries) DeleteStudent(ctx context.Context, studentid int32) error {
 }
 
 const getAllStudents = `-- name: GetAllStudents :many
-SELECT studentid, idebatestudentid, firstname, lastname, gender, grade, dateofbirth, email, password, schoolid, userid FROM Students
+SELECT s.studentid, s.idebatestudentid, s.firstname, s.lastname, s.gender, s.grade, s.dateofbirth, s.email, s.password, s.schoolid, s.userid
+FROM Students s
+JOIN Users u ON s.UserID = u.UserID
+WHERE u.UserRole = 'student'
+  AND u.Status = 'approved'
+  AND u.deleted_at IS NULL
 `
 
 func (q *Queries) GetAllStudents(ctx context.Context) ([]Student, error) {

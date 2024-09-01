@@ -11,7 +11,12 @@ SELECT * FROM Students
 WHERE Email = $1;
 
 -- name: GetAllStudents :many
-SELECT * FROM Students;
+SELECT s.*
+FROM Students s
+JOIN Users u ON s.UserID = u.UserID
+WHERE u.UserRole = 'student'
+  AND u.Status = 'approved'
+  AND u.deleted_at IS NULL;
 
 -- name: GetStudentsPaginated :many
 SELECT s.*, sch.SchoolName
