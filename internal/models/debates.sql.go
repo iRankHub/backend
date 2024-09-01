@@ -91,13 +91,14 @@ func (q *Queries) CheckExistingTeamMembership(ctx context.Context, arg CheckExis
 }
 
 const createDebate = `-- name: CreateDebate :one
-INSERT INTO Debates (TournamentID, RoundNumber, IsEliminationRound, Team1ID, Team2ID, RoomID, StartTime)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO Debates (TournamentID, RoundID, RoundNumber, IsEliminationRound, Team1ID, Team2ID, RoomID, StartTime)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING DebateID
 `
 
 type CreateDebateParams struct {
 	Tournamentid       int32     `json:"tournamentid"`
+	Roundid            int32     `json:"roundid"`
 	Roundnumber        int32     `json:"roundnumber"`
 	Iseliminationround bool      `json:"iseliminationround"`
 	Team1id            int32     `json:"team1id"`
@@ -109,6 +110,7 @@ type CreateDebateParams struct {
 func (q *Queries) CreateDebate(ctx context.Context, arg CreateDebateParams) (int32, error) {
 	row := q.db.QueryRowContext(ctx, createDebate,
 		arg.Tournamentid,
+		arg.Roundid,
 		arg.Roundnumber,
 		arg.Iseliminationround,
 		arg.Team1id,
@@ -739,6 +741,41 @@ func (q *Queries) GetRoomByID(ctx context.Context, roomid int32) ([]GetRoomByIDR
 	return items, nil
 }
 
+const getRoomsByTournament = `-- name: GetRoomsByTournament :many
+SELECT r.RoomID, r.RoomName, r.Location, r.Capacity
+FROM Rooms r
+JOIN RoomBookings rb ON r.RoomID = rb.RoomID
+WHERE rb.TournamentID = $1
+`
+
+func (q *Queries) GetRoomsByTournament(ctx context.Context, tournamentid int32) ([]Room, error) {
+	rows, err := q.db.QueryContext(ctx, getRoomsByTournament, tournamentid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Room{}
+	for rows.Next() {
+		var i Room
+		if err := rows.Scan(
+			&i.Roomid,
+			&i.Roomname,
+			&i.Location,
+			&i.Capacity,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getRoomsByTournamentAndRound = `-- name: GetRoomsByTournamentAndRound :many
 SELECT r.RoomID, r.roomname, rb.RoundNumber, rb.IsElimination, rb.IsOccupied
 FROM Rooms r
@@ -787,6 +824,30 @@ func (q *Queries) GetRoomsByTournamentAndRound(ctx context.Context, arg GetRooms
 		return nil, err
 	}
 	return items, nil
+}
+
+const getRoundByTournamentAndNumber = `-- name: GetRoundByTournamentAndNumber :one
+SELECT roundid, tournamentid, roundnumber, iseliminationround FROM Rounds
+WHERE TournamentID = $1 AND RoundNumber = $2 AND IsEliminationRound = $3
+LIMIT 1
+`
+
+type GetRoundByTournamentAndNumberParams struct {
+	Tournamentid       int32 `json:"tournamentid"`
+	Roundnumber        int32 `json:"roundnumber"`
+	Iseliminationround bool  `json:"iseliminationround"`
+}
+
+func (q *Queries) GetRoundByTournamentAndNumber(ctx context.Context, arg GetRoundByTournamentAndNumberParams) (Round, error) {
+	row := q.db.QueryRowContext(ctx, getRoundByTournamentAndNumber, arg.Tournamentid, arg.Roundnumber, arg.Iseliminationround)
+	var i Round
+	err := row.Scan(
+		&i.Roundid,
+		&i.Tournamentid,
+		&i.Roundnumber,
+		&i.Iseliminationround,
+	)
+	return i, err
 }
 
 const getSpeakerScoresByBallot = `-- name: GetSpeakerScoresByBallot :many

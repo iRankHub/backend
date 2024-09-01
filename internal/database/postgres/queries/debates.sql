@@ -142,8 +142,8 @@ WHERE (d.Team1ID = $1 AND b.Team1TotalScore > b.Team2TotalScore)
    AND d.TournamentID = $2;
 
 -- name: CreateDebate :one
-INSERT INTO Debates (TournamentID, RoundNumber, IsEliminationRound, Team1ID, Team2ID, RoomID, StartTime)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO Debates (TournamentID, RoundID, RoundNumber, IsEliminationRound, Team1ID, Team2ID, RoomID, StartTime)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING DebateID;
 
 -- name: GetTeamsByTournament :many
@@ -225,3 +225,14 @@ WHERE TeamID = $1 AND NOT EXISTS (SELECT 1 FROM debate_check);
 -- name: DeleteTeamMembers :exec
 DELETE FROM TeamMembers
 WHERE TeamID = $1;
+
+-- name: GetRoomsByTournament :many
+SELECT r.RoomID, r.RoomName, r.Location, r.Capacity
+FROM Rooms r
+JOIN RoomBookings rb ON r.RoomID = rb.RoomID
+WHERE rb.TournamentID = $1;
+
+-- name: GetRoundByTournamentAndNumber :one
+SELECT * FROM Rounds
+WHERE TournamentID = $1 AND RoundNumber = $2 AND IsEliminationRound = $3
+LIMIT 1;

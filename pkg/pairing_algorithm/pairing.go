@@ -2,9 +2,7 @@ package pairing_algorithm
 
 import (
 	"errors"
-	"fmt"
 	"math/rand"
-	"sort"
 )
 
 type Team struct {
@@ -19,6 +17,7 @@ type Team struct {
 type Judge struct {
 	ID   int
 	Name string
+	IsHeadJudge bool
 }
 
 type Debate struct {
@@ -34,19 +33,36 @@ type TournamentSpecs struct {
 	JudgesPerDebate   int
 }
 
-const maxAttempts = 1000
 var ErrUnableToPair = errors.New("unable to generate valid pairings")
 
 func GeneratePairings(teams []*Team, judges []*Judge, rooms []int, specs TournamentSpecs) ([][]*Debate, error) {
 	allPairings := make([][]*Debate, specs.PreliminaryRounds)
 
-	for round := 0; round < specs.PreliminaryRounds; round++ {
-		pairings, err := generateRoundPairings(teams, round == specs.PreliminaryRounds-1)
-		if err != nil {
-			return nil, err
+	teamIDs := make([]int, len(teams))
+	for i, team := range teams {
+		teamIDs[i] = team.ID
+	}
+
+	prelimPairings, err := GeneratePreliminaryPairings(teamIDs, specs.PreliminaryRounds)
+	if err != nil {
+		return nil, err
+	}
+
+	for round, roundPairings := range prelimPairings {
+		debates := make([]*Debate, len(roundPairings))
+		for i, pair := range roundPairings {
+			team1 := findTeamByID(teams, pair[0])
+			team2 := findTeamByID(teams, pair[1])
+			if team1 == nil || team2 == nil {
+				return nil, errors.New("invalid team ID in pairings")
+			}
+			debates[i] = &Debate{
+				Team1: team1,
+				Team2: team2,
+			}
 		}
 
-		debates := assignJudgesAndRooms(pairings, judges, rooms, specs.JudgesPerDebate)
+		debates = assignJudgesAndRooms(debates, judges, rooms, specs.JudgesPerDebate)
 		allPairings[round] = debates
 
 		// Update team statistics
@@ -80,6 +96,15 @@ func assignJudgesAndRooms(pairings []*Debate, judges []*Judge, rooms []int, judg
 			}
 		}
 
+		// Assign head judge
+		if len(debate.Judges) > 0 {
+			headJudgeIndex := 0
+			if len(debate.Judges) > 1 {
+				headJudgeIndex = rand.Intn(len(debate.Judges))
+			}
+			debate.Judges[headJudgeIndex].IsHeadJudge = true
+		}
+
 		// Assign room
 		if len(availableRooms) > 0 {
 			roomIndex := rand.Intn(len(availableRooms))
@@ -92,105 +117,93 @@ func assignJudgesAndRooms(pairings []*Debate, judges []*Judge, rooms []int, judg
 }
 
 func GeneratePreliminaryPairings(teamIDs []int, rounds int) ([][][]int, error) {
-	if len(teamIDs)%2 != 0 {
-		return nil, errors.New("number of teams must be even")
+	originalLength := len(teamIDs)
+	if originalLength%2 != 0 {
+		teamIDs = append(teamIDs, -1) // Add a "Public Speaking" team with ID -1
 	}
 
-    teams := make([]*Team, len(teamIDs))
-    for i, id := range teamIDs {
-        teams[i] = &Team{ID: id, Opponents: make(map[int]bool)}
-    }
-
+	n := len(teamIDs) / 2
+	proposition := make([]int, n)
+	opposition := make([]int, n)
+	copy(proposition, teamIDs[:n])
+	copy(opposition, teamIDs[n:])
 
 	pairings := make([][][]int, rounds)
-	totalAttempts := 0
 
-    for round := 0; round < rounds; {
-        attempts := 0
-        for attempts < maxAttempts {
-            roundPairings, err := generateRoundPairings(teams, round == rounds-1)
-            if err == nil {
-                pairingInts := make([][]int, len(roundPairings))
-                for i, debate := range roundPairings {
-                    pairingInts[i] = []int{debate.Team1.ID, debate.Team2.ID}
-                }
-                pairings[round] = pairingInts
+	for round := 0; round < rounds; round++ {
+		roundPairings := make([][]int, n)
 
-                // Update team statistics
-                for _, debate := range roundPairings {
-                    debate.Team1.Opponents[debate.Team2.ID] = true
-                    debate.Team2.Opponents[debate.Team1.ID] = true
-                    debate.Team1.LastSide = 1
-                    debate.Team2.LastSide = -1
-                    debate.Team1.Wins++
-                    debate.Team2.Wins++
-                }
-                round++
-                break
-            }
-            attempts++
-            totalAttempts++
-        }
+		if round == rounds-1 { // Last round
+			// Switch sides first
+			proposition, opposition = opposition, proposition
 
-		if attempts == maxAttempts {
-			// If we can't generate valid pairings, reset and try again
-			for i := range teams {
-				teams[i].LastSide = 0
-				teams[i].Opponents = make(map[int]bool)
-				teams[i].Wins = 0
+			// Combine arrays
+			combined := append(proposition, opposition...)
+
+			// Create new proposition and opposition
+			newProp := make([]int, 0, n)
+			newOpp := make([]int, 0, n)
+			for i := 0; i < len(combined); i++ {
+				if i%2 == 0 {
+					newProp = append(newProp, combined[i])
+				} else {
+					newOpp = append(newOpp, combined[i])
+				}
 			}
-			round = 0
-			pairings = make([][][]int, rounds)
+
+			// Pair across
+			for i := 0; i < n; i++ {
+				if i < len(newProp) && i < len(newOpp) {
+					roundPairings[i] = []int{newProp[i], newOpp[i]}
+				} else if i < len(newProp) {
+					roundPairings[i] = []int{newProp[i], -1} // Handle odd number of teams
+				}
+			}
+		} else {
+			switch round % 4 {
+			case 0: // Pair across
+				for i := 0; i < n; i++ {
+					roundPairings[i] = []int{proposition[i], opposition[i]}
+				}
+			case 1: // Pair diagonal first-last
+				for i := 0; i < n; i++ {
+					roundPairings[i] = []int{opposition[i], proposition[n-1-i]}
+				}
+			case 2: // Pair diagonal two by two
+				for i := 0; i < n; i += 2 {
+					if i+1 < n {
+						roundPairings[i] = []int{proposition[i], opposition[i+1]}
+						roundPairings[i+1] = []int{proposition[i+1], opposition[i]}
+					} else {
+						roundPairings[i] = []int{proposition[i], -1} // Handle odd number of teams
+					}
+				}
+			case 3: // Pair diagonal first and second last
+				for i := 0; i < n; i++ {
+					roundPairings[i] = []int{opposition[i], proposition[(i+n/2)%n]}
+				}
+			}
+
+			// Switch sides for next round, except after the first round
+			if round != 0 {
+				proposition, opposition = opposition, proposition
+			}
 		}
 
-		if totalAttempts >= maxAttempts*rounds {
-			return nil, fmt.Errorf("unable to generate valid pairings after %d total attempts", totalAttempts)
-		}
+		pairings[round] = roundPairings
 	}
 
 	return pairings, nil
 }
 
-func generateRoundPairings(teams []*Team, isLastRound bool) ([]*Debate, error) {
-	shuffledTeams := make([]*Team, len(teams))
-	copy(shuffledTeams, teams)
-	rand.Shuffle(len(shuffledTeams), func(i, j int) {
-		shuffledTeams[i], shuffledTeams[j] = shuffledTeams[j], shuffledTeams[i]
-	})
-
-	sort.Slice(shuffledTeams, func(i, j int) bool {
-		return shuffledTeams[i].Wins > shuffledTeams[j].Wins
-	})
-
-	pairings := []*Debate{}
-	paired := make(map[int]bool)
-
-	for i := 0; i < len(shuffledTeams); i++ {
-		if paired[shuffledTeams[i].ID] {
-			continue
-		}
-
-		for j := i + 1; j < len(shuffledTeams); j++ {
-			if paired[shuffledTeams[j].ID] {
-				continue
-			}
-
-			if !shuffledTeams[i].Opponents[shuffledTeams[j].ID] &&
-				(isLastRound || (shuffledTeams[i].LastSide != 1 || shuffledTeams[j].LastSide != -1)) {
-				pairings = append(pairings, &Debate{
-					Team1: shuffledTeams[i],
-					Team2: shuffledTeams[j],
-				})
-				paired[shuffledTeams[i].ID] = true
-				paired[shuffledTeams[j].ID] = true
-				break
-			}
+func findTeamByID(teams []*Team, id int) *Team {
+	for _, team := range teams {
+		if team.ID == id {
+			return team
 		}
 	}
-
-	if len(pairings) < len(teams)/2 {
-		return nil, ErrUnableToPair
+	if id == -1 {
+		return &Team{ID: -1, Name: "Public Speaking"}
 	}
-
-	return pairings, nil
+	return nil
 }

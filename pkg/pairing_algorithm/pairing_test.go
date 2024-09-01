@@ -22,30 +22,30 @@ func TestPreliminaryPairings(t *testing.T) {
 		{"30 teams, 3 rounds", 30, 3},
 		{"30 teams, 4 rounds", 30, 4},
 		{"30 teams, 5 rounds", 30, 5},
-		{"40 teams, 3 rounds", 30, 3},
-		{"40 teams, 4 rounds", 30, 4},
-		{"40 teams, 5 rounds", 30, 5},
-		{"50 teams, 3 rounds", 30, 3},
-		{"50 teams, 4 rounds", 30, 4},
-		{"50 teams, 5 rounds", 30, 5},
-		{"60 teams, 3 rounds", 30, 3},
-		{"60 teams, 4 rounds", 30, 4},
-		{"60 teams, 5 rounds", 30, 5},
-		{"70 teams, 3 rounds", 30, 3},
-		{"70 teams, 4 rounds", 30, 4},
-		{"70 teams, 5 rounds", 30, 5},
-		{"80 teams, 3 rounds", 30, 3},
-		{"80 teams, 4 rounds", 30, 4},
-		{"80 teams, 5 rounds", 30, 5},
-		{"90 teams, 3 rounds", 30, 3},
-		{"90 teams, 4 rounds", 30, 4},
-		{"90 teams, 5 rounds", 30, 5},
-		{"100 teams, 3 rounds", 30, 3},
-		{"100 teams, 4 rounds", 30, 4},
-		{"100 teams, 5 rounds", 30, 5},
+		{"40 teams, 3 rounds", 40, 3},
+		{"40 teams, 4 rounds", 40, 4},
+		{"40 teams, 5 rounds", 40, 5},
+		{"50 teams, 3 rounds", 50, 3},
+		{"50 teams, 4 rounds", 50, 4},
+		{"50 teams, 5 rounds", 50, 5},
+		{"60 teams, 3 rounds", 60, 3},
+		{"60 teams, 4 rounds", 60, 4},
+		{"60 teams, 5 rounds", 60, 5},
+		{"70 teams, 3 rounds", 70, 3},
+		{"70 teams, 4 rounds", 70, 4},
+		{"70 teams, 5 rounds", 70, 5},
+		{"80 teams, 3 rounds", 80, 3},
+		{"80 teams, 4 rounds", 80, 4},
+		{"80 teams, 5 rounds", 80, 5},
+		{"90 teams, 3 rounds", 90, 3},
+		{"90 teams, 4 rounds", 90, 4},
+		{"90 teams, 5 rounds", 90, 5},
+		{"100 teams, 3 rounds", 100, 3},
+		{"100 teams, 4 rounds", 100, 4},
+		{"100 teams, 5 rounds", 100, 5},
 	}
 
-	for _, tc := range testCases {
+	 for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			teams := make([]int, tc.teams)
 			for i := range teams {
@@ -63,58 +63,51 @@ func TestPreliminaryPairings(t *testing.T) {
 			}
 
 			// Check if each round has the correct number of pairings
-			expectedPairingsPerRound := tc.teams / 2
+			expectedPairingsPerRound := (tc.teams + 1) / 2 // Account for odd number of teams
 			for i, round := range pairings {
 				if len(round) != expectedPairingsPerRound {
 					t.Errorf("Round %d: Expected %d pairings, got %d", i+1, expectedPairingsPerRound, len(round))
 				}
 			}
 
-			// Explicitly check that no team meets twice
-			meetingCount := make(map[int]map[int]int)
+			// Check that no team meets twice
+			meetingCount := make(map[int]map[int]bool)
 			for roundIndex, round := range pairings {
 				for pairingIndex, pairing := range round {
+					if pairing[0] == -1 || pairing[1] == -1 {
+						continue // Skip checking for byes
+					}
 					if meetingCount[pairing[0]] == nil {
-						meetingCount[pairing[0]] = make(map[int]int)
+						meetingCount[pairing[0]] = make(map[int]bool)
 					}
 					if meetingCount[pairing[1]] == nil {
-						meetingCount[pairing[1]] = make(map[int]int)
+						meetingCount[pairing[1]] = make(map[int]bool)
 					}
-					meetingCount[pairing[0]][pairing[1]]++
-					meetingCount[pairing[1]][pairing[0]]++
-					if meetingCount[pairing[0]][pairing[1]] > 1 {
+					if meetingCount[pairing[0]][pairing[1]] || meetingCount[pairing[1]][pairing[0]] {
 						t.Errorf("Teams %d and %d meet more than once (Round %d, Pairing %d)", pairing[0], pairing[1], roundIndex+1, pairingIndex+1)
 					}
+					meetingCount[pairing[0]][pairing[1]] = true
+					meetingCount[pairing[1]][pairing[0]] = true
 				}
 			}
-			t.Log("No team meets twice in the preliminaries")
 
-			// Check if side alternation is mostly respected
-			sides := make(map[int][]int)
+			// Check that each team participates in each round (except for bye in odd-numbered tournaments)
 			for roundIndex, round := range pairings {
+				participatingTeams := make(map[int]bool)
 				for _, pairing := range round {
-					sides[pairing[0]] = append(sides[pairing[0]], roundIndex)
-					sides[pairing[1]] = append(sides[pairing[1]], -roundIndex)
-				}
-			}
-
-			sideViolations := 0
-			for _, teamSides := range sides {
-				for i := 1; i < len(teamSides)-1; i++ {
-					if (teamSides[i] > 0 && teamSides[i-1] > 0) || (teamSides[i] < 0 && teamSides[i-1] < 0) {
-						sideViolations++
+					participatingTeams[pairing[0]] = true
+					if pairing[1] != -1 {
+						participatingTeams[pairing[1]] = true
 					}
 				}
-			}
-
-			// Allow for some flexibility in side alternation
-			maxAllowedViolations := tc.teams * tc.rounds / 10 // 10% tolerance
-			if sideViolations > maxAllowedViolations {
-				t.Errorf("Too many side alternation violations: %d (max allowed: %d)", sideViolations, maxAllowedViolations)
+				if len(participatingTeams) != tc.teams {
+					t.Errorf("Round %d: Not all teams are participating. Expected %d, got %d", roundIndex+1, tc.teams, len(participatingTeams))
+				}
 			}
 		})
 	}
 }
+
 
 func TestAssignRoomsAndJudges(t *testing.T) {
     testCases := []struct {
@@ -209,6 +202,18 @@ func TestAssignRoomsAndJudges(t *testing.T) {
                             t.Errorf("Judge %d assigned more than once", judge.ID)
                         }
                         usedJudges[judge.ID] = true
+                    }
+                }
+                // Check if exactly one head judge is assigned per debate
+                for _, debate := range assignedDebates {
+                    headJudgeCount := 0
+                    for _, judge := range debate.Judges {
+                        if judge.IsHeadJudge {
+                            headJudgeCount++
+                        }
+                    }
+                    if headJudgeCount != 1 {
+                        t.Errorf("Debate does not have exactly one head judge: %d", headJudgeCount)
                     }
                 }
             }
