@@ -124,7 +124,10 @@ func (s *TournamentService) CreateTournament(ctx context.Context, req *tournamen
 		}
 	}()
 
-	return tournamentModelToProto(tournament), nil
+	createdTournament := tournamentModelToProto(tournament)
+	createdTournament.CoordinatorName = coordinator.Name
+
+	return createdTournament, nil
 }
 
 func (s *TournamentService) GetTournament(ctx context.Context, req *tournament_management.GetTournamentRequest) (*tournament_management.Tournament, error) {
@@ -216,6 +219,7 @@ func tournamentPaginatedRowToProto(t models.ListTournamentsPaginatedRow) *tourna
 		Location:                   t.Location,
 		FormatId:                   t.Formatid,
 		LeagueId:                   t.Leagueid.Int32,
+		CoordinatorName:            t.Coordinatorname,
 		NumberOfPreliminaryRounds:  int32(t.Numberofpreliminaryrounds),
 		NumberOfEliminationRounds:  int32(t.Numberofeliminationrounds),
 		JudgesPerDebatePreliminary: int32(t.Judgesperdebatepreliminary),
@@ -433,7 +437,6 @@ func tournamentModelToProto(t models.Tournament) *tournament_management.Tourname
 		Location:                   t.Location,
 		FormatId:                   t.Formatid,
 		LeagueId:                   t.Leagueid.Int32,
-		CoordinatorId:              t.Coordinatorid,
 		NumberOfPreliminaryRounds:  int32(t.Numberofpreliminaryrounds),
 		NumberOfEliminationRounds:  int32(t.Numberofeliminationrounds),
 		JudgesPerDebatePreliminary: int32(t.Judgesperdebatepreliminary),
@@ -452,14 +455,16 @@ func tournamentRowToProto(t models.GetTournamentByIDRow) *tournament_management.
 		Location:                   t.Location,
 		FormatId:                   t.Formatid,
 		LeagueId:                   t.Leagueid.Int32,
-		CoordinatorId:              t.Coordinatorid,
+		CoordinatorName:            t.Coordinatorname,
 		NumberOfPreliminaryRounds:  int32(t.Numberofpreliminaryrounds),
 		NumberOfEliminationRounds:  int32(t.Numberofeliminationrounds),
 		JudgesPerDebatePreliminary: int32(t.Judgesperdebatepreliminary),
 		JudgesPerDebateElimination: int32(t.Judgesperdebateelimination),
 		TournamentFee:              parseFloat64(t.Tournamentfee),
+		LeagueName:                 t.Leaguename,
 	}
 }
+
 
 func parseFloat64(s string) float64 {
 	f, _ := strconv.ParseFloat(s, 64)

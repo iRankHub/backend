@@ -79,7 +79,7 @@ message Tournament {
   string location = 5;
   int32 format_id = 6;
   int32 league_id = 7;
-  int32 coordinator_id = 8;
+  string coordinator_name = 8;
   int32 number_of_preliminary_rounds = 9;
   int32 number_of_elimination_rounds = 10;
   int32 judges_per_debate_preliminary = 11;
