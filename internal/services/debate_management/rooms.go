@@ -18,58 +18,68 @@ func NewRoomService(db *sql.DB) *RoomService {
 	return &RoomService{db: db}
 }
 
-func (s *RoomService) GetRooms(ctx context.Context, req *debate_management.GetRoomsRequest) ([]*debate_management.Room, error) {
-	if err := s.validateAuthentication(req.GetToken()); err != nil {
-		return nil, err
-	}
+func (s *RoomService) GetRooms(ctx context.Context, req *debate_management.GetRoomsRequest) (*debate_management.GetRoomsResponse, error) {
+    if err := s.validateAuthentication(req.GetToken()); err != nil {
+        return nil, err
+    }
 
-	queries := models.New(s.db)
-	rooms, err := queries.GetRoomsByTournamentAndRound(ctx, models.GetRoomsByTournamentAndRoundParams{
-		Tournamentid:  req.GetTournamentId(),
-		Roundnumber:   req.GetRoundNumber(),
-		Iselimination: req.GetIsElimination(),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get rooms: %v", err)
-	}
+    queries := models.New(s.db)
+    dbRooms, err := queries.GetRoomsByTournament(ctx, sql.NullInt32{Int32: req.GetTournamentId(), Valid: true})
+    if err != nil {
+        return nil, fmt.Errorf("failed to get rooms: %v", err)
+    }
 
-	return convertRooms(rooms), nil
+    roomStatuses, err := s.convertRooms(ctx, req.GetTournamentId(), dbRooms)
+    if err != nil {
+        return nil, fmt.Errorf("failed to convert rooms: %v", err)
+    }
+
+    return &debate_management.GetRoomsResponse{
+        Rooms: roomStatuses,
+    }, nil
 }
 
-func (s *RoomService) GetRoom(ctx context.Context, req *debate_management.GetRoomRequest) (*debate_management.Room, error) {
+func (s *RoomService) GetRoom(ctx context.Context, req *debate_management.GetRoomRequest) (*debate_management.GetRoomResponse, error) {
 	if err := s.validateAuthentication(req.GetToken()); err != nil {
 		return nil, err
 	}
 
 	queries := models.New(s.db)
-	roomData, err := queries.GetRoomByID(ctx, req.GetRoomId())
+	room, err := queries.GetRoomByID(ctx, req.GetRoomId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get room: %v", err)
 	}
 
-	return convertRoomWithStatus(roomData), nil
-}
-
-func convertRoomWithStatus(dbRoomData []models.GetRoomByIDRow) *debate_management.Room {
-	if len(dbRoomData) == 0 {
-		return nil
+	tournament, err := queries.GetTournamentByID(ctx, req.GetTournamentId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tournament: %v", err)
 	}
 
-	room := &debate_management.Room{
-		RoomId:      dbRoomData[0].Roomid,
-		RoomName:    dbRoomData[0].Roomname,
-		RoundStatus: make([]*debate_management.RoundStatus, len(dbRoomData)),
-	}
-
-	for i, data := range dbRoomData {
-		room.RoundStatus[i] = &debate_management.RoundStatus{
-			RoundNumber:   data.Roundnumber.Int32,
-			IsElimination: data.Iselimination.Bool,
-			IsOccupied:    data.Isoccupied.Bool,
+	preliminaryRounds := make([]*debate_management.RoundStatus, tournament.Numberofpreliminaryrounds)
+	for i := 1; i <= int(tournament.Numberofpreliminaryrounds); i++ {
+		status, err := s.getRoomStatusForRound(ctx, req.GetTournamentId(), room.Roomid, int32(i), false)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get preliminary status for round %d: %v", i, err)
+		}
+		preliminaryRounds[i-1] = &debate_management.RoundStatus{
+			Round:  int32(i),
+			Status: status,
 		}
 	}
 
-	return room
+	eliminationRounds := make([]*debate_management.RoundStatus, tournament.Numberofeliminationrounds)
+	for i := 1; i <= int(tournament.Numberofeliminationrounds); i++ {
+		status, err := s.getRoomStatusForRound(ctx, req.GetTournamentId(), room.Roomid, int32(i), true)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get elimination status for round %d: %v", i, err)
+		}
+		eliminationRounds[i-1] = &debate_management.RoundStatus{
+			Round:  int32(i),
+			Status: status,
+		}
+	}
+
+	return convertSingleRoom(room, preliminaryRounds, eliminationRounds), nil
 }
 
 func (s *RoomService) UpdateRoom(ctx context.Context, req *debate_management.UpdateRoomRequest) (*debate_management.Room, error) {
@@ -80,8 +90,7 @@ func (s *RoomService) UpdateRoom(ctx context.Context, req *debate_management.Upd
 
 	queries := models.New(s.db)
 
-	// Update the room name
-	_, err = queries.UpdateRoom(ctx, models.UpdateRoomParams{
+	updatedRoom, err := queries.UpdateRoom(ctx, models.UpdateRoomParams{
 		Roomid:   req.GetRoom().GetRoomId(),
 		Roomname: req.GetRoom().GetRoomName(),
 	})
@@ -89,54 +98,45 @@ func (s *RoomService) UpdateRoom(ctx context.Context, req *debate_management.Upd
 		return nil, fmt.Errorf("failed to update room: %v", err)
 	}
 
-	// Fetch the updated room data, including round status
-	updatedRoomData, err := queries.GetRoomByID(ctx, req.GetRoom().GetRoomId())
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch updated room data: %v", err)
-	}
-
-	// Convert the updated room data to the debate_management.Room type
-	return convertRoomWithStatus(updatedRoomData), nil
+	return convertRoom(updatedRoom), nil
 }
-func (s *RoomService) AssignRoomsToDebates(ctx context.Context, tournamentID int32, roundNumber int32, isElimination bool) error {
-	queries := models.New(s.db)
 
-	// Get available rooms
-	availableRooms, err := queries.GetAvailableRooms(ctx, models.GetAvailableRoomsParams{
-		Tournamentid:  tournamentID,
-		Roundnumber:   roundNumber,
-		Iselimination: isElimination,
+func (s *RoomService) getRoomStatus(ctx context.Context, tournamentID, roomID int32, isElimination bool) (string, error) {
+	queries := models.New(s.db)
+	debates, err := queries.GetDebatesByRoomAndTournament(ctx, models.GetDebatesByRoomAndTournamentParams{
+		Tournamentid:       tournamentID,
+		Roomid:             roomID,
+		Iseliminationround: isElimination,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to get available rooms: %v", err)
+		return "", fmt.Errorf("failed to get debates: %v", err)
 	}
 
-	// Get debates without rooms
-	debatesWithoutRooms, err := queries.GetDebatesWithoutRooms(ctx, models.GetDebatesWithoutRoomsParams{
+	if len(debates) > 0 {
+		return "occupied", nil
+	}
+	return "available", nil
+}
+
+func (s *RoomService) getRoomStatusForRound(ctx context.Context, tournamentID, roomID, roundNumber int32, isElimination bool) (string, error) {
+	queries := models.New(s.db)
+	debate, err := queries.GetDebateByRoomAndRound(ctx, models.GetDebateByRoomAndRoundParams{
 		Tournamentid:       tournamentID,
+		Roomid:             roomID,
 		Roundnumber:        roundNumber,
 		Iseliminationround: isElimination,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to get debates without rooms: %v", err)
+		if err == sql.ErrNoRows {
+			return "available", nil
+		}
+		return "", fmt.Errorf("failed to get debate: %v", err)
 	}
 
-	// Assign rooms to debates
-	for i, debate := range debatesWithoutRooms {
-		if i >= len(availableRooms) {
-			return fmt.Errorf("not enough rooms for all debates")
-		}
-
-		err := queries.AssignRoomToDebate(ctx, models.AssignRoomToDebateParams{
-			Debateid: debate.Debateid,
-			Roomid:   availableRooms[i].Roomid,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to assign room to debate: %v", err)
-		}
+	if debate.Debateid != 0 {
+		return "occupied", nil
 	}
-
-	return nil
+	return "available", nil
 }
 
 func (s *RoomService) validateAdminRole(token string) (map[string]interface{}, error) {
@@ -161,20 +161,42 @@ func (s *RoomService) validateAuthentication(token string) error {
 	return nil
 }
 
-func convertRooms(dbRooms []models.GetRoomsByTournamentAndRoundRow) []*debate_management.Room {
-	rooms := make([]*debate_management.Room, len(dbRooms))
-	for i, dbRoom := range dbRooms {
-		rooms[i] = &debate_management.Room{
-			RoomId:   dbRoom.Roomid,
-			RoomName: dbRoom.Roomname,
-			RoundStatus: []*debate_management.RoundStatus{
-				{
-					RoundNumber:   dbRoom.Roundnumber,
-					IsElimination: dbRoom.Iselimination,
-					IsOccupied:    dbRoom.Isoccupied,
-				},
-			},
-		}
-	}
-	return rooms
+func (s *RoomService) convertRooms(ctx context.Context, tournamentID int32, dbRooms []models.Room) ([]*debate_management.RoomStatus, error) {
+    rooms := make([]*debate_management.RoomStatus, len(dbRooms))
+    for i, dbRoom := range dbRooms {
+        preliminaryStatus, err := s.getRoomStatus(ctx, tournamentID, dbRoom.Roomid, false)
+        if err != nil {
+            return nil, fmt.Errorf("failed to get preliminary status for room %d: %v", dbRoom.Roomid, err)
+        }
+
+        eliminationStatus, err := s.getRoomStatus(ctx, tournamentID, dbRoom.Roomid, true)
+        if err != nil {
+            return nil, fmt.Errorf("failed to get elimination status for room %d: %v", dbRoom.Roomid, err)
+        }
+
+        rooms[i] = &debate_management.RoomStatus{
+            RoomId:      dbRoom.Roomid,
+            Preliminary: preliminaryStatus,
+            Elimination: eliminationStatus,
+        }
+    }
+    return rooms, nil
+}
+
+func convertSingleRoom(dbRoom models.GetRoomByIDRow, preliminaryRounds, eliminationRounds []*debate_management.RoundStatus) *debate_management.GetRoomResponse {
+    return &debate_management.GetRoomResponse{
+        RoomId:      dbRoom.Roomid,
+        Name:        dbRoom.Roomname,
+        Preliminary: preliminaryRounds,
+        Elimination: eliminationRounds,
+    }
+}
+
+func convertRoom(dbRoom models.Room) *debate_management.Room {
+    return &debate_management.Room{
+        RoomId:   dbRoom.Roomid,
+        RoomName: dbRoom.Roomname,
+        Location: dbRoom.Location,
+        Capacity: dbRoom.Capacity,
+    }
 }

@@ -148,25 +148,32 @@ func (q *Queries) CreatePairingHistory(ctx context.Context, arg CreatePairingHis
 }
 
 const createRoom = `-- name: CreateRoom :one
-INSERT INTO Rooms (RoomName, Location, Capacity)
-VALUES ($1, $2, $3)
-RETURNING roomid, roomname, location, capacity
+INSERT INTO Rooms (RoomName, Location, Capacity, TournamentID)
+VALUES ($1, $2, $3, $4)
+RETURNING roomid, roomname, location, capacity, tournamentid
 `
 
 type CreateRoomParams struct {
-	Roomname string `json:"roomname"`
-	Location string `json:"location"`
-	Capacity int32  `json:"capacity"`
+	Roomname     string        `json:"roomname"`
+	Location     string        `json:"location"`
+	Capacity     int32         `json:"capacity"`
+	Tournamentid sql.NullInt32 `json:"tournamentid"`
 }
 
 func (q *Queries) CreateRoom(ctx context.Context, arg CreateRoomParams) (Room, error) {
-	row := q.db.QueryRowContext(ctx, createRoom, arg.Roomname, arg.Location, arg.Capacity)
+	row := q.db.QueryRowContext(ctx, createRoom,
+		arg.Roomname,
+		arg.Location,
+		arg.Capacity,
+		arg.Tournamentid,
+	)
 	var i Room
 	err := row.Scan(
 		&i.Roomid,
 		&i.Roomname,
 		&i.Location,
 		&i.Capacity,
+		&i.Tournamentid,
 	)
 	return i, err
 }
@@ -229,12 +236,13 @@ func (q *Queries) DeletePairingsForTournament(ctx context.Context, tournamentid 
 	return err
 }
 
-const deleteRoomBookingsForTournament = `-- name: DeleteRoomBookingsForTournament :exec
+const deleteRoomsForTournament = `-- name: DeleteRoomsForTournament :exec
 DELETE FROM Rooms
+WHERE TournamentID = $1
 `
 
-func (q *Queries) DeleteRoomBookingsForTournament(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, deleteRoomBookingsForTournament)
+func (q *Queries) DeleteRoomsForTournament(ctx context.Context, tournamentid sql.NullInt32) error {
+	_, err := q.db.ExecContext(ctx, deleteRoomsForTournament, tournamentid)
 	return err
 }
 
@@ -298,50 +306,6 @@ func (q *Queries) GetAvailableJudges(ctx context.Context, tournamentid int32) ([
 	for rows.Next() {
 		var i GetAvailableJudgesRow
 		if err := rows.Scan(&i.Userid, &i.Name, &i.Email); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getAvailableRooms = `-- name: GetAvailableRooms :many
-SELECT r.roomid, r.roomname, r.location, r.capacity
-FROM Rooms r
-LEFT JOIN RoomBookings rb ON r.RoomID = rb.RoomID
-  AND rb.TournamentID = $1
-  AND rb.RoundNumber = $2
-  AND rb.IsElimination = $3
-WHERE rb.RoomID IS NULL OR rb.IsOccupied = FALSE
-`
-
-type GetAvailableRoomsParams struct {
-	Tournamentid  int32 `json:"tournamentid"`
-	Roundnumber   int32 `json:"roundnumber"`
-	Iselimination bool  `json:"iselimination"`
-}
-
-func (q *Queries) GetAvailableRooms(ctx context.Context, arg GetAvailableRoomsParams) ([]Room, error) {
-	rows, err := q.db.QueryContext(ctx, getAvailableRooms, arg.Tournamentid, arg.Roundnumber, arg.Iselimination)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Room{}
-	for rows.Next() {
-		var i Room
-		if err := rows.Scan(
-			&i.Roomid,
-			&i.Roomname,
-			&i.Location,
-			&i.Capacity,
-		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -491,20 +455,58 @@ func (q *Queries) GetBallotsByTournamentAndRound(ctx context.Context, arg GetBal
 	return items, nil
 }
 
-const getDebatesWithoutRooms = `-- name: GetDebatesWithoutRooms :many
+const getDebateByRoomAndRound = `-- name: GetDebateByRoomAndRound :one
 SELECT debateid, roundid, roundnumber, iseliminationround, tournamentid, team1id, team2id, starttime, endtime, roomid, status
 FROM Debates
-WHERE TournamentID = $1 AND RoundNumber = $2 AND IsEliminationRound = $3 AND RoomID IS NULL
+WHERE TournamentID = $1 AND RoomID = $2 AND RoundNumber = $3 AND IsEliminationRound = $4
+LIMIT 1
 `
 
-type GetDebatesWithoutRoomsParams struct {
+type GetDebateByRoomAndRoundParams struct {
 	Tournamentid       int32 `json:"tournamentid"`
+	Roomid             int32 `json:"roomid"`
 	Roundnumber        int32 `json:"roundnumber"`
 	Iseliminationround bool  `json:"iseliminationround"`
 }
 
-func (q *Queries) GetDebatesWithoutRooms(ctx context.Context, arg GetDebatesWithoutRoomsParams) ([]Debate, error) {
-	rows, err := q.db.QueryContext(ctx, getDebatesWithoutRooms, arg.Tournamentid, arg.Roundnumber, arg.Iseliminationround)
+func (q *Queries) GetDebateByRoomAndRound(ctx context.Context, arg GetDebateByRoomAndRoundParams) (Debate, error) {
+	row := q.db.QueryRowContext(ctx, getDebateByRoomAndRound,
+		arg.Tournamentid,
+		arg.Roomid,
+		arg.Roundnumber,
+		arg.Iseliminationround,
+	)
+	var i Debate
+	err := row.Scan(
+		&i.Debateid,
+		&i.Roundid,
+		&i.Roundnumber,
+		&i.Iseliminationround,
+		&i.Tournamentid,
+		&i.Team1id,
+		&i.Team2id,
+		&i.Starttime,
+		&i.Endtime,
+		&i.Roomid,
+		&i.Status,
+	)
+	return i, err
+}
+
+const getDebatesByRoomAndTournament = `-- name: GetDebatesByRoomAndTournament :many
+SELECT debateid, roundid, roundnumber, iseliminationround, tournamentid, team1id, team2id, starttime, endtime, roomid, status
+FROM Debates
+WHERE TournamentID = $1 AND RoomID = $2 AND IsEliminationRound = $3
+`
+
+type GetDebatesByRoomAndTournamentParams struct {
+	Tournamentid       int32 `json:"tournamentid"`
+	Roomid             int32 `json:"roomid"`
+	Iseliminationround bool  `json:"iseliminationround"`
+}
+
+func (q *Queries) GetDebatesByRoomAndTournament(ctx context.Context, arg GetDebatesByRoomAndTournamentParams) ([]Debate, error) {
+	rows, err := q.db.QueryContext(ctx, getDebatesByRoomAndTournament, arg.Tournamentid, arg.Roomid, arg.Iseliminationround)
 	if err != nil {
 		return nil, err
 	}
@@ -608,12 +610,56 @@ func (q *Queries) GetJudgesByTournamentAndRound(ctx context.Context, arg GetJudg
 const getPairingByID = `-- name: GetPairingByID :one
 SELECT d.DebateID, d.RoundNumber, d.IsEliminationRound,
        d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,
-       d.RoomID, r.roomname AS RoomName
+       d.RoomID, r.roomname AS RoomName,
+       array_agg(DISTINCT s1.FirstName || ' ' || s1.LastName) AS Team1SpeakerNames,
+       array_agg(DISTINCT s2.FirstName || ' ' || s2.LastName) AS Team2SpeakerNames,
+       l1.Name AS Team1LeagueName, l2.Name AS Team2LeagueName,
+       COALESCE(t1_points.TotalPoints, 0) AS Team1TotalPoints,
+       COALESCE(t2_points.TotalPoints, 0) AS Team2TotalPoints,
+       (SELECT u.Name FROM JudgeAssignments ja
+        JOIN Users u ON ja.JudgeID = u.UserID
+        WHERE ja.DebateID = d.DebateID AND ja.IsHeadJudge = true
+        LIMIT 1) AS HeadJudgeName
 FROM Debates d
 JOIN Teams t1 ON d.Team1ID = t1.TeamID
 JOIN Teams t2 ON d.Team2ID = t2.TeamID
 LEFT JOIN Rooms r ON d.RoomID = r.RoomID
+LEFT JOIN TeamMembers tm1 ON t1.TeamID = tm1.TeamID
+LEFT JOIN TeamMembers tm2 ON t2.TeamID = tm2.TeamID
+LEFT JOIN Students s1 ON tm1.StudentID = s1.StudentID
+LEFT JOIN Students s2 ON tm2.StudentID = s2.StudentID
+LEFT JOIN Tournaments tour ON d.TournamentID = tour.TournamentID
+LEFT JOIN Leagues l1 ON tour.LeagueID = l1.LeagueID
+LEFT JOIN Leagues l2 ON tour.LeagueID = l2.LeagueID
+LEFT JOIN (
+    SELECT Team1ID AS TeamID, SUM(Team1TotalScore) AS TotalPoints
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.TournamentID = (SELECT TournamentID FROM Debates WHERE d.DebateID = $1)
+    GROUP BY Team1ID
+    UNION ALL
+    SELECT Team2ID AS TeamID, SUM(Team2TotalScore) AS TotalPoints
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.TournamentID = (SELECT TournamentID FROM Debates WHERE d.DebateID = $1)
+    GROUP BY Team2ID
+) t1_points ON t1.TeamID = t1_points.TeamID
+LEFT JOIN (
+    SELECT Team1ID AS TeamID, SUM(Team1TotalScore) AS TotalPoints
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.TournamentID = (SELECT TournamentID FROM Debates WHERE d.DebateID = $1)
+    GROUP BY Team1ID
+    UNION ALL
+    SELECT Team2ID AS TeamID, SUM(Team2TotalScore) AS TotalPoints
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.TournamentID = (SELECT TournamentID FROM Debates WHERE d.DebateID = $1)
+    GROUP BY Team2ID
+) t2_points ON t2.TeamID = t2_points.TeamID
 WHERE d.DebateID = $1
+GROUP BY d.DebateID, d.RoundNumber, d.IsEliminationRound, d.Team1ID, t1.Name, d.Team2ID, t2.Name, d.RoomID, r.RoomName,
+         l1.Name, l2.Name, t1_points.TotalPoints, t2_points.TotalPoints
 `
 
 type GetPairingByIDRow struct {
@@ -626,6 +672,13 @@ type GetPairingByIDRow struct {
 	Team2name          string         `json:"team2name"`
 	Roomid             int32          `json:"roomid"`
 	Roomname           sql.NullString `json:"roomname"`
+	Team1speakernames  interface{}    `json:"team1speakernames"`
+	Team2speakernames  interface{}    `json:"team2speakernames"`
+	Team1leaguename    sql.NullString `json:"team1leaguename"`
+	Team2leaguename    sql.NullString `json:"team2leaguename"`
+	Team1totalpoints   int64          `json:"team1totalpoints"`
+	Team2totalpoints   int64          `json:"team2totalpoints"`
+	Headjudgename      string         `json:"headjudgename"`
 }
 
 func (q *Queries) GetPairingByID(ctx context.Context, debateid int32) (GetPairingByIDRow, error) {
@@ -641,6 +694,13 @@ func (q *Queries) GetPairingByID(ctx context.Context, debateid int32) (GetPairin
 		&i.Team2name,
 		&i.Roomid,
 		&i.Roomname,
+		&i.Team1speakernames,
+		&i.Team2speakernames,
+		&i.Team1leaguename,
+		&i.Team2leaguename,
+		&i.Team1totalpoints,
+		&i.Team2totalpoints,
+		&i.Headjudgename,
 	)
 	return i, err
 }
@@ -648,12 +708,56 @@ func (q *Queries) GetPairingByID(ctx context.Context, debateid int32) (GetPairin
 const getPairingsByTournamentAndRound = `-- name: GetPairingsByTournamentAndRound :many
 SELECT d.DebateID, d.RoundNumber, d.IsEliminationRound,
        d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,
-       d.RoomID, r.roomname AS RoomName
+       d.RoomID, r.roomname AS RoomName,
+       array_agg(DISTINCT s1.FirstName || ' ' || s1.LastName) AS Team1SpeakerNames,
+       array_agg(DISTINCT s2.FirstName || ' ' || s2.LastName) AS Team2SpeakerNames,
+       l1.Name AS Team1LeagueName, l2.Name AS Team2LeagueName,
+       COALESCE(t1_points.TotalPoints, 0) AS Team1TotalPoints,
+       COALESCE(t2_points.TotalPoints, 0) AS Team2TotalPoints,
+       (SELECT u.Name FROM JudgeAssignments ja
+        JOIN Users u ON ja.JudgeID = u.UserID
+        WHERE ja.DebateID = d.DebateID AND ja.IsHeadJudge = true
+        LIMIT 1) AS HeadJudgeName
 FROM Debates d
 JOIN Teams t1 ON d.Team1ID = t1.TeamID
 JOIN Teams t2 ON d.Team2ID = t2.TeamID
 LEFT JOIN Rooms r ON d.RoomID = r.RoomID
+LEFT JOIN TeamMembers tm1 ON t1.TeamID = tm1.TeamID
+LEFT JOIN TeamMembers tm2 ON t2.TeamID = tm2.TeamID
+LEFT JOIN Students s1 ON tm1.StudentID = s1.StudentID
+LEFT JOIN Students s2 ON tm2.StudentID = s2.StudentID
+LEFT JOIN Tournaments tour ON d.TournamentID = tour.TournamentID
+LEFT JOIN Leagues l1 ON tour.LeagueID = l1.LeagueID
+LEFT JOIN Leagues l2 ON tour.LeagueID = l2.LeagueID
+LEFT JOIN (
+    SELECT Team1ID AS TeamID, SUM(Team1TotalScore) AS TotalPoints
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.TournamentID = $1
+    GROUP BY Team1ID
+    UNION ALL
+    SELECT Team2ID AS TeamID, SUM(Team2TotalScore) AS TotalPoints
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.TournamentID = $1
+    GROUP BY Team2ID
+) t1_points ON t1.TeamID = t1_points.TeamID
+LEFT JOIN (
+    SELECT Team1ID AS TeamID, SUM(Team1TotalScore) AS TotalPoints
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.TournamentID = $1
+    GROUP BY Team1ID
+    UNION ALL
+    SELECT Team2ID AS TeamID, SUM(Team2TotalScore) AS TotalPoints
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.TournamentID = $1
+    GROUP BY Team2ID
+) t2_points ON t2.TeamID = t2_points.TeamID
 WHERE d.TournamentID = $1 AND d.RoundNumber = $2 AND d.IsEliminationRound = $3
+GROUP BY d.DebateID, d.RoundNumber, d.IsEliminationRound, d.Team1ID, t1.Name, d.Team2ID, t2.Name, d.RoomID, r.RoomName,
+         l1.Name, l2.Name, t1_points.TotalPoints, t2_points.TotalPoints
 `
 
 type GetPairingsByTournamentAndRoundParams struct {
@@ -672,6 +776,13 @@ type GetPairingsByTournamentAndRoundRow struct {
 	Team2name          string         `json:"team2name"`
 	Roomid             int32          `json:"roomid"`
 	Roomname           sql.NullString `json:"roomname"`
+	Team1speakernames  interface{}    `json:"team1speakernames"`
+	Team2speakernames  interface{}    `json:"team2speakernames"`
+	Team1leaguename    sql.NullString `json:"team1leaguename"`
+	Team2leaguename    sql.NullString `json:"team2leaguename"`
+	Team1totalpoints   int64          `json:"team1totalpoints"`
+	Team2totalpoints   int64          `json:"team2totalpoints"`
+	Headjudgename      string         `json:"headjudgename"`
 }
 
 func (q *Queries) GetPairingsByTournamentAndRound(ctx context.Context, arg GetPairingsByTournamentAndRoundParams) ([]GetPairingsByTournamentAndRoundRow, error) {
@@ -693,6 +804,13 @@ func (q *Queries) GetPairingsByTournamentAndRound(ctx context.Context, arg GetPa
 			&i.Team2name,
 			&i.Roomid,
 			&i.Roomname,
+			&i.Team1speakernames,
+			&i.Team2speakernames,
+			&i.Team1leaguename,
+			&i.Team2leaguename,
+			&i.Team1totalpoints,
+			&i.Team2totalpoints,
+			&i.Headjudgename,
 		); err != nil {
 			return nil, err
 		}
@@ -746,58 +864,39 @@ func (q *Queries) GetPreviousPairings(ctx context.Context, arg GetPreviousPairin
 	return items, nil
 }
 
-const getRoomByID = `-- name: GetRoomByID :many
-SELECT r.RoomID, r.RoomName, rb.RoundNumber, rb.IsElimination, rb.IsOccupied
-FROM Rooms r
-LEFT JOIN RoomBookings rb ON r.RoomID = rb.RoomID
-WHERE r.RoomID = $1
+const getRoomByID = `-- name: GetRoomByID :one
+SELECT RoomID, RoomName, TournamentID, Location, Capacity
+FROM Rooms
+WHERE RoomID = $1
 `
 
 type GetRoomByIDRow struct {
-	Roomid        int32         `json:"roomid"`
-	Roomname      string        `json:"roomname"`
-	Roundnumber   sql.NullInt32 `json:"roundnumber"`
-	Iselimination sql.NullBool  `json:"iselimination"`
-	Isoccupied    sql.NullBool  `json:"isoccupied"`
+	Roomid       int32         `json:"roomid"`
+	Roomname     string        `json:"roomname"`
+	Tournamentid sql.NullInt32 `json:"tournamentid"`
+	Location     string        `json:"location"`
+	Capacity     int32         `json:"capacity"`
 }
 
-func (q *Queries) GetRoomByID(ctx context.Context, roomid int32) ([]GetRoomByIDRow, error) {
-	rows, err := q.db.QueryContext(ctx, getRoomByID, roomid)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []GetRoomByIDRow{}
-	for rows.Next() {
-		var i GetRoomByIDRow
-		if err := rows.Scan(
-			&i.Roomid,
-			&i.Roomname,
-			&i.Roundnumber,
-			&i.Iselimination,
-			&i.Isoccupied,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) GetRoomByID(ctx context.Context, roomid int32) (GetRoomByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getRoomByID, roomid)
+	var i GetRoomByIDRow
+	err := row.Scan(
+		&i.Roomid,
+		&i.Roomname,
+		&i.Tournamentid,
+		&i.Location,
+		&i.Capacity,
+	)
+	return i, err
 }
 
 const getRoomsByTournament = `-- name: GetRoomsByTournament :many
-SELECT r.RoomID, r.RoomName, r.Location, r.Capacity
-FROM Rooms r
-JOIN RoomBookings rb ON r.RoomID = rb.RoomID
-WHERE rb.TournamentID = $1
+SELECT roomid, roomname, location, capacity, tournamentid FROM Rooms
+WHERE TournamentID = $1
 `
 
-func (q *Queries) GetRoomsByTournament(ctx context.Context, tournamentid int32) ([]Room, error) {
+func (q *Queries) GetRoomsByTournament(ctx context.Context, tournamentid sql.NullInt32) ([]Room, error) {
 	rows, err := q.db.QueryContext(ctx, getRoomsByTournament, tournamentid)
 	if err != nil {
 		return nil, err
@@ -811,56 +910,7 @@ func (q *Queries) GetRoomsByTournament(ctx context.Context, tournamentid int32) 
 			&i.Roomname,
 			&i.Location,
 			&i.Capacity,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getRoomsByTournamentAndRound = `-- name: GetRoomsByTournamentAndRound :many
-SELECT r.RoomID, r.roomname, rb.RoundNumber, rb.IsElimination, rb.IsOccupied
-FROM Rooms r
-JOIN RoomBookings rb ON r.RoomID = rb.RoomID
-WHERE rb.TournamentID = $1 AND rb.RoundNumber = $2 AND rb.IsElimination = $3
-`
-
-type GetRoomsByTournamentAndRoundParams struct {
-	Tournamentid  int32 `json:"tournamentid"`
-	Roundnumber   int32 `json:"roundnumber"`
-	Iselimination bool  `json:"iselimination"`
-}
-
-type GetRoomsByTournamentAndRoundRow struct {
-	Roomid        int32  `json:"roomid"`
-	Roomname      string `json:"roomname"`
-	Roundnumber   int32  `json:"roundnumber"`
-	Iselimination bool   `json:"iselimination"`
-	Isoccupied    bool   `json:"isoccupied"`
-}
-
-func (q *Queries) GetRoomsByTournamentAndRound(ctx context.Context, arg GetRoomsByTournamentAndRoundParams) ([]GetRoomsByTournamentAndRoundRow, error) {
-	rows, err := q.db.QueryContext(ctx, getRoomsByTournamentAndRound, arg.Tournamentid, arg.Roundnumber, arg.Iselimination)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []GetRoomsByTournamentAndRoundRow{}
-	for rows.Next() {
-		var i GetRoomsByTournamentAndRoundRow
-		if err := rows.Scan(
-			&i.Roomid,
-			&i.Roomname,
-			&i.Roundnumber,
-			&i.Iselimination,
-			&i.Isoccupied,
+			&i.Tournamentid,
 		); err != nil {
 			return nil, err
 		}
@@ -1157,7 +1207,7 @@ const updateRoom = `-- name: UpdateRoom :one
 UPDATE Rooms
 SET RoomName = $2
 WHERE RoomID = $1
-RETURNING roomid, roomname, location, capacity
+RETURNING roomid, roomname, location, capacity, tournamentid
 `
 
 type UpdateRoomParams struct {
@@ -1173,6 +1223,7 @@ func (q *Queries) UpdateRoom(ctx context.Context, arg UpdateRoomParams) (Room, e
 		&i.Roomname,
 		&i.Location,
 		&i.Capacity,
+		&i.Tournamentid,
 	)
 	return i, err
 }

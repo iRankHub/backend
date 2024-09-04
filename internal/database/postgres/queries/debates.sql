@@ -1,45 +1,3 @@
--- name: GetRoomsByTournamentAndRound :many
-SELECT r.RoomID, r.roomname, rb.RoundNumber, rb.IsElimination, rb.IsOccupied
-FROM Rooms r
-JOIN RoomBookings rb ON r.RoomID = rb.RoomID
-WHERE rb.TournamentID = $1 AND rb.RoundNumber = $2 AND rb.IsElimination = $3;
-
--- name: GetRoomByID :many
-SELECT r.RoomID, r.RoomName, rb.RoundNumber, rb.IsElimination, rb.IsOccupied
-FROM Rooms r
-LEFT JOIN RoomBookings rb ON r.RoomID = rb.RoomID
-WHERE r.RoomID = $1;
-
--- name: CreateRoom :one
-INSERT INTO Rooms (RoomName, Location, Capacity)
-VALUES ($1, $2, $3)
-RETURNING *;
-
--- name: UpdateRoom :one
-UPDATE Rooms
-SET RoomName = $2
-WHERE RoomID = $1
-RETURNING *;
-
--- name: GetAvailableRooms :many
-SELECT r.*
-FROM Rooms r
-LEFT JOIN RoomBookings rb ON r.RoomID = rb.RoomID
-  AND rb.TournamentID = $1
-  AND rb.RoundNumber = $2
-  AND rb.IsElimination = $3
-WHERE rb.RoomID IS NULL OR rb.IsOccupied = FALSE;
-
--- name: GetDebatesWithoutRooms :many
-SELECT *
-FROM Debates
-WHERE TournamentID = $1 AND RoundNumber = $2 AND IsEliminationRound = $3 AND RoomID IS NULL;
-
--- name: AssignRoomToDebate :exec
-UPDATE Debates
-SET RoomID = $2
-WHERE DebateID = $1;
-
 -- name: GetJudgesByTournamentAndRound :many
 SELECT u.UserID, u.Name, u.Email, ja.IsHeadJudge
 FROM Users u
@@ -65,26 +23,6 @@ WHERE v.Role = 'Judge' AND ja.JudgeID IS NULL;
 -- name: DeletePairingsForTournament :exec
 DELETE FROM Debates
 WHERE TournamentID = $1;
-
--- name: GetPairingsByTournamentAndRound :many
-SELECT d.DebateID, d.RoundNumber, d.IsEliminationRound,
-       d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,
-       d.RoomID, r.roomname AS RoomName
-FROM Debates d
-JOIN Teams t1 ON d.Team1ID = t1.TeamID
-JOIN Teams t2 ON d.Team2ID = t2.TeamID
-LEFT JOIN Rooms r ON d.RoomID = r.RoomID
-WHERE d.TournamentID = $1 AND d.RoundNumber = $2 AND d.IsEliminationRound = $3;
-
--- name: GetPairingByID :one
-SELECT d.DebateID, d.RoundNumber, d.IsEliminationRound,
-       d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,
-       d.RoomID, r.roomname AS RoomName
-FROM Debates d
-JOIN Teams t1 ON d.Team1ID = t1.TeamID
-JOIN Teams t2 ON d.Team2ID = t2.TeamID
-LEFT JOIN Rooms r ON d.RoomID = r.RoomID
-WHERE d.DebateID = $1;
 
 -- name: UpdatePairing :exec
 UPDATE Debates
@@ -226,11 +164,6 @@ WHERE TeamID = $1 AND NOT EXISTS (SELECT 1 FROM debate_check);
 DELETE FROM TeamMembers
 WHERE TeamID = $1;
 
--- name: GetRoomsByTournament :many
-SELECT r.RoomID, r.RoomName, r.Location, r.Capacity
-FROM Rooms r
-JOIN RoomBookings rb ON r.RoomID = rb.RoomID
-WHERE rb.TournamentID = $1;
 
 -- name: GetRoundByTournamentAndNumber :one
 SELECT * FROM Rounds
@@ -245,9 +178,6 @@ WHERE TournamentID = $1;
 DELETE FROM Debates
 WHERE TournamentID = $1;
 
--- name: DeleteRoomBookingsForTournament :exec
-DELETE FROM Rooms;
-
 -- name: DeleteRoundsForTournament :exec
 DELETE FROM Rounds
 WHERE TournamentID = $1;
@@ -255,3 +185,153 @@ WHERE TournamentID = $1;
 -- name: DeletePairingHistoryForTournament :exec
 DELETE FROM PairingHistory
 WHERE TournamentID = $1;
+
+
+-- name: GetRoomByID :one
+SELECT RoomID, RoomName, TournamentID, Location, Capacity
+FROM Rooms
+WHERE RoomID = $1;
+
+-- name: CreateRoom :one
+INSERT INTO Rooms (RoomName, Location, Capacity, TournamentID)
+VALUES ($1, $2, $3, $4)
+RETURNING *;
+
+-- name: UpdateRoom :one
+UPDATE Rooms
+SET RoomName = $2
+WHERE RoomID = $1
+RETURNING *;
+
+
+-- name: AssignRoomToDebate :exec
+UPDATE Debates
+SET RoomID = $2
+WHERE DebateID = $1;
+
+-- name: DeleteRoomsForTournament :exec
+DELETE FROM Rooms
+WHERE TournamentID = $1;
+
+-- name: GetPairingsByTournamentAndRound :many
+SELECT d.DebateID, d.RoundNumber, d.IsEliminationRound,
+       d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,
+       d.RoomID, r.roomname AS RoomName,
+       array_agg(DISTINCT s1.FirstName || ' ' || s1.LastName) AS Team1SpeakerNames,
+       array_agg(DISTINCT s2.FirstName || ' ' || s2.LastName) AS Team2SpeakerNames,
+       l1.Name AS Team1LeagueName, l2.Name AS Team2LeagueName,
+       COALESCE(t1_points.TotalPoints, 0) AS Team1TotalPoints,
+       COALESCE(t2_points.TotalPoints, 0) AS Team2TotalPoints,
+       (SELECT u.Name FROM JudgeAssignments ja
+        JOIN Users u ON ja.JudgeID = u.UserID
+        WHERE ja.DebateID = d.DebateID AND ja.IsHeadJudge = true
+        LIMIT 1) AS HeadJudgeName
+FROM Debates d
+JOIN Teams t1 ON d.Team1ID = t1.TeamID
+JOIN Teams t2 ON d.Team2ID = t2.TeamID
+LEFT JOIN Rooms r ON d.RoomID = r.RoomID
+LEFT JOIN TeamMembers tm1 ON t1.TeamID = tm1.TeamID
+LEFT JOIN TeamMembers tm2 ON t2.TeamID = tm2.TeamID
+LEFT JOIN Students s1 ON tm1.StudentID = s1.StudentID
+LEFT JOIN Students s2 ON tm2.StudentID = s2.StudentID
+LEFT JOIN Tournaments tour ON d.TournamentID = tour.TournamentID
+LEFT JOIN Leagues l1 ON tour.LeagueID = l1.LeagueID
+LEFT JOIN Leagues l2 ON tour.LeagueID = l2.LeagueID
+LEFT JOIN (
+    SELECT Team1ID AS TeamID, SUM(Team1TotalScore) AS TotalPoints
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.TournamentID = $1
+    GROUP BY Team1ID
+    UNION ALL
+    SELECT Team2ID AS TeamID, SUM(Team2TotalScore) AS TotalPoints
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.TournamentID = $1
+    GROUP BY Team2ID
+) t1_points ON t1.TeamID = t1_points.TeamID
+LEFT JOIN (
+    SELECT Team1ID AS TeamID, SUM(Team1TotalScore) AS TotalPoints
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.TournamentID = $1
+    GROUP BY Team1ID
+    UNION ALL
+    SELECT Team2ID AS TeamID, SUM(Team2TotalScore) AS TotalPoints
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.TournamentID = $1
+    GROUP BY Team2ID
+) t2_points ON t2.TeamID = t2_points.TeamID
+WHERE d.TournamentID = $1 AND d.RoundNumber = $2 AND d.IsEliminationRound = $3
+GROUP BY d.DebateID, d.RoundNumber, d.IsEliminationRound, d.Team1ID, t1.Name, d.Team2ID, t2.Name, d.RoomID, r.RoomName,
+         l1.Name, l2.Name, t1_points.TotalPoints, t2_points.TotalPoints;
+
+-- name: GetPairingByID :one
+SELECT d.DebateID, d.RoundNumber, d.IsEliminationRound,
+       d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,
+       d.RoomID, r.roomname AS RoomName,
+       array_agg(DISTINCT s1.FirstName || ' ' || s1.LastName) AS Team1SpeakerNames,
+       array_agg(DISTINCT s2.FirstName || ' ' || s2.LastName) AS Team2SpeakerNames,
+       l1.Name AS Team1LeagueName, l2.Name AS Team2LeagueName,
+       COALESCE(t1_points.TotalPoints, 0) AS Team1TotalPoints,
+       COALESCE(t2_points.TotalPoints, 0) AS Team2TotalPoints,
+       (SELECT u.Name FROM JudgeAssignments ja
+        JOIN Users u ON ja.JudgeID = u.UserID
+        WHERE ja.DebateID = d.DebateID AND ja.IsHeadJudge = true
+        LIMIT 1) AS HeadJudgeName
+FROM Debates d
+JOIN Teams t1 ON d.Team1ID = t1.TeamID
+JOIN Teams t2 ON d.Team2ID = t2.TeamID
+LEFT JOIN Rooms r ON d.RoomID = r.RoomID
+LEFT JOIN TeamMembers tm1 ON t1.TeamID = tm1.TeamID
+LEFT JOIN TeamMembers tm2 ON t2.TeamID = tm2.TeamID
+LEFT JOIN Students s1 ON tm1.StudentID = s1.StudentID
+LEFT JOIN Students s2 ON tm2.StudentID = s2.StudentID
+LEFT JOIN Tournaments tour ON d.TournamentID = tour.TournamentID
+LEFT JOIN Leagues l1 ON tour.LeagueID = l1.LeagueID
+LEFT JOIN Leagues l2 ON tour.LeagueID = l2.LeagueID
+LEFT JOIN (
+    SELECT Team1ID AS TeamID, SUM(Team1TotalScore) AS TotalPoints
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.TournamentID = (SELECT TournamentID FROM Debates WHERE d.DebateID = $1)
+    GROUP BY Team1ID
+    UNION ALL
+    SELECT Team2ID AS TeamID, SUM(Team2TotalScore) AS TotalPoints
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.TournamentID = (SELECT TournamentID FROM Debates WHERE d.DebateID = $1)
+    GROUP BY Team2ID
+) t1_points ON t1.TeamID = t1_points.TeamID
+LEFT JOIN (
+    SELECT Team1ID AS TeamID, SUM(Team1TotalScore) AS TotalPoints
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.TournamentID = (SELECT TournamentID FROM Debates WHERE d.DebateID = $1)
+    GROUP BY Team1ID
+    UNION ALL
+    SELECT Team2ID AS TeamID, SUM(Team2TotalScore) AS TotalPoints
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.TournamentID = (SELECT TournamentID FROM Debates WHERE d.DebateID = $1)
+    GROUP BY Team2ID
+) t2_points ON t2.TeamID = t2_points.TeamID
+WHERE d.DebateID = $1
+GROUP BY d.DebateID, d.RoundNumber, d.IsEliminationRound, d.Team1ID, t1.Name, d.Team2ID, t2.Name, d.RoomID, r.RoomName,
+         l1.Name, l2.Name, t1_points.TotalPoints, t2_points.TotalPoints;
+
+-- name: GetRoomsByTournament :many
+SELECT * FROM Rooms
+WHERE TournamentID = $1;
+
+-- name: GetDebateByRoomAndRound :one
+SELECT *
+FROM Debates
+WHERE TournamentID = $1 AND RoomID = $2 AND RoundNumber = $3 AND IsEliminationRound = $4
+LIMIT 1;
+
+-- name: GetDebatesByRoomAndTournament :many
+SELECT *
+FROM Debates
+WHERE TournamentID = $1 AND RoomID = $2 AND IsEliminationRound = $3;

@@ -38,12 +38,6 @@ CREATE TABLE Leagues (
     deleted_at TIMESTAMP
 );
 
-CREATE TABLE Rooms (
-   RoomID SERIAL PRIMARY KEY,
-   RoomName VARCHAR(255) NOT NULL,
-   Location VARCHAR(255) NOT NULL,
-   Capacity INTEGER NOT NULL
-);
 
 CREATE TABLE CountryCodes (
     CountryName VARCHAR(255) PRIMARY KEY,
@@ -124,6 +118,14 @@ CREATE TABLE Tournaments (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
+);
+
+CREATE TABLE Rooms (
+   RoomID SERIAL PRIMARY KEY,
+   RoomName VARCHAR(255) NOT NULL,
+   Location VARCHAR(255) NOT NULL,
+   Capacity INTEGER NOT NULL,
+   TournamentID INTEGER REFERENCES Tournaments(TournamentID)
 );
 
 CREATE TABLE Schools (
@@ -294,16 +296,6 @@ CREATE TABLE Results (
    TeamID INTEGER NOT NULL REFERENCES Teams(TeamID),
    Rank INTEGER,
    Points NUMERIC
-);
-
-CREATE TABLE RoomBookings (
-    BookingID SERIAL PRIMARY KEY,
-    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
-    RoomID INTEGER NOT NULL REFERENCES Rooms(RoomID),
-    RoundNumber INTEGER NOT NULL,
-    IsElimination BOOLEAN NOT NULL DEFAULT FALSE,
-    IsOccupied BOOLEAN NOT NULL DEFAULT FALSE,
-    UNIQUE(TournamentID, RoomID, RoundNumber, IsElimination)
 );
 
 CREATE TABLE Communications (

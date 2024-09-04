@@ -33,19 +33,19 @@ func NewDebateServer(db *sql.DB) (debate_management.DebateServiceServer, error) 
 
 // Room operations
 func (s *debateServer) GetRooms(ctx context.Context, req *debate_management.GetRoomsRequest) (*debate_management.GetRoomsResponse, error) {
-	rooms, err := s.roomService.GetRooms(ctx, req)
+	response, err := s.roomService.GetRooms(ctx, req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to get rooms: %v", err)
 	}
-	return &debate_management.GetRoomsResponse{Rooms: rooms}, nil
+	return response, nil
 }
 
 func (s *debateServer) GetRoom(ctx context.Context, req *debate_management.GetRoomRequest) (*debate_management.GetRoomResponse, error) {
-	room, err := s.roomService.GetRoom(ctx, req)
+	response, err := s.roomService.GetRoom(ctx, req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to get room: %v", err)
 	}
-	return &debate_management.GetRoomResponse{Room: room}, nil
+	return response, nil
 }
 
 func (s *debateServer) UpdateRoom(ctx context.Context, req *debate_management.UpdateRoomRequest) (*debate_management.UpdateRoomResponse, error) {
@@ -90,14 +90,13 @@ func (s *debateServer) GetPairing(ctx context.Context, req *debate_management.Ge
 	return &debate_management.GetPairingResponse{Pairing: pairing}, nil
 }
 
-func (s *debateServer) UpdatePairing(ctx context.Context, req *debate_management.UpdatePairingRequest) (*debate_management.UpdatePairingResponse, error) {
-	pairing, err := s.pairingService.UpdatePairing(ctx, req)
+func (s *debateServer) UpdatePairings(ctx context.Context, req *debate_management.UpdatePairingsRequest) (*debate_management.UpdatePairingsResponse, error) {
+	pairings, err := s.pairingService.UpdatePairings(ctx, req)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to update pairing: %v", err)
+		return nil, status.Errorf(codes.Internal, "Failed to update pairings: %v", err)
 	}
-	return &debate_management.UpdatePairingResponse{Pairing: pairing}, nil
+	return &debate_management.UpdatePairingsResponse{Pairings: pairings}, nil
 }
-
 // Ballot operations
 func (s *debateServer) GetBallots(ctx context.Context, req *debate_management.GetBallotsRequest) (*debate_management.GetBallotsResponse, error) {
 	ballots, err := s.ballotService.GetBallots(ctx, req)
@@ -202,10 +201,3 @@ func (s *debateServer) RegeneratePairings(ctx context.Context, req *debate_manag
     return &debate_management.GeneratePairingsResponse{Pairings: pairings}, nil
 }
 
-func (s *debateServer) AssignJudges(ctx context.Context, req *debate_management.AssignJudgesRequest) (*debate_management.AssignJudgesResponse, error) {
-	pairings, err := s.judgeService.AssignJudges(ctx, req)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to assign judges: %v", err)
-	}
-	return &debate_management.AssignJudgesResponse{Pairings: pairings}, nil
-}

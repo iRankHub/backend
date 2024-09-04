@@ -17,7 +17,7 @@ service DebateService {
   // Pairing operations
   rpc GetPairings(GetPairingsRequest) returns (GetPairingsResponse);
   rpc GetPairing(GetPairingRequest) returns (GetPairingResponse);
-  rpc UpdatePairing(UpdatePairingRequest) returns (UpdatePairingResponse);
+  rpc UpdatePairings(UpdatePairingsRequest) returns (UpdatePairingsResponse);
 
   // Ballot operations
   rpc GetBallots(GetBallotsRequest) returns (GetBallotsResponse);
@@ -43,33 +43,41 @@ service DebateService {
 message Room {
   int32 room_id = 1;
   string room_name = 2;
-  repeated RoundStatus round_status = 3;
+  string location = 3;
+  int32 capacity = 4;
 }
 
 message RoundStatus {
-  int32 round_number = 1;
-  bool is_elimination = 2;
-  bool is_occupied = 3;
+  int32 round = 1;
+  string status = 2;
+}
+
+message RoomStatus {
+  int32 room_id = 1;
+  string preliminary = 2;
+  string elimination = 3;
 }
 
 message GetRoomsRequest {
   int32 tournament_id = 1;
-  int32 round_number = 2;
-  bool is_elimination = 3;
-  string token = 4;
+  string token = 2;
 }
 
 message GetRoomsResponse {
-  repeated Room rooms = 1;
+  repeated RoomStatus rooms = 1;
 }
 
 message GetRoomRequest {
   int32 room_id = 1;
-  string token = 2;
+  int32 tournament_id = 2;
+  string token = 3;
 }
 
 message GetRoomResponse {
-  Room room = 1;
+  int32 room_id = 1;
+  string name = 2;
+  repeated RoundStatus preliminary = 3;
+  repeated RoundStatus elimination = 4;
 }
 
 message UpdateRoomRequest {
@@ -118,15 +126,17 @@ message Pairing {
   string room_name = 5;
   Team team1 = 6;
   Team team2 = 7;
-  repeated Judge judges = 8;
+  string head_judge_name = 8;
+  repeated Judge judges = 9;
 }
 
 message Team {
   int32 team_id = 1;
   string name = 2;
-  repeated Speaker speakers = 3;
-  double total_points = 4;
-  string league_name = 5;
+    repeated Speaker speakers = 3;
+  repeated string speaker_names = 4;
+  double total_points = 5;
+  string league_name = 6;
 }
 
 message Speaker {
@@ -158,14 +168,15 @@ message GetPairingResponse {
   Pairing pairing = 1;
 }
 
-message UpdatePairingRequest {
-  Pairing pairing = 1;
+message UpdatePairingsRequest {
+  repeated Pairing pairings = 1;
   string token = 2;
 }
 
-message UpdatePairingResponse {
-  Pairing pairing = 1;
+message UpdatePairingsResponse {
+  repeated Pairing pairings = 1;
 }
+
 
 // Ballot messages
 message Ballot {
@@ -213,7 +224,6 @@ message UpdateBallotResponse {
 // Algorithm integration messages
 message GeneratePairingsRequest {
   int32 tournament_id = 1;
-  int32 round_number = 2;
   bool is_elimination_round = 3;
   string token = 4;
 }

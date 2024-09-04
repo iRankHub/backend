@@ -26,7 +26,7 @@ const (
 	DebateService_GetJudge_FullMethodName             = "/debate_management.DebateService/GetJudge"
 	DebateService_GetPairings_FullMethodName          = "/debate_management.DebateService/GetPairings"
 	DebateService_GetPairing_FullMethodName           = "/debate_management.DebateService/GetPairing"
-	DebateService_UpdatePairing_FullMethodName        = "/debate_management.DebateService/UpdatePairing"
+	DebateService_UpdatePairings_FullMethodName       = "/debate_management.DebateService/UpdatePairings"
 	DebateService_GetBallots_FullMethodName           = "/debate_management.DebateService/GetBallots"
 	DebateService_GetBallot_FullMethodName            = "/debate_management.DebateService/GetBallot"
 	DebateService_UpdateBallot_FullMethodName         = "/debate_management.DebateService/UpdateBallot"
@@ -54,7 +54,7 @@ type DebateServiceClient interface {
 	// Pairing operations
 	GetPairings(ctx context.Context, in *GetPairingsRequest, opts ...grpc.CallOption) (*GetPairingsResponse, error)
 	GetPairing(ctx context.Context, in *GetPairingRequest, opts ...grpc.CallOption) (*GetPairingResponse, error)
-	UpdatePairing(ctx context.Context, in *UpdatePairingRequest, opts ...grpc.CallOption) (*UpdatePairingResponse, error)
+	UpdatePairings(ctx context.Context, in *UpdatePairingsRequest, opts ...grpc.CallOption) (*UpdatePairingsResponse, error)
 	// Ballot operations
 	GetBallots(ctx context.Context, in *GetBallotsRequest, opts ...grpc.CallOption) (*GetBallotsResponse, error)
 	GetBallot(ctx context.Context, in *GetBallotRequest, opts ...grpc.CallOption) (*GetBallotResponse, error)
@@ -150,10 +150,10 @@ func (c *debateServiceClient) GetPairing(ctx context.Context, in *GetPairingRequ
 	return out, nil
 }
 
-func (c *debateServiceClient) UpdatePairing(ctx context.Context, in *UpdatePairingRequest, opts ...grpc.CallOption) (*UpdatePairingResponse, error) {
+func (c *debateServiceClient) UpdatePairings(ctx context.Context, in *UpdatePairingsRequest, opts ...grpc.CallOption) (*UpdatePairingsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UpdatePairingResponse)
-	err := c.cc.Invoke(ctx, DebateService_UpdatePairing_FullMethodName, in, out, cOpts...)
+	out := new(UpdatePairingsResponse)
+	err := c.cc.Invoke(ctx, DebateService_UpdatePairings_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +284,7 @@ type DebateServiceServer interface {
 	// Pairing operations
 	GetPairings(context.Context, *GetPairingsRequest) (*GetPairingsResponse, error)
 	GetPairing(context.Context, *GetPairingRequest) (*GetPairingResponse, error)
-	UpdatePairing(context.Context, *UpdatePairingRequest) (*UpdatePairingResponse, error)
+	UpdatePairings(context.Context, *UpdatePairingsRequest) (*UpdatePairingsResponse, error)
 	// Ballot operations
 	GetBallots(context.Context, *GetBallotsRequest) (*GetBallotsResponse, error)
 	GetBallot(context.Context, *GetBallotRequest) (*GetBallotResponse, error)
@@ -331,8 +331,8 @@ func (UnimplementedDebateServiceServer) GetPairings(context.Context, *GetPairing
 func (UnimplementedDebateServiceServer) GetPairing(context.Context, *GetPairingRequest) (*GetPairingResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPairing not implemented")
 }
-func (UnimplementedDebateServiceServer) UpdatePairing(context.Context, *UpdatePairingRequest) (*UpdatePairingResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdatePairing not implemented")
+func (UnimplementedDebateServiceServer) UpdatePairings(context.Context, *UpdatePairingsRequest) (*UpdatePairingsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdatePairings not implemented")
 }
 func (UnimplementedDebateServiceServer) GetBallots(context.Context, *GetBallotsRequest) (*GetBallotsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBallots not implemented")
@@ -514,20 +514,20 @@ func _DebateService_GetPairing_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DebateService_UpdatePairing_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdatePairingRequest)
+func _DebateService_UpdatePairings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdatePairingsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(DebateServiceServer).UpdatePairing(ctx, in)
+		return srv.(DebateServiceServer).UpdatePairings(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: DebateService_UpdatePairing_FullMethodName,
+		FullMethod: DebateService_UpdatePairings_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DebateServiceServer).UpdatePairing(ctx, req.(*UpdatePairingRequest))
+		return srv.(DebateServiceServer).UpdatePairings(ctx, req.(*UpdatePairingsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -766,8 +766,8 @@ var DebateService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _DebateService_GetPairing_Handler,
 		},
 		{
-			MethodName: "UpdatePairing",
-			Handler:    _DebateService_UpdatePairing_Handler,
+			MethodName: "UpdatePairings",
+			Handler:    _DebateService_UpdatePairings_Handler,
 		},
 		{
 			MethodName: "GetBallots",

@@ -128,19 +128,11 @@ type Result struct {
 }
 
 type Room struct {
-	Roomid   int32  `json:"roomid"`
-	Roomname string `json:"roomname"`
-	Location string `json:"location"`
-	Capacity int32  `json:"capacity"`
-}
-
-type Roombooking struct {
-	Bookingid     int32 `json:"bookingid"`
-	Tournamentid  int32 `json:"tournamentid"`
-	Roomid        int32 `json:"roomid"`
-	Roundnumber   int32 `json:"roundnumber"`
-	Iselimination bool  `json:"iselimination"`
-	Isoccupied    bool  `json:"isoccupied"`
+	Roomid       int32         `json:"roomid"`
+	Roomname     string        `json:"roomname"`
+	Location     string        `json:"location"`
+	Capacity     int32         `json:"capacity"`
+	Tournamentid sql.NullInt32 `json:"tournamentid"`
 }
 
 type Round struct {
