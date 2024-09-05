@@ -67,6 +67,10 @@ SELECT
         WHEN u.UserRole = 'admin' THEN 'iDebate'
         ELSE NULL
     END AS iDebateID,
+    CASE
+        WHEN u.UserRole = 'school' THEN sch.SchoolName
+        ELSE u.Name
+    END AS DisplayName,
     (SELECT count FROM ApprovedCount) AS approved_users_count,
     (SELECT count FROM RecentSignupsCount) AS recent_signups_count
 FROM Users u
@@ -175,13 +179,17 @@ WHERE UserID = $1;
 
 -- name: GetVolunteersAndAdmins :many
 SELECT * FROM Users
-WHERE UserRole IN ('volunteer', 'admin') AND deleted_at IS NULL
+WHERE UserRole IN ('volunteer', 'admin')
+  AND Status = 'approved'
+  AND deleted_at IS NULL
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2;
 
 -- name: GetTotalVolunteersAndAdminsCount :one
 SELECT COUNT(*) FROM Users
-WHERE UserRole IN ('volunteer', 'admin') AND deleted_at IS NULL;
+WHERE UserRole IN ('volunteer', 'admin')
+  AND Status = 'approved'
+  AND deleted_at IS NULL;
 
 -- name: UpdatePasswordAndClearResetCode :exec
 WITH updated_users AS (

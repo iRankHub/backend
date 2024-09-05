@@ -1,17 +1,22 @@
 -- name: GetSchoolByID :one
-SELECT * FROM Schools
-WHERE SchoolID = $1;
+SELECT s.* FROM Schools s
+JOIN Users u ON s.ContactPersonID = u.UserID
+WHERE s.SchoolID = $1 AND u.deleted_at IS NULL;
 
 -- name: GetSchoolByIDebateID :one
-SELECT * FROM Schools
-WHERE iDebateSchoolID = $1;
+SELECT s.* FROM Schools s
+JOIN Users u ON s.ContactPersonID = u.UserID
+WHERE s.iDebateSchoolID = $1 AND u.deleted_at IS NULL;
 
 -- name: GetSchoolByUserID :one
-SELECT * FROM Schools WHERE ContactPersonID = $1;
+SELECT s.* FROM Schools s
+JOIN Users u ON s.ContactPersonID = u.UserID
+WHERE s.ContactPersonID = $1 AND u.deleted_at IS NULL;
 
 -- name: GetSchoolByContactEmail :one
-SELECT * FROM Schools
-WHERE ContactEmail = $1;
+SELECT s.* FROM Schools s
+JOIN Users u ON s.ContactPersonID = u.UserID
+WHERE s.ContactEmail = $1 AND u.deleted_at IS NULL;
 
 -- name: GetSchoolsPaginated :many
 SELECT *
@@ -23,21 +28,27 @@ LIMIT $1 OFFSET $2;
 SELECT COUNT(*) FROM Schools;
 
 -- name: GetSchoolsByDistrict :many
-SELECT * FROM Schools
-WHERE District = $1;
+SELECT s.* FROM Schools s
+JOIN Users u ON s.ContactPersonID = u.UserID
+WHERE s.District = $1 AND u.deleted_at IS NULL;
 
 -- name: GetSchoolsByCountry :many
-SELECT * FROM Schools
-WHERE Country = $1;
+SELECT s.* FROM Schools s
+JOIN Users u ON s.ContactPersonID = u.UserID
+WHERE s.Country = $1 AND u.deleted_at IS NULL;
 
 -- name: GetSchoolsByLeague :many
 SELECT s.*
 FROM Schools s
+JOIN Users u ON s.ContactPersonID = u.UserID
 JOIN Leagues l ON l.LeagueID = $1
-WHERE
+WHERE u.deleted_at IS NULL
+  AND (
     (l.LeagueType = 'local' AND s.District = ANY(SELECT jsonb_array_elements_text(l.Details->'districts')))
     OR
-    (l.LeagueType = 'international' AND s.Country = ANY(SELECT jsonb_array_elements_text(l.Details->'countries')));
+    (l.LeagueType = 'international' AND s.Country = ANY(SELECT jsonb_array_elements_text(l.Details->'countries')))
+  );
+
 
 -- name: CreateSchool :one
 INSERT INTO Schools (

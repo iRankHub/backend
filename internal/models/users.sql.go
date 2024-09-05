@@ -128,6 +128,10 @@ SELECT
         WHEN u.UserRole = 'admin' THEN 'iDebate'
         ELSE NULL
     END AS iDebateID,
+    CASE
+        WHEN u.UserRole = 'school' THEN sch.SchoolName
+        ELSE u.Name
+    END AS DisplayName,
     (SELECT count FROM ApprovedCount) AS approved_users_count,
     (SELECT count FROM RecentSignupsCount) AS recent_signups_count
 FROM Users u
@@ -166,6 +170,7 @@ type GetAllUsersRow struct {
 	UpdatedAt           sql.NullTime   `json:"updated_at"`
 	DeletedAt           sql.NullTime   `json:"deleted_at"`
 	Idebateid           interface{}    `json:"idebateid"`
+	Displayname         interface{}    `json:"displayname"`
 	ApprovedUsersCount  int64          `json:"approved_users_count"`
 	RecentSignupsCount  int64          `json:"recent_signups_count"`
 }
@@ -201,6 +206,7 @@ func (q *Queries) GetAllUsers(ctx context.Context, arg GetAllUsersParams) ([]Get
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.Idebateid,
+			&i.Displayname,
 			&i.ApprovedUsersCount,
 			&i.RecentSignupsCount,
 		); err != nil {
@@ -279,7 +285,9 @@ func (q *Queries) GetTotalUserCount(ctx context.Context) (int64, error) {
 
 const getTotalVolunteersAndAdminsCount = `-- name: GetTotalVolunteersAndAdminsCount :one
 SELECT COUNT(*) FROM Users
-WHERE UserRole IN ('volunteer', 'admin') AND deleted_at IS NULL
+WHERE UserRole IN ('volunteer', 'admin')
+  AND Status = 'approved'
+  AND deleted_at IS NULL
 `
 
 func (q *Queries) GetTotalVolunteersAndAdminsCount(ctx context.Context) (int64, error) {
@@ -630,7 +638,9 @@ func (q *Queries) GetUsersByStatus(ctx context.Context, status sql.NullString) (
 
 const getVolunteersAndAdmins = `-- name: GetVolunteersAndAdmins :many
 SELECT userid, webauthnuserid, name, gender, email, password, userrole, status, verificationstatus, deactivatedat, two_factor_secret, two_factor_enabled, failed_login_attempts, last_login_attempt, last_logout, reset_token, reset_token_expires, created_at, updated_at, deleted_at FROM Users
-WHERE UserRole IN ('volunteer', 'admin') AND deleted_at IS NULL
+WHERE UserRole IN ('volunteer', 'admin')
+  AND Status = 'approved'
+  AND deleted_at IS NULL
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2
 `

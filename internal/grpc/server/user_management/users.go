@@ -148,39 +148,55 @@ func (s *userManagementServer) DeleteUsers(ctx context.Context, req *user_manage
 func (s *userManagementServer) GetAllUsers(ctx context.Context, req *user_management.GetAllUsersRequest) (*user_management.GetAllUsersResponse, error) {
     users, totalCount, approvedUsersCount, recentSignupsCount, err := s.userManagementService.GetAllUsers(ctx, req.Token, req.Page, req.PageSize)
     if err != nil {
+        log.Printf("Error in GetAllUsers: %v", err)
         return nil, status.Errorf(codes.Internal, "Failed to get all users: %v", err)
     }
 
+    log.Printf("Retrieved %d users", len(users))
+
+    if len(users) == 0 {
+        log.Printf("No users found. TotalCount: %d, ApprovedUsersCount: %d, RecentSignupsCount: %d", totalCount, approvedUsersCount, recentSignupsCount)
+    }
+
     var userSummaries []*user_management.UserSummary
-    for _, user := range users {
+    for i, user := range users {
         signUpDate := ""
         if user.CreatedAt.Valid {
             signUpDate = user.CreatedAt.Time.Format("2006-01-02 15:04:05")
         }
 
         var idebateID string
-        if user.Idebateid != nil {
-            switch v := user.Idebateid.(type) {
-            case string:
-                idebateID = v
-            case []byte:
-                idebateID = string(v)
-            default:
-                idebateID = fmt.Sprintf("%v", v)
+        if val, ok := user.Idebateid.(sql.NullString); ok && val.Valid {
+            idebateID = val.String
+        } else if str, ok := user.Idebateid.(string); ok {
+            idebateID = str
+        }
+
+        displayName := user.Name
+        if user.Userrole == "school" {
+            if val, ok := user.Displayname.(sql.NullString); ok && val.Valid {
+                displayName = val.String
+            } else if str, ok := user.Displayname.(string); ok {
+                displayName = str
             }
         }
 
-        userSummaries = append(userSummaries, &user_management.UserSummary{
+        userSummary := &user_management.UserSummary{
             UserID:     user.Userid,
-            Name:       user.Name,
+            Name:       displayName,
             Email:      user.Email,
             UserRole:   user.Userrole,
             SignUpDate: signUpDate,
             Gender:     user.Gender.String,
             Status:     user.Status.String,
             IdebateID:  idebateID,
-        })
+        }
+        userSummaries = append(userSummaries, userSummary)
+
+        log.Printf("User %d: ID=%d, Name=%s, Email=%s, Role=%s, IdebateID=%s", i+1, user.Userid, displayName, user.Email, user.Userrole, idebateID)
     }
+
+    log.Printf("Returning %d user summaries", len(userSummaries))
 
     return &user_management.GetAllUsersResponse{
         Users:              userSummaries,

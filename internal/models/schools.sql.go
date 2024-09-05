@@ -76,8 +76,9 @@ func (q *Queries) DeleteSchool(ctx context.Context, schoolid int32) error {
 }
 
 const getSchoolByContactEmail = `-- name: GetSchoolByContactEmail :one
-SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactpersonnationalid, contactemail, schoolemail, schooltype FROM Schools
-WHERE ContactEmail = $1
+SELECT s.schoolid, s.idebateschoolid, s.schoolname, s.address, s.country, s.province, s.district, s.contactpersonid, s.contactpersonnationalid, s.contactemail, s.schoolemail, s.schooltype FROM Schools s
+JOIN Users u ON s.ContactPersonID = u.UserID
+WHERE s.ContactEmail = $1 AND u.deleted_at IS NULL
 `
 
 func (q *Queries) GetSchoolByContactEmail(ctx context.Context, contactemail string) (School, error) {
@@ -101,8 +102,9 @@ func (q *Queries) GetSchoolByContactEmail(ctx context.Context, contactemail stri
 }
 
 const getSchoolByID = `-- name: GetSchoolByID :one
-SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactpersonnationalid, contactemail, schoolemail, schooltype FROM Schools
-WHERE SchoolID = $1
+SELECT s.schoolid, s.idebateschoolid, s.schoolname, s.address, s.country, s.province, s.district, s.contactpersonid, s.contactpersonnationalid, s.contactemail, s.schoolemail, s.schooltype FROM Schools s
+JOIN Users u ON s.ContactPersonID = u.UserID
+WHERE s.SchoolID = $1 AND u.deleted_at IS NULL
 `
 
 func (q *Queries) GetSchoolByID(ctx context.Context, schoolid int32) (School, error) {
@@ -126,8 +128,9 @@ func (q *Queries) GetSchoolByID(ctx context.Context, schoolid int32) (School, er
 }
 
 const getSchoolByIDebateID = `-- name: GetSchoolByIDebateID :one
-SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactpersonnationalid, contactemail, schoolemail, schooltype FROM Schools
-WHERE iDebateSchoolID = $1
+SELECT s.schoolid, s.idebateschoolid, s.schoolname, s.address, s.country, s.province, s.district, s.contactpersonid, s.contactpersonnationalid, s.contactemail, s.schoolemail, s.schooltype FROM Schools s
+JOIN Users u ON s.ContactPersonID = u.UserID
+WHERE s.iDebateSchoolID = $1 AND u.deleted_at IS NULL
 `
 
 func (q *Queries) GetSchoolByIDebateID(ctx context.Context, idebateschoolid sql.NullString) (School, error) {
@@ -151,7 +154,9 @@ func (q *Queries) GetSchoolByIDebateID(ctx context.Context, idebateschoolid sql.
 }
 
 const getSchoolByUserID = `-- name: GetSchoolByUserID :one
-SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactpersonnationalid, contactemail, schoolemail, schooltype FROM Schools WHERE ContactPersonID = $1
+SELECT s.schoolid, s.idebateschoolid, s.schoolname, s.address, s.country, s.province, s.district, s.contactpersonid, s.contactpersonnationalid, s.contactemail, s.schoolemail, s.schooltype FROM Schools s
+JOIN Users u ON s.ContactPersonID = u.UserID
+WHERE s.ContactPersonID = $1 AND u.deleted_at IS NULL
 `
 
 func (q *Queries) GetSchoolByUserID(ctx context.Context, contactpersonid int32) (School, error) {
@@ -218,8 +223,9 @@ func (q *Queries) GetSchoolIDsByNames(ctx context.Context, dollar_1 []string) ([
 }
 
 const getSchoolsByCountry = `-- name: GetSchoolsByCountry :many
-SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactpersonnationalid, contactemail, schoolemail, schooltype FROM Schools
-WHERE Country = $1
+SELECT s.schoolid, s.idebateschoolid, s.schoolname, s.address, s.country, s.province, s.district, s.contactpersonid, s.contactpersonnationalid, s.contactemail, s.schoolemail, s.schooltype FROM Schools s
+JOIN Users u ON s.ContactPersonID = u.UserID
+WHERE s.Country = $1 AND u.deleted_at IS NULL
 `
 
 func (q *Queries) GetSchoolsByCountry(ctx context.Context, country sql.NullString) ([]School, error) {
@@ -259,8 +265,9 @@ func (q *Queries) GetSchoolsByCountry(ctx context.Context, country sql.NullStrin
 }
 
 const getSchoolsByDistrict = `-- name: GetSchoolsByDistrict :many
-SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactpersonnationalid, contactemail, schoolemail, schooltype FROM Schools
-WHERE District = $1
+SELECT s.schoolid, s.idebateschoolid, s.schoolname, s.address, s.country, s.province, s.district, s.contactpersonid, s.contactpersonnationalid, s.contactemail, s.schoolemail, s.schooltype FROM Schools s
+JOIN Users u ON s.ContactPersonID = u.UserID
+WHERE s.District = $1 AND u.deleted_at IS NULL
 `
 
 func (q *Queries) GetSchoolsByDistrict(ctx context.Context, district sql.NullString) ([]School, error) {
@@ -302,11 +309,14 @@ func (q *Queries) GetSchoolsByDistrict(ctx context.Context, district sql.NullStr
 const getSchoolsByLeague = `-- name: GetSchoolsByLeague :many
 SELECT s.schoolid, s.idebateschoolid, s.schoolname, s.address, s.country, s.province, s.district, s.contactpersonid, s.contactpersonnationalid, s.contactemail, s.schoolemail, s.schooltype
 FROM Schools s
+JOIN Users u ON s.ContactPersonID = u.UserID
 JOIN Leagues l ON l.LeagueID = $1
-WHERE
+WHERE u.deleted_at IS NULL
+  AND (
     (l.LeagueType = 'local' AND s.District = ANY(SELECT jsonb_array_elements_text(l.Details->'districts')))
     OR
     (l.LeagueType = 'international' AND s.Country = ANY(SELECT jsonb_array_elements_text(l.Details->'countries')))
+  )
 `
 
 func (q *Queries) GetSchoolsByLeague(ctx context.Context, leagueid int32) ([]School, error) {

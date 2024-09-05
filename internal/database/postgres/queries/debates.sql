@@ -335,3 +335,9 @@ LIMIT 1;
 SELECT *
 FROM Debates
 WHERE TournamentID = $1 AND RoomID = $2 AND IsEliminationRound = $3;
+
+-- name: GetJudgesForDebate :many
+SELECT ja.JudgeID, u.Name
+FROM JudgeAssignments ja
+JOIN Users u ON ja.JudgeID = u.UserID
+WHERE ja.DebateID = $1;

@@ -607,6 +607,41 @@ func (q *Queries) GetJudgesByTournamentAndRound(ctx context.Context, arg GetJudg
 	return items, nil
 }
 
+const getJudgesForDebate = `-- name: GetJudgesForDebate :many
+SELECT ja.JudgeID, u.Name
+FROM JudgeAssignments ja
+JOIN Users u ON ja.JudgeID = u.UserID
+WHERE ja.DebateID = $1
+`
+
+type GetJudgesForDebateRow struct {
+	Judgeid int32  `json:"judgeid"`
+	Name    string `json:"name"`
+}
+
+func (q *Queries) GetJudgesForDebate(ctx context.Context, debateid int32) ([]GetJudgesForDebateRow, error) {
+	rows, err := q.db.QueryContext(ctx, getJudgesForDebate, debateid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetJudgesForDebateRow{}
+	for rows.Next() {
+		var i GetJudgesForDebateRow
+		if err := rows.Scan(&i.Judgeid, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getPairingByID = `-- name: GetPairingByID :one
 SELECT d.DebateID, d.RoundNumber, d.IsEliminationRound,
        d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,

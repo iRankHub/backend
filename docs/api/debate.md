@@ -43,24 +43,27 @@ Request:
 }
 ```
 
-### UpdatePairing
+### UpdatePairings
 
-Endpoint: `DebateService.UpdatePairing`
+Endpoint: `DebateService.UpdatePairings`
 Authorization: Admin only
 
 Request:
 ```json
 {
-  "pairing": {
-    "pairing_id": 1,
-    "team1": {
-      "team_id": 2
-    },
-    "team2": {
-      "team_id": 3
-    },
-    "room_id": 4
-  },
+  "pairings": [
+    {
+      "pairing_id": 1,
+      "team1": {
+        "team_id": 2
+      },
+      "team2": {
+        "team_id": 3
+      },
+      "room_id": 4
+    }
+    // ... more pairings to update
+  ],
   "token": "your_auth_token_here"
 }
 ```
@@ -74,6 +77,7 @@ Request:
 ```json
 {
   "tournament_id": 1,
+  "is_elimination_round": false,
   "token": "your_auth_token_here"
 }
 ```
@@ -88,8 +92,6 @@ Request:
 ```json
 {
   "tournament_id": 1,
-  "round_number": 1,
-  "is_elimination": false,
   "token": "your_auth_token_here"
 }
 ```
@@ -102,6 +104,7 @@ Request:
 ```json
 {
   "room_id": 1,
+  "tournament_id": 1,
   "token": "your_auth_token_here"
 }
 ```

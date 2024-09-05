@@ -275,6 +275,7 @@ func (s *authServer) generateSuccessfulLoginResponse(user *models.User) (*authen
 		return &authentication.LoginResponse{
 			Success:  true,
 			Token:    token,
+			UserName: user.Name,
 			UserRole: user.Userrole,
 			UserID:   user.Userid,
 			Message:  "Your account is pending approval. You will be logged out in 20 seconds.",
@@ -294,6 +295,7 @@ func (s *authServer) generateSuccessfulLoginResponse(user *models.User) (*authen
 	return &authentication.LoginResponse{
 		Success:  true,
 		Token:    token,
+		UserName: user.Name,
 		UserRole: user.Userrole,
 		UserID:   user.Userid,
 		Message:  "Login successful",

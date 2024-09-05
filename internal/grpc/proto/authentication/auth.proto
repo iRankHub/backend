@@ -107,6 +107,7 @@ message LoginResponse {
   bool require_password_reset = 6;
   string message = 7;
   string status = 8;
+  string userName = 9;
 }
 
 message EnableTwoFactorRequest {
