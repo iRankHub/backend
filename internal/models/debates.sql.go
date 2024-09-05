@@ -90,6 +90,32 @@ func (q *Queries) CheckExistingTeamMembership(ctx context.Context, arg CheckExis
 	return has_team, err
 }
 
+const countJudgeDebates = `-- name: CountJudgeDebates :one
+SELECT
+    COUNT(DISTINCT d.DebateID) as DebateCount
+FROM
+    JudgeAssignments ja
+JOIN
+    Debates d ON ja.DebateID = d.DebateID
+WHERE
+    ja.JudgeID = $1 AND
+    d.TournamentID = $2 AND
+    d.IsEliminationRound = $3
+`
+
+type CountJudgeDebatesParams struct {
+	Judgeid            int32 `json:"judgeid"`
+	Tournamentid       int32 `json:"tournamentid"`
+	Iseliminationround bool  `json:"iseliminationround"`
+}
+
+func (q *Queries) CountJudgeDebates(ctx context.Context, arg CountJudgeDebatesParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countJudgeDebates, arg.Judgeid, arg.Tournamentid, arg.Iseliminationround)
+	var debatecount int64
+	err := row.Scan(&debatecount)
+	return debatecount, err
+}
+
 const createDebate = `-- name: CreateDebate :one
 INSERT INTO Debates (TournamentID, RoundID, RoundNumber, IsEliminationRound, Team1ID, Team2ID, RoomID, StartTime)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -559,6 +585,86 @@ func (q *Queries) GetJudgeByID(ctx context.Context, userid int32) (GetJudgeByIDR
 	return i, err
 }
 
+const getJudgeDetails = `-- name: GetJudgeDetails :one
+SELECT
+    u.UserID as JudgeID,
+    u.Name,
+    v.iDebateVolunteerID
+FROM
+    Users u
+JOIN
+    Volunteers v ON u.UserID = v.UserID
+WHERE
+    u.UserID = $1
+`
+
+type GetJudgeDetailsRow struct {
+	Judgeid            int32          `json:"judgeid"`
+	Name               string         `json:"name"`
+	Idebatevolunteerid sql.NullString `json:"idebatevolunteerid"`
+}
+
+func (q *Queries) GetJudgeDetails(ctx context.Context, userid int32) (GetJudgeDetailsRow, error) {
+	row := q.db.QueryRowContext(ctx, getJudgeDetails, userid)
+	var i GetJudgeDetailsRow
+	err := row.Scan(&i.Judgeid, &i.Name, &i.Idebatevolunteerid)
+	return i, err
+}
+
+const getJudgeRooms = `-- name: GetJudgeRooms :many
+SELECT
+    d.RoundNumber,
+    d.RoomID,
+    r.RoomName
+FROM
+    JudgeAssignments ja
+JOIN
+    Debates d ON ja.DebateID = d.DebateID
+JOIN
+    Rooms r ON d.RoomID = r.RoomID
+WHERE
+    ja.JudgeID = $1 AND
+    d.TournamentID = $2 AND
+    d.IsEliminationRound = $3
+ORDER BY
+    d.RoundNumber
+`
+
+type GetJudgeRoomsParams struct {
+	Judgeid            int32 `json:"judgeid"`
+	Tournamentid       int32 `json:"tournamentid"`
+	Iseliminationround bool  `json:"iseliminationround"`
+}
+
+type GetJudgeRoomsRow struct {
+	Roundnumber int32  `json:"roundnumber"`
+	Roomid      int32  `json:"roomid"`
+	Roomname    string `json:"roomname"`
+}
+
+func (q *Queries) GetJudgeRooms(ctx context.Context, arg GetJudgeRoomsParams) ([]GetJudgeRoomsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getJudgeRooms, arg.Judgeid, arg.Tournamentid, arg.Iseliminationround)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetJudgeRoomsRow{}
+	for rows.Next() {
+		var i GetJudgeRoomsRow
+		if err := rows.Scan(&i.Roundnumber, &i.Roomid, &i.Roomname); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getJudgesByTournamentAndRound = `-- name: GetJudgesByTournamentAndRound :many
 SELECT u.UserID, u.Name, u.Email, ja.IsHeadJudge
 FROM Users u
@@ -629,6 +735,52 @@ func (q *Queries) GetJudgesForDebate(ctx context.Context, debateid int32) ([]Get
 	for rows.Next() {
 		var i GetJudgesForDebateRow
 		if err := rows.Scan(&i.Judgeid, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getJudgesForTournament = `-- name: GetJudgesForTournament :many
+SELECT
+    u.UserID as JudgeID,
+    u.Name,
+    v.iDebateVolunteerID
+FROM
+    Users u
+JOIN
+    Volunteers v ON u.UserID = v.UserID
+JOIN
+    JudgeAssignments ja ON u.UserID = ja.JudgeID
+WHERE
+    ja.TournamentID = $1
+GROUP BY
+    u.UserID, v.iDebateVolunteerID
+`
+
+type GetJudgesForTournamentRow struct {
+	Judgeid            int32          `json:"judgeid"`
+	Name               string         `json:"name"`
+	Idebatevolunteerid sql.NullString `json:"idebatevolunteerid"`
+}
+
+func (q *Queries) GetJudgesForTournament(ctx context.Context, tournamentid int32) ([]GetJudgesForTournamentRow, error) {
+	rows, err := q.db.QueryContext(ctx, getJudgesForTournament, tournamentid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetJudgesForTournamentRow{}
+	for rows.Next() {
+		var i GetJudgesForTournamentRow
+		if err := rows.Scan(&i.Judgeid, &i.Name, &i.Idebatevolunteerid); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -1211,6 +1363,39 @@ func (q *Queries) UpdateBallot(ctx context.Context, arg UpdateBallotParams) erro
 		arg.Team2totalscore,
 		arg.Recordingstatus,
 		arg.Verdict,
+	)
+	return err
+}
+
+const updateJudgeRoom = `-- name: UpdateJudgeRoom :exec
+UPDATE JudgeAssignments ja
+SET DebateID = (
+    SELECT d.DebateID
+    FROM Debates d
+    WHERE d.TournamentID = $2 AND d.RoundNumber = $3 AND d.RoomID = $4
+)
+WHERE ja.JudgeID = $1
+  AND ja.TournamentID = $2
+  AND ja.DebateID IN (
+    SELECT d.DebateID
+    FROM Debates d
+    WHERE d.TournamentID = $2 AND d.RoundNumber = $3
+  )
+`
+
+type UpdateJudgeRoomParams struct {
+	Judgeid      int32 `json:"judgeid"`
+	Tournamentid int32 `json:"tournamentid"`
+	Roundnumber  int32 `json:"roundnumber"`
+	Roomid       int32 `json:"roomid"`
+}
+
+func (q *Queries) UpdateJudgeRoom(ctx context.Context, arg UpdateJudgeRoomParams) error {
+	_, err := q.db.ExecContext(ctx, updateJudgeRoom,
+		arg.Judgeid,
+		arg.Tournamentid,
+		arg.Roundnumber,
+		arg.Roomid,
 	)
 	return err
 }

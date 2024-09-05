@@ -13,6 +13,7 @@ service DebateService {
   // Judge operations
   rpc GetJudges(GetJudgesRequest) returns (GetJudgesResponse);
   rpc GetJudge(GetJudgeRequest) returns (GetJudgeResponse);
+  rpc UpdateJudge(UpdateJudgeRequest) returns (UpdateJudgeResponse);
 
   // Pairing operations
   rpc GetPairings(GetPairingsRequest) returns (GetPairingsResponse);
@@ -54,8 +55,9 @@ message RoundStatus {
 
 message RoomStatus {
   int32 room_id = 1;
-  string preliminary = 2;
-  string elimination = 3;
+  string room_name = 2;
+  string preliminary = 3;
+  string elimination = 4;
 }
 
 message GetRoomsRequest {
@@ -93,28 +95,53 @@ message UpdateRoomResponse {
 message Judge {
   int32 judge_id = 1;
   string name = 2;
-  string email = 3;
-  bool is_head_judge = 4;
+  string idebate_id = 3;
+  int32 preliminary_debates = 4;
+  int32 elimination_debates = 5;
 }
 
 message GetJudgesRequest {
   int32 tournament_id = 1;
-  int32 round_number = 2;
-  bool is_elimination = 3;
-  string token = 4;
+  string token = 2;
 }
 
 message GetJudgesResponse {
   repeated Judge judges = 1;
 }
 
+message RoomInfo {
+  int32 room_id = 1;
+  string room_name = 2;
+}
+
+message RoundInfo {
+  map<int32, RoomInfo> rooms = 1;
+}
+
 message GetJudgeRequest {
   int32 judge_id = 1;
-  string token = 2;
+  int32 tournament_id = 2;
+  string token = 3;
 }
 
 message GetJudgeResponse {
-  Judge judge = 1;
+  int32 judge_id = 1;
+  string name = 2;
+  string idebate_id = 3;
+  map<int32, RoomInfo> preliminary = 4;
+  map<int32, RoomInfo> elimination = 5;
+}
+
+message UpdateJudgeRequest {
+  int32 judge_id = 1;
+  int32 tournament_id = 2;
+  map<int32, int32> room_assignments = 3; // round_number -> room_id
+  string token = 4;
+}
+
+message UpdateJudgeResponse {
+  bool success = 1;
+  string message = 2;
 }
 
 // Pairing messages

@@ -176,6 +176,7 @@ func (s *RoomService) convertRooms(ctx context.Context, tournamentID int32, dbRo
 
         rooms[i] = &debate_management.RoomStatus{
             RoomId:      dbRoom.Roomid,
+            RoomName:    dbRoom.Roomname,
             Preliminary: preliminaryStatus,
             Elimination: eliminationStatus,
         }

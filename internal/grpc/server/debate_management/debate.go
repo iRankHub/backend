@@ -70,7 +70,15 @@ func (s *debateServer) GetJudge(ctx context.Context, req *debate_management.GetJ
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to get judge: %v", err)
 	}
-	return &debate_management.GetJudgeResponse{Judge: judge}, nil
+	return judge, nil
+}
+
+func (s *debateServer) UpdateJudge(ctx context.Context, req *debate_management.UpdateJudgeRequest) (*debate_management.UpdateJudgeResponse, error) {
+	response, err := s.judgeService.UpdateJudge(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to update judge: %v", err)
+	}
+	return response, nil
 }
 
 // Pairing operations

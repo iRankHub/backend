@@ -341,3 +341,76 @@ SELECT ja.JudgeID, u.Name
 FROM JudgeAssignments ja
 JOIN Users u ON ja.JudgeID = u.UserID
 WHERE ja.DebateID = $1;
+
+-- name: GetJudgesForTournament :many
+SELECT
+    u.UserID as JudgeID,
+    u.Name,
+    v.iDebateVolunteerID
+FROM
+    Users u
+JOIN
+    Volunteers v ON u.UserID = v.UserID
+JOIN
+    JudgeAssignments ja ON u.UserID = ja.JudgeID
+WHERE
+    ja.TournamentID = $1
+GROUP BY
+    u.UserID, v.iDebateVolunteerID;
+
+-- name: CountJudgeDebates :one
+SELECT
+    COUNT(DISTINCT d.DebateID) as DebateCount
+FROM
+    JudgeAssignments ja
+JOIN
+    Debates d ON ja.DebateID = d.DebateID
+WHERE
+    ja.JudgeID = $1 AND
+    d.TournamentID = $2 AND
+    d.IsEliminationRound = $3;
+
+-- name: GetJudgeDetails :one
+SELECT
+    u.UserID as JudgeID,
+    u.Name,
+    v.iDebateVolunteerID
+FROM
+    Users u
+JOIN
+    Volunteers v ON u.UserID = v.UserID
+WHERE
+    u.UserID = $1;
+
+-- name: GetJudgeRooms :many
+SELECT
+    d.RoundNumber,
+    d.RoomID,
+    r.RoomName
+FROM
+    JudgeAssignments ja
+JOIN
+    Debates d ON ja.DebateID = d.DebateID
+JOIN
+    Rooms r ON d.RoomID = r.RoomID
+WHERE
+    ja.JudgeID = $1 AND
+    d.TournamentID = $2 AND
+    d.IsEliminationRound = $3
+ORDER BY
+    d.RoundNumber;
+
+-- name: UpdateJudgeRoom :exec
+UPDATE JudgeAssignments ja
+SET DebateID = (
+    SELECT d.DebateID
+    FROM Debates d
+    WHERE d.TournamentID = $2 AND d.RoundNumber = $3 AND d.RoomID = $4
+)
+WHERE ja.JudgeID = $1
+  AND ja.TournamentID = $2
+  AND ja.DebateID IN (
+    SELECT d.DebateID
+    FROM Debates d
+    WHERE d.TournamentID = $2 AND d.RoundNumber = $3
+  );

@@ -24,6 +24,7 @@ const (
 	DebateService_UpdateRoom_FullMethodName           = "/debate_management.DebateService/UpdateRoom"
 	DebateService_GetJudges_FullMethodName            = "/debate_management.DebateService/GetJudges"
 	DebateService_GetJudge_FullMethodName             = "/debate_management.DebateService/GetJudge"
+	DebateService_UpdateJudge_FullMethodName          = "/debate_management.DebateService/UpdateJudge"
 	DebateService_GetPairings_FullMethodName          = "/debate_management.DebateService/GetPairings"
 	DebateService_GetPairing_FullMethodName           = "/debate_management.DebateService/GetPairing"
 	DebateService_UpdatePairings_FullMethodName       = "/debate_management.DebateService/UpdatePairings"
@@ -51,6 +52,7 @@ type DebateServiceClient interface {
 	// Judge operations
 	GetJudges(ctx context.Context, in *GetJudgesRequest, opts ...grpc.CallOption) (*GetJudgesResponse, error)
 	GetJudge(ctx context.Context, in *GetJudgeRequest, opts ...grpc.CallOption) (*GetJudgeResponse, error)
+	UpdateJudge(ctx context.Context, in *UpdateJudgeRequest, opts ...grpc.CallOption) (*UpdateJudgeResponse, error)
 	// Pairing operations
 	GetPairings(ctx context.Context, in *GetPairingsRequest, opts ...grpc.CallOption) (*GetPairingsResponse, error)
 	GetPairing(ctx context.Context, in *GetPairingRequest, opts ...grpc.CallOption) (*GetPairingResponse, error)
@@ -124,6 +126,16 @@ func (c *debateServiceClient) GetJudge(ctx context.Context, in *GetJudgeRequest,
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetJudgeResponse)
 	err := c.cc.Invoke(ctx, DebateService_GetJudge_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *debateServiceClient) UpdateJudge(ctx context.Context, in *UpdateJudgeRequest, opts ...grpc.CallOption) (*UpdateJudgeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateJudgeResponse)
+	err := c.cc.Invoke(ctx, DebateService_UpdateJudge_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -281,6 +293,7 @@ type DebateServiceServer interface {
 	// Judge operations
 	GetJudges(context.Context, *GetJudgesRequest) (*GetJudgesResponse, error)
 	GetJudge(context.Context, *GetJudgeRequest) (*GetJudgeResponse, error)
+	UpdateJudge(context.Context, *UpdateJudgeRequest) (*UpdateJudgeResponse, error)
 	// Pairing operations
 	GetPairings(context.Context, *GetPairingsRequest) (*GetPairingsResponse, error)
 	GetPairing(context.Context, *GetPairingRequest) (*GetPairingResponse, error)
@@ -324,6 +337,9 @@ func (UnimplementedDebateServiceServer) GetJudges(context.Context, *GetJudgesReq
 }
 func (UnimplementedDebateServiceServer) GetJudge(context.Context, *GetJudgeRequest) (*GetJudgeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetJudge not implemented")
+}
+func (UnimplementedDebateServiceServer) UpdateJudge(context.Context, *UpdateJudgeRequest) (*UpdateJudgeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateJudge not implemented")
 }
 func (UnimplementedDebateServiceServer) GetPairings(context.Context, *GetPairingsRequest) (*GetPairingsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPairings not implemented")
@@ -474,6 +490,24 @@ func _DebateService_GetJudge_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DebateServiceServer).GetJudge(ctx, req.(*GetJudgeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DebateService_UpdateJudge_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateJudgeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DebateServiceServer).UpdateJudge(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DebateService_UpdateJudge_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DebateServiceServer).UpdateJudge(ctx, req.(*UpdateJudgeRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -756,6 +790,10 @@ var DebateService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetJudge",
 			Handler:    _DebateService_GetJudge_Handler,
+		},
+		{
+			MethodName: "UpdateJudge",
+			Handler:    _DebateService_UpdateJudge_Handler,
 		},
 		{
 			MethodName: "GetPairings",
