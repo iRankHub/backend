@@ -22,7 +22,7 @@ func NewPairingService(db *sql.DB) *PairingService {
 	return &PairingService{db: db}
 }
 
-func (s *PairingService) GetPairings(ctx context.Context, req *debate_management.GetPairingsRequest) ([]*debate_management.Pairing, error) {
+func (s *PairingService) GetPairings(ctx context.Context, req *debate_management.GetPairingsRequest) (*debate_management.GetPairingsResponse, error) {
     if err := s.validateAuthentication(req.GetToken()); err != nil {
         return nil, err
     }
@@ -47,10 +47,10 @@ func (s *PairingService) GetPairings(ctx context.Context, req *debate_management
         pairings[i].Judges = judges
     }
 
-    return pairings, nil
+    return &debate_management.GetPairingsResponse{Pairings: pairings}, nil
 }
 
-func (s *PairingService) GetPairing(ctx context.Context, req *debate_management.GetPairingRequest) (*debate_management.Pairing, error) {
+func (s *PairingService) GetPairing(ctx context.Context, req *debate_management.GetPairingRequest) (*debate_management.GetPairingResponse, error) {
     if err := s.validateAuthentication(req.GetToken()); err != nil {
         return nil, err
     }
@@ -68,7 +68,7 @@ func (s *PairingService) GetPairing(ctx context.Context, req *debate_management.
     }
     pairing.Judges = judges
 
-    return pairing, nil
+    return &debate_management.GetPairingResponse{Pairing: pairing}, nil
 }
 
 func (s *PairingService) UpdatePairings(ctx context.Context, req *debate_management.UpdatePairingsRequest) ([]*debate_management.Pairing, error) {
@@ -425,6 +425,35 @@ func convertSinglePairingFromRow(dbPairing models.GetPairingsByTournamentAndRoun
     }
 }
 
+func convertTeamPairing(teamID int32, teamName string, speakerNames []string, leagueName string, totalPoints float64) *debate_management.Team {
+    return &debate_management.Team{
+        TeamId:       teamID,
+        Name:         teamName,
+        SpeakerNames: speakerNames,
+        TotalPoints:  totalPoints,
+        LeagueName:   leagueName,
+    }
+}
+
+func parseSpeakerNames(speakerNamesData interface{}) []string {
+    var speakerNames []string
+
+    switch v := speakerNamesData.(type) {
+    case []string:
+        speakerNames = v
+    case string:
+        err := json.Unmarshal([]byte(v), &speakerNames)
+        if err != nil {
+            speakerNames = strings.Split(v, ",")
+            for i, name := range speakerNames {
+                speakerNames[i] = strings.TrimSpace(name)
+            }
+        }
+    }
+
+    return speakerNames
+}
+
 func (s *PairingService) getJudgesForPairing(ctx context.Context, debateID int32) ([]*debate_management.Judge, error) {
     queries := models.New(s.db)
     dbJudges, err := queries.GetJudgesForDebate(ctx, debateID)
@@ -440,38 +469,6 @@ func (s *PairingService) getJudgesForPairing(ctx context.Context, debateID int32
         }
     }
     return judges, nil
-}
-
-
-func convertTeamPairing(teamID int32, teamName string, speakerNames []string, leagueName string, totalPoints float64) *debate_management.Team {
-	return &debate_management.Team{
-		TeamId:       teamID,
-		Name:         teamName,
-		SpeakerNames: speakerNames,
-		TotalPoints:  totalPoints,
-		LeagueName:   leagueName,
-	}
-}
-
-func parseSpeakerNames(speakerNamesData interface{}) []string {
-	var speakerNames []string
-
-	switch v := speakerNamesData.(type) {
-	case []string:
-		speakerNames = v
-	case string:
-		// Try to unmarshal as JSON array
-		err := json.Unmarshal([]byte(v), &speakerNames)
-		if err != nil {
-			// If JSON parsing fails, split by comma
-			speakerNames = strings.Split(v, ",")
-			for i, name := range speakerNames {
-				speakerNames[i] = strings.TrimSpace(name)
-			}
-		}
-	}
-
-	return speakerNames
 }
 
 func (s *PairingService) validateAuthentication(token string) error {

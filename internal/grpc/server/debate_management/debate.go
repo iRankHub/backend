@@ -83,19 +83,19 @@ func (s *debateServer) UpdateJudge(ctx context.Context, req *debate_management.U
 
 // Pairing operations
 func (s *debateServer) GetPairings(ctx context.Context, req *debate_management.GetPairingsRequest) (*debate_management.GetPairingsResponse, error) {
-	pairings, err := s.pairingService.GetPairings(ctx, req)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to get pairings: %v", err)
-	}
-	return &debate_management.GetPairingsResponse{Pairings: pairings}, nil
+    response, err := s.pairingService.GetPairings(ctx, req)
+    if err != nil {
+        return nil, status.Errorf(codes.Internal, "Failed to get pairings: %v", err)
+    }
+    return response, nil
 }
 
 func (s *debateServer) GetPairing(ctx context.Context, req *debate_management.GetPairingRequest) (*debate_management.GetPairingResponse, error) {
-	pairing, err := s.pairingService.GetPairing(ctx, req)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to get pairing: %v", err)
-	}
-	return &debate_management.GetPairingResponse{Pairing: pairing}, nil
+    response, err := s.pairingService.GetPairing(ctx, req)
+    if err != nil {
+        return nil, status.Errorf(codes.Internal, "Failed to get pairing: %v", err)
+    }
+    return response, nil
 }
 
 func (s *debateServer) UpdatePairings(ctx context.Context, req *debate_management.UpdatePairingsRequest) (*debate_management.UpdatePairingsResponse, error) {

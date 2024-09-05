@@ -61,7 +61,7 @@ Request:
         "team_id": 3
       },
       "room_id": 4
-    }
+    },
     // ... more pairings to update
   ],
   "token": "your_auth_token_here"
