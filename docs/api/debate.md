@@ -135,8 +135,6 @@ Request:
 ```json
 {
   "tournament_id": 1,
-  "round_number": 1,
-  "is_elimination": false,
   "token": "your_auth_token_here"
 }
 ```
@@ -149,21 +147,24 @@ Request:
 ```json
 {
   "judge_id": 1,
+  "tournament_id": 1,
   "token": "your_auth_token_here"
 }
 ```
 
-### AssignJudges
-
-Endpoint: `DebateService.AssignJudges`
+### UpdateJudge
+Endpoint: `DebateService.UpdateJudge`
 Authorization: Admin only
 
 Request:
 ```json
 {
+  "judge_id": 1,
   "tournament_id": 1,
-  "round_number": 1,
-  "is_elimination": false,
+  "room_assignments": {
+    "1": 101,  // Round 1 assigned to Room 101
+    "2": 102   // Round 2 assigned to Room 102
+  },
   "token": "your_auth_token_here"
 }
 ```
@@ -349,7 +350,7 @@ To test the debate management features:
    d. Judge Management:
    - Use `GetJudges` to retrieve available judges for a tournament round.
    - Use `GetJudge` to retrieve details of a specific judge.
-   - Use `AssignJudges` to automatically assign judges to debates in a round.
+   - Use `UpdateJudge` to automatically update the room which the judge is assigned.
 
    e. Ballot Management:
    - Use `GetBallots` to retrieve all ballots for a tournament round.
