@@ -116,25 +116,48 @@ func (q *Queries) CountJudgeDebates(ctx context.Context, arg CountJudgeDebatesPa
 	return debatecount, err
 }
 
+const createBallot = `-- name: CreateBallot :one
+INSERT INTO Ballots (DebateID, JudgeID, RecordingStatus, Verdict)
+VALUES ($1, $2, $3, $4)
+RETURNING ballotid, debateid, judgeid, team1totalscore, team1feedback, team2totalscore, team2feedback, recordingstatus, verdict, last_updated_by, last_updated_at, head_judge_submitted
+`
+
+type CreateBallotParams struct {
+	Debateid        int32  `json:"debateid"`
+	Judgeid         int32  `json:"judgeid"`
+	Recordingstatus string `json:"recordingstatus"`
+	Verdict         string `json:"verdict"`
+}
+
+func (q *Queries) CreateBallot(ctx context.Context, arg CreateBallotParams) (Ballot, error) {
+	row := q.db.QueryRowContext(ctx, createBallot,
+		arg.Debateid,
+		arg.Judgeid,
+		arg.Recordingstatus,
+		arg.Verdict,
+	)
+	var i Ballot
+	err := row.Scan(
+		&i.Ballotid,
+		&i.Debateid,
+		&i.Judgeid,
+		&i.Team1totalscore,
+		&i.Team1feedback,
+		&i.Team2totalscore,
+		&i.Team2feedback,
+		&i.Recordingstatus,
+		&i.Verdict,
+		&i.LastUpdatedBy,
+		&i.LastUpdatedAt,
+		&i.HeadJudgeSubmitted,
+	)
+	return i, err
+}
+
 const createDebate = `-- name: CreateDebate :one
-WITH new_debate AS (
-    INSERT INTO Debates (TournamentID, RoundID, RoundNumber, IsEliminationRound, Team1ID, Team2ID, RoomID, StartTime)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    RETURNING DebateID, TournamentID
-), new_ballot AS (
-    INSERT INTO Ballots (DebateID, JudgeID, RecordingStatus, Verdict)
-    SELECT DebateID,
-           (SELECT JudgeID FROM JudgeAssignments
-            WHERE TournamentID = new_debate.TournamentID
-              AND RoundNumber = $3
-              AND IsElimination = $4
-              AND IsHeadJudge = true
-            LIMIT 1),
-           'not yet',
-           'pending'
-    FROM new_debate
-)
-SELECT DebateID FROM new_debate
+INSERT INTO Debates (TournamentID, RoundID, RoundNumber, IsEliminationRound, Team1ID, Team2ID, RoomID, StartTime)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING DebateID
 `
 
 type CreateDebateParams struct {

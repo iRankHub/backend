@@ -94,24 +94,14 @@ WHERE (d.Team1ID = $1 AND b.Team1TotalScore > b.Team2TotalScore)
    AND d.TournamentID = $2;
 
 -- name: CreateDebate :one
-WITH new_debate AS (
-    INSERT INTO Debates (TournamentID, RoundID, RoundNumber, IsEliminationRound, Team1ID, Team2ID, RoomID, StartTime)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    RETURNING DebateID, TournamentID
-), new_ballot AS (
-    INSERT INTO Ballots (DebateID, JudgeID, RecordingStatus, Verdict)
-    SELECT DebateID,
-           (SELECT JudgeID FROM JudgeAssignments
-            WHERE TournamentID = new_debate.TournamentID
-              AND RoundNumber = $3
-              AND IsElimination = $4
-              AND IsHeadJudge = true
-            LIMIT 1),
-           'not yet',
-           'pending'
-    FROM new_debate
-)
-SELECT DebateID FROM new_debate;
+INSERT INTO Debates (TournamentID, RoundID, RoundNumber, IsEliminationRound, Team1ID, Team2ID, RoomID, StartTime)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING DebateID;
+
+-- name: CreateBallot :one
+INSERT INTO Ballots (DebateID, JudgeID, RecordingStatus, Verdict)
+VALUES ($1, $2, $3, $4)
+RETURNING *;
 
 -- name: GetTeamsByTournament :many
 SELECT t.TeamID, t.Name, t.TournamentID,

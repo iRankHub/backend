@@ -39,6 +39,11 @@ static_resources:
           - name: envoy.filters.http.router
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+    # Add debug logging for the listener
+    listener_filters:
+    - name: envoy.filters.listener.http_inspector
+      typed_config:
+        "@type": type.googleapis.com/envoy.extensions.filters.listener.http_inspector.v3.HttpInspector
 
   clusters:
   - name: grpc_backend
@@ -55,6 +60,22 @@ static_resources:
               socket_address:
                 address: host.docker.internal
                 port_value: 8080
+    # Add health checking for the backend
+    health_checks:
+      - timeout: 1s
+        interval: 10s
+        unhealthy_threshold: 3
+        healthy_threshold: 2
+        http_health_check:
+          path: "/healthz"
+    # Add circuit breaking
+    circuit_breakers:
+      thresholds:
+        - priority: DEFAULT
+          max_connections: 1000
+          max_pending_requests: 1000
+          max_requests: 1000
+          max_retries: 3
 
 admin:
   access_log_path: /dev/stdout
@@ -62,3 +83,22 @@ admin:
     socket_address:
       address: 0.0.0.0
       port_value: 9901
+
+layered_runtime:
+  layers:
+    - name: static_layer_0
+      static_layer:
+        envoy:
+          reloadable_features:
+            activate_flips: false
+        overload:
+          global_downstream_max_connections: 50000
+        file_access_log:
+          format: |
+            [%START_TIME%] "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%"
+            %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT% %DURATION%
+            %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% "%REQ(X-FORWARDED-FOR)%"
+            "%REQ(USER-AGENT)%" "%REQ(X-REQUEST-ID)%" "%REQ(:AUTHORITY)%"
+            "%UPSTREAM_HOST%" "%DOWNSTREAM_REMOTE_ADDRESS_WITHOUT_PORT%"
+            "%DOWNSTREAM_LOCAL_ADDRESS%" "%UPSTREAM_LOCAL_ADDRESS%"
+            "DYNAMIC_METADATA(%DYNAMIC_METADATA_SPEC%)"

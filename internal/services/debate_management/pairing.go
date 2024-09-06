@@ -254,7 +254,7 @@ func (s *PairingService) GeneratePairings(ctx context.Context, req *debate_manag
     }
 
     // Save new pairings to the database
-  dbPairings := make([]*debate_management.Pairing, 0)
+    dbPairings := make([]*debate_management.Pairing, 0)
     for roundNumber, roundPairings := range allPairings {
         for _, pair := range roundPairings {
             startTime := time.Now().Add(time.Duration(roundNumber) * time.Hour)
@@ -279,6 +279,7 @@ func (s *PairingService) GeneratePairings(ctx context.Context, req *debate_manag
             }
 
             // Assign judges
+            var headJudgeID int32
             for i, judge := range pair.Judges {
                 isHeadJudge := (i == 0) || (len(pair.Judges) == 1)
                 err := queries.AssignJudgeToDebate(ctx, models.AssignJudgeToDebateParams{
@@ -292,6 +293,20 @@ func (s *PairingService) GeneratePairings(ctx context.Context, req *debate_manag
                 if err != nil {
                     return nil, fmt.Errorf("failed to assign judge to debate: %v", err)
                 }
+                if isHeadJudge {
+                    headJudgeID = int32(judge.ID)
+                }
+            }
+
+            // Create a ballot for the debate
+            _, err = queries.CreateBallot(ctx, models.CreateBallotParams{
+                Debateid:        debate,
+                Judgeid:         headJudgeID,
+                Recordingstatus: "not yet",
+                Verdict:         "pending",
+            })
+            if err != nil {
+                return nil, fmt.Errorf("failed to create ballot: %v", err)
             }
 
             // Fetch room name
@@ -315,6 +330,7 @@ func (s *PairingService) GeneratePairings(ctx context.Context, req *debate_manag
                     Name:   pair.Team2.Name,
                 },
                 Judges: convertJudgesToProto(pair.Judges),
+                // BallotId field removed from here
             })
 
 
