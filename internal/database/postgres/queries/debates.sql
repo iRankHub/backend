@@ -60,8 +60,32 @@ SET Team1TotalScore = $2, Team2TotalScore = $3, RecordingStatus = $4, Verdict = 
     last_updated_at = CURRENT_TIMESTAMP, head_judge_submitted = $9
 WHERE BallotID = $1;
 
+-- name: CreateInitialSpeakerScores :exec
+WITH ballot_info AS (
+    SELECT b.BallotID, d.Team1ID, d.Team2ID
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.DebateID = $1
+),
+team_speakers AS (
+    SELECT tm.StudentID as SpeakerID,
+           CASE
+               WHEN t.TeamID = bi.Team1ID THEN 1
+               WHEN t.TeamID = bi.Team2ID THEN 2
+           END as TeamNumber
+    FROM TeamMembers tm
+    JOIN Teams t ON tm.TeamID = t.TeamID
+    JOIN ballot_info bi ON t.TeamID IN (bi.Team1ID, bi.Team2ID)
+)
+INSERT INTO SpeakerScores (BallotID, SpeakerID, SpeakerRank, SpeakerPoints)
+SELECT bi.BallotID, ts.SpeakerID,
+       ROW_NUMBER() OVER (PARTITION BY ts.TeamNumber ORDER BY ts.SpeakerID) as SpeakerRank,
+       0 as SpeakerPoints
+FROM ballot_info bi
+CROSS JOIN team_speakers ts;
+
 -- name: GetSpeakerScoresByBallot :many
-SELECT ss.ScoreID, ss.SpeakerID, s.FirstName, s.LastName,
+SELECT DISTINCT ON (ss.SpeakerID) ss.ScoreID, ss.SpeakerID, s.FirstName, s.LastName,
        ss.SpeakerRank, ss.SpeakerPoints, ss.Feedback,
        t.TeamID, t.Name AS TeamName
 FROM SpeakerScores ss
@@ -70,7 +94,8 @@ JOIN TeamMembers tm ON s.StudentID = tm.StudentID
 JOIN Teams t ON tm.TeamID = t.TeamID
 JOIN Debates d ON t.TournamentID = d.TournamentID
 JOIN Ballots b ON d.DebateID = b.DebateID
-WHERE b.BallotID = $1;
+WHERE b.BallotID = $1
+ORDER BY ss.SpeakerID, ss.ScoreID DESC;
 
 
 -- name: UpdateSpeakerScore :exec

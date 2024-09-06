@@ -187,6 +187,36 @@ func (q *Queries) CreateDebate(ctx context.Context, arg CreateDebateParams) (int
 	return debateid, err
 }
 
+const createInitialSpeakerScores = `-- name: CreateInitialSpeakerScores :exec
+WITH ballot_info AS (
+    SELECT b.BallotID, d.Team1ID, d.Team2ID
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.DebateID = $1
+),
+team_speakers AS (
+    SELECT tm.StudentID as SpeakerID,
+           CASE
+               WHEN t.TeamID = bi.Team1ID THEN 1
+               WHEN t.TeamID = bi.Team2ID THEN 2
+           END as TeamNumber
+    FROM TeamMembers tm
+    JOIN Teams t ON tm.TeamID = t.TeamID
+    JOIN ballot_info bi ON t.TeamID IN (bi.Team1ID, bi.Team2ID)
+)
+INSERT INTO SpeakerScores (BallotID, SpeakerID, SpeakerRank, SpeakerPoints)
+SELECT bi.BallotID, ts.SpeakerID,
+       ROW_NUMBER() OVER (PARTITION BY ts.TeamNumber ORDER BY ts.SpeakerID) as SpeakerRank,
+       0 as SpeakerPoints
+FROM ballot_info bi
+CROSS JOIN team_speakers ts
+`
+
+func (q *Queries) CreateInitialSpeakerScores(ctx context.Context, debateid int32) error {
+	_, err := q.db.ExecContext(ctx, createInitialSpeakerScores, debateid)
+	return err
+}
+
 const createPairingHistory = `-- name: CreatePairingHistory :exec
 INSERT INTO PairingHistory (TournamentID, Team1ID, Team2ID, RoundNumber, IsElimination)
 VALUES ($1, $2, $3, $4, $5)
@@ -1165,7 +1195,7 @@ func (q *Queries) GetRoundByTournamentAndNumber(ctx context.Context, arg GetRoun
 }
 
 const getSpeakerScoresByBallot = `-- name: GetSpeakerScoresByBallot :many
-SELECT ss.ScoreID, ss.SpeakerID, s.FirstName, s.LastName,
+SELECT DISTINCT ON (ss.SpeakerID) ss.ScoreID, ss.SpeakerID, s.FirstName, s.LastName,
        ss.SpeakerRank, ss.SpeakerPoints, ss.Feedback,
        t.TeamID, t.Name AS TeamName
 FROM SpeakerScores ss
@@ -1175,6 +1205,7 @@ JOIN Teams t ON tm.TeamID = t.TeamID
 JOIN Debates d ON t.TournamentID = d.TournamentID
 JOIN Ballots b ON d.DebateID = b.DebateID
 WHERE b.BallotID = $1
+ORDER BY ss.SpeakerID, ss.ScoreID DESC
 `
 
 type GetSpeakerScoresByBallotRow struct {

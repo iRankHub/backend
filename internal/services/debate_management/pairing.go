@@ -309,6 +309,12 @@ func (s *PairingService) GeneratePairings(ctx context.Context, req *debate_manag
                 return nil, fmt.Errorf("failed to create ballot: %v", err)
             }
 
+                        // Create initial speaker scores
+            err = queries.CreateInitialSpeakerScores(ctx, debate)
+            if err != nil {
+                return nil, fmt.Errorf("failed to create initial speaker scores: %v", err)
+            }
+
             // Fetch room name
             room, err := queries.GetRoomByID(ctx, int32(pair.Room))
             if err != nil {

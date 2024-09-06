@@ -51,19 +51,30 @@ func (s *BallotService) GetBallot(ctx context.Context, req *debate_management.Ge
 	convertedBallot := convertBallot(ballot)
 
 	// Fetch speaker scores
-	speakerScores, err := s.GetSpeakerScores(ctx, req.GetBallotId())
+	speakerScores, err := queries.GetSpeakerScoresByBallot(ctx, req.GetBallotId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get speaker scores: %v", err)
 	}
 
+	fmt.Printf("Found %d speaker scores for ballot %d\n", len(speakerScores), req.GetBallotId())
+
 	// Assign speaker scores to teams
-	for _, speaker := range speakerScores {
-		if speaker.SpeakerId == convertedBallot.Team1.TeamId {
+	for _, score := range speakerScores {
+		speaker := convertSpeakerScore(score)
+		fmt.Printf("Processing speaker: %+v\n", speaker)
+		if score.Teamid == convertedBallot.Team1.TeamId {
 			convertedBallot.Team1.Speakers = append(convertedBallot.Team1.Speakers, speaker)
-		} else if speaker.SpeakerId == convertedBallot.Team2.TeamId {
+			convertedBallot.Team1.SpeakerNames = append(convertedBallot.Team1.SpeakerNames, speaker.Name)
+		} else if score.Teamid == convertedBallot.Team2.TeamId {
 			convertedBallot.Team2.Speakers = append(convertedBallot.Team2.Speakers, speaker)
+			convertedBallot.Team2.SpeakerNames = append(convertedBallot.Team2.SpeakerNames, speaker.Name)
+		} else {
+			fmt.Printf("Speaker %s doesn't match either team (Team1ID: %d, Team2ID: %d)\n",
+				speaker.Name, convertedBallot.Team1.TeamId, convertedBallot.Team2.TeamId)
 		}
 	}
+
+	fmt.Printf("Final ballot: %+v\n", convertedBallot)
 
 	return convertedBallot, nil
 }
@@ -172,6 +183,19 @@ func (s *BallotService) UpdateBallot(ctx context.Context, req *debate_management
 	return convertBallot(updatedBallot), nil
 }
 
+func convertSpeakerScore(score models.GetSpeakerScoresByBallotRow) *debate_management.Speaker {
+	points, _ := strconv.ParseFloat(score.Speakerpoints, 64)
+	return &debate_management.Speaker{
+		SpeakerId: score.Speakerid,
+		Name:      score.Firstname + " " + score.Lastname,
+		ScoreId:   score.Scoreid,
+		Rank:      int32(score.Speakerrank),
+		Points:    points,
+		Feedback:  score.Feedback.String,
+		TeamId:    score.Teamid,
+		TeamName:  score.Teamname,
+	}
+}
 
 func updateSpeakerScore(ctx context.Context, queries *models.Queries, speaker *debate_management.Speaker) error {
 	err := queries.UpdateSpeakerScore(ctx, models.UpdateSpeakerScoreParams{
