@@ -199,7 +199,7 @@ Request:
 ### UpdateBallot
 
 Endpoint: `DebateService.UpdateBallot`
-Authorization: Judge or Admin
+Authorization: Head Judge or Admin
 
 Request:
 ```json
@@ -207,33 +207,64 @@ Request:
   "ballot": {
     "ballot_id": 1,
     "team1": {
+      "team_id": 1,
       "total_points": 75.5,
+      "feedback": "Excellent performance overall",
       "speakers": [
         {
           "score_id": 1,
+          "speaker_id": 101,
           "rank": 1,
           "points": 37.5,
-          "feedback": "Excellent argumentation"
+          "feedback": "Strong argumentation and rebuttal"
+        },
+        {
+          "score_id": 2,
+          "speaker_id": 102,
+          "rank": 2,
+          "points": 38.0,
+          "feedback": "Clear presentation and good teamwork"
         }
       ]
     },
     "team2": {
+      "team_id": 2,
       "total_points": 78.0,
+      "feedback": "Very persuasive arguments and excellent teamwork",
       "speakers": [
         {
-          "score_id": 2,
+          "score_id": 3,
+          "speaker_id": 201,
+          "rank": 1,
+          "points": 39.0,
+          "feedback": "Outstanding speaker, very convincing"
+        },
+        {
+          "score_id": 4,
+          "speaker_id": 202,
           "rank": 2,
-          "points": 36.0,
-          "feedback": "Strong rebuttal"
+          "points": 39.0,
+          "feedback": "Excellent rebuttal and time management"
         }
       ]
     },
-    "recording_status": "completed",
-    "verdict": "team2_win"
+    "verdict": "Team B"
   },
   "token": "your_auth_token_here"
 }
 ```
+
+Notes for UpdateBallot:
+- Only the head judge assigned to the debate or an admin can update the ballot.
+- The `recording_status` will automatically be set to "Recorded" upon successful update.
+- `last_updated_by` will be set to the user ID of the person making the update (derived from the token).
+- `last_updated_at` will be automatically set to the current timestamp.
+- If the update is made by the head judge, `head_judge_submitted` will be set to true.
+- Once a head judge has submitted a ballot (i.e., `head_judge_submitted` is true), further updates are not allowed unless made by an admin.
+- Ensure that all speaker scores and team total points are included in the update request.
+- The `verdict` should be one of: "team1 name", "team2 name".
+- Any existing speaker scores will be overwritten by the new scores provided in the update request.
+
 
 ## Team Management
 

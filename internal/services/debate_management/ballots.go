@@ -139,7 +139,7 @@ func (s *BallotService) UpdateBallot(ctx context.Context, req *debate_management
 			String: fmt.Sprintf("%.2f", req.GetBallot().GetTeam2().GetTotalPoints()),
 			Valid:  true,
 		},
-		Recordingstatus: req.GetBallot().GetRecordingStatus(),
+		Recordingstatus: "Recorded", // Set to "Recorded" as requested
 		Verdict:         req.GetBallot().GetVerdict(),
 		Team1feedback:   sql.NullString{String: req.GetBallot().GetTeam1().GetFeedback(), Valid: true},
 		Team2feedback:   sql.NullString{String: req.GetBallot().GetTeam2().GetFeedback(), Valid: true},
@@ -170,14 +170,14 @@ func (s *BallotService) UpdateBallot(ctx context.Context, req *debate_management
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %v", err)
-	}
-
-	// Fetch the updated ballot
+	// Fetch the updated ballot before committing the transaction
 	updatedBallot, err := queries.GetBallotByID(ctx, req.GetBallot().GetBallotId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch updated ballot: %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
 	return convertBallot(updatedBallot), nil
