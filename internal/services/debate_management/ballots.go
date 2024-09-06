@@ -9,6 +9,7 @@ import (
 	"github.com/iRankHub/backend/internal/grpc/proto/debate_management"
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
+
 )
 
 type BallotService struct {
@@ -56,25 +57,18 @@ func (s *BallotService) GetBallot(ctx context.Context, req *debate_management.Ge
 		return nil, fmt.Errorf("failed to get speaker scores: %v", err)
 	}
 
-	fmt.Printf("Found %d speaker scores for ballot %d\n", len(speakerScores), req.GetBallotId())
 
 	// Assign speaker scores to teams
 	for _, score := range speakerScores {
 		speaker := convertSpeakerScore(score)
-		fmt.Printf("Processing speaker: %+v\n", speaker)
 		if score.Teamid == convertedBallot.Team1.TeamId {
 			convertedBallot.Team1.Speakers = append(convertedBallot.Team1.Speakers, speaker)
 			convertedBallot.Team1.SpeakerNames = append(convertedBallot.Team1.SpeakerNames, speaker.Name)
 		} else if score.Teamid == convertedBallot.Team2.TeamId {
 			convertedBallot.Team2.Speakers = append(convertedBallot.Team2.Speakers, speaker)
 			convertedBallot.Team2.SpeakerNames = append(convertedBallot.Team2.SpeakerNames, speaker.Name)
-		} else {
-			fmt.Printf("Speaker %s doesn't match either team (Team1ID: %d, Team2ID: %d)\n",
-				speaker.Name, convertedBallot.Team1.TeamId, convertedBallot.Team2.TeamId)
 		}
 	}
-
-	fmt.Printf("Final ballot: %+v\n", convertedBallot)
 
 	return convertedBallot, nil
 }
