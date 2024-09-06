@@ -30,23 +30,21 @@ SET Team1ID = $2, Team2ID = $3, RoomID = $4
 WHERE DebateID = $1;
 
 -- name: GetBallotsByTournamentAndRound :many
-SELECT b.BallotID, d.DebateID, d.RoundNumber, d.IsEliminationRound,
-       d.RoomID, r.roomname AS RoomName, b.JudgeID, u.Name AS JudgeName,
-       d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,
-       b.Team1TotalScore, b.Team2TotalScore, b.RecordingStatus, b.Verdict
+SELECT b.BallotID, d.RoundNumber, d.IsEliminationRound, r.RoomName,
+       u.Name AS HeadJudgeName, b.RecordingStatus, b.Verdict
 FROM Ballots b
 JOIN Debates d ON b.DebateID = d.DebateID
-LEFT JOIN Rooms r ON d.RoomID = r.RoomID
+JOIN Rooms r ON d.RoomID = r.RoomID
 JOIN Users u ON b.JudgeID = u.UserID
-JOIN Teams t1 ON d.Team1ID = t1.TeamID
-JOIN Teams t2 ON d.Team2ID = t2.TeamID
 WHERE d.TournamentID = $1 AND d.RoundNumber = $2 AND d.IsEliminationRound = $3;
 
 -- name: GetBallotByID :one
 SELECT b.BallotID, d.DebateID, d.RoundNumber, d.IsEliminationRound,
        d.RoomID, r.roomname AS RoomName, b.JudgeID, u.Name AS JudgeName,
        d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,
-       b.Team1TotalScore, b.Team2TotalScore, b.RecordingStatus, b.Verdict
+       b.Team1TotalScore, b.Team2TotalScore, b.RecordingStatus, b.Verdict,
+       b.Team1Feedback, b.Team2Feedback, b.last_updated_by, b.last_updated_at,
+       b.head_judge_submitted
 FROM Ballots b
 JOIN Debates d ON b.DebateID = d.DebateID
 LEFT JOIN Rooms r ON d.RoomID = r.RoomID
@@ -57,19 +55,35 @@ WHERE b.BallotID = $1;
 
 -- name: UpdateBallot :exec
 UPDATE Ballots
-SET Team1TotalScore = $2, Team2TotalScore = $3, RecordingStatus = $4, Verdict = $5
+SET Team1TotalScore = $2, Team2TotalScore = $3, RecordingStatus = $4, Verdict = $5,
+    Team1Feedback = $6, Team2Feedback = $7, last_updated_by = $8,
+    last_updated_at = CURRENT_TIMESTAMP, head_judge_submitted = $9
 WHERE BallotID = $1;
 
 -- name: GetSpeakerScoresByBallot :many
-SELECT ss.ScoreID, ss.SpeakerID, s.FirstName, s.LastName, ss.SpeakerRank, ss.SpeakerPoints, ss.Feedback
+SELECT ss.ScoreID, ss.SpeakerID, s.FirstName, s.LastName,
+       ss.SpeakerRank, ss.SpeakerPoints, ss.Feedback,
+       t.TeamID, t.Name AS TeamName
 FROM SpeakerScores ss
 JOIN Students s ON ss.SpeakerID = s.StudentID
-WHERE ss.BallotID = $1;
+JOIN TeamMembers tm ON s.StudentID = tm.StudentID
+JOIN Teams t ON tm.TeamID = t.TeamID
+JOIN Debates d ON t.TournamentID = d.TournamentID
+JOIN Ballots b ON d.DebateID = b.DebateID
+WHERE b.BallotID = $1;
+
 
 -- name: UpdateSpeakerScore :exec
 UPDATE SpeakerScores
 SET SpeakerRank = $2, SpeakerPoints = $3, Feedback = $4
 WHERE ScoreID = $1;
+
+-- name: IsHeadJudgeForBallot :one
+SELECT COUNT(*) > 0 as is_head_judge
+FROM Ballots b
+JOIN Debates d ON b.DebateID = d.DebateID
+JOIN JudgeAssignments ja ON d.DebateID = ja.DebateID
+WHERE b.BallotID = $1 AND ja.JudgeID = $2 AND ja.IsHeadJudge = true;
 
 -- name: GetTeamWins :one
 SELECT COUNT(*) as wins
@@ -80,9 +94,24 @@ WHERE (d.Team1ID = $1 AND b.Team1TotalScore > b.Team2TotalScore)
    AND d.TournamentID = $2;
 
 -- name: CreateDebate :one
-INSERT INTO Debates (TournamentID, RoundID, RoundNumber, IsEliminationRound, Team1ID, Team2ID, RoomID, StartTime)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING DebateID;
+WITH new_debate AS (
+    INSERT INTO Debates (TournamentID, RoundID, RoundNumber, IsEliminationRound, Team1ID, Team2ID, RoomID, StartTime)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    RETURNING DebateID, TournamentID
+), new_ballot AS (
+    INSERT INTO Ballots (DebateID, JudgeID, RecordingStatus, Verdict)
+    SELECT DebateID,
+           (SELECT JudgeID FROM JudgeAssignments
+            WHERE TournamentID = new_debate.TournamentID
+              AND RoundNumber = $3
+              AND IsElimination = $4
+              AND IsHeadJudge = true
+            LIMIT 1),
+           'not yet',
+           'pending'
+    FROM new_debate
+)
+SELECT DebateID FROM new_debate;
 
 -- name: GetTeamsByTournament :many
 SELECT t.TeamID, t.Name, t.TournamentID,

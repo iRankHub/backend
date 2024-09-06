@@ -105,6 +105,7 @@ func (s *debateServer) UpdatePairings(ctx context.Context, req *debate_managemen
 	}
 	return &debate_management.UpdatePairingsResponse{Pairings: pairings}, nil
 }
+
 // Ballot operations
 func (s *debateServer) GetBallots(ctx context.Context, req *debate_management.GetBallotsRequest) (*debate_management.GetBallotsResponse, error) {
 	ballots, err := s.ballotService.GetBallots(ctx, req)

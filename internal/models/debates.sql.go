@@ -117,9 +117,24 @@ func (q *Queries) CountJudgeDebates(ctx context.Context, arg CountJudgeDebatesPa
 }
 
 const createDebate = `-- name: CreateDebate :one
-INSERT INTO Debates (TournamentID, RoundID, RoundNumber, IsEliminationRound, Team1ID, Team2ID, RoomID, StartTime)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING DebateID
+WITH new_debate AS (
+    INSERT INTO Debates (TournamentID, RoundID, RoundNumber, IsEliminationRound, Team1ID, Team2ID, RoomID, StartTime)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    RETURNING DebateID, TournamentID
+), new_ballot AS (
+    INSERT INTO Ballots (DebateID, JudgeID, RecordingStatus, Verdict)
+    SELECT DebateID,
+           (SELECT JudgeID FROM JudgeAssignments
+            WHERE TournamentID = new_debate.TournamentID
+              AND RoundNumber = $3
+              AND IsElimination = $4
+              AND IsHeadJudge = true
+            LIMIT 1),
+           'not yet',
+           'pending'
+    FROM new_debate
+)
+SELECT DebateID FROM new_debate
 `
 
 type CreateDebateParams struct {
@@ -349,7 +364,9 @@ const getBallotByID = `-- name: GetBallotByID :one
 SELECT b.BallotID, d.DebateID, d.RoundNumber, d.IsEliminationRound,
        d.RoomID, r.roomname AS RoomName, b.JudgeID, u.Name AS JudgeName,
        d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,
-       b.Team1TotalScore, b.Team2TotalScore, b.RecordingStatus, b.Verdict
+       b.Team1TotalScore, b.Team2TotalScore, b.RecordingStatus, b.Verdict,
+       b.Team1Feedback, b.Team2Feedback, b.last_updated_by, b.last_updated_at,
+       b.head_judge_submitted
 FROM Ballots b
 JOIN Debates d ON b.DebateID = d.DebateID
 LEFT JOIN Rooms r ON d.RoomID = r.RoomID
@@ -376,6 +393,11 @@ type GetBallotByIDRow struct {
 	Team2totalscore    sql.NullString `json:"team2totalscore"`
 	Recordingstatus    string         `json:"recordingstatus"`
 	Verdict            string         `json:"verdict"`
+	Team1feedback      sql.NullString `json:"team1feedback"`
+	Team2feedback      sql.NullString `json:"team2feedback"`
+	LastUpdatedBy      sql.NullInt32  `json:"last_updated_by"`
+	LastUpdatedAt      sql.NullTime   `json:"last_updated_at"`
+	HeadJudgeSubmitted sql.NullBool   `json:"head_judge_submitted"`
 }
 
 func (q *Queries) GetBallotByID(ctx context.Context, ballotid int32) (GetBallotByIDRow, error) {
@@ -398,21 +420,22 @@ func (q *Queries) GetBallotByID(ctx context.Context, ballotid int32) (GetBallotB
 		&i.Team2totalscore,
 		&i.Recordingstatus,
 		&i.Verdict,
+		&i.Team1feedback,
+		&i.Team2feedback,
+		&i.LastUpdatedBy,
+		&i.LastUpdatedAt,
+		&i.HeadJudgeSubmitted,
 	)
 	return i, err
 }
 
 const getBallotsByTournamentAndRound = `-- name: GetBallotsByTournamentAndRound :many
-SELECT b.BallotID, d.DebateID, d.RoundNumber, d.IsEliminationRound,
-       d.RoomID, r.roomname AS RoomName, b.JudgeID, u.Name AS JudgeName,
-       d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,
-       b.Team1TotalScore, b.Team2TotalScore, b.RecordingStatus, b.Verdict
+SELECT b.BallotID, d.RoundNumber, d.IsEliminationRound, r.RoomName,
+       u.Name AS HeadJudgeName, b.RecordingStatus, b.Verdict
 FROM Ballots b
 JOIN Debates d ON b.DebateID = d.DebateID
-LEFT JOIN Rooms r ON d.RoomID = r.RoomID
+JOIN Rooms r ON d.RoomID = r.RoomID
 JOIN Users u ON b.JudgeID = u.UserID
-JOIN Teams t1 ON d.Team1ID = t1.TeamID
-JOIN Teams t2 ON d.Team2ID = t2.TeamID
 WHERE d.TournamentID = $1 AND d.RoundNumber = $2 AND d.IsEliminationRound = $3
 `
 
@@ -423,22 +446,13 @@ type GetBallotsByTournamentAndRoundParams struct {
 }
 
 type GetBallotsByTournamentAndRoundRow struct {
-	Ballotid           int32          `json:"ballotid"`
-	Debateid           int32          `json:"debateid"`
-	Roundnumber        int32          `json:"roundnumber"`
-	Iseliminationround bool           `json:"iseliminationround"`
-	Roomid             int32          `json:"roomid"`
-	Roomname           sql.NullString `json:"roomname"`
-	Judgeid            int32          `json:"judgeid"`
-	Judgename          string         `json:"judgename"`
-	Team1id            int32          `json:"team1id"`
-	Team1name          string         `json:"team1name"`
-	Team2id            int32          `json:"team2id"`
-	Team2name          string         `json:"team2name"`
-	Team1totalscore    sql.NullString `json:"team1totalscore"`
-	Team2totalscore    sql.NullString `json:"team2totalscore"`
-	Recordingstatus    string         `json:"recordingstatus"`
-	Verdict            string         `json:"verdict"`
+	Ballotid           int32  `json:"ballotid"`
+	Roundnumber        int32  `json:"roundnumber"`
+	Iseliminationround bool   `json:"iseliminationround"`
+	Roomname           string `json:"roomname"`
+	Headjudgename      string `json:"headjudgename"`
+	Recordingstatus    string `json:"recordingstatus"`
+	Verdict            string `json:"verdict"`
 }
 
 func (q *Queries) GetBallotsByTournamentAndRound(ctx context.Context, arg GetBallotsByTournamentAndRoundParams) ([]GetBallotsByTournamentAndRoundRow, error) {
@@ -452,19 +466,10 @@ func (q *Queries) GetBallotsByTournamentAndRound(ctx context.Context, arg GetBal
 		var i GetBallotsByTournamentAndRoundRow
 		if err := rows.Scan(
 			&i.Ballotid,
-			&i.Debateid,
 			&i.Roundnumber,
 			&i.Iseliminationround,
-			&i.Roomid,
 			&i.Roomname,
-			&i.Judgeid,
-			&i.Judgename,
-			&i.Team1id,
-			&i.Team1name,
-			&i.Team2id,
-			&i.Team2name,
-			&i.Team1totalscore,
-			&i.Team2totalscore,
+			&i.Headjudgename,
 			&i.Recordingstatus,
 			&i.Verdict,
 		); err != nil {
@@ -1137,10 +1142,16 @@ func (q *Queries) GetRoundByTournamentAndNumber(ctx context.Context, arg GetRoun
 }
 
 const getSpeakerScoresByBallot = `-- name: GetSpeakerScoresByBallot :many
-SELECT ss.ScoreID, ss.SpeakerID, s.FirstName, s.LastName, ss.SpeakerRank, ss.SpeakerPoints, ss.Feedback
+SELECT ss.ScoreID, ss.SpeakerID, s.FirstName, s.LastName,
+       ss.SpeakerRank, ss.SpeakerPoints, ss.Feedback,
+       t.TeamID, t.Name AS TeamName
 FROM SpeakerScores ss
 JOIN Students s ON ss.SpeakerID = s.StudentID
-WHERE ss.BallotID = $1
+JOIN TeamMembers tm ON s.StudentID = tm.StudentID
+JOIN Teams t ON tm.TeamID = t.TeamID
+JOIN Debates d ON t.TournamentID = d.TournamentID
+JOIN Ballots b ON d.DebateID = b.DebateID
+WHERE b.BallotID = $1
 `
 
 type GetSpeakerScoresByBallotRow struct {
@@ -1151,6 +1162,8 @@ type GetSpeakerScoresByBallotRow struct {
 	Speakerrank   int32          `json:"speakerrank"`
 	Speakerpoints string         `json:"speakerpoints"`
 	Feedback      sql.NullString `json:"feedback"`
+	Teamid        int32          `json:"teamid"`
+	Teamname      string         `json:"teamname"`
 }
 
 func (q *Queries) GetSpeakerScoresByBallot(ctx context.Context, ballotid int32) ([]GetSpeakerScoresByBallotRow, error) {
@@ -1170,6 +1183,8 @@ func (q *Queries) GetSpeakerScoresByBallot(ctx context.Context, ballotid int32) 
 			&i.Speakerrank,
 			&i.Speakerpoints,
 			&i.Feedback,
+			&i.Teamid,
+			&i.Teamname,
 		); err != nil {
 			return nil, err
 		}
@@ -1332,6 +1347,26 @@ func (q *Queries) GetTeamsByTournament(ctx context.Context, tournamentid int32) 
 	return items, nil
 }
 
+const isHeadJudgeForBallot = `-- name: IsHeadJudgeForBallot :one
+SELECT COUNT(*) > 0 as is_head_judge
+FROM Ballots b
+JOIN Debates d ON b.DebateID = d.DebateID
+JOIN JudgeAssignments ja ON d.DebateID = ja.DebateID
+WHERE b.BallotID = $1 AND ja.JudgeID = $2 AND ja.IsHeadJudge = true
+`
+
+type IsHeadJudgeForBallotParams struct {
+	Ballotid int32 `json:"ballotid"`
+	Judgeid  int32 `json:"judgeid"`
+}
+
+func (q *Queries) IsHeadJudgeForBallot(ctx context.Context, arg IsHeadJudgeForBallotParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, isHeadJudgeForBallot, arg.Ballotid, arg.Judgeid)
+	var is_head_judge bool
+	err := row.Scan(&is_head_judge)
+	return is_head_judge, err
+}
+
 const removeTeamMembers = `-- name: RemoveTeamMembers :exec
 DELETE FROM TeamMembers
 WHERE TeamID = $1
@@ -1344,16 +1379,22 @@ func (q *Queries) RemoveTeamMembers(ctx context.Context, teamid int32) error {
 
 const updateBallot = `-- name: UpdateBallot :exec
 UPDATE Ballots
-SET Team1TotalScore = $2, Team2TotalScore = $3, RecordingStatus = $4, Verdict = $5
+SET Team1TotalScore = $2, Team2TotalScore = $3, RecordingStatus = $4, Verdict = $5,
+    Team1Feedback = $6, Team2Feedback = $7, last_updated_by = $8,
+    last_updated_at = CURRENT_TIMESTAMP, head_judge_submitted = $9
 WHERE BallotID = $1
 `
 
 type UpdateBallotParams struct {
-	Ballotid        int32          `json:"ballotid"`
-	Team1totalscore sql.NullString `json:"team1totalscore"`
-	Team2totalscore sql.NullString `json:"team2totalscore"`
-	Recordingstatus string         `json:"recordingstatus"`
-	Verdict         string         `json:"verdict"`
+	Ballotid           int32          `json:"ballotid"`
+	Team1totalscore    sql.NullString `json:"team1totalscore"`
+	Team2totalscore    sql.NullString `json:"team2totalscore"`
+	Recordingstatus    string         `json:"recordingstatus"`
+	Verdict            string         `json:"verdict"`
+	Team1feedback      sql.NullString `json:"team1feedback"`
+	Team2feedback      sql.NullString `json:"team2feedback"`
+	LastUpdatedBy      sql.NullInt32  `json:"last_updated_by"`
+	HeadJudgeSubmitted sql.NullBool   `json:"head_judge_submitted"`
 }
 
 func (q *Queries) UpdateBallot(ctx context.Context, arg UpdateBallotParams) error {
@@ -1363,6 +1404,10 @@ func (q *Queries) UpdateBallot(ctx context.Context, arg UpdateBallotParams) erro
 		arg.Team2totalscore,
 		arg.Recordingstatus,
 		arg.Verdict,
+		arg.Team1feedback,
+		arg.Team2feedback,
+		arg.LastUpdatedBy,
+		arg.HeadJudgeSubmitted,
 	)
 	return err
 }

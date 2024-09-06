@@ -11,25 +11,18 @@ import (
 )
 
 type Ballot struct {
-	Ballotid              int32          `json:"ballotid"`
-	Debateid              int32          `json:"debateid"`
-	Judgeid               int32          `json:"judgeid"`
-	Team1debaterascore    sql.NullString `json:"team1debaterascore"`
-	Team1debateracomments sql.NullString `json:"team1debateracomments"`
-	Team1debaterbscore    sql.NullString `json:"team1debaterbscore"`
-	Team1debaterbcomments sql.NullString `json:"team1debaterbcomments"`
-	Team1debatercscore    sql.NullString `json:"team1debatercscore"`
-	Team1debaterccomments sql.NullString `json:"team1debaterccomments"`
-	Team1totalscore       sql.NullString `json:"team1totalscore"`
-	Team2debaterascore    sql.NullString `json:"team2debaterascore"`
-	Team2debateracomments sql.NullString `json:"team2debateracomments"`
-	Team2debaterbscore    sql.NullString `json:"team2debaterbscore"`
-	Team2debaterbcomments sql.NullString `json:"team2debaterbcomments"`
-	Team2debatercscore    sql.NullString `json:"team2debatercscore"`
-	Team2debaterccomments sql.NullString `json:"team2debaterccomments"`
-	Team2totalscore       sql.NullString `json:"team2totalscore"`
-	Recordingstatus       string         `json:"recordingstatus"`
-	Verdict               string         `json:"verdict"`
+	Ballotid           int32          `json:"ballotid"`
+	Debateid           int32          `json:"debateid"`
+	Judgeid            int32          `json:"judgeid"`
+	Team1totalscore    sql.NullString `json:"team1totalscore"`
+	Team1feedback      sql.NullString `json:"team1feedback"`
+	Team2totalscore    sql.NullString `json:"team2totalscore"`
+	Team2feedback      sql.NullString `json:"team2feedback"`
+	Recordingstatus    string         `json:"recordingstatus"`
+	Verdict            string         `json:"verdict"`
+	LastUpdatedBy      sql.NullInt32  `json:"last_updated_by"`
+	LastUpdatedAt      sql.NullTime   `json:"last_updated_at"`
+	HeadJudgeSubmitted sql.NullBool   `json:"head_judge_submitted"`
 }
 
 type Communication struct {

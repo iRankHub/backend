@@ -235,22 +235,15 @@ CREATE TABLE Ballots (
    BallotID SERIAL PRIMARY KEY,
    DebateID INTEGER NOT NULL REFERENCES Debates(DebateID),
    JudgeID INTEGER NOT NULL REFERENCES JudgeAssignments(AssignmentID),
-   Team1DebaterAScore NUMERIC,
-   Team1DebaterAComments TEXT,
-   Team1DebaterBScore NUMERIC,
-   Team1DebaterBComments TEXT,
-   Team1DebaterCScore NUMERIC,
-   Team1DebaterCComments TEXT,
    Team1TotalScore NUMERIC,
-   Team2DebaterAScore NUMERIC,
-   Team2DebaterAComments TEXT,
-   Team2DebaterBScore NUMERIC,
-   Team2DebaterBComments TEXT,
-   Team2DebaterCScore NUMERIC,
-   Team2DebaterCComments TEXT,
+   Team1Feedback TEXT,
    Team2TotalScore NUMERIC,
+   Team2Feedback TEXT,
    RecordingStatus VARCHAR(20) NOT NULL DEFAULT 'pending',
-   Verdict VARCHAR(10) NOT NULL DEFAULT 'pending'
+   Verdict VARCHAR(10) NOT NULL DEFAULT 'pending',
+   last_updated_by INT REFERENCES Users(UserID),
+   last_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+   head_judge_submitted BOOLEAN DEFAULT FALSE
 );
 
 
