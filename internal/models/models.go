@@ -85,12 +85,14 @@ type League struct {
 }
 
 type Notification struct {
-	Notificationid int32        `json:"notificationid"`
-	Userid         int32        `json:"userid"`
-	Type           string       `json:"type"`
-	Message        string       `json:"message"`
-	Isread         sql.NullBool `json:"isread"`
-	Createdat      sql.NullTime `json:"createdat"`
+	Notificationid int32          `json:"notificationid"`
+	Userid         int32          `json:"userid"`
+	Type           string         `json:"type"`
+	Message        string         `json:"message"`
+	Recipientemail sql.NullString `json:"recipientemail"`
+	Subject        sql.NullString `json:"subject"`
+	Isread         sql.NullBool   `json:"isread"`
+	Createdat      sql.NullTime   `json:"createdat"`
 }
 
 type Notificationpreference struct {

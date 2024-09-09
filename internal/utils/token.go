@@ -59,11 +59,11 @@ func GenerateToken(userID int32, userName, userRole, userEmail string) (string, 
 	maker := paseto.NewV2()
 
 	claims := map[string]interface{}{
-		"user_id":    userID,
+		"user_id":    float64(userID), // Convert to float64 to ensure consistency
 		"user_name":  userName,
-		"user_role":  userRole, // This should be "admin" for admin users
+		"user_role":  userRole,
 		"user_email": userEmail,
-		"exp":        time.Now().Add(time.Hour * 168).Unix(), // Token expires in 7 days
+		"exp":        float64(time.Now().Add(time.Hour * 168).Unix()), // Convert to float64
 	}
 
 	token, err := maker.Sign(privateKey, claims, nil)

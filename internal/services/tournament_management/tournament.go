@@ -13,6 +13,7 @@ import (
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
 	notification "github.com/iRankHub/backend/internal/utils/notifications"
+	notifications "github.com/iRankHub/backend/internal/services/notification"
 )
 
 type TournamentService struct {
@@ -33,15 +34,19 @@ func (s *TournamentService) CreateTournament(ctx context.Context, req *tournamen
 	if !ok {
 		return nil, fmt.Errorf("failed to get creator email from token")
 	}
+
 	creatorName, ok := claims["user_name"].(string)
 	if !ok {
 		return nil, fmt.Errorf("failed to get creator name from token")
 	}
 
-	creatorID, ok := claims["user_id"].(int32)
+	creatorID, ok := claims["user_id"].(float64)
 	if !ok {
-		return nil, fmt.Errorf("failed to get creator name from token")
+		return nil, fmt.Errorf("failed to get creator ID from token")
 	}
+
+	// Convert creatorID to int32
+	creatorIDInt32 := int32(creatorID)
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -108,31 +113,38 @@ func (s *TournamentService) CreateTournament(ctx context.Context, req *tournamen
 		return nil, fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	// Send notification asynchronously
-	go func() {
-		// Use a new context for background operations
-		bgCtx := context.Background()
+  	// Send notification asynchronously
+    go func() {
+        // Use a new context for background operations
+        bgCtx := context.Background()
 
-		// Create a new database connection for background operations
-		bgQueries := models.New(s.db)
+        // Create a new NotificationService using the existing database connection
+        notificationService, err := notifications.NewNotificationService(s.db)
+        if err != nil {
+            log.Printf("Failed to create notification service: %v", err)
+            return
+        }
 
-		if err := notification.SendTournamentInvitations(bgCtx, tournament, league, format, bgQueries); err != nil {
-			log.Printf("Failed to send tournament invitations: %v", err)
-		}
+        // Use the existing queries with the main database connection
+        bgQueries := models.New(s.db)
 
-		if err := notification.SendTournamentCreationConfirmation(creatorEmail, creatorName, tournament.Name, int32(creatorID)); err != nil {
-			log.Printf("Failed to send tournament creation confirmation: %v", err)
-		}
+        if err := notification.SendTournamentInvitations(bgCtx, notificationService, tournament, league, format, bgQueries); err != nil {
+            log.Printf("Failed to send tournament invitations: %v", err)
+        }
 
-		if err := notification.SendCoordinatorAssignmentEmail(coordinator, tournament, league, format); err != nil {
-			log.Printf("Failed to send coordinator assignment email: %v", err)
-		}
-	}()
+        if err := notification.SendTournamentCreationConfirmation(notificationService, creatorEmail, creatorName, tournament.Name, creatorIDInt32); err != nil {
+            log.Printf("Failed to send tournament creation confirmation: %v", err)
+        }
 
-	createdTournament := tournamentModelToProto(tournament)
-	createdTournament.CoordinatorName = coordinator.Name
+        if err := notification.SendCoordinatorAssignmentEmail(notificationService, coordinator, tournament, league, format); err != nil {
+            log.Printf("Failed to send coordinator assignment email: %v", err)
+        }
+    }()
 
-	return createdTournament, nil
+    createdTournament := tournamentModelToProto(tournament)
+    createdTournament.CoordinatorName = coordinator.Name
+
+    return createdTournament, nil
 }
 
 func (s *TournamentService) GetTournament(ctx context.Context, req *tournament_management.GetTournamentRequest) (*tournament_management.Tournament, error) {

@@ -46,6 +46,18 @@ Request:
 }
 ```
 
+### SubscribeToNotification
+
+Endpoint: `NotificationService.SubscribeToNotification`
+Authorization: Authenticated users
+
+Request:
+```json
+{
+  "user_id": 1,
+}
+```
+
 ## Frontend Integration
 
 To integrate notifications in the frontend using gRPC:

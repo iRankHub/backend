@@ -10,15 +10,21 @@ import (
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
 	notification "github.com/iRankHub/backend/internal/utils/notifications"
+	notificationService "github.com/iRankHub/backend/internal/services/notification"
 )
 
 type SignUpService struct {
-	db *sql.DB
+	db                 *sql.DB
+	notificationService *notificationService.NotificationService
 }
 
-func NewSignUpService(db *sql.DB) *SignUpService {
-	return &SignUpService{db: db}
+func NewSignUpService(db *sql.DB, ns *notificationService.NotificationService) *SignUpService {
+	return &SignUpService{
+		db:                 db,
+		notificationService: ns,
+	}
 }
+
 
 func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, password, userRole, gender string, nationalID string, safeguardingCertificate []byte, additionalInfo map[string]interface{}) error {
 	if firstName == "" || lastName == "" || email == "" || password == "" || userRole == "" {
@@ -93,7 +99,7 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 	// This go routine runs in the background as to not impact performance
 	go func() {
 		if userRole == "admin" {
-			if err := notification.SendAdminWelcomeEmail(email, firstName, user.Userid); err != nil {
+			if err := notification.SendAdminWelcomeEmail(s.notificationService, email, firstName, user.Userid); err != nil {
 				log.Printf("Failed to send admin welcome email: %v", err)
 			}
 		} else {
@@ -102,7 +108,7 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 			if err := s.notifyAdminOfNewSignUp(ctx, queries, user.Userid, userRole); err != nil {
 				log.Printf("Failed to notify admin of new signup: %v", err)
 			}
-			if err := notification.SendWelcomeEmail(email, firstName); err != nil {
+			if err := notification.SendWelcomeEmail(s.notificationService, email, firstName); err != nil {
 				log.Printf("Failed to send welcome email: %v", err)
 			}
 		}

@@ -7,28 +7,39 @@ package models
 
 import (
 	"context"
+	"database/sql"
 )
 
 const createNotification = `-- name: CreateNotification :one
-INSERT INTO Notifications (UserID, Type, Message)
-VALUES ($1, $2, $3)
-RETURNING notificationid, userid, type, message, isread, createdat
+INSERT INTO Notifications (UserID, Type, Message, RecipientEmail, Subject, IsRead)
+VALUES ($1, $2, $3, $4, $5, FALSE)
+RETURNING notificationid, userid, type, message, recipientemail, subject, isread, createdat
 `
 
 type CreateNotificationParams struct {
-	Userid  int32  `json:"userid"`
-	Type    string `json:"type"`
-	Message string `json:"message"`
+	Userid         int32          `json:"userid"`
+	Type           string         `json:"type"`
+	Message        string         `json:"message"`
+	Recipientemail sql.NullString `json:"recipientemail"`
+	Subject        sql.NullString `json:"subject"`
 }
 
 func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error) {
-	row := q.db.QueryRowContext(ctx, createNotification, arg.Userid, arg.Type, arg.Message)
+	row := q.db.QueryRowContext(ctx, createNotification,
+		arg.Userid,
+		arg.Type,
+		arg.Message,
+		arg.Recipientemail,
+		arg.Subject,
+	)
 	var i Notification
 	err := row.Scan(
 		&i.Notificationid,
 		&i.Userid,
 		&i.Type,
 		&i.Message,
+		&i.Recipientemail,
+		&i.Subject,
 		&i.Isread,
 		&i.Createdat,
 	)
@@ -36,7 +47,7 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 }
 
 const getUnreadNotifications = `-- name: GetUnreadNotifications :many
-SELECT notificationid, userid, type, message, isread, createdat FROM Notifications
+SELECT notificationid, userid, type, message, recipientemail, subject, isread, createdat FROM Notifications
 WHERE UserID = $1 AND IsRead = FALSE
 ORDER BY CreatedAt DESC
 `
@@ -55,6 +66,8 @@ func (q *Queries) GetUnreadNotifications(ctx context.Context, userid int32) ([]N
 			&i.Userid,
 			&i.Type,
 			&i.Message,
+			&i.Recipientemail,
+			&i.Subject,
 			&i.Isread,
 			&i.Createdat,
 		); err != nil {

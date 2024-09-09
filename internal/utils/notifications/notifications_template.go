@@ -49,13 +49,8 @@ func GetEmailTemplate(content string) string {
 	`, logoURL, content)
 }
 
-func SendNotification(notificationType notification.NotificationType, to, subject, content string) error {
-	notificationService, err := notification.NewNotificationService(nil) // You'll need to pass the appropriate db connection
-	if err != nil {
-		return fmt.Errorf("failed to create notification service: %v", err)
-	}
-
-	err = notificationService.SendNotification(context.Background(), notification.Notification{
+func SendNotification(notificationService *notification.NotificationService, notificationType notification.NotificationType, to, subject, content string) error {
+	err := notificationService.SendNotification(context.Background(), notification.Notification{
 		Type:    notificationType,
 		To:      to,
 		Subject: subject,

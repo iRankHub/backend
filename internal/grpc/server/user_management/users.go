@@ -12,7 +12,6 @@ import (
 	"github.com/iRankHub/backend/internal/grpc/proto/user_management"
 	"github.com/iRankHub/backend/internal/models"
 	services "github.com/iRankHub/backend/internal/services/user_management"
-
 )
 
 type userManagementServer struct {
@@ -26,9 +25,14 @@ type userManagementServer struct {
 }
 
 func NewUserManagementServer(db *sql.DB) (user_management.UserManagementServiceServer, error) {
+	userManagementService, err := services.NewUserManagementService(db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user management service: %v", err)
+	}
+
 	return &userManagementServer{
 		db:                          db,
-		userManagementService:       services.NewUserManagementService(db),
+		userManagementService:       userManagementService,
 		countryManagementService:    services.NewCountryManagementService(db),
 		schoolsManagementService:    services.NewSchoolsManagementService(db),
 		studentsManagementService:   services.NewStudentsManagementService(db),

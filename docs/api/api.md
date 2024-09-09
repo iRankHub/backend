@@ -22,6 +22,7 @@ Before using the notification service, you need to set up RabbitMQ:
    - For Windows: RabbitMQ should start automatically after installation
 
 3. Configure RabbitMQ:
+   - Add RabbitMQ to path
    - Create a new user: `rabbitmqctl add_user myuser mypassword`
    - Set permissions: `rabbitmqctl set_permissions -p / myuser ".*" ".*" ".*"`
 

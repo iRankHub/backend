@@ -11,6 +11,7 @@ import (
 	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
 	"github.com/iRankHub/backend/internal/models"
 	services "github.com/iRankHub/backend/internal/services/authentication"
+	notificationService "github.com/iRankHub/backend/internal/services/notification"
 	"github.com/iRankHub/backend/internal/utils"
 )
 
@@ -24,6 +25,7 @@ type authServer struct {
 	twoFactorService   *services.TwoFactorService
 	recoveryService    *services.RecoveryService
 	biometricService   *services.BiometricService
+	notificationService *notificationService.NotificationService
 }
 
 func NewAuthServer(db *sql.DB) (authentication.AuthServiceServer, error) {
@@ -38,12 +40,17 @@ func NewAuthServer(db *sql.DB) (authentication.AuthServiceServer, error) {
 		return nil, fmt.Errorf("failed to create WebAuthn: %v", err)
 	}
 
-	twoFactorService := services.NewTwoFactorService(db)
-	recoveryService := services.NewRecoveryService(db)
+	ns, err := notificationService.NewNotificationService(db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create notification service: %v", err)
+	}
+
+	twoFactorService := services.NewTwoFactorService(db, ns)
+	recoveryService := services.NewRecoveryService(db, ns)
 	biometricService := services.NewBiometricService(db, w)
 	loginService := services.NewLoginService(db, twoFactorService, recoveryService)
-	signUpService := services.NewSignUpService(db)
-	importUsersService := services.NewImportUsersService(signUpService)
+	signUpService := services.NewSignUpService(db, ns)
+	importUsersService := services.NewImportUsersService(signUpService, ns)
 
 	return &authServer{
 		db:                 db,
@@ -54,6 +61,7 @@ func NewAuthServer(db *sql.DB) (authentication.AuthServiceServer, error) {
 		twoFactorService:   twoFactorService,
 		recoveryService:    recoveryService,
 		biometricService:   biometricService,
+		notificationService: ns,
 	}, nil
 }
 

@@ -11,16 +11,26 @@ import (
 
 	"github.com/iRankHub/backend/internal/models"
 	notification "github.com/iRankHub/backend/internal/utils/notifications"
+	notifications "github.com/iRankHub/backend/internal/services/notification"
 )
 
 type ReminderService struct {
-	db   *sql.DB
-	cron *cron.Cron
+	db                 *sql.DB
+	cron               *cron.Cron
+	notificationService *notifications.NotificationService
 }
 
-func NewReminderService(db *sql.DB) *ReminderService {
+func NewReminderService(db *sql.DB) (*ReminderService, error) {
 	c := cron.New()
-	return &ReminderService{db: db, cron: c}
+	notificationService, err := notifications.NewNotificationService(db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create notification service: %v", err)
+	}
+	return &ReminderService{
+		db:                 db,
+		cron:               c,
+		notificationService: notificationService,
+	}, nil
 }
 
 func (s *ReminderService) Start() {
@@ -50,7 +60,7 @@ func (s *ReminderService) SendReminders() {
 			continue
 		}
 
-		if err := notification.SendReminderEmails(ctx, invitations, queries); err != nil {
+		if err := notification.SendReminderEmails(ctx, s.notificationService, invitations, queries); err != nil {
 			log.Printf("Failed to send reminder notification for tournament %d: %v\n", tournament.Tournamentid, err)
 		}
 	}

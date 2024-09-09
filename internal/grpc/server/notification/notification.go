@@ -51,8 +51,8 @@ func (s *notificationServer) GetUnreadNotifications(ctx context.Context, req *no
 		protoNotifications = append(protoNotifications, &notification.Notification{
 			Id:      int32(n.Notificationid),
 			Type:    notification.NotificationType(notification.NotificationType_value[n.Type]),
-			To:      "", // You might need to add this field to your database schema
-			Subject: "", // You might need to add this field to your database schema
+			To:      n.Recipientemail.String,
+			Subject: n.Subject.String,
 			Content: n.Message,
 		})
 	}
@@ -66,4 +66,28 @@ func (s *notificationServer) MarkNotificationsAsRead(ctx context.Context, req *n
 		return nil, status.Errorf(codes.Internal, "Failed to mark notifications as read: %v", err)
 	}
 	return &notification.MarkNotificationsAsReadResponse{Success: true}, nil
+}
+
+func (s *notificationServer) SubscribeToNotifications(req *notification.SubscribeRequest, stream notification.NotificationService_SubscribeToNotificationsServer) error {
+	userID := req.GetUserId()
+
+	notificationChan := make(chan *notification.Notification, 100) // Buffer size of 100, adjust as needed
+
+	s.notificationService.RegisterNotificationChannel(userID, notificationChan)
+
+	defer s.notificationService.UnregisterNotificationChannel(userID, notificationChan)
+
+	for {
+		select {
+		case <-stream.Context().Done():
+			return nil
+		case notif := <-notificationChan:
+			event := &notification.NotificationEvent{
+				Notification: notif,
+			}
+			if err := stream.Send(event); err != nil {
+				return status.Errorf(codes.Internal, "Failed to send notification event: %v", err)
+			}
+		}
+	}
 }

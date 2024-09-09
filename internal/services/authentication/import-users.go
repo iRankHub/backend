@@ -8,15 +8,18 @@ import (
 	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
 	"github.com/iRankHub/backend/internal/utils"
 	notification "github.com/iRankHub/backend/internal/utils/notifications"
+	notificationService "github.com/iRankHub/backend/internal/services/notification"
 )
 
 type ImportUsersService struct {
-	signUpService *SignUpService
+	signUpService      *SignUpService
+	notificationService *notificationService.NotificationService
 }
 
-func NewImportUsersService(signUpService *SignUpService) *ImportUsersService {
+func NewImportUsersService(signUpService *SignUpService, ns *notificationService.NotificationService) *ImportUsersService {
 	return &ImportUsersService{
-		signUpService: signUpService,
+		signUpService:      signUpService,
+		notificationService: ns,
 	}
 }
 
@@ -32,6 +35,7 @@ func (s *ImportUsersService) BatchImportUsers(ctx context.Context, users []*auth
 		wg.Add(1)
 		go func(userData *authentication.UserData) {
 			defer wg.Done()
+
 
 			additionalInfo := map[string]interface{}{
 				"dateOfBirth":             userData.DateOfBirth,
@@ -76,7 +80,7 @@ func (s *ImportUsersService) BatchImportUsers(ctx context.Context, users []*auth
 
 				// Send email with temporary password
 				go func() {
-					if err := notification.SendTemporaryPasswordEmail(userData.Email, userData.FirstName, password); err != nil {
+					if err := notification.SendTemporaryPasswordEmail(s.notificationService, userData.Email, userData.FirstName, password); err != nil {
 						log.Printf("Failed to send temporary password email to %s: %v", userData.Email, err)
 					}
 				}()

@@ -6,11 +6,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
+	"sync"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/spf13/viper"
 
+	pb "github.com/iRankHub/backend/internal/grpc/proto/notification"
 	"github.com/iRankHub/backend/internal/models"
+
 )
 
 type NotificationType string
@@ -28,13 +32,15 @@ type Notification struct {
 }
 
 type NotificationService struct {
-	db           *sql.DB
-	queries      *models.Queries
-	conn         *amqp.Connection
-	channel      *amqp.Channel
-	queue        amqp.Queue
-	emailSender  EmailSender
-	inAppSender  InAppSender
+	db            *sql.DB
+	queries       *models.Queries
+	conn          *amqp.Connection
+	channel       *amqp.Channel
+	queue         amqp.Queue
+	emailSender   EmailSender
+	inAppSender   InAppSender
+	subscriptions map[int32][]chan *pb.Notification
+	mu            sync.RWMutex
 }
 
 func NewNotificationService(db *sql.DB) (*NotificationService, error) {
@@ -62,15 +68,39 @@ func NewNotificationService(db *sql.DB) (*NotificationService, error) {
 		return nil, fmt.Errorf("failed to declare a queue: %v", err)
 	}
 
-	return &NotificationService{
-		db:           db,
-		queries:      queries,
-		conn:         conn,
-		channel:      ch,
-		queue:        q,
-		emailSender:  NewSMTPEmailSender(),
-		inAppSender:  NewDBInAppSender(queries),
-	}, nil
+	service := &NotificationService{
+		db:            db,
+		queries:       queries,
+		conn:          conn,
+		channel:       ch,
+		queue:         q,
+		emailSender:   NewSMTPEmailSender(),
+		inAppSender:   NewDBInAppSender(queries),
+		subscriptions: make(map[int32][]chan *pb.Notification),
+	}
+
+	go service.startConsumer()
+
+	return service, nil
+}
+
+func (s *NotificationService) RegisterNotificationChannel(userID int32, ch chan *pb.Notification) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.subscriptions[userID] = append(s.subscriptions[userID], ch)
+}
+
+func (s *NotificationService) UnregisterNotificationChannel(userID int32, ch chan *pb.Notification) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	channels := s.subscriptions[userID]
+	for i, c := range channels {
+		if c == ch {
+			s.subscriptions[userID] = append(channels[:i], channels[i+1:]...)
+			close(ch)
+			break
+		}
+	}
 }
 
 func (s *NotificationService) SendNotification(ctx context.Context, notification Notification) error {
@@ -83,10 +113,13 @@ func (s *NotificationService) SendNotification(ctx context.Context, notification
 	qtx := s.queries.WithTx(tx)
 
 	// Save notification to database
-	_, err = qtx.CreateNotification(ctx, models.CreateNotificationParams{
-		Userid:  0,
-		Type:    string(notification.Type),
-		Message: notification.Content,
+	userID, _ := strconv.Atoi(notification.To)
+	createdNotification, err := qtx.CreateNotification(ctx, models.CreateNotificationParams{
+		Userid:         int32(userID),
+		Type:           string(notification.Type),
+		Recipientemail: sql.NullString{String: notification.To, Valid: notification.To != ""},
+		Subject:        sql.NullString{String: notification.Subject, Valid: notification.Subject != ""},
+		Message:        notification.Content,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create notification in database: %v", err)
@@ -115,10 +148,31 @@ func (s *NotificationService) SendNotification(ctx context.Context, notification
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
+	// Send to subscribed channels
+	s.mu.RLock()
+	channels := s.subscriptions[int32(userID)]
+	s.mu.RUnlock()
+
+	protoNotification := &pb.Notification{
+		Id:      int32(createdNotification.Notificationid),
+		Type:    pb.NotificationType(pb.NotificationType_value[string(notification.Type)]),
+		To:      notification.To,
+		Subject: notification.Subject,
+		Content: notification.Content,
+	}
+
+	for _, ch := range channels {
+		select {
+		case ch <- protoNotification:
+		default:
+			log.Printf("Failed to send notification to channel for user %d: channel full or closed", userID)
+		}
+	}
+
 	return nil
 }
 
-func (s *NotificationService) StartConsumer(ctx context.Context) error {
+func (s *NotificationService) startConsumer() {
 	msgs, err := s.channel.Consume(
 		s.queue.Name, // queue
 		"",           // consumer
@@ -129,28 +183,25 @@ func (s *NotificationService) StartConsumer(ctx context.Context) error {
 		nil,          // args
 	)
 	if err != nil {
-		return fmt.Errorf("failed to register a consumer: %v", err)
+		log.Printf("Failed to register a consumer: %v", err)
+		return
 	}
 
-	go func() {
-		for d := range msgs {
-			var notification Notification
-			if err := json.Unmarshal(d.Body, &notification); err != nil {
-				log.Printf("Error unmarshalling notification: %v", err)
-				d.Nack(false, true)
-				continue
-			}
-
-			if err := s.handleNotification(notification); err != nil {
-				log.Printf("Error handling notification: %v", err)
-				d.Nack(false, true)
-			} else {
-				d.Ack(false)
-			}
+	for d := range msgs {
+		var notification Notification
+		if err := json.Unmarshal(d.Body, &notification); err != nil {
+			log.Printf("Error unmarshalling notification: %v", err)
+			d.Nack(false, true)
+			continue
 		}
-	}()
 
-	return nil
+		if err := s.handleNotification(notification); err != nil {
+			log.Printf("Error handling notification: %v", err)
+			d.Nack(false, true)
+		} else {
+			d.Ack(false)
+		}
+	}
 }
 
 func (s *NotificationService) handleNotification(notification Notification) error {

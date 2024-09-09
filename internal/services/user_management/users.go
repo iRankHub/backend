@@ -14,20 +14,28 @@ import (
 
 	"github.com/iRankHub/backend/internal/grpc/proto/user_management"
 	"github.com/iRankHub/backend/internal/models"
+	notificationService "github.com/iRankHub/backend/internal/services/notification"
 	"github.com/iRankHub/backend/internal/utils"
 	notifications "github.com/iRankHub/backend/internal/utils/notifications"
 
 )
 
 type UserManagementService struct {
-	db *sql.DB
+	db                 *sql.DB
+	notificationService *notificationService.NotificationService
 }
 
-func NewUserManagementService(db *sql.DB) *UserManagementService {
-	return &UserManagementService{
-		db: db,
+func NewUserManagementService(db *sql.DB) (*UserManagementService, error) {
+	ns, err := notificationService.NewNotificationService(db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create notification service: %v", err)
 	}
+	return &UserManagementService{
+		db:                 db,
+		notificationService: ns,
+	}, nil
 }
+
 
 func (s *UserManagementService) GetPendingUsers(ctx context.Context, token string) ([]models.User, error) {
 	claims, err := utils.ValidateToken(token)
@@ -150,7 +158,7 @@ func (s *UserManagementService) ApproveUser(ctx context.Context, token string, u
 
 	// Send approval notification (consider moving this to a background job)
 	go func() {
-		if err := notifications.SendApprovalNotification(user.Email, user.Name); err != nil {
+		if err := notifications.SendApprovalNotification(s.notificationService, user.Email, user.Name); err != nil {
 			log.Printf("Failed to send approval notification: %v", err)
 		}
 	}()
@@ -196,7 +204,7 @@ func (s *UserManagementService) RejectUser(ctx context.Context, token string, us
 
 	// Send rejection notification (consider moving this to a background job)
 	go func() {
-		if err := notifications.SendRejectionNotification(user.Email, user.Name); err != nil {
+		if err := notifications.SendRejectionNotification(s.notificationService, user.Email, user.Name); err != nil {
 			log.Printf("Failed to send rejection notification: %v", err)
 		}
 	}()
@@ -269,11 +277,12 @@ func (s *UserManagementService) ApproveUsers(ctx context.Context, token string, 
 		}
 
 		// Launch goroutine to send approval notification
-		go func(userEmail, userName string, userId int32) {
-			if err := notifications.SendApprovalNotification(userEmail, userName); err != nil {
-				fmt.Printf("Failed to send approval notification to user %d: %v\n", userId, err)
-			}
-		}(user.Email, user.Name, user.Userid)
+	go func(userEmail, userName string, userId int32) {
+		if err := notifications.SendApprovalNotification(s.notificationService, userEmail, userName); err != nil {
+			fmt.Printf("Failed to send approval notification to user %d: %v\n", userId, err)
+		}
+	}(user.Email, user.Name, user.Userid)
+
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -310,14 +319,16 @@ func (s *UserManagementService) RejectUsers(ctx context.Context, token string, u
 			continue
 		}
 
-		err = notifications.SendRejectionNotification(user.Email, user.Name)
-		if err != nil {
-			fmt.Printf("Failed to send rejection notification to user %d: %v\n", userID, err)
-		}
-	}
-
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+		go func(userEmail, userName string, userId int32) {
+			err := notifications.SendRejectionNotification(s.notificationService, userEmail, userName)
+			if err != nil {
+				fmt.Printf("Failed to send rejection notification to user %d: %v\n", userId, err)
+			}
+		}(user.Email, user.Name, userID)
 	}
 
 	return failedUserIDs, nil
@@ -694,13 +705,17 @@ func (s *UserManagementService) DeactivateAccount(ctx context.Context, token str
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	err = notifications.SendAccountDeactivationNotification(user.Email, user.Name)
-	if err != nil {
-		fmt.Printf("Failed to send account deactivation notification: %v\n", err)
-	}
+	// Send account deactivation notification in a goroutine
+	go func() {
+		err = notifications.SendAccountDeactivationNotification(s.notificationService, user.Email, user.Name)
+		if err != nil {
+			fmt.Printf("Failed to send account deactivation notification: %v\n", err)
+		}
+	}()
 
 	return nil
 }
+
 
 func (s *UserManagementService) ReactivateAccount(ctx context.Context, token string, userID int32) error {
 	claims, err := utils.ValidateToken(token)
@@ -737,10 +752,12 @@ func (s *UserManagementService) ReactivateAccount(ctx context.Context, token str
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	err = notifications.SendAccountReactivationNotification(user.Email, user.Name)
-	if err != nil {
-		fmt.Printf("Failed to send account reactivation notification: %v\n", err)
-	}
+	go func() {
+		err = notifications.SendAccountReactivationNotification(s.notificationService, user.Email, user.Name)
+		if err != nil {
+			fmt.Printf("Failed to send account reactivation notification: %v\n", err)
+		}
+	}()
 
 	return nil
 }
@@ -859,7 +876,7 @@ func (s *UserManagementService) InitiatePasswordUpdate(ctx context.Context, toke
 
 	// Send verification code via email in a goroutine
 	go func() {
-		err := notifications.SendPasswordUpdateVerificationEmail(user.Email, user.Name, verificationCode)
+		err := notifications.SendPasswordUpdateVerificationEmail(s.notificationService, user.Email, user.Name, verificationCode)
 		if err != nil {
 			fmt.Printf("Failed to send verification email: %v\n", err)
 		}
@@ -930,7 +947,7 @@ func (s *UserManagementService) VerifyAndUpdatePassword(ctx context.Context, tok
 
 	// Send password update confirmation email in a goroutine
 	go func() {
-		err := notifications.SendPasswordUpdateConfirmationEmail(user.Email, user.Name)
+		err := notifications.SendPasswordUpdateConfirmationEmail(s.notificationService, user.Email, user.Name)
 		if err != nil {
 			fmt.Printf("Failed to send password update confirmation email: %v\n", err)
 		}

@@ -11,7 +11,7 @@ import (
 	"github.com/iRankHub/backend/internal/services/notification"
 )
 
-func SendTournamentInvitations(ctx context.Context, tournament models.Tournament, league models.League, format models.Tournamentformat, queries *models.Queries) error {
+func SendTournamentInvitations(ctx context.Context, notificationService *notification.NotificationService, tournament models.Tournament, league models.League, format models.Tournamentformat, queries *models.Queries) error {
 	log.Printf("Starting to send invitations for tournament %d", tournament.Tournamentid)
 
 	invitations, err := queries.GetPendingInvitations(ctx, tournament.Tournamentid)
@@ -34,8 +34,9 @@ func SendTournamentInvitations(ctx context.Context, tournament models.Tournament
 
 	// Start worker pool
 	for i := 0; i < numWorkers; i++ {
-		go worker(ctx, jobChan, errChan, doneChan, tournament, league, format, queries)
+		go worker(ctx, notificationService, jobChan, errChan, doneChan, tournament, league, format, queries)
 	}
+
 
 	// Send jobs to workers
 	for _, invitation := range invitations {
@@ -67,15 +68,15 @@ func SendTournamentInvitations(ctx context.Context, tournament models.Tournament
 	return nil
 }
 
-func worker(ctx context.Context, jobs <-chan models.GetPendingInvitationsRow, errors chan<- error, done chan<- bool, tournament models.Tournament, league models.League, format models.Tournamentformat, queries *models.Queries) {
+func worker(ctx context.Context, notificationService *notification.NotificationService, jobs <-chan models.GetPendingInvitationsRow, errors chan<- error, done chan<- bool, tournament models.Tournament, league models.League, format models.Tournamentformat, queries *models.Queries) {
 	for invitation := range jobs {
-		err := sendInvitation(ctx, invitation, tournament, league, format, queries)
+		err := sendInvitation(ctx, notificationService, invitation, tournament, league, format, queries)
 		errors <- err
 	}
 	done <- true
 }
 
-func sendInvitation(ctx context.Context, invitation models.GetPendingInvitationsRow, tournament models.Tournament, league models.League, format models.Tournamentformat, queries *models.Queries) error {
+func sendInvitation(ctx context.Context, notificationService *notification.NotificationService, invitation models.GetPendingInvitationsRow, tournament models.Tournament, league models.League, format models.Tournamentformat, queries *models.Queries) error {
 	var subject, content string
 	var email string
 	var userID int32
@@ -115,7 +116,7 @@ func sendInvitation(ctx context.Context, invitation models.GetPendingInvitations
 	log.Printf("Sending invitation email to %s for invitation ID %d", email, invitation.Invitationid)
 
 	// Send email notification
-	err := SendNotification(notification.EmailNotification, email, subject, content)
+	err := SendNotification(notificationService, notification.EmailNotification, email, subject, content)
 	if err != nil {
 		log.Printf("Failed to send invitation email to %s for invitation ID %d: %v", email, invitation.Invitationid, err)
 		return fmt.Errorf("failed to send invitation to email %s for invitation ID %d: %v", email, invitation.Invitationid, err)
@@ -123,7 +124,7 @@ func sendInvitation(ctx context.Context, invitation models.GetPendingInvitations
 
 	// Send in-app notification
 	inAppContent := fmt.Sprintf("You've been invited to the %s Tournament", tournament.Name)
-	err = SendNotification(notification.InAppNotification, fmt.Sprintf("%d", userID), subject, inAppContent)
+	err = SendNotification(notificationService, notification.InAppNotification, fmt.Sprintf("%d", userID), subject, inAppContent)
 	if err != nil {
 		log.Printf("Failed to send in-app notification to user ID %d for invitation ID %d: %v", userID, invitation.Invitationid, err)
 		return fmt.Errorf("failed to send in-app notification to user ID %d for invitation ID %d: %v", userID, invitation.Invitationid, err)
@@ -143,80 +144,80 @@ func sendInvitation(ctx context.Context, invitation models.GetPendingInvitations
 	return nil
 }
 
-func SendTournamentCreationConfirmation(to, name, tournamentName string, userID int32) error {
-	subject := "Tournament Created Successfully"
-	content := fmt.Sprintf(`
-		<p>Dear %s,</p>
-		<p>We are pleased to inform you that the tournament "%s" has been successfully created in iRankHub.</p>
-		<p>Invitations have been sent to eligible schools based on the league settings.</p>
-		<p>You can now manage this tournament through your iRankHub dashboard.</p>
-		<p>If you need to make any changes or have any questions, please don't hesitate to use the tournament management tools or contact our support team.</p>
-		<p>Best regards,<br>The iRankHub Team</p>
-	`, name, tournamentName)
-	body := GetEmailTemplate(content)
+func SendTournamentCreationConfirmation(notificationService *notification.NotificationService, to, name, tournamentName string, userID int32) error {
+    subject := "Tournament Created Successfully"
+    content := fmt.Sprintf(`
+        <p>Dear %s,</p>
+        <p>We are pleased to inform you that the tournament "%s" has been successfully created in iRankHub.</p>
+        <p>Invitations have been sent to eligible schools based on the league settings.</p>
+        <p>You can now manage this tournament through your iRankHub dashboard.</p>
+        <p>If you need to make any changes or have any questions, please don't hesitate to use the tournament management tools or contact our support team.</p>
+        <p>Best regards,<br>The iRankHub Team</p>
+    `, name, tournamentName)
+    body := GetEmailTemplate(content)
 
-	// Send email notification
-	if err := SendNotification(notification.EmailNotification, to, subject, body); err != nil {
-		return err
-	}
+    // Send email notification
+    if err := SendNotification(notificationService, notification.EmailNotification, to, subject, body); err != nil {
+        return err
+    }
 
-	// Send in-app notification
-	inAppContent := fmt.Sprintf("Tournament '%s' has been successfully created", tournamentName)
-	if err := SendNotification(notification.InAppNotification, fmt.Sprintf("%d", userID), subject, inAppContent); err != nil {
-		return err
-	}
+    // Send in-app notification
+    inAppContent := fmt.Sprintf("Tournament '%s' has been successfully created", tournamentName)
+    if err := SendNotification(notificationService, notification.InAppNotification, fmt.Sprintf("%d", userID), subject, inAppContent); err != nil {
+        return err
+    }
 
-	return nil
+    return nil
 }
 
-func SendCoordinatorAssignmentEmail(coordinator models.User, tournament models.Tournament, league models.League, format models.Tournamentformat) error {
-	subject := fmt.Sprintf("You've been assigned as coordinator for %s Tournament", tournament.Name)
+func SendCoordinatorAssignmentEmail(notificationService *notification.NotificationService, coordinator models.User, tournament models.Tournament, league models.League, format models.Tournamentformat) error {
+    subject := fmt.Sprintf("You've been assigned as coordinator for %s Tournament", tournament.Name)
 
-	dateTimeInfo := formatDateTimeRange(tournament.Startdate, tournament.Enddate)
+    dateTimeInfo := formatDateTimeRange(tournament.Startdate, tournament.Enddate)
 
-	content := fmt.Sprintf(`
-		<p>Dear %s,</p>
-		<p>We are pleased to inform you that you have been assigned as the coordinator for the following tournament:</p>
-		<h2>%s</h2>
-		<p><strong>League:</strong> %s</p>
-		<p><strong>Format:</strong> %s</p>
-		<p><strong>Location:</strong> %s</p>
-		<p><strong>Date and Time:</strong> %s</p>
-		<p><strong>Number of Preliminary Rounds:</strong> %d</p>
-		<p><strong>Number of Elimination Rounds:</strong> %d</p>
-		<p><strong>Judges per Debate (Preliminary):</strong> %d</p>
-		<p><strong>Judges per Debate (Elimination):</strong> %d</p>
-		<p><strong>Tournament Fee:</strong> %s</p>
-		<p>As the tournament coordinator, your responsibilities include:</p>
-		<ul>
-			<li>Overseeing the tournament organization and ensuring smooth operations</li>
-			<li>Managing participant registrations and team assignments</li>
-			<li>Coordinating with judges and volunteers</li>
-			<li>Handling any issues or concerns that arise during the tournament</li>
-			<li>Ensuring fair play and adherence to tournament rules</li>
-		</ul>
-		<p>Please log in to your iRankHub account for more detailed information about the tournament and your coordinator dashboard.</p>
-		<p>If you have any questions or need any assistance in your role as coordinator, please don't hesitate to contact our support team.</p>
-		<p>Thank you for your commitment to making this tournament a success!</p>
-		<p>Best regards,<br>The iRankHub Team</p>
-	`, coordinator.Name, tournament.Name, league.Name, format.Formatname, tournament.Location,
-		dateTimeInfo, tournament.Numberofpreliminaryrounds, tournament.Numberofeliminationrounds,
-		tournament.Judgesperdebatepreliminary, tournament.Judgesperdebateelimination, tournament.Tournamentfee)
+    content := fmt.Sprintf(`
+        <p>Dear %s,</p>
+        <p>We are pleased to inform you that you have been assigned as the coordinator for the following tournament:</p>
+        <h2>%s</h2>
+        <p><strong>League:</strong> %s</p>
+        <p><strong>Format:</strong> %s</p>
+        <p><strong>Location:</strong> %s</p>
+        <p><strong>Date and Time:</strong> %s</p>
+        <p><strong>Number of Preliminary Rounds:</strong> %d</p>
+        <p><strong>Number of Elimination Rounds:</strong> %d</p>
+        <p><strong>Judges per Debate (Preliminary):</strong> %d</p>
+        <p><strong>Judges per Debate (Elimination):</strong> %d</p>
+        <p><strong>Tournament Fee:</strong> %s</p>
+        <p>As the tournament coordinator, your responsibilities include:</p>
+        <ul>
+            <li>Overseeing the tournament organization and ensuring smooth operations</li>
+            <li>Managing participant registrations and team assignments</li>
+            <li>Coordinating with judges and volunteers</li>
+            <li>Handling any issues or concerns that arise during the tournament</li>
+            <li>Ensuring fair play and adherence to tournament rules</li>
+        </ul>
+        <p>Please log in to your iRankHub account for more detailed information about the tournament and your coordinator dashboard.</p>
+        <p>If you have any questions or need any assistance in your role as coordinator, please don't hesitate to contact our support team.</p>
+        <p>Thank you for your commitment to making this tournament a success!</p>
+        <p>Best regards,<br>The iRankHub Team</p>
+    `, coordinator.Name, tournament.Name, league.Name, format.Formatname, tournament.Location,
+        dateTimeInfo, tournament.Numberofpreliminaryrounds, tournament.Numberofeliminationrounds,
+        tournament.Judgesperdebatepreliminary, tournament.Judgesperdebateelimination, tournament.Tournamentfee)
 
-	body := GetEmailTemplate(content)
+    body := GetEmailTemplate(content)
 
-	// Send email notification
-	if err := SendNotification(notification.EmailNotification, coordinator.Email, subject, body); err != nil {
-		return err
-	}
+    // Send email notification
+    if err := SendNotification(notificationService, notification.EmailNotification, coordinator.Email, subject, body); err != nil {
+        return err
+    }
 
-	// Send in-app notification
-	inAppContent := fmt.Sprintf("You've been assigned as coordinator for the %s Tournament", tournament.Name)
-	if err := SendNotification(notification.InAppNotification, fmt.Sprintf("%d", coordinator.Userid), subject, inAppContent); err != nil {
-		return err
-	}
+    // Send in-app notification
+    inAppContent := fmt.Sprintf("You've been assigned as coordinator for the %s Tournament", tournament.Name)
+    if err := SendNotification(notificationService, notification.InAppNotification, fmt.Sprintf("%d", coordinator.Userid), subject, inAppContent); err != nil {
+        return err
+    }
 
-	return nil
+    return nil
 }
 
 func PrepareSchoolInvitationContent(school models.School, tournament models.Tournament, league models.League, format models.Tournamentformat) string {

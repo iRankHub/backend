@@ -1,3 +1,4 @@
+-- name: CreateNotification :one
 INSERT INTO Notifications (UserID, Type, Message, RecipientEmail, Subject, IsRead)
 VALUES ($1, $2, $3, $4, $5, FALSE)
 RETURNING *;

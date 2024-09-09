@@ -11,16 +11,20 @@ import (
 	"github.com/pquerna/otp/totp"
 
 	"github.com/iRankHub/backend/internal/models"
+	notificationService "github.com/iRankHub/backend/internal/services/notification"
 	notification "github.com/iRankHub/backend/internal/utils/notifications"
-
 )
 
 type TwoFactorService struct {
-	db *sql.DB
+	db                 *sql.DB
+	notificationService *notificationService.NotificationService
 }
 
-func NewTwoFactorService(db *sql.DB) *TwoFactorService {
-	return &TwoFactorService{db: db}
+func NewTwoFactorService(db *sql.DB, ns *notificationService.NotificationService) *TwoFactorService {
+	return &TwoFactorService{
+		db:                 db,
+		notificationService: ns,
+	}
 }
 
 func (s *TwoFactorService) GenerateSecret() (string, error) {
@@ -58,7 +62,7 @@ func (s *TwoFactorService) GenerateTwoFactorOTP(ctx context.Context, email strin
 	}
 
 	go func() {
-		err := notification.SendTwoFactorOTPEmail(user.Email, otp)
+		err := notification.SendTwoFactorOTPEmail(s.notificationService, user.Email, otp)
 		if err != nil {
 			fmt.Printf("failed to send OTP email: %v\n", err)
 		}
@@ -129,7 +133,7 @@ func (s *TwoFactorService) EnableTwoFactor(ctx context.Context, userID int32) er
 			return
 		}
 
-		err = notification.SendTwoFactorOTPEmail(user.Email, otp)
+		err = notification.SendTwoFactorOTPEmail(s.notificationService, user.Email, otp)
 		if err != nil {
 			fmt.Printf("failed to send OTP email: %v\n", err)
 		}
