@@ -14,7 +14,7 @@ Before using the notification service, you need to set up RabbitMQ:
 1. Install RabbitMQ:
    - For Ubuntu/Debian: `sudo apt-get install rabbitmq-server`
    - For macOS: `brew install rabbitmq`
-   - For Windows: Download and install from the [official RabbitMQ website](https://www.rabbitmq.com/download.html)
+   - For Windows: Download and install from the [official RabbitMQ website](https://www.rabbitmq.com/docs/download)
 
 2. Start RabbitMQ service:
    - For Ubuntu/Debian: `sudo service rabbitmq-server start`
