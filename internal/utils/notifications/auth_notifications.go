@@ -2,9 +2,10 @@ package utils
 
 import (
 	"fmt"
-	"net/smtp"
 
 	"github.com/spf13/viper"
+
+	"github.com/iRankHub/backend/internal/services/notification"
 )
 
 func init() {
@@ -55,26 +56,6 @@ func getAuthEmailTemplate(content string) string {
 	`, logoURL, content)
 }
 
-func sendAuthEmail(to, subject, body string) error {
-	from := viper.GetString("EMAIL_FROM")
-	password := viper.GetString("EMAIL_PASSWORD")
-	smtpHost := viper.GetString("SMTP_HOST")
-	smtpPort := viper.GetString("SMTP_PORT")
-
-	auth := smtp.PlainAuth("", from, password, smtpHost)
-
-	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
-	subject = "Subject: " + subject + "\n"
-	msg := []byte(subject + mime + body)
-
-	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, from, []string{to}, msg)
-	if err != nil {
-		return fmt.Errorf("failed to send email: %v", err)
-	}
-
-	return nil
-}
-
 func SendWelcomeEmail(to, name string) error {
 	subject := "Welcome to iRankHub"
 	content := fmt.Sprintf(`
@@ -84,10 +65,10 @@ func SendWelcomeEmail(to, name string) error {
 		<p>Best regards,<br>The iRankHub Team</p>
 	`, name)
 	body := getAuthEmailTemplate(content)
-	return sendAuthEmail(to, subject, body)
+	return SendNotification(notification.EmailNotification, to, subject, body)
 }
 
-func SendAdminWelcomeEmail(to, name string) error {
+func SendAdminWelcomeEmail(to, name string, userID int32) error {
 	subject := "Welcome to iRankHub - Admin Account"
 	content := fmt.Sprintf(`
 		<p>Hello, %s!</p>
@@ -97,7 +78,19 @@ func SendAdminWelcomeEmail(to, name string) error {
 		<p>Best regards,<br>The iRankHub Team</p>
 	`, name)
 	body := getAuthEmailTemplate(content)
-	return sendAuthEmail(to, subject, body)
+
+	// Send email notification
+	if err := SendNotification(notification.EmailNotification, to, subject, body); err != nil {
+		return err
+	}
+
+	// Send in-app notification
+	inAppContent := fmt.Sprintf("Welcome, %s! Your admin account is ready to use.", name)
+	if err := SendNotification(notification.InAppNotification, fmt.Sprintf("%d", userID), subject, inAppContent); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func SendPasswordResetEmail(to, resetToken string) error {
@@ -112,7 +105,7 @@ func SendPasswordResetEmail(to, resetToken string) error {
 		<p>Best regards,<br>The iRankHub Team</p>
 	`, resetToken, resetToken)
 	body := getAuthEmailTemplate(content)
-	return sendAuthEmail(to, subject, body)
+	return SendNotification(notification.EmailNotification, to, subject, body)
 }
 
 func SendForcedPasswordResetEmail(to, resetToken string) error {
@@ -128,7 +121,7 @@ func SendForcedPasswordResetEmail(to, resetToken string) error {
 		<p>Best regards,<br>The iRankHub Security Team</p>
 	`, resetToken, resetToken)
 	body := getAuthEmailTemplate(content)
-	return sendAuthEmail(to, subject, body)
+	return SendNotification(notification.EmailNotification, to, subject, body)
 }
 
 func SendTwoFactorOTPEmail(to, otp string) error {
@@ -144,7 +137,7 @@ func SendTwoFactorOTPEmail(to, otp string) error {
 		<p>Best regards,<br>The iRankHub Security Team</p>
 	`, otp)
 	body := getAuthEmailTemplate(content)
-	return sendAuthEmail(to, subject, body)
+	return SendNotification(notification.EmailNotification, to, subject, body)
 }
 
 func SendTemporaryPasswordEmail(to, firstName, temporaryPassword string) error {
@@ -158,5 +151,5 @@ func SendTemporaryPasswordEmail(to, firstName, temporaryPassword string) error {
         <p>Best regards,<br>The iRankHub Team</p>
     `, firstName, temporaryPassword)
 	body := getAuthEmailTemplate(content)
-	return sendAuthEmail(to, subject, body)
+	return SendNotification(notification.EmailNotification, to, subject, body)
 }

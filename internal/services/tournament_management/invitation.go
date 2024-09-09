@@ -10,7 +10,8 @@ import (
 	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
-	emails "github.com/iRankHub/backend/internal/utils/emails"
+	notification "github.com/iRankHub/backend/internal/utils/notifications"
+	notifications "github.com/iRankHub/backend/internal/services/notification"
 )
 
 type InvitationService struct {
@@ -248,7 +249,7 @@ func (s *InvitationService) sendInvitationEmailAsync(invitationID int32) {
 			return
 		}
 		subject = fmt.Sprintf("Reminder: Invitation to Participate in %s Tournament", tournament.Name)
-		content = emails.PrepareStudentInvitationContent(student, tournamentModel, league, format)
+		content = notification.PrepareStudentInvitationContent(student, tournamentModel, league, format)
 		email = student.Email.String
 	case "school":
 		school, err := queries.GetSchoolByIDebateID(ctx, sql.NullString{String: invitation.Inviteeid, Valid: invitation.Inviteeid != ""})
@@ -257,7 +258,7 @@ func (s *InvitationService) sendInvitationEmailAsync(invitationID int32) {
 			return
 		}
 		subject = fmt.Sprintf("Reminder: Invitation to %s Tournament", tournament.Name)
-		content = emails.PrepareSchoolInvitationContent(school, tournamentModel, league, format)
+		content = notification.PrepareSchoolInvitationContent(school, tournamentModel, league, format)
 		email = school.Contactemail
 	case "volunteer":
 		volunteer, err := queries.GetVolunteerByIDebateID(ctx, sql.NullString{String: invitation.Inviteeid, Valid: invitation.Inviteeid != ""})
@@ -271,14 +272,14 @@ func (s *InvitationService) sendInvitationEmailAsync(invitationID int32) {
 			return
 		}
 		subject = fmt.Sprintf("Reminder: Invitation to Judge at %s Tournament", tournament.Name)
-		content = emails.PrepareVolunteerInvitationContent(volunteer, tournamentModel, league, format)
+		content = notification.PrepareVolunteerInvitationContent(volunteer, tournamentModel, league, format)
 		email = user.Email
 	default:
 		log.Printf("Unknown invitee role: %s", invitation.Inviteerole)
 		return
 	}
 
-	err = emails.SendEmail(email, subject, content)
+	err = notification.SendNotification(notifications.EmailNotification, email, subject, content)
 	if err != nil {
 		log.Printf("Failed to send invitation email to %s for invitation ID %d: %v", email, invitationID, err)
 	} else {

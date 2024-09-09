@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/iRankHub/backend/internal/models"
+	"github.com/iRankHub/backend/internal/services/notification"
 )
 
 func init() {
@@ -31,7 +32,7 @@ func SendReminderEmails(ctx context.Context, invitations []models.GetPendingInvi
 
 		batch := invitations[i:end]
 		for _, invitation := range batch {
-			if err := sendSingleReminderEmail(invitation); err != nil {
+			if err := sendSingleReminderEmail(ctx, invitation, queries); err != nil {
 				errors = append(errors, fmt.Errorf("failed to send reminder email for invitation %d: %v", invitation.Invitationid, err))
 			}
 		}
@@ -46,7 +47,7 @@ func SendReminderEmails(ctx context.Context, invitations []models.GetPendingInvi
 	return nil
 }
 
-func sendSingleReminderEmail(invitation models.GetPendingInvitationsRow) error {
+func sendSingleReminderEmail(ctx context.Context, invitation models.GetPendingInvitationsRow, queries *models.Queries) error {
 	timeUntilTournament := time.Until(invitation.Tournamentstartdate)
 	reminderType := getShouldSendReminder(timeUntilTournament, invitation.Status, invitation.Inviteerole == "school")
 
@@ -59,11 +60,28 @@ func sendSingleReminderEmail(invitation models.GetPendingInvitationsRow) error {
 		return err
 	}
 
+	// Get user ID for in-app notification
+	user, err := queries.GetUserByEmail(ctx, recipient)
+	if err != nil {
+		return fmt.Errorf("failed to get user by email: %v", err)
+	}
+
 	subject := fmt.Sprintf("Reminder: %s Tournament", invitation.Tournamentname)
 	content := prepareReminderEmailContent(recipientType, invitation.Tournamentname, timeUntilTournament, invitation.Invitationid, reminderType)
 	body := GetEmailTemplate(content)
 
-	return SendEmail(recipient, subject, body)
+	// Send email notification
+	if err := SendNotification(notification.EmailNotification, recipient, subject, body); err != nil {
+		return err
+	}
+
+	// Send in-app notification
+	inAppContent := fmt.Sprintf("Reminder for %s Tournament: %s", invitation.Tournamentname, reminderType)
+	if err := SendNotification(notification.InAppNotification, fmt.Sprintf("%d", user.Userid), subject, inAppContent); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func prepareReminderEmailContent(recipientType, tournamentName string, timeUntilTournament time.Duration, invitationID int32, reminderType string) string {

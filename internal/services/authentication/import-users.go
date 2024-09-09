@@ -7,7 +7,7 @@ import (
 
 	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
 	"github.com/iRankHub/backend/internal/utils"
-	emails "github.com/iRankHub/backend/internal/utils/emails"
+	notification "github.com/iRankHub/backend/internal/utils/notifications"
 )
 
 type ImportUsersService struct {
@@ -76,7 +76,7 @@ func (s *ImportUsersService) BatchImportUsers(ctx context.Context, users []*auth
 
 				// Send email with temporary password
 				go func() {
-					if err := emails.SendTemporaryPasswordEmail(userData.Email, userData.FirstName, password); err != nil {
+					if err := notification.SendTemporaryPasswordEmail(userData.Email, userData.FirstName, password); err != nil {
 						log.Printf("Failed to send temporary password email to %s: %v", userData.Email, err)
 					}
 				}()

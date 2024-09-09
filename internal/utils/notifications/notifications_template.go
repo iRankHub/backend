@@ -1,10 +1,12 @@
 package utils
 
 import (
+	"context"
 	"fmt"
-	"net/smtp"
 
 	"github.com/spf13/viper"
+
+	"github.com/iRankHub/backend/internal/services/notification"
 )
 
 func GetEmailTemplate(content string) string {
@@ -47,21 +49,21 @@ func GetEmailTemplate(content string) string {
 	`, logoURL, content)
 }
 
-func SendEmail(to, subject, body string) error {
-	from := viper.GetString("EMAIL_FROM")
-	password := viper.GetString("EMAIL_PASSWORD")
-	smtpHost := viper.GetString("SMTP_HOST")
-	smtpPort := viper.GetString("SMTP_PORT")
-
-	auth := smtp.PlainAuth("", from, password, smtpHost)
-
-	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
-	subject = "Subject: " + subject + "\n"
-	msg := []byte(subject + mime + body)
-
-	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, from, []string{to}, msg)
+func SendNotification(notificationType notification.NotificationType, to, subject, content string) error {
+	notificationService, err := notification.NewNotificationService(nil) // You'll need to pass the appropriate db connection
 	if err != nil {
-		return fmt.Errorf("failed to send email: %v", err)
+		return fmt.Errorf("failed to create notification service: %v", err)
+	}
+
+	err = notificationService.SendNotification(context.Background(), notification.Notification{
+		Type:    notificationType,
+		To:      to,
+		Subject: subject,
+		Content: content,
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to send notification: %v", err)
 	}
 
 	return nil

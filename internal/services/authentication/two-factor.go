@@ -11,7 +11,8 @@ import (
 	"github.com/pquerna/otp/totp"
 
 	"github.com/iRankHub/backend/internal/models"
-	emails "github.com/iRankHub/backend/internal/utils/emails"
+	notification "github.com/iRankHub/backend/internal/utils/notifications"
+
 )
 
 type TwoFactorService struct {
@@ -57,7 +58,7 @@ func (s *TwoFactorService) GenerateTwoFactorOTP(ctx context.Context, email strin
 	}
 
 	go func() {
-		err := emails.SendTwoFactorOTPEmail(user.Email, otp)
+		err := notification.SendTwoFactorOTPEmail(user.Email, otp)
 		if err != nil {
 			fmt.Printf("failed to send OTP email: %v\n", err)
 		}
@@ -128,7 +129,7 @@ func (s *TwoFactorService) EnableTwoFactor(ctx context.Context, userID int32) er
 			return
 		}
 
-		err = emails.SendTwoFactorOTPEmail(user.Email, otp)
+		err = notification.SendTwoFactorOTPEmail(user.Email, otp)
 		if err != nil {
 			fmt.Printf("failed to send OTP email: %v\n", err)
 		}

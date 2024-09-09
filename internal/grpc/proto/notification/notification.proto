@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package notification;
+
+option go_package = "github.com/iRankHub/backend/internal/grpc/proto/notification";
+
+service NotificationService {
+  rpc SendNotification(SendNotificationRequest) returns (SendNotificationResponse) {}
+  rpc GetUnreadNotifications(GetUnreadNotificationsRequest) returns (GetUnreadNotificationsResponse) {}
+  rpc MarkNotificationsAsRead(MarkNotificationsAsReadRequest) returns (MarkNotificationsAsReadResponse) {}
+  rpc SubscribeToNotifications(SubscribeRequest) returns (stream NotificationEvent) {}
+}
+
+enum NotificationType {
+  EMAIL = 0;
+  IN_APP = 1;
+}
+
+message Notification {
+  int32 id = 1;
+  NotificationType type = 2;
+  string to = 3;
+  string subject = 4;
+  string content = 5;
+}
+
+message SendNotificationRequest {
+  NotificationType type = 1;
+  string to = 2;
+  string subject = 3;
+  string content = 4;
+}
+
+message SendNotificationResponse {
+  bool success = 1;
+}
+
+message GetUnreadNotificationsRequest {
+  int32 user_id = 1;
+}
+
+message GetUnreadNotificationsResponse {
+  repeated Notification notifications = 1;
+}
+
+message MarkNotificationsAsReadRequest {
+  int32 user_id = 1;
+}
+
+message MarkNotificationsAsReadResponse {
+  bool success = 1;
+}
+
+message SubscribeRequest {
+  int32 user_id = 1;
+}
+
+message NotificationEvent {
+  Notification notification = 1;
+}

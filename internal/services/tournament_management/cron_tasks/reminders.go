@@ -10,7 +10,7 @@ import (
 	"github.com/robfig/cron/v3"
 
 	"github.com/iRankHub/backend/internal/models"
-	emails "github.com/iRankHub/backend/internal/utils/emails"
+	notification "github.com/iRankHub/backend/internal/utils/notifications"
 )
 
 type ReminderService struct {
@@ -50,8 +50,8 @@ func (s *ReminderService) SendReminders() {
 			continue
 		}
 
-		if err := emails.SendReminderEmails(ctx, invitations, queries); err != nil {
-			log.Printf("Failed to send reminder emails for tournament %d: %v\n", tournament.Tournamentid, err)
+		if err := notification.SendReminderEmails(ctx, invitations, queries); err != nil {
+			log.Printf("Failed to send reminder notification for tournament %d: %v\n", tournament.Tournamentid, err)
 		}
 	}
 }

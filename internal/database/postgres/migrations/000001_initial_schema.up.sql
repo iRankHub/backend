@@ -70,6 +70,8 @@ CREATE TABLE Notifications (
     UserID INTEGER NOT NULL REFERENCES Users(UserID),
     Type VARCHAR(50) NOT NULL,
     Message TEXT NOT NULL,
+    RecipientEmail VARCHAR(255),
+    Subject VARCHAR(255),
     IsRead BOOLEAN DEFAULT FALSE,
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -7,6 +7,29 @@ The iRankHub backend API is built using gRPC and is accessible through an Envoy 
 - gRPC Server Port: 8080
 - Envoy Proxy Port: 10000
 
+## Setting up RabbitMQ
+
+Before using the notification service, you need to set up RabbitMQ:
+
+1. Install RabbitMQ:
+   - For Ubuntu/Debian: `sudo apt-get install rabbitmq-server`
+   - For macOS: `brew install rabbitmq`
+   - For Windows: Download and install from the [official RabbitMQ website](https://www.rabbitmq.com/download.html)
+
+2. Start RabbitMQ service:
+   - For Ubuntu/Debian: `sudo service rabbitmq-server start`
+   - For macOS: `brew services start rabbitmq`
+   - For Windows: RabbitMQ should start automatically after installation
+
+3. Configure RabbitMQ:
+   - Create a new user: `rabbitmqctl add_user myuser mypassword`
+   - Set permissions: `rabbitmqctl set_permissions -p / myuser ".*" ".*" ".*"`
+
+4. Update your `.env` file with RabbitMQ credentials:
+   ```
+   RABBITMQ_URL=amqp://myuser:mypassword@localhost:5672/
+   ```
+
 ## Testing with Postman
 
 To test the API endpoints using Postman:

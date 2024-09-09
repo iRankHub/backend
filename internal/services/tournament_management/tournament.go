@@ -12,7 +12,7 @@ import (
 	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
-	emails "github.com/iRankHub/backend/internal/utils/emails"
+	notification "github.com/iRankHub/backend/internal/utils/notifications"
 )
 
 type TournamentService struct {
@@ -34,6 +34,11 @@ func (s *TournamentService) CreateTournament(ctx context.Context, req *tournamen
 		return nil, fmt.Errorf("failed to get creator email from token")
 	}
 	creatorName, ok := claims["user_name"].(string)
+	if !ok {
+		return nil, fmt.Errorf("failed to get creator name from token")
+	}
+
+	creatorID, ok := claims["user_id"].(int32)
 	if !ok {
 		return nil, fmt.Errorf("failed to get creator name from token")
 	}
@@ -103,7 +108,7 @@ func (s *TournamentService) CreateTournament(ctx context.Context, req *tournamen
 		return nil, fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	// Send emails asynchronously
+	// Send notification asynchronously
 	go func() {
 		// Use a new context for background operations
 		bgCtx := context.Background()
@@ -111,15 +116,15 @@ func (s *TournamentService) CreateTournament(ctx context.Context, req *tournamen
 		// Create a new database connection for background operations
 		bgQueries := models.New(s.db)
 
-		if err := emails.SendTournamentInvitations(bgCtx, tournament, league, format, bgQueries); err != nil {
+		if err := notification.SendTournamentInvitations(bgCtx, tournament, league, format, bgQueries); err != nil {
 			log.Printf("Failed to send tournament invitations: %v", err)
 		}
 
-		if err := emails.SendTournamentCreationConfirmation(creatorEmail, creatorName, tournament.Name); err != nil {
+		if err := notification.SendTournamentCreationConfirmation(creatorEmail, creatorName, tournament.Name, int32(creatorID)); err != nil {
 			log.Printf("Failed to send tournament creation confirmation: %v", err)
 		}
 
-		if err := emails.SendCoordinatorAssignmentEmail(coordinator, tournament, league, format); err != nil {
+		if err := notification.SendCoordinatorAssignmentEmail(coordinator, tournament, league, format); err != nil {
 			log.Printf("Failed to send coordinator assignment email: %v", err)
 		}
 	}()

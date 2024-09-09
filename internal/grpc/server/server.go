@@ -11,10 +11,12 @@ import (
 
 	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
 	"github.com/iRankHub/backend/internal/grpc/proto/debate_management"
+	"github.com/iRankHub/backend/internal/grpc/proto/notification"
 	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
 	"github.com/iRankHub/backend/internal/grpc/proto/user_management"
 	authserver "github.com/iRankHub/backend/internal/grpc/server/authentication"
 	debateserver "github.com/iRankHub/backend/internal/grpc/server/debate_management"
+	notificationserver "github.com/iRankHub/backend/internal/grpc/server/notification"
 	tournamentserver "github.com/iRankHub/backend/internal/grpc/server/tournament_management"
 	userserver "github.com/iRankHub/backend/internal/grpc/server/user_management"
 )
@@ -47,6 +49,12 @@ func StartGRPCServer(db *sql.DB) error {
 		return fmt.Errorf("failed to create DebateServer: %v", err)
 	}
 	debate_management.RegisterDebateServiceServer(grpcServer, debateServer)
+
+	notificationServer, err := notificationserver.NewNotificationServer(db)
+	if err != nil {
+		return fmt.Errorf("failed to create NotificationServer: %v", err)
+	}
+	notification.RegisterNotificationServiceServer(grpcServer, notificationServer)
 
 	// Read the gRPC server port from the environment
 	viper.SetDefault("GRPC_PORT", "8080")

@@ -10,7 +10,7 @@ import (
 
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
-	emails "github.com/iRankHub/backend/internal/utils/emails"
+	notification "github.com/iRankHub/backend/internal/utils/notifications"
 )
 
 type RecoveryService struct {
@@ -64,7 +64,7 @@ func (s *RecoveryService) RequestPasswordReset(ctx context.Context, email string
 	}
 
 	// Send password reset email
-	err = emails.SendPasswordResetEmail(email, token)
+	err = notification.SendPasswordResetEmail(email, token)
 	if err != nil {
 		return fmt.Errorf("failed to send password reset email: %v", err)
 	}
@@ -106,7 +106,7 @@ func (s *RecoveryService) ForcedPasswordReset(ctx context.Context, email string)
 	}
 
 	// Send forced password reset email
-	err = emails.SendForcedPasswordResetEmail(email, token)
+	err = notification.SendForcedPasswordResetEmail(email, token)
 	if err != nil {
 		return fmt.Errorf("failed to send forced password reset email: %v", err)
 	}

@@ -9,7 +9,7 @@ import (
 
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
-	emails "github.com/iRankHub/backend/internal/utils/emails"
+	notification "github.com/iRankHub/backend/internal/utils/notifications"
 )
 
 type SignUpService struct {
@@ -93,7 +93,7 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 	// This go routine runs in the background as to not impact performance
 	go func() {
 		if userRole == "admin" {
-			if err := emails.SendAdminWelcomeEmail(email, firstName); err != nil {
+			if err := notification.SendAdminWelcomeEmail(email, firstName, user.Userid); err != nil {
 				log.Printf("Failed to send admin welcome email: %v", err)
 			}
 		} else {
@@ -102,7 +102,7 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 			if err := s.notifyAdminOfNewSignUp(ctx, queries, user.Userid, userRole); err != nil {
 				log.Printf("Failed to notify admin of new signup: %v", err)
 			}
-			if err := emails.SendWelcomeEmail(email, firstName); err != nil {
+			if err := notification.SendWelcomeEmail(email, firstName); err != nil {
 				log.Printf("Failed to send welcome email: %v", err)
 			}
 		}
