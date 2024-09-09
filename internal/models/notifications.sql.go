@@ -48,7 +48,7 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 
 const getUnreadNotifications = `-- name: GetUnreadNotifications :many
 SELECT notificationid, userid, type, message, recipientemail, subject, isread, createdat FROM Notifications
-WHERE UserID = $1 AND IsRead = FALSE
+WHERE UserID = $1 AND IsRead = FALSE AND Type = 'in_app'
 ORDER BY CreatedAt DESC
 `
 

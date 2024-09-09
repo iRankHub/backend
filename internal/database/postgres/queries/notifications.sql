@@ -5,7 +5,7 @@ RETURNING *;
 
 -- name: GetUnreadNotifications :many
 SELECT * FROM Notifications
-WHERE UserID = $1 AND IsRead = FALSE
+WHERE UserID = $1 AND IsRead = FALSE AND Type = 'in_app'
 ORDER BY CreatedAt DESC;
 
 -- name: MarkNotificationsAsRead :exec
