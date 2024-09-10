@@ -345,6 +345,19 @@ func (s *UserManagementService) DeleteUsers(ctx context.Context, token string, u
 		return nil, fmt.Errorf("only admins can delete users")
 	}
 
+	// Extract the admin's user ID from the token
+	adminUserID, ok := claims["user_id"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("invalid user ID in token")
+	}
+
+	// Check if the admin's user ID is in the list of user IDs to be deleted
+	for _, userID := range userIDs {
+		if int32(adminUserID) == userID {
+			return nil, fmt.Errorf("admins cannot delete themselves")
+		}
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start transaction: %v", err)
