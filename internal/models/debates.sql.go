@@ -1471,22 +1471,29 @@ UPDATE JudgeAssignments ja
 SET DebateID = (
     SELECT d.DebateID
     FROM Debates d
-    WHERE d.TournamentID = $2 AND d.RoundNumber = $3 AND d.RoomID = $4
+    WHERE d.TournamentID = $2
+    AND d.RoundNumber = $3
+    AND d.RoomID = $4
+    AND d.IsEliminationRound = $5
 )
 WHERE ja.JudgeID = $1
   AND ja.TournamentID = $2
-  AND ja.DebateID IN (
-    SELECT d.DebateID
+  AND EXISTS (
+    SELECT 1
     FROM Debates d
-    WHERE d.TournamentID = $2 AND d.RoundNumber = $3
+    WHERE d.TournamentID = $2
+    AND d.RoundNumber = $3
+    AND d.IsEliminationRound = $5
+    AND d.DebateID = ja.DebateID
   )
 `
 
 type UpdateJudgeRoomParams struct {
-	Judgeid      int32 `json:"judgeid"`
-	Tournamentid int32 `json:"tournamentid"`
-	Roundnumber  int32 `json:"roundnumber"`
-	Roomid       int32 `json:"roomid"`
+	Judgeid            int32 `json:"judgeid"`
+	Tournamentid       int32 `json:"tournamentid"`
+	Roundnumber        int32 `json:"roundnumber"`
+	Roomid             int32 `json:"roomid"`
+	Iseliminationround bool  `json:"iseliminationround"`
 }
 
 func (q *Queries) UpdateJudgeRoom(ctx context.Context, arg UpdateJudgeRoomParams) error {
@@ -1495,6 +1502,7 @@ func (q *Queries) UpdateJudgeRoom(ctx context.Context, arg UpdateJudgeRoomParams
 		arg.Tournamentid,
 		arg.Roundnumber,
 		arg.Roomid,
+		arg.Iseliminationround,
 	)
 	return err
 }

@@ -67,7 +67,7 @@ CREATE TABLE UserProfiles (
 
 CREATE TABLE Notifications (
     NotificationID SERIAL PRIMARY KEY,
-    UserID INTEGER NOT NULL REFERENCES Users(UserID),
+    UserID INTEGER NOT NULL,
     Type VARCHAR(50) NOT NULL,
     Message TEXT NOT NULL,
     RecipientEmail VARCHAR(255),

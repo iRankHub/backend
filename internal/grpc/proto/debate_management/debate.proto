@@ -135,8 +135,9 @@ message GetJudgeResponse {
 message UpdateJudgeRequest {
   int32 judge_id = 1;
   int32 tournament_id = 2;
-  map<int32, int32> room_assignments = 3; // round_number -> room_id
-  string token = 4;
+  map<int32, RoomInfo> preliminary = 3;
+  map<int32, RoomInfo> elimination = 4;
+  string token = 5;
 }
 
 message UpdateJudgeResponse {

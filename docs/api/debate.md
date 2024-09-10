@@ -160,10 +160,22 @@ Request:
 {
   "judge_id": 1,
   "tournament_id": 1,
-  "room_assignments": {
-    "1": 101,  // Round 1 assigned to Room 101
-    "2": 102   // Round 2 assigned to Room 102
-  },
+   "preliminary": {
+        "1": {
+            "room_id": 64
+        },
+        "2": {
+            "room_id": 66
+        }
+    },
+       "elimination": {
+        "1": {
+            "room_id": 64
+        },
+        "2": {
+            "room_id": 66
+        }
+    },
   "token": "your_auth_token_here"
 }
 ```

@@ -8,6 +8,7 @@ import (
 	"github.com/iRankHub/backend/internal/grpc/proto/debate_management"
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
+
 )
 
 type JudgeService struct {
@@ -116,40 +117,56 @@ func (s *JudgeService) GetJudge(ctx context.Context, req *debate_management.GetJ
 }
 
 func (s *JudgeService) UpdateJudge(ctx context.Context, req *debate_management.UpdateJudgeRequest) (*debate_management.UpdateJudgeResponse, error) {
-	_, err := s.validateAdminRole(req.GetToken())
-	if err != nil {
-		return nil, err
-	}
+    _, err := s.validateAdminRole(req.GetToken())
+    if err != nil {
+        return nil, err
+    }
 
-	queries := models.New(s.db)
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start transaction: %v", err)
-	}
-	defer tx.Rollback()
+    queries := models.New(s.db)
+    tx, err := s.db.BeginTx(ctx, nil)
+    if err != nil {
+        return nil, fmt.Errorf("failed to start transaction: %v", err)
+    }
+    defer tx.Rollback()
 
-	qtx := queries.WithTx(tx)
+    qtx := queries.WithTx(tx)
 
-	for roundNumber, roomID := range req.GetRoomAssignments() {
-		err := qtx.UpdateJudgeRoom(ctx, models.UpdateJudgeRoomParams{
-			Judgeid:      int32(req.GetJudgeId()),
-			Tournamentid: req.GetTournamentId(),
-			Roundnumber:  int32(roundNumber),
-			Roomid:       int32(roomID),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to update judge room: %v", err)
-		}
-	}
+    // Update preliminary round assignments
+    for roundNumber, roomInfo := range req.GetPreliminary() {
+        err := qtx.UpdateJudgeRoom(ctx, models.UpdateJudgeRoomParams{
+            Judgeid:            int32(req.GetJudgeId()),
+            Tournamentid:       req.GetTournamentId(),
+            Roundnumber:        int32(roundNumber),
+            Roomid:             int32(roomInfo.GetRoomId()),
+            Iseliminationround: false,
+        })
+        if err != nil {
+            return nil, fmt.Errorf("failed to update judge room for preliminary round %d: %v", roundNumber, err)
+        }
+    }
 
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %v", err)
-	}
+    // Update elimination round assignments
+    for roundNumber, roomInfo := range req.GetElimination() {
+        err := qtx.UpdateJudgeRoom(ctx, models.UpdateJudgeRoomParams{
+            Judgeid:            int32(req.GetJudgeId()),
+            Tournamentid:       req.GetTournamentId(),
+            Roundnumber:        int32(roundNumber),
+            Roomid:             int32(roomInfo.GetRoomId()),
+            Iseliminationround: true,
+        })
+        if err != nil {
+            return nil, fmt.Errorf("failed to update judge room for elimination round %d: %v", roundNumber, err)
+        }
+    }
 
-	return &debate_management.UpdateJudgeResponse{
-		Success: true,
-		Message: "Judge rooms updated successfully",
-	}, nil
+    if err := tx.Commit(); err != nil {
+        return nil, fmt.Errorf("failed to commit transaction: %v", err)
+    }
+
+    return &debate_management.UpdateJudgeResponse{
+        Success: true,
+        Message: "Judge rooms updated successfully",
+    }, nil
 }
 
 func (s *JudgeService) validateAuthentication(token string) error {
