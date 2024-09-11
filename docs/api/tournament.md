@@ -223,12 +223,24 @@ Request:
 ### DeleteTournament
 
 Endpoint: `TournamentService.DeleteTournament`
-Authorization: Admin only
+Authorization: Admin Only
 
 Request:
 ```json
 {
   "tournamentId": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+### GetTournamentStats
+
+Endpoint: `TournamenetService.GetTournamentStats`
+Authorization: Admin Only
+
+Request:
+```json
+{
   "token": "your_auth_token_here"
 }
 ```

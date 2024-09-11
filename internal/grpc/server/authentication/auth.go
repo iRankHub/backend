@@ -13,6 +13,7 @@ import (
 	services "github.com/iRankHub/backend/internal/services/authentication"
 	notificationService "github.com/iRankHub/backend/internal/services/notification"
 	"github.com/iRankHub/backend/internal/utils"
+
 )
 
 type authServer struct {
@@ -136,7 +137,7 @@ func (s *authServer) loginWithRoleCheck(ctx context.Context, req *authentication
 	if user.Userrole != expectedRole {
 		return &authentication.LoginResponse{
 			Success: false,
-			Message: "Unauthorized access. Please use the correct login endpoint for your role.",
+			Message: "Unauthorized access. Please use the correct login page for your role.",
 		}, nil
 	}
 

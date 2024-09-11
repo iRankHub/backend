@@ -231,9 +231,22 @@ ORDER BY
 LIMIT 30; -- Limiting to last 30 days, adjust as needed
 
 -- name: GetTournamentStats :one
+WITH CurrentStats AS (
+    SELECT
+        COUNT(*) AS total_tournaments,
+        COUNT(CASE WHEN StartDate BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) AS upcoming_tournaments
+    FROM Tournaments
+    WHERE deleted_at IS NULL
+),
+HistoricalStats AS (
+    SELECT yesterday_total_count, yesterday_upcoming_count
+    FROM Tournaments
+    WHERE TournamentID = (SELECT MIN(TournamentID) FROM Tournaments)
+)
 SELECT
-    COUNT(*) AS total_tournaments,
-    COUNT(CASE WHEN StartDate BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' THEN 1 END) AS upcoming_tournaments
-FROM Tournaments
-WHERE deleted_at IS NULL;
+    cs.total_tournaments,
+    cs.upcoming_tournaments,
+    hs.yesterday_total_count,
+    hs.yesterday_upcoming_count
+FROM CurrentStats cs, HistoricalStats hs;
 

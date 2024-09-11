@@ -120,7 +120,9 @@ CREATE TABLE Tournaments (
     ImageUrl VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP
+    deleted_at TIMESTAMP,
+    yesterday_total_count INT DEFAULT 0,
+    yesterday_upcoming_count INT DEFAULT 0
 );
 
 CREATE TABLE Rooms (
@@ -636,9 +638,21 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION update_tournament_counts()
+RETURNS VOID AS $$
+BEGIN
+  UPDATE Tournaments
+  SET
+    yesterday_total_count = (SELECT COUNT(*) FROM Tournaments WHERE deleted_at IS NULL),
+    yesterday_upcoming_count = (SELECT COUNT(*) FROM Tournaments WHERE deleted_at IS NULL AND StartDate BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days')
+  WHERE TournamentID = (SELECT MIN(TournamentID) FROM Tournaments);
+END;
+$$ LANGUAGE plpgsql;
+
 --cron jobs
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 SELECT cron.schedule('update_user_counts_daily', '0 0 * * *', 'SELECT update_user_counts()');
+SELECT cron.schedule('update_tournament_counts_daily', '0 0 * * *', 'SELECT update_tournament_counts()');
 
 -- Function to generate the school ID
 CREATE OR REPLACE FUNCTION generate_idebate_school_id()

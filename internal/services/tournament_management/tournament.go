@@ -6,14 +6,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"strconv"
 	"time"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
 	"github.com/iRankHub/backend/internal/models"
+	notifications "github.com/iRankHub/backend/internal/services/notification"
 	"github.com/iRankHub/backend/internal/utils"
 	notification "github.com/iRankHub/backend/internal/utils/notifications"
-	notifications "github.com/iRankHub/backend/internal/services/notification"
 )
 
 type TournamentService struct {
@@ -185,7 +186,8 @@ func (s *TournamentService) ListTournaments(ctx context.Context, req *tournament
 }
 
 func (s *TournamentService) GetTournamentStats(ctx context.Context, req *tournament_management.GetTournamentStatsRequest) (*tournament_management.GetTournamentStatsResponse, error) {
-	if err := s.validateAuthentication(req.GetToken()); err != nil {
+	_, err := s.validateAdminRole(req.GetToken())
+	if err != nil {
 		return nil, err
 	}
 
@@ -195,10 +197,31 @@ func (s *TournamentService) GetTournamentStats(ctx context.Context, req *tournam
 		return nil, fmt.Errorf("failed to get tournament stats: %v", err)
 	}
 
+	totalPercentageChange := calculatePercentageChange(int64(stats.YesterdayTotalCount.Int32), stats.TotalTournaments)
+	upcomingPercentageChange := calculatePercentageChange(int64(stats.YesterdayUpcomingCount.Int32), stats.UpcomingTournaments)
+
 	return &tournament_management.GetTournamentStatsResponse{
 		TotalTournaments:    int32(stats.TotalTournaments),
 		UpcomingTournaments: int32(stats.UpcomingTournaments),
+		TotalPercentageChange: totalPercentageChange,
+		UpcomingPercentageChange: upcomingPercentageChange,
 	}, nil
+}
+
+func calculatePercentageChange(oldValue, newValue int64) string {
+	if oldValue == 0 && newValue == 0 {
+		return "0.00%"
+	}
+	if oldValue == 0 {
+		return "+∞%"
+	}
+	change := float64(newValue-oldValue) / float64(oldValue) * 100
+	sign := "+"
+	if change < 0 {
+		sign = "-"
+		change = math.Abs(change)
+	}
+	return fmt.Sprintf("%s%.2f%%", sign, change)
 }
 
 func (s *TournamentService) GetTournamentRegistrations(ctx context.Context, req *tournament_management.GetTournamentRegistrationsRequest) (*tournament_management.GetTournamentRegistrationsResponse, error) {
