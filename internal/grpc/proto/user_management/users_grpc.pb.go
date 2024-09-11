@@ -39,6 +39,7 @@ const (
 	UserManagementService_GetStudents_FullMethodName             = "/user_management.UserManagementService/GetStudents"
 	UserManagementService_GetVolunteers_FullMethodName           = "/user_management.UserManagementService/GetVolunteers"
 	UserManagementService_GetAllUsers_FullMethodName             = "/user_management.UserManagementService/GetAllUsers"
+	UserManagementService_GetUserStatistics_FullMethodName       = "/user_management.UserManagementService/GetUserStatistics"
 	UserManagementService_GetVolunteersAndAdmins_FullMethodName  = "/user_management.UserManagementService/GetVolunteersAndAdmins"
 	UserManagementService_GetSchoolsNoAuth_FullMethodName        = "/user_management.UserManagementService/GetSchoolsNoAuth"
 	UserManagementService_InitiatePasswordUpdate_FullMethodName  = "/user_management.UserManagementService/InitiatePasswordUpdate"
@@ -70,6 +71,7 @@ type UserManagementServiceClient interface {
 	GetStudents(ctx context.Context, in *GetStudentsRequest, opts ...grpc.CallOption) (*GetStudentsResponse, error)
 	GetVolunteers(ctx context.Context, in *GetVolunteersRequest, opts ...grpc.CallOption) (*GetVolunteersResponse, error)
 	GetAllUsers(ctx context.Context, in *GetAllUsersRequest, opts ...grpc.CallOption) (*GetAllUsersResponse, error)
+	GetUserStatistics(ctx context.Context, in *GetUserStatisticsRequest, opts ...grpc.CallOption) (*GetUserStatisticsResponse, error)
 	GetVolunteersAndAdmins(ctx context.Context, in *GetVolunteersAndAdminsRequest, opts ...grpc.CallOption) (*GetVolunteersAndAdminsResponse, error)
 	GetSchoolsNoAuth(ctx context.Context, in *GetSchoolsNoAuthRequest, opts ...grpc.CallOption) (*GetSchoolsNoAuthResponse, error)
 	InitiatePasswordUpdate(ctx context.Context, in *InitiatePasswordUpdateRequest, opts ...grpc.CallOption) (*InitiatePasswordUpdateResponse, error)
@@ -285,6 +287,16 @@ func (c *userManagementServiceClient) GetAllUsers(ctx context.Context, in *GetAl
 	return out, nil
 }
 
+func (c *userManagementServiceClient) GetUserStatistics(ctx context.Context, in *GetUserStatisticsRequest, opts ...grpc.CallOption) (*GetUserStatisticsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetUserStatisticsResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_GetUserStatistics_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *userManagementServiceClient) GetVolunteersAndAdmins(ctx context.Context, in *GetVolunteersAndAdminsRequest, opts ...grpc.CallOption) (*GetVolunteersAndAdminsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetVolunteersAndAdminsResponse)
@@ -359,6 +371,7 @@ type UserManagementServiceServer interface {
 	GetStudents(context.Context, *GetStudentsRequest) (*GetStudentsResponse, error)
 	GetVolunteers(context.Context, *GetVolunteersRequest) (*GetVolunteersResponse, error)
 	GetAllUsers(context.Context, *GetAllUsersRequest) (*GetAllUsersResponse, error)
+	GetUserStatistics(context.Context, *GetUserStatisticsRequest) (*GetUserStatisticsResponse, error)
 	GetVolunteersAndAdmins(context.Context, *GetVolunteersAndAdminsRequest) (*GetVolunteersAndAdminsResponse, error)
 	GetSchoolsNoAuth(context.Context, *GetSchoolsNoAuthRequest) (*GetSchoolsNoAuthResponse, error)
 	InitiatePasswordUpdate(context.Context, *InitiatePasswordUpdateRequest) (*InitiatePasswordUpdateResponse, error)
@@ -433,6 +446,9 @@ func (UnimplementedUserManagementServiceServer) GetVolunteers(context.Context, *
 }
 func (UnimplementedUserManagementServiceServer) GetAllUsers(context.Context, *GetAllUsersRequest) (*GetAllUsersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAllUsers not implemented")
+}
+func (UnimplementedUserManagementServiceServer) GetUserStatistics(context.Context, *GetUserStatisticsRequest) (*GetUserStatisticsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetUserStatistics not implemented")
 }
 func (UnimplementedUserManagementServiceServer) GetVolunteersAndAdmins(context.Context, *GetVolunteersAndAdminsRequest) (*GetVolunteersAndAdminsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetVolunteersAndAdmins not implemented")
@@ -830,6 +846,24 @@ func _UserManagementService_GetAllUsers_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserManagementService_GetUserStatistics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserStatisticsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).GetUserStatistics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_GetUserStatistics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).GetUserStatistics(ctx, req.(*GetUserStatisticsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _UserManagementService_GetVolunteersAndAdmins_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetVolunteersAndAdminsRequest)
 	if err := dec(in); err != nil {
@@ -1006,6 +1040,10 @@ var UserManagementService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAllUsers",
 			Handler:    _UserManagementService_GetAllUsers_Handler,
+		},
+		{
+			MethodName: "GetUserStatistics",
+			Handler:    _UserManagementService_GetUserStatistics_Handler,
 		},
 		{
 			MethodName: "GetVolunteersAndAdmins",

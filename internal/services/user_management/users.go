@@ -52,15 +52,15 @@ func (s *UserManagementService) GetPendingUsers(ctx context.Context, token strin
 	return queries.GetUsersByStatus(ctx, sql.NullString{String: "pending", Valid: true})
 }
 
-func (s *UserManagementService) GetAllUsers(ctx context.Context, token string, page, pageSize int32) ([]models.GetAllUsersRow, int32, int32, int32, error) {
+func (s *UserManagementService) GetAllUsers(ctx context.Context, token string, page, pageSize int32) ([]models.User, int32, error) {
     claims, err := utils.ValidateToken(token)
     if err != nil {
-        return nil, 0, 0, 0, fmt.Errorf("invalid token: %v", err)
+        return nil, 0, fmt.Errorf("invalid token: %v", err)
     }
 
     userRole, ok := claims["user_role"].(string)
     if !ok || userRole != "admin" {
-        return nil, 0, 0, 0, fmt.Errorf("only admins can get all users")
+        return nil, 0, fmt.Errorf("only admins can get all users")
     }
 
     queries := models.New(s.db)
@@ -69,28 +69,55 @@ func (s *UserManagementService) GetAllUsers(ctx context.Context, token string, p
         Offset: (page - 1) * pageSize,
     })
     if err != nil {
-        return nil, 0, 0, 0, fmt.Errorf("failed to get users: %v", err)
+        return nil, 0, fmt.Errorf("failed to get users: %v", err)
     }
 
     totalCount, err := queries.GetTotalUserCount(ctx)
     if err != nil {
-        return nil, 0, 0, 0, fmt.Errorf("failed to get total user count: %v", err)
+        return nil, 0, fmt.Errorf("failed to get total user count: %v", err)
     }
 
-    if totalCount > math.MaxInt32 {
-        return nil, 0, 0, 0, fmt.Errorf("total user count exceeds maximum value for int32")
-    }
-
-    // Get the approved users count and recent signups count from the first row
-    var approvedUsersCount, recentSignupsCount int32
-    if len(users) > 0 {
-        approvedUsersCount = int32(users[0].ApprovedUsersCount)
-        recentSignupsCount = int32(users[0].RecentSignupsCount)
-    }
-
-    return users, int32(totalCount), approvedUsersCount, recentSignupsCount, nil
+    return users, int32(totalCount), nil
 }
 
+func (s *UserManagementService) GetUserStatistics(ctx context.Context, token string) (*models.GetUserStatisticsRow, string, string, error) {
+    claims, err := utils.ValidateToken(token)
+    if err != nil {
+        return nil, "", "", fmt.Errorf("invalid token: %v", err)
+    }
+
+    userRole, ok := claims["user_role"].(string)
+    if !ok || userRole != "admin" {
+        return nil, "", "", fmt.Errorf("only admins can get user statistics")
+    }
+
+    queries := models.New(s.db)
+    stats, err := queries.GetUserStatistics(ctx)
+    if err != nil {
+        return nil, "", "", fmt.Errorf("failed to get user statistics: %v", err)
+    }
+
+    newRegistrationsPercentageChange := calculatePercentageChange(stats.LastMonthNewUsersCount, stats.NewRegistrationsCount)
+    approvedUsersPercentageChange := calculatePercentageChange(int64(stats.YesterdayApprovedCount.Int32), stats.ApprovedCount)
+
+    return &stats, newRegistrationsPercentageChange, approvedUsersPercentageChange, nil
+}
+
+func calculatePercentageChange(oldValue, newValue int64) string {
+    if oldValue == 0 && newValue == 0 {
+        return "0.00%"
+    }
+    if oldValue == 0 {
+        return "+∞%"
+    }
+    change := float64(newValue-oldValue) / float64(oldValue) * 100
+    sign := "+"
+    if change < 0 {
+        sign = "-"
+        change = math.Abs(change)
+    }
+    return fmt.Sprintf("%s%.2f%%", sign, change)
+}
 
 func (s *UserManagementService) ApproveUser(ctx context.Context, token string, userID int32) error {
 	claims, err := utils.ValidateToken(token)

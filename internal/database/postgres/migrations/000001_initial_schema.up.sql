@@ -19,7 +19,8 @@ CREATE TABLE Users (
    reset_token_expires TIMESTAMP,
    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-   deleted_at TIMESTAMP
+   deleted_at TIMESTAMP,
+   yesterday_approved_count INT DEFAULT 0
 );
 
 CREATE TABLE TournamentFormats (
@@ -624,6 +625,20 @@ CREATE TRIGGER update_users_updated_at
 BEFORE UPDATE ON Users
 FOR EACH ROW
 EXECUTE FUNCTION update_updated_at();
+
+
+-- Function to update historical data
+CREATE OR REPLACE FUNCTION update_user_counts()
+RETURNS VOID AS $$
+BEGIN
+  UPDATE Users
+  SET yesterday_approved_count = (SELECT COUNT(*) FROM Users WHERE Status = 'approved' AND deleted_at IS NULL);
+END;
+$$ LANGUAGE plpgsql;
+
+--cron jobs
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+SELECT cron.schedule('update_user_counts_daily', '0 0 * * *', 'SELECT update_user_counts()');
 
 -- Function to generate the school ID
 CREATE OR REPLACE FUNCTION generate_idebate_school_id()

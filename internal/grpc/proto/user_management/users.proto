@@ -25,6 +25,7 @@ service UserManagementService {
   rpc GetStudents(GetStudentsRequest) returns (GetStudentsResponse) {}
   rpc GetVolunteers(GetVolunteersRequest) returns (GetVolunteersResponse) {}
   rpc GetAllUsers(GetAllUsersRequest) returns (GetAllUsersResponse) {}
+  rpc GetUserStatistics(GetUserStatisticsRequest) returns (GetUserStatisticsResponse) {}
   rpc GetVolunteersAndAdmins(GetVolunteersAndAdminsRequest) returns (GetVolunteersAndAdminsResponse) {}
   rpc GetSchoolsNoAuth(GetSchoolsNoAuthRequest) returns (GetSchoolsNoAuthResponse) {}
   rpc InitiatePasswordUpdate(InitiatePasswordUpdateRequest) returns (InitiatePasswordUpdateResponse) {}
@@ -49,9 +50,23 @@ message GetAllUsersRequest {
 message GetAllUsersResponse {
   repeated UserSummary users = 1;
   int32 totalCount = 2;
-  int32 approvedUsersCount = 3;
-  int32 recentSignupsCount = 4;
 }
+
+message GetUserStatisticsRequest {
+  string token = 1;
+}
+
+message GetUserStatisticsResponse {
+  int64 admin_count = 1;
+  int64 school_count = 2;
+  int64 student_count = 3;
+  int64 volunteer_count = 4;
+  int64 approved_count = 5;
+  int64 new_registrations_count = 6;
+  string new_registrations_percentage_change = 7;
+  string approved_users_percentage_change = 8;
+}
+
 
 message UserSummary {
   int32 userID = 1;

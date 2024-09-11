@@ -26,6 +26,18 @@ Request:
 }
 ```
 
+### GetUserStatistics
+
+Endpoint: `UserManagementService.GetUserStatistics`
+Authorization: Admin Only
+
+Request:
+```json
+{
+  "token": "your_auth_token_here"
+}
+```
+
 ### ApproveUser
 
 Endpoint: `UserManagementService.ApproveUser`

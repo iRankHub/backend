@@ -251,26 +251,27 @@ type Tournamentinvitation struct {
 }
 
 type User struct {
-	Userid              int32          `json:"userid"`
-	Webauthnuserid      []byte         `json:"webauthnuserid"`
-	Name                string         `json:"name"`
-	Gender              sql.NullString `json:"gender"`
-	Email               string         `json:"email"`
-	Password            string         `json:"password"`
-	Userrole            string         `json:"userrole"`
-	Status              sql.NullString `json:"status"`
-	Verificationstatus  sql.NullBool   `json:"verificationstatus"`
-	Deactivatedat       sql.NullTime   `json:"deactivatedat"`
-	TwoFactorSecret     sql.NullString `json:"two_factor_secret"`
-	TwoFactorEnabled    sql.NullBool   `json:"two_factor_enabled"`
-	FailedLoginAttempts sql.NullInt32  `json:"failed_login_attempts"`
-	LastLoginAttempt    sql.NullTime   `json:"last_login_attempt"`
-	LastLogout          sql.NullTime   `json:"last_logout"`
-	ResetToken          sql.NullString `json:"reset_token"`
-	ResetTokenExpires   sql.NullTime   `json:"reset_token_expires"`
-	CreatedAt           sql.NullTime   `json:"created_at"`
-	UpdatedAt           sql.NullTime   `json:"updated_at"`
-	DeletedAt           sql.NullTime   `json:"deleted_at"`
+	Userid                 int32          `json:"userid"`
+	Webauthnuserid         []byte         `json:"webauthnuserid"`
+	Name                   string         `json:"name"`
+	Gender                 sql.NullString `json:"gender"`
+	Email                  string         `json:"email"`
+	Password               string         `json:"password"`
+	Userrole               string         `json:"userrole"`
+	Status                 sql.NullString `json:"status"`
+	Verificationstatus     sql.NullBool   `json:"verificationstatus"`
+	Deactivatedat          sql.NullTime   `json:"deactivatedat"`
+	TwoFactorSecret        sql.NullString `json:"two_factor_secret"`
+	TwoFactorEnabled       sql.NullBool   `json:"two_factor_enabled"`
+	FailedLoginAttempts    sql.NullInt32  `json:"failed_login_attempts"`
+	LastLoginAttempt       sql.NullTime   `json:"last_login_attempt"`
+	LastLogout             sql.NullTime   `json:"last_logout"`
+	ResetToken             sql.NullString `json:"reset_token"`
+	ResetTokenExpires      sql.NullTime   `json:"reset_token_expires"`
+	CreatedAt              sql.NullTime   `json:"created_at"`
+	UpdatedAt              sql.NullTime   `json:"updated_at"`
+	DeletedAt              sql.NullTime   `json:"deleted_at"`
+	YesterdayApprovedCount sql.NullInt32  `json:"yesterday_approved_count"`
 }
 
 type Userprofile struct {

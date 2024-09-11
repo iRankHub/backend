@@ -48,38 +48,62 @@ WHERE UserID = $1
 RETURNING *;
 
 -- name: GetAllUsers :many
-WITH ApprovedCount AS (
+SELECT *
+FROM Users
+WHERE deleted_at IS NULL
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2;
+
+-- name: GetUserStatistics :one
+WITH AdminCount AS (
+    SELECT COUNT(*) AS count
+    FROM Users
+    WHERE UserRole = 'admin' AND deleted_at IS NULL
+),
+SchoolCount AS (
+    SELECT COUNT(*) AS count
+    FROM Users
+    WHERE UserRole = 'school' AND deleted_at IS NULL
+),
+StudentCount AS (
+    SELECT COUNT(*) AS count
+    FROM Users
+    WHERE UserRole = 'student' AND deleted_at IS NULL
+),
+VolunteerCount AS (
+    SELECT COUNT(*) AS count
+    FROM Users
+    WHERE UserRole = 'volunteer' AND deleted_at IS NULL
+),
+ApprovedCount AS (
     SELECT COUNT(*) AS count
     FROM Users
     WHERE Status = 'approved' AND deleted_at IS NULL
 ),
-RecentSignupsCount AS (
+NewRegistrationsCount AS (
     SELECT COUNT(*) AS count
     FROM Users
-    WHERE created_at >= NOW() - INTERVAL '30 days' AND deleted_at IS NULL
+    WHERE Status = 'pending' AND created_at >= NOW() - INTERVAL '30 days' AND deleted_at IS NULL
+),
+LastMonthNewUsersCount AS (
+    SELECT COUNT(*) AS count
+    FROM Users
+    WHERE Status = 'pending' AND created_at >= NOW() - INTERVAL '60 days' AND created_at < NOW() - INTERVAL '30 days' AND deleted_at IS NULL
+),
+YesterdayApprovedCount AS (
+    SELECT yesterday_approved_count
+    FROM Users
+    LIMIT 1
 )
 SELECT
-    u.*,
-    CASE
-        WHEN u.UserRole = 'student' THEN s.iDebateStudentID
-        WHEN u.UserRole = 'volunteer' THEN v.iDebateVolunteerID
-        WHEN u.UserRole = 'school' THEN sch.iDebateSchoolID
-        WHEN u.UserRole = 'admin' THEN 'iDebate'
-        ELSE NULL
-    END AS iDebateID,
-    CASE
-        WHEN u.UserRole = 'school' THEN sch.SchoolName
-        ELSE u.Name
-    END AS DisplayName,
-    (SELECT count FROM ApprovedCount) AS approved_users_count,
-    (SELECT count FROM RecentSignupsCount) AS recent_signups_count
-FROM Users u
-LEFT JOIN Students s ON u.UserID = s.UserID
-LEFT JOIN Volunteers v ON u.UserID = v.UserID
-LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
-WHERE u.deleted_at IS NULL
-ORDER BY u.created_at DESC
-LIMIT $1 OFFSET $2;
+    (SELECT count FROM AdminCount) AS admin_count,
+    (SELECT count FROM SchoolCount) AS school_count,
+    (SELECT count FROM StudentCount) AS student_count,
+    (SELECT count FROM VolunteerCount) AS volunteer_count,
+    (SELECT count FROM ApprovedCount) AS approved_count,
+    (SELECT count FROM NewRegistrationsCount) AS new_registrations_count,
+    (SELECT count FROM LastMonthNewUsersCount) AS last_month_new_users_count,
+    (SELECT yesterday_approved_count FROM YesterdayApprovedCount) AS yesterday_approved_count;
 
 -- name: GetTotalUserCount :one
 SELECT COUNT(*) FROM Users WHERE deleted_at IS NULL;
