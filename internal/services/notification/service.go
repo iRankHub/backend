@@ -172,6 +172,15 @@ func (s *NotificationService) SendNotification(ctx context.Context, notification
 	return nil
 }
 
+func (s *NotificationService) SubscribeToNotifications(userID int32) (<-chan *pb.Notification, func()) {
+	ch := make(chan *pb.Notification, 100)
+	s.RegisterNotificationChannel(userID, ch)
+
+	return ch, func() {
+		s.UnregisterNotificationChannel(userID, ch)
+	}
+}
+
 func (s *NotificationService) startConsumer() {
 	msgs, err := s.channel.Consume(
 		s.queue.Name, // queue
