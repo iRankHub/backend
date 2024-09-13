@@ -90,20 +90,12 @@ func (s *debateServer) GetPairings(ctx context.Context, req *debate_management.G
     return response, nil
 }
 
-func (s *debateServer) GetPairing(ctx context.Context, req *debate_management.GetPairingRequest) (*debate_management.GetPairingResponse, error) {
-    response, err := s.pairingService.GetPairing(ctx, req)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to get pairing: %v", err)
-    }
-    return response, nil
-}
-
 func (s *debateServer) UpdatePairings(ctx context.Context, req *debate_management.UpdatePairingsRequest) (*debate_management.UpdatePairingsResponse, error) {
-	pairings, err := s.pairingService.UpdatePairings(ctx, req)
+	response, err := s.pairingService.UpdatePairings(ctx, req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to update pairings: %v", err)
 	}
-	return &debate_management.UpdatePairingsResponse{Pairings: pairings}, nil
+	return response, nil
 }
 
 // Ballot operations

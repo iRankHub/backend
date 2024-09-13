@@ -17,7 +17,6 @@ service DebateService {
 
   // Pairing operations
   rpc GetPairings(GetPairingsRequest) returns (GetPairingsResponse);
-  rpc GetPairing(GetPairingRequest) returns (GetPairingResponse);
   rpc UpdatePairings(UpdatePairingsRequest) returns (UpdatePairingsResponse);
 
   // Ballot operations
@@ -191,14 +190,6 @@ message GetPairingsResponse {
   repeated Pairing pairings = 1;
 }
 
-message GetPairingRequest {
-  int32 pairing_id = 1;
-  string token = 2;
-}
-
-message GetPairingResponse {
-  Pairing pairing = 1;
-}
 
 message UpdatePairingsRequest {
   repeated Pairing pairings = 1;

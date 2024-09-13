@@ -26,7 +26,7 @@ WHERE TournamentID = $1;
 
 -- name: UpdatePairing :exec
 UPDATE Debates
-SET Team1ID = $2, Team2ID = $3, RoomID = $4
+SET Team1ID = $2, Team2ID = $3
 WHERE DebateID = $1;
 
 -- name: GetBallotsByTournamentAndRound :many
@@ -329,13 +329,30 @@ GROUP BY d.DebateID, d.RoundNumber, d.IsEliminationRound, d.Team1ID, t1.Name, d.
          l1.Name, l2.Name, t1_points.TotalPoints, t2_points.TotalPoints;
 
 -- name: GetPairings :many
-SELECT d.debateid, d.roomid, r.roomname, t1.name as team1name, t2.name as team2name
-FROM Debates d
-JOIN Rooms r ON d.roomid = r.roomid
-JOIN Teams t1 ON d.team1id = t1.teamid
-JOIN Teams t2 ON d.team2id = t2.teamid
-WHERE d.tournamentid = $1 AND d.roundnumber = $2 AND d.iseliminationround = $3
-ORDER BY d.debateid;
+SELECT
+    d.debateid,
+    d.roundnumber,
+    d.iseliminationround,
+    d.roomid,
+    r.roomname,
+    t1.teamid AS team1id,
+    t1.name AS team1name,
+    t2.teamid AS team2id,
+    t2.name AS team2name,
+    j.name AS headjudgename
+FROM
+    Debates d
+    JOIN Rooms r ON d.roomid = r.roomid
+    JOIN Teams t1 ON d.team1id = t1.teamid
+    JOIN Teams t2 ON d.team2id = t2.teamid
+    LEFT JOIN JudgeAssignments ja ON d.debateid = ja.debateid AND ja.isheadjudge = true
+    LEFT JOIN Users j ON ja.judgeid = j.userid
+WHERE
+    d.tournamentid = $1
+    AND d.roundnumber = $2
+    AND d.iseliminationround = $3
+ORDER BY
+    d.debateid;
 
 -- name: GetPairingByID :one
 SELECT d.DebateID, d.RoundNumber, d.IsEliminationRound,
@@ -390,6 +407,29 @@ LEFT JOIN (
 WHERE d.DebateID = $1
 GROUP BY d.DebateID, d.RoundNumber, d.IsEliminationRound, d.Team1ID, t1.Name, d.Team2ID, t2.Name, d.RoomID, r.RoomName,
          l1.Name, l2.Name, t1_points.TotalPoints, t2_points.TotalPoints;
+
+-- name: GetSinglePairing :one
+SELECT
+    d.debateid,
+    d.roundnumber,
+    d.iseliminationround,
+    d.roomid,
+    r.roomname,
+    t1.teamid AS team1id,
+    t1.name AS team1name,
+    t2.teamid AS team2id,
+    t2.name AS team2name,
+    j.name AS headjudgename
+FROM
+    Debates d
+    JOIN Rooms r ON d.roomid = r.roomid
+    JOIN Teams t1 ON d.team1id = t1.teamid
+    JOIN Teams t2 ON d.team2id = t2.teamid
+    LEFT JOIN JudgeAssignments ja ON d.debateid = ja.debateid AND ja.isheadjudge = true
+    LEFT JOIN Users j ON ja.judgeid = j.userid
+WHERE
+    d.debateid = $1;
+
 
 -- name: GetRoomsByTournament :many
 SELECT * FROM Rooms

@@ -1027,13 +1027,30 @@ func (q *Queries) GetPairingByID(ctx context.Context, debateid int32) (GetPairin
 }
 
 const getPairings = `-- name: GetPairings :many
-SELECT d.debateid, d.roomid, r.roomname, t1.name as team1name, t2.name as team2name
-FROM Debates d
-JOIN Rooms r ON d.roomid = r.roomid
-JOIN Teams t1 ON d.team1id = t1.teamid
-JOIN Teams t2 ON d.team2id = t2.teamid
-WHERE d.tournamentid = $1 AND d.roundnumber = $2 AND d.iseliminationround = $3
-ORDER BY d.debateid
+SELECT
+    d.debateid,
+    d.roundnumber,
+    d.iseliminationround,
+    d.roomid,
+    r.roomname,
+    t1.teamid AS team1id,
+    t1.name AS team1name,
+    t2.teamid AS team2id,
+    t2.name AS team2name,
+    j.name AS headjudgename
+FROM
+    Debates d
+    JOIN Rooms r ON d.roomid = r.roomid
+    JOIN Teams t1 ON d.team1id = t1.teamid
+    JOIN Teams t2 ON d.team2id = t2.teamid
+    LEFT JOIN JudgeAssignments ja ON d.debateid = ja.debateid AND ja.isheadjudge = true
+    LEFT JOIN Users j ON ja.judgeid = j.userid
+WHERE
+    d.tournamentid = $1
+    AND d.roundnumber = $2
+    AND d.iseliminationround = $3
+ORDER BY
+    d.debateid
 `
 
 type GetPairingsParams struct {
@@ -1043,11 +1060,16 @@ type GetPairingsParams struct {
 }
 
 type GetPairingsRow struct {
-	Debateid  int32  `json:"debateid"`
-	Roomid    int32  `json:"roomid"`
-	Roomname  string `json:"roomname"`
-	Team1name string `json:"team1name"`
-	Team2name string `json:"team2name"`
+	Debateid           int32          `json:"debateid"`
+	Roundnumber        int32          `json:"roundnumber"`
+	Iseliminationround bool           `json:"iseliminationround"`
+	Roomid             int32          `json:"roomid"`
+	Roomname           string         `json:"roomname"`
+	Team1id            int32          `json:"team1id"`
+	Team1name          string         `json:"team1name"`
+	Team2id            int32          `json:"team2id"`
+	Team2name          string         `json:"team2name"`
+	Headjudgename      sql.NullString `json:"headjudgename"`
 }
 
 func (q *Queries) GetPairings(ctx context.Context, arg GetPairingsParams) ([]GetPairingsRow, error) {
@@ -1061,10 +1083,15 @@ func (q *Queries) GetPairings(ctx context.Context, arg GetPairingsParams) ([]Get
 		var i GetPairingsRow
 		if err := rows.Scan(
 			&i.Debateid,
+			&i.Roundnumber,
+			&i.Iseliminationround,
 			&i.Roomid,
 			&i.Roomname,
+			&i.Team1id,
 			&i.Team1name,
+			&i.Team2id,
 			&i.Team2name,
+			&i.Headjudgename,
 		); err != nil {
 			return nil, err
 		}
@@ -1319,6 +1346,60 @@ func (q *Queries) GetRoundByTournamentAndNumber(ctx context.Context, arg GetRoun
 		&i.Tournamentid,
 		&i.Roundnumber,
 		&i.Iseliminationround,
+	)
+	return i, err
+}
+
+const getSinglePairing = `-- name: GetSinglePairing :one
+SELECT
+    d.debateid,
+    d.roundnumber,
+    d.iseliminationround,
+    d.roomid,
+    r.roomname,
+    t1.teamid AS team1id,
+    t1.name AS team1name,
+    t2.teamid AS team2id,
+    t2.name AS team2name,
+    j.name AS headjudgename
+FROM
+    Debates d
+    JOIN Rooms r ON d.roomid = r.roomid
+    JOIN Teams t1 ON d.team1id = t1.teamid
+    JOIN Teams t2 ON d.team2id = t2.teamid
+    LEFT JOIN JudgeAssignments ja ON d.debateid = ja.debateid AND ja.isheadjudge = true
+    LEFT JOIN Users j ON ja.judgeid = j.userid
+WHERE
+    d.debateid = $1
+`
+
+type GetSinglePairingRow struct {
+	Debateid           int32          `json:"debateid"`
+	Roundnumber        int32          `json:"roundnumber"`
+	Iseliminationround bool           `json:"iseliminationround"`
+	Roomid             int32          `json:"roomid"`
+	Roomname           string         `json:"roomname"`
+	Team1id            int32          `json:"team1id"`
+	Team1name          string         `json:"team1name"`
+	Team2id            int32          `json:"team2id"`
+	Team2name          string         `json:"team2name"`
+	Headjudgename      sql.NullString `json:"headjudgename"`
+}
+
+func (q *Queries) GetSinglePairing(ctx context.Context, debateid int32) (GetSinglePairingRow, error) {
+	row := q.db.QueryRowContext(ctx, getSinglePairing, debateid)
+	var i GetSinglePairingRow
+	err := row.Scan(
+		&i.Debateid,
+		&i.Roundnumber,
+		&i.Iseliminationround,
+		&i.Roomid,
+		&i.Roomname,
+		&i.Team1id,
+		&i.Team1name,
+		&i.Team2id,
+		&i.Team2name,
+		&i.Headjudgename,
 	)
 	return i, err
 }
@@ -1638,7 +1719,7 @@ func (q *Queries) UpdateJudgeRoom(ctx context.Context, arg UpdateJudgeRoomParams
 
 const updatePairing = `-- name: UpdatePairing :exec
 UPDATE Debates
-SET Team1ID = $2, Team2ID = $3, RoomID = $4
+SET Team1ID = $2, Team2ID = $3
 WHERE DebateID = $1
 `
 
@@ -1646,16 +1727,10 @@ type UpdatePairingParams struct {
 	Debateid int32 `json:"debateid"`
 	Team1id  int32 `json:"team1id"`
 	Team2id  int32 `json:"team2id"`
-	Roomid   int32 `json:"roomid"`
 }
 
 func (q *Queries) UpdatePairing(ctx context.Context, arg UpdatePairingParams) error {
-	_, err := q.db.ExecContext(ctx, updatePairing,
-		arg.Debateid,
-		arg.Team1id,
-		arg.Team2id,
-		arg.Roomid,
-	)
+	_, err := q.db.ExecContext(ctx, updatePairing, arg.Debateid, arg.Team1id, arg.Team2id)
 	return err
 }
 
