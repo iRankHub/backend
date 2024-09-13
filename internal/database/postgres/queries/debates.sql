@@ -328,6 +328,15 @@ WHERE d.TournamentID = $1 AND d.RoundNumber = $2 AND d.IsEliminationRound = $3
 GROUP BY d.DebateID, d.RoundNumber, d.IsEliminationRound, d.Team1ID, t1.Name, d.Team2ID, t2.Name, d.RoomID, r.RoomName,
          l1.Name, l2.Name, t1_points.TotalPoints, t2_points.TotalPoints;
 
+-- name: GetPairings :many
+SELECT d.debateid, d.roomid, r.roomname, t1.name as team1name, t2.name as team2name
+FROM Debates d
+JOIN Rooms r ON d.roomid = r.roomid
+JOIN Teams t1 ON d.team1id = t1.teamid
+JOIN Teams t2 ON d.team2id = t2.teamid
+WHERE d.tournamentid = $1 AND d.roundnumber = $2 AND d.iseliminationround = $3
+ORDER BY d.debateid;
+
 -- name: GetPairingByID :one
 SELECT d.DebateID, d.RoundNumber, d.IsEliminationRound,
        d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,

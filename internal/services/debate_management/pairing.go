@@ -28,7 +28,7 @@ func (s *PairingService) GetPairings(ctx context.Context, req *debate_management
     }
 
     queries := models.New(s.db)
-    dbPairings, err := queries.GetPairingsByTournamentAndRound(ctx, models.GetPairingsByTournamentAndRoundParams{
+    dbPairings, err := queries.GetPairings(ctx, models.GetPairingsParams{
         Tournamentid:       req.GetTournamentId(),
         Roundnumber:        req.GetRoundNumber(),
         Iseliminationround: req.GetIsElimination(),
@@ -39,12 +39,16 @@ func (s *PairingService) GetPairings(ctx context.Context, req *debate_management
 
     pairings := make([]*debate_management.Pairing, len(dbPairings))
     for i, dbPairing := range dbPairings {
-        pairings[i] = convertSinglePairingFromRow(dbPairing)
-        judges, err := s.getJudgesForPairing(ctx, dbPairing.Debateid)
-        if err != nil {
-            return nil, err
+        pairings[i] = &debate_management.Pairing{
+            PairingId: dbPairing.Debateid,
+            RoomName:  dbPairing.Roomname,
+            Team1: &debate_management.Team{
+                Name: dbPairing.Team1name,
+            },
+            Team2: &debate_management.Team{
+                Name: dbPairing.Team2name,
+            },
         }
-        pairings[i].Judges = judges
     }
 
     return &debate_management.GetPairingsResponse{Pairings: pairings}, nil

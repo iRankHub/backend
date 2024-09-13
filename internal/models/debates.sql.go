@@ -1026,6 +1026,59 @@ func (q *Queries) GetPairingByID(ctx context.Context, debateid int32) (GetPairin
 	return i, err
 }
 
+const getPairings = `-- name: GetPairings :many
+SELECT d.debateid, d.roomid, r.roomname, t1.name as team1name, t2.name as team2name
+FROM Debates d
+JOIN Rooms r ON d.roomid = r.roomid
+JOIN Teams t1 ON d.team1id = t1.teamid
+JOIN Teams t2 ON d.team2id = t2.teamid
+WHERE d.tournamentid = $1 AND d.roundnumber = $2 AND d.iseliminationround = $3
+ORDER BY d.debateid
+`
+
+type GetPairingsParams struct {
+	Tournamentid       int32 `json:"tournamentid"`
+	Roundnumber        int32 `json:"roundnumber"`
+	Iseliminationround bool  `json:"iseliminationround"`
+}
+
+type GetPairingsRow struct {
+	Debateid  int32  `json:"debateid"`
+	Roomid    int32  `json:"roomid"`
+	Roomname  string `json:"roomname"`
+	Team1name string `json:"team1name"`
+	Team2name string `json:"team2name"`
+}
+
+func (q *Queries) GetPairings(ctx context.Context, arg GetPairingsParams) ([]GetPairingsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPairings, arg.Tournamentid, arg.Roundnumber, arg.Iseliminationround)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetPairingsRow{}
+	for rows.Next() {
+		var i GetPairingsRow
+		if err := rows.Scan(
+			&i.Debateid,
+			&i.Roomid,
+			&i.Roomname,
+			&i.Team1name,
+			&i.Team2name,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getPairingsByTournamentAndRound = `-- name: GetPairingsByTournamentAndRound :many
 SELECT d.DebateID, d.RoundNumber, d.IsEliminationRound,
        d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,
