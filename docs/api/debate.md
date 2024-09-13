@@ -52,16 +52,33 @@ Request:
 {
   "pairings": [
     {
-      "pairing_id": 1,
+      "judges": [],
+      "pairing_id": 70,
+      "round_number": 1,
+      "is_elimination_round": false,
+      "room_id": 66,
+      "room_name": "Room 5",
       "team1": {
-        "team_id": 2
+        "speakers": [],
+        "speaker_names": [],
+        "team_id": 5,
+        "name": "Team A",
+        "total_points": 0,
+        "league_name": "",
+        "feedback": ""
       },
       "team2": {
-        "team_id": 3
+        "speakers": [],
+        "speaker_names": [],
+        "team_id": 5,
+        "name": "Team 1",
+        "total_points": 0,
+        "league_name": "",
+        "feedback": ""
       },
-      "room_id": 4
-    },
-    // ... more pairings to update
+      "head_judge_name": "Al John"
+    }
+    // other pairings...
   ],
   "token": "your_auth_token_here"
 }
