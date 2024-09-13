@@ -208,6 +208,19 @@ Request:
 }
 ```
 
+### GetBallotByJudgeID
+
+Endpoint: `DebateService.GetBallotByJudgeID`
+
+Request:
+```json
+{
+  "judge_id": 1,
+  "tournament_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
 ### UpdateBallot
 
 Endpoint: `DebateService.UpdateBallot`
