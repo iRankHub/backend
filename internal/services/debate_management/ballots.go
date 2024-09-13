@@ -73,6 +73,43 @@ func (s *BallotService) GetBallot(ctx context.Context, req *debate_management.Ge
 	return convertedBallot, nil
 }
 
+func (s *BallotService) GetBallotByJudgeID(ctx context.Context, req *debate_management.GetBallotByJudgeIDRequest) (*debate_management.Ballot, error) {
+	if err := s.validateAuthentication(req.GetToken()); err != nil {
+		return nil, err
+	}
+
+	queries := models.New(s.db)
+	ballot, err := queries.GetBallotByJudgeID(ctx, models.GetBallotByJudgeIDParams{
+		Judgeid:      req.GetJudgeId(),
+		Tournamentid: req.GetTournamentId(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ballot: %v", err)
+	}
+
+	convertedBallot := convertJudgeBallot(ballot)
+
+	// Fetch speaker scores
+	speakerScores, err := queries.GetSpeakerScoresByBallot(ctx, ballot.Ballotid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get speaker scores: %v", err)
+	}
+
+	// Assign speaker scores to teams
+	for _, score := range speakerScores {
+		speaker := convertSpeakerScore(score)
+		if score.Teamid == convertedBallot.Team1.TeamId {
+			convertedBallot.Team1.Speakers = append(convertedBallot.Team1.Speakers, speaker)
+			convertedBallot.Team1.SpeakerNames = append(convertedBallot.Team1.SpeakerNames, speaker.Name)
+		} else if score.Teamid == convertedBallot.Team2.TeamId {
+			convertedBallot.Team2.Speakers = append(convertedBallot.Team2.Speakers, speaker)
+			convertedBallot.Team2.SpeakerNames = append(convertedBallot.Team2.SpeakerNames, speaker.Name)
+		}
+	}
+
+	return convertedBallot, nil
+}
+
 func (s *BallotService) UpdateBallot(ctx context.Context, req *debate_management.UpdateBallotRequest) (*debate_management.Ballot, error) {
 	claims, err := utils.ValidateToken(req.GetToken())
 	if err != nil {
@@ -225,39 +262,43 @@ func convertBallots(dbBallots []models.GetBallotsByTournamentAndRoundRow) []*deb
 }
 
 func convertBallot(dbBallot models.GetBallotByIDRow) *debate_management.Ballot {
-	team1TotalPoints, _ := strconv.ParseFloat(dbBallot.Team1totalscore.String, 64)
-	team2TotalPoints, _ := strconv.ParseFloat(dbBallot.Team2totalscore.String, 64)
+    team1TotalPoints, _ := strconv.ParseFloat(dbBallot.Team1totalscore.String, 64)
+    team2TotalPoints, _ := strconv.ParseFloat(dbBallot.Team2totalscore.String, 64)
 
-	return &debate_management.Ballot{
-		BallotId:      dbBallot.Ballotid,
-		RoundNumber:   dbBallot.Roundnumber,
-		IsElimination: dbBallot.Iseliminationround,
-		RoomId:        dbBallot.Roomid,
-		RoomName:      dbBallot.Roomname.String,
-		Judges: []*debate_management.Judge{
-			{
-				JudgeId: dbBallot.Judgeid,
-				Name:    dbBallot.Judgename,
-			},
-		},
-		Team1: &debate_management.Team{
-			TeamId:      dbBallot.Team1id,
-			Name:        dbBallot.Team1name,
-			TotalPoints: team1TotalPoints,
-			Feedback:    dbBallot.Team1feedback.String,
-		},
-		Team2: &debate_management.Team{
-			TeamId:      dbBallot.Team2id,
-			Name:        dbBallot.Team2name,
-			TotalPoints: team2TotalPoints,
-			Feedback:    dbBallot.Team2feedback.String,
-		},
-		RecordingStatus:    dbBallot.Recordingstatus,
-		Verdict:            dbBallot.Verdict,
-		LastUpdatedBy:      dbBallot.LastUpdatedBy.Int32,
-		LastUpdatedAt:      dbBallot.LastUpdatedAt.Time.String(),
-		HeadJudgeSubmitted: dbBallot.HeadJudgeSubmitted.Bool,
-	}
+    return &debate_management.Ballot{
+        BallotId:      dbBallot.Ballotid,
+        RoundNumber:   dbBallot.Roundnumber,
+        IsElimination: dbBallot.Iseliminationround,
+        RoomId:        dbBallot.Roomid,
+        RoomName:      dbBallot.Roomname.String,
+        Judges: []*debate_management.Judge{
+            {
+                JudgeId: dbBallot.Judgeid,
+                Name:    dbBallot.Judgename,
+            },
+        },
+        Team1: &debate_management.Team{
+            TeamId:      dbBallot.Team1id,
+            Name:        dbBallot.Team1name,
+            TotalPoints: team1TotalPoints,
+            Feedback:    dbBallot.Team1feedback.String,
+        },
+        Team2: &debate_management.Team{
+            TeamId:      dbBallot.Team2id,
+            Name:        dbBallot.Team2name,
+            TotalPoints: team2TotalPoints,
+            Feedback:    dbBallot.Team2feedback.String,
+        },
+        RecordingStatus:    dbBallot.Recordingstatus,
+        Verdict:            dbBallot.Verdict,
+        LastUpdatedBy:      dbBallot.LastUpdatedBy.Int32,
+        LastUpdatedAt:      dbBallot.LastUpdatedAt.Time.String(),
+        HeadJudgeSubmitted: dbBallot.HeadJudgeSubmitted.Bool,
+    }
+}
+
+func convertJudgeBallot(dbBallot models.GetBallotByJudgeIDRow) *debate_management.Ballot {
+	return convertBallot(models.GetBallotByIDRow(dbBallot))
 }
 
 func (s *BallotService) GetSpeakerScores(ctx context.Context, ballotID int32) ([]*debate_management.Speaker, error) {

@@ -123,6 +123,14 @@ func (s *debateServer) GetBallot(ctx context.Context, req *debate_management.Get
 	return &debate_management.GetBallotResponse{Ballot: ballot}, nil
 }
 
+func (s *debateServer) GetBallotByJudgeID(ctx context.Context, req *debate_management.GetBallotByJudgeIDRequest) (*debate_management.GetBallotByJudgeIDResponse, error) {
+	ballot, err := s.ballotService.GetBallotByJudgeID(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get ballot by judge ID: %v", err)
+	}
+	return &debate_management.GetBallotByJudgeIDResponse{Ballot: ballot}, nil
+}
+
 func (s *debateServer) UpdateBallot(ctx context.Context, req *debate_management.UpdateBallotRequest) (*debate_management.UpdateBallotResponse, error) {
 	ballot, err := s.ballotService.UpdateBallot(ctx, req)
 	if err != nil {

@@ -31,6 +31,7 @@ const (
 	DebateService_GetBallots_FullMethodName           = "/debate_management.DebateService/GetBallots"
 	DebateService_GetBallot_FullMethodName            = "/debate_management.DebateService/GetBallot"
 	DebateService_UpdateBallot_FullMethodName         = "/debate_management.DebateService/UpdateBallot"
+	DebateService_GetBallotByJudgeID_FullMethodName   = "/debate_management.DebateService/GetBallotByJudgeID"
 	DebateService_GeneratePairings_FullMethodName     = "/debate_management.DebateService/GeneratePairings"
 	DebateService_AssignJudges_FullMethodName         = "/debate_management.DebateService/AssignJudges"
 	DebateService_CreateTeam_FullMethodName           = "/debate_management.DebateService/CreateTeam"
@@ -61,6 +62,7 @@ type DebateServiceClient interface {
 	GetBallots(ctx context.Context, in *GetBallotsRequest, opts ...grpc.CallOption) (*GetBallotsResponse, error)
 	GetBallot(ctx context.Context, in *GetBallotRequest, opts ...grpc.CallOption) (*GetBallotResponse, error)
 	UpdateBallot(ctx context.Context, in *UpdateBallotRequest, opts ...grpc.CallOption) (*UpdateBallotResponse, error)
+	GetBallotByJudgeID(ctx context.Context, in *GetBallotByJudgeIDRequest, opts ...grpc.CallOption) (*GetBallotByJudgeIDResponse, error)
 	// Algorithm integration
 	GeneratePairings(ctx context.Context, in *GeneratePairingsRequest, opts ...grpc.CallOption) (*GeneratePairingsResponse, error)
 	AssignJudges(ctx context.Context, in *AssignJudgesRequest, opts ...grpc.CallOption) (*AssignJudgesResponse, error)
@@ -202,6 +204,16 @@ func (c *debateServiceClient) UpdateBallot(ctx context.Context, in *UpdateBallot
 	return out, nil
 }
 
+func (c *debateServiceClient) GetBallotByJudgeID(ctx context.Context, in *GetBallotByJudgeIDRequest, opts ...grpc.CallOption) (*GetBallotByJudgeIDResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetBallotByJudgeIDResponse)
+	err := c.cc.Invoke(ctx, DebateService_GetBallotByJudgeID_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *debateServiceClient) GeneratePairings(ctx context.Context, in *GeneratePairingsRequest, opts ...grpc.CallOption) (*GeneratePairingsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GeneratePairingsResponse)
@@ -302,6 +314,7 @@ type DebateServiceServer interface {
 	GetBallots(context.Context, *GetBallotsRequest) (*GetBallotsResponse, error)
 	GetBallot(context.Context, *GetBallotRequest) (*GetBallotResponse, error)
 	UpdateBallot(context.Context, *UpdateBallotRequest) (*UpdateBallotResponse, error)
+	GetBallotByJudgeID(context.Context, *GetBallotByJudgeIDRequest) (*GetBallotByJudgeIDResponse, error)
 	// Algorithm integration
 	GeneratePairings(context.Context, *GeneratePairingsRequest) (*GeneratePairingsResponse, error)
 	AssignJudges(context.Context, *AssignJudgesRequest) (*AssignJudgesResponse, error)
@@ -358,6 +371,9 @@ func (UnimplementedDebateServiceServer) GetBallot(context.Context, *GetBallotReq
 }
 func (UnimplementedDebateServiceServer) UpdateBallot(context.Context, *UpdateBallotRequest) (*UpdateBallotResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateBallot not implemented")
+}
+func (UnimplementedDebateServiceServer) GetBallotByJudgeID(context.Context, *GetBallotByJudgeIDRequest) (*GetBallotByJudgeIDResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetBallotByJudgeID not implemented")
 }
 func (UnimplementedDebateServiceServer) GeneratePairings(context.Context, *GeneratePairingsRequest) (*GeneratePairingsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GeneratePairings not implemented")
@@ -620,6 +636,24 @@ func _DebateService_UpdateBallot_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DebateService_GetBallotByJudgeID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetBallotByJudgeIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DebateServiceServer).GetBallotByJudgeID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DebateService_GetBallotByJudgeID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DebateServiceServer).GetBallotByJudgeID(ctx, req.(*GetBallotByJudgeIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _DebateService_GeneratePairings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GeneratePairingsRequest)
 	if err := dec(in); err != nil {
@@ -818,6 +852,10 @@ var DebateService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateBallot",
 			Handler:    _DebateService_UpdateBallot_Handler,
+		},
+		{
+			MethodName: "GetBallotByJudgeID",
+			Handler:    _DebateService_GetBallotByJudgeID_Handler,
 		},
 		{
 			MethodName: "GeneratePairings",

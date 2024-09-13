@@ -24,6 +24,7 @@ service DebateService {
   rpc GetBallots(GetBallotsRequest) returns (GetBallotsResponse);
   rpc GetBallot(GetBallotRequest) returns (GetBallotResponse);
   rpc UpdateBallot(UpdateBallotRequest) returns (UpdateBallotResponse);
+  rpc GetBallotByJudgeID(GetBallotByJudgeIDRequest) returns (GetBallotByJudgeIDResponse);
 
   // Algorithm integration
   rpc GeneratePairings(GeneratePairingsRequest) returns (GeneratePairingsResponse);
@@ -243,6 +244,16 @@ message GetBallotRequest {
 }
 
 message GetBallotResponse {
+  Ballot ballot = 1;
+}
+
+message GetBallotByJudgeIDRequest {
+  int32 judge_id = 1;
+  int32 tournament_id = 2;
+  string token = 3;
+}
+
+message GetBallotByJudgeIDResponse {
   Ballot ballot = 1;
 }
 

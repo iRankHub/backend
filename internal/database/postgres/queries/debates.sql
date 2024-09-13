@@ -53,6 +53,23 @@ JOIN Teams t1 ON d.Team1ID = t1.TeamID
 JOIN Teams t2 ON d.Team2ID = t2.TeamID
 WHERE b.BallotID = $1;
 
+-- name: GetBallotByJudgeID :one
+SELECT b.BallotID, d.DebateID, d.RoundNumber, d.IsEliminationRound,
+       d.RoomID, r.roomname AS RoomName, b.JudgeID, u.Name AS JudgeName,
+       d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,
+       b.Team1TotalScore, b.Team2TotalScore, b.RecordingStatus, b.Verdict,
+       b.Team1Feedback, b.Team2Feedback, b.last_updated_by, b.last_updated_at,
+       b.head_judge_submitted
+FROM Ballots b
+JOIN Debates d ON b.DebateID = d.DebateID
+LEFT JOIN Rooms r ON d.RoomID = r.RoomID
+JOIN Users u ON b.JudgeID = u.UserID
+JOIN Teams t1 ON d.Team1ID = t1.TeamID
+JOIN Teams t2 ON d.Team2ID = t2.TeamID
+WHERE b.JudgeID = $1 AND d.TournamentID = $2
+ORDER BY d.RoundNumber DESC
+LIMIT 1;
+
 -- name: UpdateBallot :exec
 UPDATE Ballots
 SET Team1TotalScore = $2, Team2TotalScore = $3, RecordingStatus = $4, Verdict = $5,

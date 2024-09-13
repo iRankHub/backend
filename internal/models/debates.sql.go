@@ -482,6 +482,82 @@ func (q *Queries) GetBallotByID(ctx context.Context, ballotid int32) (GetBallotB
 	return i, err
 }
 
+const getBallotByJudgeID = `-- name: GetBallotByJudgeID :one
+SELECT b.BallotID, d.DebateID, d.RoundNumber, d.IsEliminationRound,
+       d.RoomID, r.roomname AS RoomName, b.JudgeID, u.Name AS JudgeName,
+       d.Team1ID, t1.Name AS Team1Name, d.Team2ID, t2.Name AS Team2Name,
+       b.Team1TotalScore, b.Team2TotalScore, b.RecordingStatus, b.Verdict,
+       b.Team1Feedback, b.Team2Feedback, b.last_updated_by, b.last_updated_at,
+       b.head_judge_submitted
+FROM Ballots b
+JOIN Debates d ON b.DebateID = d.DebateID
+LEFT JOIN Rooms r ON d.RoomID = r.RoomID
+JOIN Users u ON b.JudgeID = u.UserID
+JOIN Teams t1 ON d.Team1ID = t1.TeamID
+JOIN Teams t2 ON d.Team2ID = t2.TeamID
+WHERE b.JudgeID = $1 AND d.TournamentID = $2
+ORDER BY d.RoundNumber DESC
+LIMIT 1
+`
+
+type GetBallotByJudgeIDParams struct {
+	Judgeid      int32 `json:"judgeid"`
+	Tournamentid int32 `json:"tournamentid"`
+}
+
+type GetBallotByJudgeIDRow struct {
+	Ballotid           int32          `json:"ballotid"`
+	Debateid           int32          `json:"debateid"`
+	Roundnumber        int32          `json:"roundnumber"`
+	Iseliminationround bool           `json:"iseliminationround"`
+	Roomid             int32          `json:"roomid"`
+	Roomname           sql.NullString `json:"roomname"`
+	Judgeid            int32          `json:"judgeid"`
+	Judgename          string         `json:"judgename"`
+	Team1id            int32          `json:"team1id"`
+	Team1name          string         `json:"team1name"`
+	Team2id            int32          `json:"team2id"`
+	Team2name          string         `json:"team2name"`
+	Team1totalscore    sql.NullString `json:"team1totalscore"`
+	Team2totalscore    sql.NullString `json:"team2totalscore"`
+	Recordingstatus    string         `json:"recordingstatus"`
+	Verdict            string         `json:"verdict"`
+	Team1feedback      sql.NullString `json:"team1feedback"`
+	Team2feedback      sql.NullString `json:"team2feedback"`
+	LastUpdatedBy      sql.NullInt32  `json:"last_updated_by"`
+	LastUpdatedAt      sql.NullTime   `json:"last_updated_at"`
+	HeadJudgeSubmitted sql.NullBool   `json:"head_judge_submitted"`
+}
+
+func (q *Queries) GetBallotByJudgeID(ctx context.Context, arg GetBallotByJudgeIDParams) (GetBallotByJudgeIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getBallotByJudgeID, arg.Judgeid, arg.Tournamentid)
+	var i GetBallotByJudgeIDRow
+	err := row.Scan(
+		&i.Ballotid,
+		&i.Debateid,
+		&i.Roundnumber,
+		&i.Iseliminationround,
+		&i.Roomid,
+		&i.Roomname,
+		&i.Judgeid,
+		&i.Judgename,
+		&i.Team1id,
+		&i.Team1name,
+		&i.Team2id,
+		&i.Team2name,
+		&i.Team1totalscore,
+		&i.Team2totalscore,
+		&i.Recordingstatus,
+		&i.Verdict,
+		&i.Team1feedback,
+		&i.Team2feedback,
+		&i.LastUpdatedBy,
+		&i.LastUpdatedAt,
+		&i.HeadJudgeSubmitted,
+	)
+	return i, err
+}
+
 const getBallotsByTournamentAndRound = `-- name: GetBallotsByTournamentAndRound :many
 SELECT b.BallotID, d.RoundNumber, d.IsEliminationRound, r.RoomName,
        u.Name AS HeadJudgeName, b.RecordingStatus, b.Verdict
