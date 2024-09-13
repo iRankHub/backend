@@ -150,29 +150,49 @@ func (s *userManagementServer) DeleteUsers(ctx context.Context, req *user_manage
 	}, nil
 }
 
+
 func (s *userManagementServer) GetAllUsers(ctx context.Context, req *user_management.GetAllUsersRequest) (*user_management.GetAllUsersResponse, error) {
-    users, totalCount, err := s.userManagementService.GetAllUsers(ctx, req.Token, req.Page, req.PageSize)
+    users, totalCount, approvedUsersCount, recentSignupsCount, err := s.userManagementService.GetAllUsers(ctx, req.Token, req.Page, req.PageSize)
     if err != nil {
-        log.Printf("Error in GetAllUsers: %v", err)
         return nil, status.Errorf(codes.Internal, "Failed to get all users: %v", err)
     }
 
     var userSummaries []*user_management.UserSummary
     for _, user := range users {
+        signUpDate := ""
+        if user.CreatedAt.Valid {
+            signUpDate = user.CreatedAt.Time.Format("2006-01-02 15:04:05")
+        }
+
+        var idebateID string
+        if user.Idebateid != nil {
+            switch v := user.Idebateid.(type) {
+            case string:
+                idebateID = v
+            case []byte:
+                idebateID = string(v)
+            default:
+                idebateID = fmt.Sprintf("%v", v)
+            }
+        }
+
         userSummaries = append(userSummaries, &user_management.UserSummary{
             UserID:     user.Userid,
             Name:       user.Name,
             Email:      user.Email,
             UserRole:   user.Userrole,
-            SignUpDate: user.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+            SignUpDate: signUpDate,
             Gender:     user.Gender.String,
             Status:     user.Status.String,
+            IdebateID:  idebateID,
         })
     }
 
     return &user_management.GetAllUsersResponse{
-        Users:      userSummaries,
-        TotalCount: totalCount,
+        Users:              userSummaries,
+        TotalCount:         totalCount,
+        ApprovedUsersCount: approvedUsersCount,
+        RecentSignupsCount: recentSignupsCount,
     }, nil
 }
 

@@ -50,6 +50,8 @@ message GetAllUsersRequest {
 message GetAllUsersResponse {
   repeated UserSummary users = 1;
   int32 totalCount = 2;
+  int32 approvedUsersCount = 3;
+  int32 recentSignupsCount = 4;
 }
 
 message GetUserStatisticsRequest {

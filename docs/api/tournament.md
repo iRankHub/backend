@@ -245,6 +245,18 @@ Request:
 }
 ```
 
+### GetTournamentRegistrations
+
+Endpoint: `TournamenetService.GetTournamentRegistr`
+Authorization: Admin Only
+
+Request:
+```json
+{
+  "token": "your_auth_token_here"
+}
+```
+
 ## Invitation Management API
 
 ### GetInvitationsByUser

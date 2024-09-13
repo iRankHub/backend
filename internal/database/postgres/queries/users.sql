@@ -48,10 +48,37 @@ WHERE UserID = $1
 RETURNING *;
 
 -- name: GetAllUsers :many
-SELECT *
-FROM Users
-WHERE deleted_at IS NULL
-ORDER BY created_at DESC
+WITH ApprovedCount AS (
+    SELECT COUNT(*) AS count
+    FROM Users
+    WHERE Status = 'approved' AND deleted_at IS NULL
+),
+RecentSignupsCount AS (
+    SELECT COUNT(*) AS count
+    FROM Users
+    WHERE created_at >= NOW() - INTERVAL '30 days' AND deleted_at IS NULL
+)
+SELECT
+    u.*,
+    CASE
+        WHEN u.UserRole = 'student' THEN s.iDebateStudentID
+        WHEN u.UserRole = 'volunteer' THEN v.iDebateVolunteerID
+        WHEN u.UserRole = 'school' THEN sch.iDebateSchoolID
+        WHEN u.UserRole = 'admin' THEN 'iDebate'
+        ELSE NULL
+    END AS iDebateID,
+    CASE
+        WHEN u.UserRole = 'school' THEN sch.SchoolName
+        ELSE u.Name
+    END AS DisplayName,
+    (SELECT count FROM ApprovedCount) AS approved_users_count,
+    (SELECT count FROM RecentSignupsCount) AS recent_signups_count
+FROM Users u
+LEFT JOIN Students s ON u.UserID = s.UserID
+LEFT JOIN Volunteers v ON u.UserID = v.UserID
+LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
+WHERE u.deleted_at IS NULL
+ORDER BY u.created_at DESC
 LIMIT $1 OFFSET $2;
 
 -- name: GetUserStatistics :one
