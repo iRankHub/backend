@@ -239,7 +239,7 @@ CREATE TABLE JudgeAssignments (
 CREATE TABLE Ballots (
    BallotID SERIAL PRIMARY KEY,
    DebateID INTEGER NOT NULL REFERENCES Debates(DebateID),
-   JudgeID INTEGER NOT NULL REFERENCES JudgeAssignments(AssignmentID),
+   JudgeID INTEGER NOT NULL,
    Team1TotalScore NUMERIC,
    Team1Feedback TEXT,
    Team2TotalScore NUMERIC,
@@ -648,11 +648,6 @@ BEGIN
   WHERE TournamentID = (SELECT MIN(TournamentID) FROM Tournaments);
 END;
 $$ LANGUAGE plpgsql;
-
---cron jobs
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-SELECT cron.schedule('update_user_counts_daily', '0 0 * * *', 'SELECT update_user_counts()');
-SELECT cron.schedule('update_tournament_counts_daily', '0 0 * * *', 'SELECT update_tournament_counts()');
 
 -- Function to generate the school ID
 CREATE OR REPLACE FUNCTION generate_idebate_school_id()
