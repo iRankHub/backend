@@ -178,7 +178,7 @@ func (s *userManagementServer) GetAllUsers(ctx context.Context, req *user_manage
 
         userSummaries = append(userSummaries, &user_management.UserSummary{
             UserID:     user.Userid,
-            Name:       user.Name,
+            Name:       user.Displayname.(string),
             Email:      user.Email,
             UserRole:   user.Userrole,
             SignUpDate: signUpDate,

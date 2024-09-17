@@ -10,6 +10,7 @@ import (
 
 	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
 	services "github.com/iRankHub/backend/internal/services/tournament_management"
+	cronservices "github.com/iRankHub/backend/internal/services/tournament_management/cron_tasks"
 )
 
 type tournamentServer struct {
@@ -18,6 +19,8 @@ type tournamentServer struct {
 	formatService     *services.FormatService
 	tournamentService *services.TournamentService
 	invitationService *services.InvitationService
+	reminderService   *cronservices.ReminderService
+	tournamentCountsUpdateService *cronservices.TournamentCountsUpdateService
 }
 
 func NewTournamentServer(db *sql.DB) (tournament_management.TournamentServiceServer, error) {
@@ -26,12 +29,40 @@ func NewTournamentServer(db *sql.DB) (tournament_management.TournamentServiceSer
 	tournamentService := services.NewTournamentService(db)
 	invitationService := services.NewInvitationService(db)
 
-	return &tournamentServer{
+	reminderService, err := cronservices.NewReminderService(db)
+	if err != nil {
+		return nil, err
+	}
+
+	tournamentCountsUpdateService, err := cronservices.NewTournamentCountsUpdateService(db)
+	if err != nil {
+		return nil, err
+	}
+
+	server := &tournamentServer{
 		leagueService:     leagueService,
 		formatService:     formatService,
 		tournamentService: tournamentService,
 		invitationService: invitationService,
-	}, nil
+		reminderService:   reminderService,
+		tournamentCountsUpdateService: tournamentCountsUpdateService,
+	}
+
+	// Start the cron services
+	server.reminderService.Start()
+	server.tournamentCountsUpdateService.Start()
+
+	return server, nil
+}
+
+// a method to stop the cron services
+func (s *tournamentServer) StopCronServices() {
+	if s.reminderService != nil {
+		s.reminderService.Stop()
+	}
+	if s.tournamentCountsUpdateService != nil {
+		s.tournamentCountsUpdateService.Stop()
+	}
 }
 
 func (s *tournamentServer) CreateLeague(ctx context.Context, req *tournament_management.CreateLeagueRequest) (*tournament_management.CreateLeagueResponse, error) {
