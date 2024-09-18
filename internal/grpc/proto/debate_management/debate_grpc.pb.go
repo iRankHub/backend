@@ -19,27 +19,25 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	DebateService_GetRooms_FullMethodName             = "/debate_management.DebateService/GetRooms"
-	DebateService_GetRoom_FullMethodName              = "/debate_management.DebateService/GetRoom"
-	DebateService_UpdateRoom_FullMethodName           = "/debate_management.DebateService/UpdateRoom"
-	DebateService_GetJudges_FullMethodName            = "/debate_management.DebateService/GetJudges"
-	DebateService_GetJudge_FullMethodName             = "/debate_management.DebateService/GetJudge"
-	DebateService_UpdateJudge_FullMethodName          = "/debate_management.DebateService/UpdateJudge"
-	DebateService_GetPairings_FullMethodName          = "/debate_management.DebateService/GetPairings"
-	DebateService_GetPairing_FullMethodName           = "/debate_management.DebateService/GetPairing"
-	DebateService_UpdatePairings_FullMethodName       = "/debate_management.DebateService/UpdatePairings"
-	DebateService_GetBallots_FullMethodName           = "/debate_management.DebateService/GetBallots"
-	DebateService_GetBallot_FullMethodName            = "/debate_management.DebateService/GetBallot"
-	DebateService_UpdateBallot_FullMethodName         = "/debate_management.DebateService/UpdateBallot"
-	DebateService_GetBallotByJudgeID_FullMethodName   = "/debate_management.DebateService/GetBallotByJudgeID"
-	DebateService_GeneratePairings_FullMethodName     = "/debate_management.DebateService/GeneratePairings"
-	DebateService_AssignJudges_FullMethodName         = "/debate_management.DebateService/AssignJudges"
-	DebateService_CreateTeam_FullMethodName           = "/debate_management.DebateService/CreateTeam"
-	DebateService_GetTeam_FullMethodName              = "/debate_management.DebateService/GetTeam"
-	DebateService_UpdateTeam_FullMethodName           = "/debate_management.DebateService/UpdateTeam"
-	DebateService_GetTeamsByTournament_FullMethodName = "/debate_management.DebateService/GetTeamsByTournament"
-	DebateService_DeleteTeam_FullMethodName           = "/debate_management.DebateService/DeleteTeam"
-	DebateService_RegeneratePairings_FullMethodName   = "/debate_management.DebateService/RegeneratePairings"
+	DebateService_GetRooms_FullMethodName                    = "/debate_management.DebateService/GetRooms"
+	DebateService_GetRoom_FullMethodName                     = "/debate_management.DebateService/GetRoom"
+	DebateService_UpdateRoom_FullMethodName                  = "/debate_management.DebateService/UpdateRoom"
+	DebateService_GetJudges_FullMethodName                   = "/debate_management.DebateService/GetJudges"
+	DebateService_GetJudge_FullMethodName                    = "/debate_management.DebateService/GetJudge"
+	DebateService_UpdateJudge_FullMethodName                 = "/debate_management.DebateService/UpdateJudge"
+	DebateService_GetPairings_FullMethodName                 = "/debate_management.DebateService/GetPairings"
+	DebateService_UpdatePairings_FullMethodName              = "/debate_management.DebateService/UpdatePairings"
+	DebateService_GetBallots_FullMethodName                  = "/debate_management.DebateService/GetBallots"
+	DebateService_GetBallot_FullMethodName                   = "/debate_management.DebateService/GetBallot"
+	DebateService_UpdateBallot_FullMethodName                = "/debate_management.DebateService/UpdateBallot"
+	DebateService_GetBallotByJudgeID_FullMethodName          = "/debate_management.DebateService/GetBallotByJudgeID"
+	DebateService_GeneratePreliminaryPairings_FullMethodName = "/debate_management.DebateService/GeneratePreliminaryPairings"
+	DebateService_GenerateEliminationPairings_FullMethodName = "/debate_management.DebateService/GenerateEliminationPairings"
+	DebateService_CreateTeam_FullMethodName                  = "/debate_management.DebateService/CreateTeam"
+	DebateService_GetTeam_FullMethodName                     = "/debate_management.DebateService/GetTeam"
+	DebateService_UpdateTeam_FullMethodName                  = "/debate_management.DebateService/UpdateTeam"
+	DebateService_GetTeamsByTournament_FullMethodName        = "/debate_management.DebateService/GetTeamsByTournament"
+	DebateService_DeleteTeam_FullMethodName                  = "/debate_management.DebateService/DeleteTeam"
 )
 
 // DebateServiceClient is the client API for DebateService service.
@@ -56,7 +54,6 @@ type DebateServiceClient interface {
 	UpdateJudge(ctx context.Context, in *UpdateJudgeRequest, opts ...grpc.CallOption) (*UpdateJudgeResponse, error)
 	// Pairing operations
 	GetPairings(ctx context.Context, in *GetPairingsRequest, opts ...grpc.CallOption) (*GetPairingsResponse, error)
-	GetPairing(ctx context.Context, in *GetPairingRequest, opts ...grpc.CallOption) (*GetPairingResponse, error)
 	UpdatePairings(ctx context.Context, in *UpdatePairingsRequest, opts ...grpc.CallOption) (*UpdatePairingsResponse, error)
 	// Ballot operations
 	GetBallots(ctx context.Context, in *GetBallotsRequest, opts ...grpc.CallOption) (*GetBallotsResponse, error)
@@ -64,16 +61,14 @@ type DebateServiceClient interface {
 	UpdateBallot(ctx context.Context, in *UpdateBallotRequest, opts ...grpc.CallOption) (*UpdateBallotResponse, error)
 	GetBallotByJudgeID(ctx context.Context, in *GetBallotByJudgeIDRequest, opts ...grpc.CallOption) (*GetBallotByJudgeIDResponse, error)
 	// Algorithm integration
-	GeneratePairings(ctx context.Context, in *GeneratePairingsRequest, opts ...grpc.CallOption) (*GeneratePairingsResponse, error)
-	AssignJudges(ctx context.Context, in *AssignJudgesRequest, opts ...grpc.CallOption) (*AssignJudgesResponse, error)
+	GeneratePreliminaryPairings(ctx context.Context, in *GeneratePreliminaryPairingsRequest, opts ...grpc.CallOption) (*GeneratePairingsResponse, error)
+	GenerateEliminationPairings(ctx context.Context, in *GenerateEliminationPairingsRequest, opts ...grpc.CallOption) (*GeneratePairingsResponse, error)
 	// Team operations
 	CreateTeam(ctx context.Context, in *CreateTeamRequest, opts ...grpc.CallOption) (*Team, error)
 	GetTeam(ctx context.Context, in *GetTeamRequest, opts ...grpc.CallOption) (*Team, error)
 	UpdateTeam(ctx context.Context, in *UpdateTeamRequest, opts ...grpc.CallOption) (*Team, error)
 	GetTeamsByTournament(ctx context.Context, in *GetTeamsByTournamentRequest, opts ...grpc.CallOption) (*GetTeamsByTournamentResponse, error)
 	DeleteTeam(ctx context.Context, in *DeleteTeamRequest, opts ...grpc.CallOption) (*DeleteTeamResponse, error)
-	// Regenerate pairings operation
-	RegeneratePairings(ctx context.Context, in *RegeneratePairingsRequest, opts ...grpc.CallOption) (*GeneratePairingsResponse, error)
 }
 
 type debateServiceClient struct {
@@ -154,16 +149,6 @@ func (c *debateServiceClient) GetPairings(ctx context.Context, in *GetPairingsRe
 	return out, nil
 }
 
-func (c *debateServiceClient) GetPairing(ctx context.Context, in *GetPairingRequest, opts ...grpc.CallOption) (*GetPairingResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetPairingResponse)
-	err := c.cc.Invoke(ctx, DebateService_GetPairing_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *debateServiceClient) UpdatePairings(ctx context.Context, in *UpdatePairingsRequest, opts ...grpc.CallOption) (*UpdatePairingsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(UpdatePairingsResponse)
@@ -214,20 +199,20 @@ func (c *debateServiceClient) GetBallotByJudgeID(ctx context.Context, in *GetBal
 	return out, nil
 }
 
-func (c *debateServiceClient) GeneratePairings(ctx context.Context, in *GeneratePairingsRequest, opts ...grpc.CallOption) (*GeneratePairingsResponse, error) {
+func (c *debateServiceClient) GeneratePreliminaryPairings(ctx context.Context, in *GeneratePreliminaryPairingsRequest, opts ...grpc.CallOption) (*GeneratePairingsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GeneratePairingsResponse)
-	err := c.cc.Invoke(ctx, DebateService_GeneratePairings_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, DebateService_GeneratePreliminaryPairings_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *debateServiceClient) AssignJudges(ctx context.Context, in *AssignJudgesRequest, opts ...grpc.CallOption) (*AssignJudgesResponse, error) {
+func (c *debateServiceClient) GenerateEliminationPairings(ctx context.Context, in *GenerateEliminationPairingsRequest, opts ...grpc.CallOption) (*GeneratePairingsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(AssignJudgesResponse)
-	err := c.cc.Invoke(ctx, DebateService_AssignJudges_FullMethodName, in, out, cOpts...)
+	out := new(GeneratePairingsResponse)
+	err := c.cc.Invoke(ctx, DebateService_GenerateEliminationPairings_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -284,16 +269,6 @@ func (c *debateServiceClient) DeleteTeam(ctx context.Context, in *DeleteTeamRequ
 	return out, nil
 }
 
-func (c *debateServiceClient) RegeneratePairings(ctx context.Context, in *RegeneratePairingsRequest, opts ...grpc.CallOption) (*GeneratePairingsResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GeneratePairingsResponse)
-	err := c.cc.Invoke(ctx, DebateService_RegeneratePairings_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // DebateServiceServer is the server API for DebateService service.
 // All implementations must embed UnimplementedDebateServiceServer
 // for forward compatibility.
@@ -308,7 +283,6 @@ type DebateServiceServer interface {
 	UpdateJudge(context.Context, *UpdateJudgeRequest) (*UpdateJudgeResponse, error)
 	// Pairing operations
 	GetPairings(context.Context, *GetPairingsRequest) (*GetPairingsResponse, error)
-	GetPairing(context.Context, *GetPairingRequest) (*GetPairingResponse, error)
 	UpdatePairings(context.Context, *UpdatePairingsRequest) (*UpdatePairingsResponse, error)
 	// Ballot operations
 	GetBallots(context.Context, *GetBallotsRequest) (*GetBallotsResponse, error)
@@ -316,16 +290,14 @@ type DebateServiceServer interface {
 	UpdateBallot(context.Context, *UpdateBallotRequest) (*UpdateBallotResponse, error)
 	GetBallotByJudgeID(context.Context, *GetBallotByJudgeIDRequest) (*GetBallotByJudgeIDResponse, error)
 	// Algorithm integration
-	GeneratePairings(context.Context, *GeneratePairingsRequest) (*GeneratePairingsResponse, error)
-	AssignJudges(context.Context, *AssignJudgesRequest) (*AssignJudgesResponse, error)
+	GeneratePreliminaryPairings(context.Context, *GeneratePreliminaryPairingsRequest) (*GeneratePairingsResponse, error)
+	GenerateEliminationPairings(context.Context, *GenerateEliminationPairingsRequest) (*GeneratePairingsResponse, error)
 	// Team operations
 	CreateTeam(context.Context, *CreateTeamRequest) (*Team, error)
 	GetTeam(context.Context, *GetTeamRequest) (*Team, error)
 	UpdateTeam(context.Context, *UpdateTeamRequest) (*Team, error)
 	GetTeamsByTournament(context.Context, *GetTeamsByTournamentRequest) (*GetTeamsByTournamentResponse, error)
 	DeleteTeam(context.Context, *DeleteTeamRequest) (*DeleteTeamResponse, error)
-	// Regenerate pairings operation
-	RegeneratePairings(context.Context, *RegeneratePairingsRequest) (*GeneratePairingsResponse, error)
 	mustEmbedUnimplementedDebateServiceServer()
 }
 
@@ -357,9 +329,6 @@ func (UnimplementedDebateServiceServer) UpdateJudge(context.Context, *UpdateJudg
 func (UnimplementedDebateServiceServer) GetPairings(context.Context, *GetPairingsRequest) (*GetPairingsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPairings not implemented")
 }
-func (UnimplementedDebateServiceServer) GetPairing(context.Context, *GetPairingRequest) (*GetPairingResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetPairing not implemented")
-}
 func (UnimplementedDebateServiceServer) UpdatePairings(context.Context, *UpdatePairingsRequest) (*UpdatePairingsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdatePairings not implemented")
 }
@@ -375,11 +344,11 @@ func (UnimplementedDebateServiceServer) UpdateBallot(context.Context, *UpdateBal
 func (UnimplementedDebateServiceServer) GetBallotByJudgeID(context.Context, *GetBallotByJudgeIDRequest) (*GetBallotByJudgeIDResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBallotByJudgeID not implemented")
 }
-func (UnimplementedDebateServiceServer) GeneratePairings(context.Context, *GeneratePairingsRequest) (*GeneratePairingsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GeneratePairings not implemented")
+func (UnimplementedDebateServiceServer) GeneratePreliminaryPairings(context.Context, *GeneratePreliminaryPairingsRequest) (*GeneratePairingsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GeneratePreliminaryPairings not implemented")
 }
-func (UnimplementedDebateServiceServer) AssignJudges(context.Context, *AssignJudgesRequest) (*AssignJudgesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AssignJudges not implemented")
+func (UnimplementedDebateServiceServer) GenerateEliminationPairings(context.Context, *GenerateEliminationPairingsRequest) (*GeneratePairingsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateEliminationPairings not implemented")
 }
 func (UnimplementedDebateServiceServer) CreateTeam(context.Context, *CreateTeamRequest) (*Team, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateTeam not implemented")
@@ -395,9 +364,6 @@ func (UnimplementedDebateServiceServer) GetTeamsByTournament(context.Context, *G
 }
 func (UnimplementedDebateServiceServer) DeleteTeam(context.Context, *DeleteTeamRequest) (*DeleteTeamResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteTeam not implemented")
-}
-func (UnimplementedDebateServiceServer) RegeneratePairings(context.Context, *RegeneratePairingsRequest) (*GeneratePairingsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RegeneratePairings not implemented")
 }
 func (UnimplementedDebateServiceServer) mustEmbedUnimplementedDebateServiceServer() {}
 func (UnimplementedDebateServiceServer) testEmbeddedByValue()                       {}
@@ -546,24 +512,6 @@ func _DebateService_GetPairings_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DebateService_GetPairing_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetPairingRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DebateServiceServer).GetPairing(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: DebateService_GetPairing_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DebateServiceServer).GetPairing(ctx, req.(*GetPairingRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _DebateService_UpdatePairings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UpdatePairingsRequest)
 	if err := dec(in); err != nil {
@@ -654,38 +602,38 @@ func _DebateService_GetBallotByJudgeID_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DebateService_GeneratePairings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GeneratePairingsRequest)
+func _DebateService_GeneratePreliminaryPairings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GeneratePreliminaryPairingsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(DebateServiceServer).GeneratePairings(ctx, in)
+		return srv.(DebateServiceServer).GeneratePreliminaryPairings(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: DebateService_GeneratePairings_FullMethodName,
+		FullMethod: DebateService_GeneratePreliminaryPairings_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DebateServiceServer).GeneratePairings(ctx, req.(*GeneratePairingsRequest))
+		return srv.(DebateServiceServer).GeneratePreliminaryPairings(ctx, req.(*GeneratePreliminaryPairingsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DebateService_AssignJudges_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AssignJudgesRequest)
+func _DebateService_GenerateEliminationPairings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GenerateEliminationPairingsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(DebateServiceServer).AssignJudges(ctx, in)
+		return srv.(DebateServiceServer).GenerateEliminationPairings(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: DebateService_AssignJudges_FullMethodName,
+		FullMethod: DebateService_GenerateEliminationPairings_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DebateServiceServer).AssignJudges(ctx, req.(*AssignJudgesRequest))
+		return srv.(DebateServiceServer).GenerateEliminationPairings(ctx, req.(*GenerateEliminationPairingsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -780,24 +728,6 @@ func _DebateService_DeleteTeam_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
-func _DebateService_RegeneratePairings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RegeneratePairingsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DebateServiceServer).RegeneratePairings(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: DebateService_RegeneratePairings_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DebateServiceServer).RegeneratePairings(ctx, req.(*RegeneratePairingsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // DebateService_ServiceDesc is the grpc.ServiceDesc for DebateService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -834,10 +764,6 @@ var DebateService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _DebateService_GetPairings_Handler,
 		},
 		{
-			MethodName: "GetPairing",
-			Handler:    _DebateService_GetPairing_Handler,
-		},
-		{
 			MethodName: "UpdatePairings",
 			Handler:    _DebateService_UpdatePairings_Handler,
 		},
@@ -858,12 +784,12 @@ var DebateService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _DebateService_GetBallotByJudgeID_Handler,
 		},
 		{
-			MethodName: "GeneratePairings",
-			Handler:    _DebateService_GeneratePairings_Handler,
+			MethodName: "GeneratePreliminaryPairings",
+			Handler:    _DebateService_GeneratePreliminaryPairings_Handler,
 		},
 		{
-			MethodName: "AssignJudges",
-			Handler:    _DebateService_AssignJudges_Handler,
+			MethodName: "GenerateEliminationPairings",
+			Handler:    _DebateService_GenerateEliminationPairings_Handler,
 		},
 		{
 			MethodName: "CreateTeam",
@@ -884,10 +810,6 @@ var DebateService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteTeam",
 			Handler:    _DebateService_DeleteTeam_Handler,
-		},
-		{
-			MethodName: "RegeneratePairings",
-			Handler:    _DebateService_RegeneratePairings_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

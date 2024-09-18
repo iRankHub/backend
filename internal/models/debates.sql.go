@@ -117,8 +117,14 @@ func (q *Queries) CountJudgeDebates(ctx context.Context, arg CountJudgeDebatesPa
 }
 
 const createBallot = `-- name: CreateBallot :one
-INSERT INTO Ballots (DebateID, JudgeID, RecordingStatus, Verdict)
-VALUES ($1, $2, $3, $4)
+INSERT INTO ballots (
+    debateid,
+    judgeid,
+    recordingstatus,
+    verdict
+) VALUES (
+    $1, $2, $3, $4
+)
 RETURNING ballotid, debateid, judgeid, team1totalscore, team1feedback, team2totalscore, team2feedback, recordingstatus, verdict, last_updated_by, last_updated_at, head_judge_submitted
 `
 
@@ -283,9 +289,15 @@ type CreateTeamParams struct {
 	Tournamentid int32  `json:"tournamentid"`
 }
 
-func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (Team, error) {
+type CreateTeamRow struct {
+	Teamid       int32  `json:"teamid"`
+	Name         string `json:"name"`
+	Tournamentid int32  `json:"tournamentid"`
+}
+
+func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (CreateTeamRow, error) {
 	row := q.db.QueryRowContext(ctx, createTeam, arg.Name, arg.Tournamentid)
-	var i Team
+	var i CreateTeamRow
 	err := row.Scan(&i.Teamid, &i.Name, &i.Tournamentid)
 	return i, err
 }
@@ -686,6 +698,67 @@ func (q *Queries) GetDebatesByRoomAndTournament(ctx context.Context, arg GetDeba
 			&i.Endtime,
 			&i.Roomid,
 			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getEliminationRoundTeams = `-- name: GetEliminationRoundTeams :many
+SELECT t.teamid, t.name, t.tournamentid, t.totalwins, t.totalspeakerpoints, t.averagerank,
+       b.Verdict as LastRoundResult
+FROM Teams t
+JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
+JOIN Ballots b ON d.DebateID = b.DebateID
+WHERE t.TournamentID = $1
+  AND d.IsEliminationRound = true
+  AND d.RoundNumber = $2
+  AND b.Verdict = t.Name
+ORDER BY d.RoundNumber DESC, b.Team1TotalScore + b.Team2TotalScore DESC
+LIMIT $3
+`
+
+type GetEliminationRoundTeamsParams struct {
+	Tournamentid int32 `json:"tournamentid"`
+	Roundnumber  int32 `json:"roundnumber"`
+	Limit        int32 `json:"limit"`
+}
+
+type GetEliminationRoundTeamsRow struct {
+	Teamid             int32          `json:"teamid"`
+	Name               string         `json:"name"`
+	Tournamentid       int32          `json:"tournamentid"`
+	Totalwins          sql.NullInt32  `json:"totalwins"`
+	Totalspeakerpoints sql.NullString `json:"totalspeakerpoints"`
+	Averagerank        sql.NullString `json:"averagerank"`
+	Lastroundresult    string         `json:"lastroundresult"`
+}
+
+func (q *Queries) GetEliminationRoundTeams(ctx context.Context, arg GetEliminationRoundTeamsParams) ([]GetEliminationRoundTeamsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getEliminationRoundTeams, arg.Tournamentid, arg.Roundnumber, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetEliminationRoundTeamsRow{}
+	for rows.Next() {
+		var i GetEliminationRoundTeamsRow
+		if err := rows.Scan(
+			&i.Teamid,
+			&i.Name,
+			&i.Tournamentid,
+			&i.Totalwins,
+			&i.Totalspeakerpoints,
+			&i.Averagerank,
+			&i.Lastroundresult,
 		); err != nil {
 			return nil, err
 		}
@@ -1597,6 +1670,71 @@ func (q *Queries) GetTeamsByTournament(ctx context.Context, tournamentid int32) 
 			&i.Speakerids,
 			&i.Wins,
 			&i.Leaguename,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTopPerformingTeams = `-- name: GetTopPerformingTeams :many
+SELECT t.teamid, t.name, t.tournamentid, t.totalwins, t.totalspeakerpoints, t.averagerank,
+       COALESCE(SUM(CASE WHEN b.Verdict = t.Name THEN 1 ELSE 0 END), 0) as Wins,
+       COALESCE(SUM(ts.TotalScore), 0) as TotalSpeakerPoints,
+       COALESCE(AVG(ts.Rank), 0) as AverageRank
+FROM Teams t
+LEFT JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
+LEFT JOIN Ballots b ON d.DebateID = b.DebateID
+LEFT JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+WHERE t.TournamentID = $1 AND d.IsEliminationRound = false
+GROUP BY t.TeamID
+ORDER BY Wins DESC, TotalSpeakerPoints DESC, AverageRank ASC
+LIMIT $2
+`
+
+type GetTopPerformingTeamsParams struct {
+	Tournamentid int32 `json:"tournamentid"`
+	Limit        int32 `json:"limit"`
+}
+
+type GetTopPerformingTeamsRow struct {
+	Teamid               int32          `json:"teamid"`
+	Name                 string         `json:"name"`
+	Tournamentid         int32          `json:"tournamentid"`
+	Totalwins            sql.NullInt32  `json:"totalwins"`
+	Totalspeakerpoints   sql.NullString `json:"totalspeakerpoints"`
+	Averagerank          sql.NullString `json:"averagerank"`
+	Wins                 interface{}    `json:"wins"`
+	Totalspeakerpoints_2 interface{}    `json:"totalspeakerpoints_2"`
+	Averagerank_2        interface{}    `json:"averagerank_2"`
+}
+
+func (q *Queries) GetTopPerformingTeams(ctx context.Context, arg GetTopPerformingTeamsParams) ([]GetTopPerformingTeamsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTopPerformingTeams, arg.Tournamentid, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetTopPerformingTeamsRow{}
+	for rows.Next() {
+		var i GetTopPerformingTeamsRow
+		if err := rows.Scan(
+			&i.Teamid,
+			&i.Name,
+			&i.Tournamentid,
+			&i.Totalwins,
+			&i.Totalspeakerpoints,
+			&i.Averagerank,
+			&i.Wins,
+			&i.Totalspeakerpoints_2,
+			&i.Averagerank_2,
 		); err != nil {
 			return nil, err
 		}

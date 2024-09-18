@@ -141,8 +141,14 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING DebateID;
 
 -- name: CreateBallot :one
-INSERT INTO Ballots (DebateID, JudgeID, RecordingStatus, Verdict)
-VALUES ($1, $2, $3, $4)
+INSERT INTO ballots (
+    debateid,
+    judgeid,
+    recordingstatus,
+    verdict
+) VALUES (
+    $1, $2, $3, $4
+)
 RETURNING *;
 
 -- name: GetTeamsByTournament :many
@@ -530,3 +536,30 @@ WHERE ja.JudgeID = $1
     AND d.IsEliminationRound = $5
     AND d.DebateID = ja.DebateID
   );
+
+-- name: GetEliminationRoundTeams :many
+SELECT t.*,
+       b.Verdict as LastRoundResult
+FROM Teams t
+JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
+JOIN Ballots b ON d.DebateID = b.DebateID
+WHERE t.TournamentID = $1
+  AND d.IsEliminationRound = true
+  AND d.RoundNumber = $2
+  AND b.Verdict = t.Name
+ORDER BY d.RoundNumber DESC, b.Team1TotalScore + b.Team2TotalScore DESC
+LIMIT $3;
+
+-- name: GetTopPerformingTeams :many
+SELECT t.*,
+       COALESCE(SUM(CASE WHEN b.Verdict = t.Name THEN 1 ELSE 0 END), 0) as Wins,
+       COALESCE(SUM(ts.TotalScore), 0) as TotalSpeakerPoints,
+       COALESCE(AVG(ts.Rank), 0) as AverageRank
+FROM Teams t
+LEFT JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
+LEFT JOIN Ballots b ON d.DebateID = b.DebateID
+LEFT JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+WHERE t.TournamentID = $1 AND d.IsEliminationRound = false
+GROUP BY t.TeamID
+ORDER BY Wins DESC, TotalSpeakerPoints DESC, AverageRank ASC
+LIMIT $2;

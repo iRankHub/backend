@@ -185,28 +185,21 @@ func (s *debateServer) DeleteTeam(ctx context.Context, req *debate_management.De
 }
 
 // Algorithm integration
-func (s *debateServer) GeneratePairings(ctx context.Context, req *debate_management.GeneratePairingsRequest) (*debate_management.GeneratePairingsResponse, error) {
-	pairings, err := s.pairingService.GeneratePairings(ctx, req)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to generate pairings: %v", err)
-	}
-	return &debate_management.GeneratePairingsResponse{Pairings: pairings}, nil
-}
-
-
-func (s *debateServer) RegeneratePairings(ctx context.Context, req *debate_management.RegeneratePairingsRequest) (*debate_management.GeneratePairingsResponse, error) {
-    pairings, err := s.pairingService.RegeneratePairings(ctx, req)
+func (s *debateServer) GeneratePreliminaryPairings(ctx context.Context, req *debate_management.GeneratePreliminaryPairingsRequest) (*debate_management.GeneratePairingsResponse, error) {
+    response, err := s.pairingService.GeneratePreliminaryPairings(ctx, req)
     if err != nil {
-        // Check for specific error types and return appropriate gRPC status codes
-        switch {
-        case strings.Contains(err.Error(), "unauthorized"):
-            return nil, status.Errorf(codes.PermissionDenied, "Unauthorized: %v", err)
-        case strings.Contains(err.Error(), "not found"):
-            return nil, status.Errorf(codes.NotFound, "Tournament not found: %v", err)
-        default:
-            return nil, status.Errorf(codes.Internal, "Failed to regenerate pairings: %v", err)
-        }
+        return nil, status.Errorf(codes.Internal, "Failed to generate preliminary pairings: %v", err)
     }
-    return &debate_management.GeneratePairingsResponse{Pairings: pairings}, nil
+    return response, nil
 }
+
+func (s *debateServer) GenerateEliminationPairings(ctx context.Context, req *debate_management.GenerateEliminationPairingsRequest) (*debate_management.GeneratePairingsResponse, error) {
+    response, err := s.pairingService.GenerateEliminationPairings(ctx, req)
+    if err != nil {
+        return nil, status.Errorf(codes.Internal, "Failed to generate elimination pairings: %v", err)
+    }
+    return response, nil
+}
+
+
 

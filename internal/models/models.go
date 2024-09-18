@@ -201,14 +201,26 @@ type Studenttransfer struct {
 }
 
 type Team struct {
-	Teamid       int32  `json:"teamid"`
-	Name         string `json:"name"`
-	Tournamentid int32  `json:"tournamentid"`
+	Teamid             int32          `json:"teamid"`
+	Name               string         `json:"name"`
+	Tournamentid       int32          `json:"tournamentid"`
+	Totalwins          sql.NullInt32  `json:"totalwins"`
+	Totalspeakerpoints sql.NullString `json:"totalspeakerpoints"`
+	Averagerank        sql.NullString `json:"averagerank"`
 }
 
 type Teammember struct {
 	Teamid    int32 `json:"teamid"`
 	Studentid int32 `json:"studentid"`
+}
+
+type Teamscore struct {
+	Scoreid       int32          `json:"scoreid"`
+	Teamid        sql.NullInt32  `json:"teamid"`
+	Debateid      sql.NullInt32  `json:"debateid"`
+	Totalscore    sql.NullString `json:"totalscore"`
+	Rank          sql.NullInt32  `json:"rank"`
+	Iselimination sql.NullBool   `json:"iselimination"`
 }
 
 type Tournament struct {
