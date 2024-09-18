@@ -2,17 +2,30 @@
 
 ## Pairing Management
 
-### GeneratePairings
+### GeneratePreliminaryPairings
 
-Endpoint: `DebateService.GeneratePairings`
+Endpoint: `DebateService.GeneratePreliminaryPairings`
 Authorization: Admin only
 
 Request:
 ```json
 {
   "tournament_id": 1,
-  "is_elimination_round": false,
-  "round_number": 1, //if it is elimination rounds
+  "token": "your_auth_token_here"
+}
+```
+
+### GenerateEliminationPairings
+
+Endpoint: `DebateService.GenerateEliminationPairings`
+Authorization: Admin only
+
+Request:
+```json
+{
+  "tournament_id": 1,
+  "is_elimination_round": true,
+  "round_number": 1,
   "token": "your_auth_token_here"
 }
 ```
@@ -69,20 +82,6 @@ Request:
     }
     // other pairings...
   ],
-  "token": "your_auth_token_here"
-}
-```
-
-### RegeneratePairings
-
-Endpoint: `DebateService.RegeneratePairings`
-Authorization: Admin only
-
-Request:
-```json
-{
-  "tournament_id": 1,
-  "is_elimination_round": false,
   "token": "your_auth_token_here"
 }
 ```
