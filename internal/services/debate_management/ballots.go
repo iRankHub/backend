@@ -170,7 +170,7 @@ func (s *BallotService) UpdateBallot(ctx context.Context, req *debate_management
 			String: fmt.Sprintf("%.2f", req.GetBallot().GetTeam2().GetTotalPoints()),
 			Valid:  true,
 		},
-		Recordingstatus: "Recorded", // Set to "Recorded" as requested
+		Recordingstatus: "Recorded",
 		Verdict:         req.GetBallot().GetVerdict(),
 		Team1feedback:   sql.NullString{String: req.GetBallot().GetTeam1().GetFeedback(), Valid: true},
 		Team2feedback:   sql.NullString{String: req.GetBallot().GetTeam2().GetFeedback(), Valid: true},
@@ -187,18 +187,46 @@ func (s *BallotService) UpdateBallot(ctx context.Context, req *debate_management
 		return nil, fmt.Errorf("failed to update ballot: %v", err)
 	}
 
+	// Get debate information
+	debate, err := queries.GetDebateByBallotID(ctx, req.GetBallot().GetBallotId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get debate information: %v", err)
+	}
+
+	// Update TeamScores for Team1
+	err = updateTeamScore(ctx, queries, debate.Team1id, req.GetBallot().GetTeam1().GetTotalPoints(), debate.Debateid, debate.Iseliminationround)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update TeamScores for Team2
+	err = updateTeamScore(ctx, queries, debate.Team2id, req.GetBallot().GetTeam2().GetTotalPoints(), debate.Debateid, debate.Iseliminationround)
+	if err != nil {
+		return nil, err
+	}
+
 	// Update speaker scores
 	for _, speaker := range req.GetBallot().GetTeam1().GetSpeakers() {
-		err = updateSpeakerScore(ctx, queries, speaker)
+		err = updateSpeakerScore(ctx, queries, speaker, req.GetBallot().GetBallotId())
 		if err != nil {
 			return nil, err
 		}
 	}
 	for _, speaker := range req.GetBallot().GetTeam2().GetSpeakers() {
-		err = updateSpeakerScore(ctx, queries, speaker)
+		err = updateSpeakerScore(ctx, queries, speaker, req.GetBallot().GetBallotId())
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	// Update team ranks
+	err = updateTeamRanks(ctx, queries, debate.Team1id, req.GetBallot().GetBallotId(), debate.Debateid)
+	if err != nil {
+		return nil, err
+	}
+	err = updateTeamRanks(ctx, queries, debate.Team2id, req.GetBallot().GetBallotId(), debate.Debateid)
+	if err != nil {
+		return nil, err
 	}
 
 	// Fetch the updated ballot before committing the transaction
@@ -212,6 +240,46 @@ func (s *BallotService) UpdateBallot(ctx context.Context, req *debate_management
 	}
 
 	return convertBallot(updatedBallot), nil
+}
+
+func updateTeamScore(ctx context.Context, queries *models.Queries, teamID int32, totalScore float64, debateID int32, isElimination bool) error {
+    // First, try to update
+    err := queries.UpdateTeamScore(ctx, models.UpdateTeamScoreParams{
+		Teamid:        sql.NullInt32{Int32: teamID, Valid: true},
+		Debateid:      sql.NullInt32{Int32: debateID, Valid: true},
+		Totalscore:    sql.NullString{String: fmt.Sprintf("%.2f", totalScore), Valid: true},
+		Iselimination: sql.NullBool{Bool: isElimination, Valid: true},
+    })
+    if err != nil {
+        return fmt.Errorf("failed to update team score: %v", err)
+    }
+
+    // Then, try to insert if the update didn't affect any rows
+    err = queries.InsertTeamScore(ctx, models.InsertTeamScoreParams{
+		Teamid:        sql.NullInt32{Int32: teamID, Valid: true},
+		Debateid:      sql.NullInt32{Int32: debateID, Valid: true},
+		Totalscore:    sql.NullString{String: fmt.Sprintf("%.2f", totalScore), Valid: true},
+		Iselimination: sql.NullBool{Bool: isElimination, Valid: true},
+    })
+    if err != nil {
+        return fmt.Errorf("failed to insert team score: %v", err)
+    }
+
+    return nil
+}
+
+func updateSpeakerScore(ctx context.Context, queries *models.Queries, speaker *debate_management.Speaker, ballotID int32) error {
+	err := queries.UpdateSpeakerScore(ctx, models.UpdateSpeakerScoreParams{
+		Ballotid:      ballotID,
+		Speakerid:     speaker.GetSpeakerId(),
+		Speakerrank:   int32(speaker.GetRank()),
+		Speakerpoints: fmt.Sprintf("%.2f", speaker.GetPoints()),
+		Feedback:      sql.NullString{String: speaker.GetFeedback(), Valid: speaker.GetFeedback() != ""},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update speaker score: %v", err)
+	}
+	return nil
 }
 
 func convertSpeakerScore(score models.GetSpeakerScoresByBallotRow) *debate_management.Speaker {
@@ -228,15 +296,25 @@ func convertSpeakerScore(score models.GetSpeakerScoresByBallotRow) *debate_manag
 	}
 }
 
-func updateSpeakerScore(ctx context.Context, queries *models.Queries, speaker *debate_management.Speaker) error {
-	err := queries.UpdateSpeakerScore(ctx, models.UpdateSpeakerScoreParams{
-		Scoreid:       speaker.GetScoreId(),
-		Speakerrank:   int32(speaker.GetRank()),
-		Speakerpoints: fmt.Sprintf("%.2f", speaker.GetPoints()),
-		Feedback:      sql.NullString{String: speaker.GetFeedback(), Valid: speaker.GetFeedback() != ""},
+func updateTeamRanks(ctx context.Context, queries *models.Queries, teamID int32, ballotID int32, debateID int32) error {
+	avgRank, err := queries.GetTeamAverageRank(ctx, models.GetTeamAverageRankParams{
+		Teamid:   teamID,
+		Ballotid: ballotID,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update speaker score: %v", err)
+		return fmt.Errorf("failed to get team average rank: %v", err)
+	}
+
+	// Convert the average rank to an integer
+	intRank := int32(avgRank)
+
+	err = queries.UpdateTeamScoreRank(ctx, models.UpdateTeamScoreRankParams{
+		Teamid:   sql.NullInt32{Int32: teamID, Valid: true},
+		Debateid: sql.NullInt32{Int32: debateID, Valid: true},
+		Rank:     sql.NullInt32{Int32: intRank, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update team rank: %v", err)
 	}
 	return nil
 }

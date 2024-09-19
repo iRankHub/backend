@@ -629,6 +629,32 @@ func (q *Queries) GetBallotsByTournamentAndRound(ctx context.Context, arg GetBal
 	return items, nil
 }
 
+const getDebateByBallotID = `-- name: GetDebateByBallotID :one
+SELECT d.DebateID, d.Team1ID, d.Team2ID, d.IsEliminationRound
+FROM Debates d
+JOIN Ballots b ON d.DebateID = b.DebateID
+WHERE b.BallotID = $1
+`
+
+type GetDebateByBallotIDRow struct {
+	Debateid           int32 `json:"debateid"`
+	Team1id            int32 `json:"team1id"`
+	Team2id            int32 `json:"team2id"`
+	Iseliminationround bool  `json:"iseliminationround"`
+}
+
+func (q *Queries) GetDebateByBallotID(ctx context.Context, ballotid int32) (GetDebateByBallotIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getDebateByBallotID, ballotid)
+	var i GetDebateByBallotIDRow
+	err := row.Scan(
+		&i.Debateid,
+		&i.Team1id,
+		&i.Team2id,
+		&i.Iseliminationround,
+	)
+	return i, err
+}
+
 const getDebateByRoomAndRound = `-- name: GetDebateByRoomAndRound :one
 SELECT debateid, roundid, roundnumber, iseliminationround, tournamentid, team1id, team2id, starttime, endtime, roomid, status
 FROM Debates
@@ -1538,6 +1564,25 @@ func (q *Queries) GetSpeakerScoresByBallot(ctx context.Context, ballotid int32) 
 	return items, nil
 }
 
+const getTeamAverageRank = `-- name: GetTeamAverageRank :one
+SELECT AVG(SpeakerRank)::FLOAT as AvgRank
+FROM SpeakerScores ss
+JOIN TeamMembers tm ON ss.SpeakerID = tm.StudentID
+WHERE tm.TeamID = $1 AND ss.BallotID = $2
+`
+
+type GetTeamAverageRankParams struct {
+	Teamid   int32 `json:"teamid"`
+	Ballotid int32 `json:"ballotid"`
+}
+
+func (q *Queries) GetTeamAverageRank(ctx context.Context, arg GetTeamAverageRankParams) (float64, error) {
+	row := q.db.QueryRowContext(ctx, getTeamAverageRank, arg.Teamid, arg.Ballotid)
+	var avgrank float64
+	err := row.Scan(&avgrank)
+	return avgrank, err
+}
+
 const getTeamByID = `-- name: GetTeamByID :one
 SELECT t.TeamID, t.Name, t.TournamentID,
        array_agg(tm.StudentID) as SpeakerIDs
@@ -1751,6 +1796,32 @@ func (q *Queries) GetTopPerformingTeams(ctx context.Context, arg GetTopPerformin
 	return items, nil
 }
 
+const insertTeamScore = `-- name: InsertTeamScore :exec
+INSERT INTO TeamScores (TeamID, DebateID, TotalScore, IsElimination)
+SELECT $1, $2, $3, $4
+WHERE NOT EXISTS (
+    SELECT 1 FROM TeamScores
+    WHERE TeamID = $1 AND DebateID = $2
+)
+`
+
+type InsertTeamScoreParams struct {
+	Teamid        sql.NullInt32  `json:"teamid"`
+	Debateid      sql.NullInt32  `json:"debateid"`
+	Totalscore    sql.NullString `json:"totalscore"`
+	Iselimination sql.NullBool   `json:"iselimination"`
+}
+
+func (q *Queries) InsertTeamScore(ctx context.Context, arg InsertTeamScoreParams) error {
+	_, err := q.db.ExecContext(ctx, insertTeamScore,
+		arg.Teamid,
+		arg.Debateid,
+		arg.Totalscore,
+		arg.Iselimination,
+	)
+	return err
+}
+
 const isHeadJudgeForBallot = `-- name: IsHeadJudgeForBallot :one
 SELECT COUNT(*) > 0 as is_head_judge
 FROM Ballots b
@@ -1901,12 +1972,13 @@ func (q *Queries) UpdateRoom(ctx context.Context, arg UpdateRoomParams) (Room, e
 
 const updateSpeakerScore = `-- name: UpdateSpeakerScore :exec
 UPDATE SpeakerScores
-SET SpeakerRank = $2, SpeakerPoints = $3, Feedback = $4
-WHERE ScoreID = $1
+SET SpeakerRank = $3, SpeakerPoints = $4, Feedback = $5
+WHERE BallotID = $1 AND SpeakerID = $2
 `
 
 type UpdateSpeakerScoreParams struct {
-	Scoreid       int32          `json:"scoreid"`
+	Ballotid      int32          `json:"ballotid"`
+	Speakerid     int32          `json:"speakerid"`
 	Speakerrank   int32          `json:"speakerrank"`
 	Speakerpoints string         `json:"speakerpoints"`
 	Feedback      sql.NullString `json:"feedback"`
@@ -1914,7 +1986,8 @@ type UpdateSpeakerScoreParams struct {
 
 func (q *Queries) UpdateSpeakerScore(ctx context.Context, arg UpdateSpeakerScoreParams) error {
 	_, err := q.db.ExecContext(ctx, updateSpeakerScore,
-		arg.Scoreid,
+		arg.Ballotid,
+		arg.Speakerid,
 		arg.Speakerrank,
 		arg.Speakerpoints,
 		arg.Feedback,
@@ -1935,5 +2008,45 @@ type UpdateTeamParams struct {
 
 func (q *Queries) UpdateTeam(ctx context.Context, arg UpdateTeamParams) error {
 	_, err := q.db.ExecContext(ctx, updateTeam, arg.Teamid, arg.Name)
+	return err
+}
+
+const updateTeamScore = `-- name: UpdateTeamScore :exec
+UPDATE TeamScores
+SET TotalScore = $3, IsElimination = $4
+WHERE TeamID = $1 AND DebateID = $2
+`
+
+type UpdateTeamScoreParams struct {
+	Teamid        sql.NullInt32  `json:"teamid"`
+	Debateid      sql.NullInt32  `json:"debateid"`
+	Totalscore    sql.NullString `json:"totalscore"`
+	Iselimination sql.NullBool   `json:"iselimination"`
+}
+
+func (q *Queries) UpdateTeamScore(ctx context.Context, arg UpdateTeamScoreParams) error {
+	_, err := q.db.ExecContext(ctx, updateTeamScore,
+		arg.Teamid,
+		arg.Debateid,
+		arg.Totalscore,
+		arg.Iselimination,
+	)
+	return err
+}
+
+const updateTeamScoreRank = `-- name: UpdateTeamScoreRank :exec
+UPDATE TeamScores
+SET Rank = $3
+WHERE TeamID = $1 AND DebateID = $2
+`
+
+type UpdateTeamScoreRankParams struct {
+	Teamid   sql.NullInt32 `json:"teamid"`
+	Debateid sql.NullInt32 `json:"debateid"`
+	Rank     sql.NullInt32 `json:"rank"`
+}
+
+func (q *Queries) UpdateTeamScoreRank(ctx context.Context, arg UpdateTeamScoreRankParams) error {
+	_, err := q.db.ExecContext(ctx, updateTeamScoreRank, arg.Teamid, arg.Debateid, arg.Rank)
 	return err
 }

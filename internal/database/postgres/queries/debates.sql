@@ -119,8 +119,8 @@ ORDER BY ss.SpeakerID, ss.ScoreID DESC;
 
 -- name: UpdateSpeakerScore :exec
 UPDATE SpeakerScores
-SET SpeakerRank = $2, SpeakerPoints = $3, Feedback = $4
-WHERE ScoreID = $1;
+SET SpeakerRank = $3, SpeakerPoints = $4, Feedback = $5
+WHERE BallotID = $1 AND SpeakerID = $2;
 
 -- name: IsHeadJudgeForBallot :one
 SELECT COUNT(*) > 0 as is_head_judge
@@ -565,3 +565,33 @@ WHERE t.TournamentID = $1 AND d.IsEliminationRound = false
 GROUP BY t.TeamID
 ORDER BY Wins DESC, TotalSpeakerPoints DESC, AverageRank ASC
 LIMIT $2;
+
+-- name: GetDebateByBallotID :one
+SELECT d.DebateID, d.Team1ID, d.Team2ID, d.IsEliminationRound
+FROM Debates d
+JOIN Ballots b ON d.DebateID = b.DebateID
+WHERE b.BallotID = $1;
+
+-- name: UpdateTeamScore :exec
+UPDATE TeamScores
+SET TotalScore = $3, IsElimination = $4
+WHERE TeamID = $1 AND DebateID = $2;
+
+-- name: InsertTeamScore :exec
+INSERT INTO TeamScores (TeamID, DebateID, TotalScore, IsElimination)
+SELECT $1, $2, $3, $4
+WHERE NOT EXISTS (
+    SELECT 1 FROM TeamScores
+    WHERE TeamID = $1 AND DebateID = $2
+);
+
+-- name: GetTeamAverageRank :one
+SELECT AVG(SpeakerRank)::FLOAT as AvgRank
+FROM SpeakerScores ss
+JOIN TeamMembers tm ON ss.SpeakerID = tm.StudentID
+WHERE tm.TeamID = $1 AND ss.BallotID = $2;
+
+-- name: UpdateTeamScoreRank :exec
+UPDATE TeamScores
+SET Rank = $3
+WHERE TeamID = $1 AND DebateID = $2;
