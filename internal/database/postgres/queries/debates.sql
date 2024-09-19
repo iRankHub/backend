@@ -83,9 +83,10 @@ WITH ballot_info AS (
     FROM Ballots b
     JOIN Debates d ON b.DebateID = d.DebateID
     WHERE d.DebateID = $1
+    ORDER BY b.BallotID  -- Added explicit ordering
 ),
 team_speakers AS (
-    SELECT tm.StudentID as SpeakerID,
+    SELECT tm.StudentID as SpeakerID, t.TeamID,
            CASE
                WHEN t.TeamID = bi.Team1ID THEN 1
                WHEN t.TeamID = bi.Team2ID THEN 2
@@ -96,10 +97,11 @@ team_speakers AS (
 )
 INSERT INTO SpeakerScores (BallotID, SpeakerID, SpeakerRank, SpeakerPoints)
 SELECT bi.BallotID, ts.SpeakerID,
-       ROW_NUMBER() OVER (PARTITION BY ts.TeamNumber ORDER BY ts.SpeakerID) as SpeakerRank,
+       ROW_NUMBER() OVER (PARTITION BY bi.BallotID, ts.TeamNumber ORDER BY ts.SpeakerID) as SpeakerRank,
        0 as SpeakerPoints
 FROM ballot_info bi
-CROSS JOIN team_speakers ts;
+JOIN team_speakers ts ON (ts.TeamNumber = 1 AND bi.Team1ID = ts.TeamID)
+                      OR (ts.TeamNumber = 2 AND bi.Team2ID = ts.TeamID);
 
 -- name: GetSpeakerScoresByBallot :many
 SELECT DISTINCT ON (ss.SpeakerID) ss.ScoreID, ss.SpeakerID, s.FirstName, s.LastName,
