@@ -357,10 +357,6 @@ func (s *UserManagementService) RejectUsers(ctx context.Context, token string, u
 			continue
 		}
 
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %v", err)
-	}
-
 		go func(userEmail, userName string, userId int32) {
 			err := notifications.SendRejectionNotification(s.notificationService, userEmail, userName)
 			if err != nil {
@@ -369,8 +365,13 @@ func (s *UserManagementService) RejectUsers(ctx context.Context, token string, u
 		}(user.Email, user.Name, userID)
 	}
 
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
 	return failedUserIDs, nil
 }
+
 
 func (s *UserManagementService) DeleteUsers(ctx context.Context, token string, userIDs []int32) ([]int32, error) {
 	claims, err := utils.ValidateToken(token)
