@@ -432,6 +432,25 @@ func (s *userManagementServer) GetCountries(ctx context.Context, req *user_manag
 	}, nil
 }
 
+func (s *userManagementServer) GetCountriesNoAuth(ctx context.Context, req *user_management.GetCountriesNoAuthRequest) (*user_management.GetCountriesNoAuthResponse, error) {
+	countries, err := s.countryManagementService.GetCountriesNoAuth(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get countries: %v", err)
+	}
+
+	var protoCountries []*user_management.Country
+	for _, country := range countries {
+		protoCountries = append(protoCountries, &user_management.Country{
+			Name: country.Countryname,
+			Code: country.Isocode,
+		})
+	}
+
+	return &user_management.GetCountriesNoAuthResponse{
+		Countries: protoCountries,
+	}, nil
+}
+
 func (s *userManagementServer) GetVolunteersAndAdmins(ctx context.Context, req *user_management.GetVolunteersAndAdminsRequest) (*user_management.GetVolunteersAndAdminsResponse, error) {
 	users, totalCount, err := s.userManagementService.GetVolunteersAndAdmins(ctx, req.Token, req.Page, req.PageSize)
 	if err != nil {

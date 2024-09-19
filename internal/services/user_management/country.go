@@ -23,6 +23,14 @@ func (s *CountryService) GetCountries(ctx context.Context, token string) ([]mode
 		return nil, fmt.Errorf("invalid token: %v", err)
 	}
 
+	return s.getCountriesInternal(ctx)
+}
+
+func (s *CountryService) GetCountriesNoAuth(ctx context.Context) ([]models.Countrycode, error) {
+	return s.getCountriesInternal(ctx)
+}
+
+func (s *CountryService) getCountriesInternal(ctx context.Context) ([]models.Countrycode, error) {
 	queries := models.New(s.db)
 	return queries.GetAllCountries(ctx)
 }

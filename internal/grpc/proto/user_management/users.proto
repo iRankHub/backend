@@ -21,6 +21,7 @@ service UserManagementService {
   rpc ReactivateAccount(ReactivateAccountRequest) returns (ReactivateAccountResponse) {}
   rpc GetAccountStatus(GetAccountStatusRequest) returns (GetAccountStatusResponse) {}
   rpc GetCountries(GetCountriesRequest) returns (GetCountriesResponse) {}
+  rpc GetCountriesNoAuth(GetCountriesNoAuthRequest) returns (GetCountriesNoAuthResponse) {}
   rpc GetSchools(GetSchoolsRequest) returns (GetSchoolsResponse) {}
   rpc GetStudents(GetStudentsRequest) returns (GetStudentsResponse) {}
   rpc GetVolunteers(GetVolunteersRequest) returns (GetVolunteersResponse) {}
@@ -313,6 +314,12 @@ message GetCountriesRequest {
 }
 
 message GetCountriesResponse {
+  repeated Country countries = 1;
+}
+
+message GetCountriesNoAuthRequest {}
+
+message GetCountriesNoAuthResponse {
   repeated Country countries = 1;
 }
 

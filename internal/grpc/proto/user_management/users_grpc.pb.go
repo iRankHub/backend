@@ -35,6 +35,7 @@ const (
 	UserManagementService_ReactivateAccount_FullMethodName       = "/user_management.UserManagementService/ReactivateAccount"
 	UserManagementService_GetAccountStatus_FullMethodName        = "/user_management.UserManagementService/GetAccountStatus"
 	UserManagementService_GetCountries_FullMethodName            = "/user_management.UserManagementService/GetCountries"
+	UserManagementService_GetCountriesNoAuth_FullMethodName      = "/user_management.UserManagementService/GetCountriesNoAuth"
 	UserManagementService_GetSchools_FullMethodName              = "/user_management.UserManagementService/GetSchools"
 	UserManagementService_GetStudents_FullMethodName             = "/user_management.UserManagementService/GetStudents"
 	UserManagementService_GetVolunteers_FullMethodName           = "/user_management.UserManagementService/GetVolunteers"
@@ -67,6 +68,7 @@ type UserManagementServiceClient interface {
 	ReactivateAccount(ctx context.Context, in *ReactivateAccountRequest, opts ...grpc.CallOption) (*ReactivateAccountResponse, error)
 	GetAccountStatus(ctx context.Context, in *GetAccountStatusRequest, opts ...grpc.CallOption) (*GetAccountStatusResponse, error)
 	GetCountries(ctx context.Context, in *GetCountriesRequest, opts ...grpc.CallOption) (*GetCountriesResponse, error)
+	GetCountriesNoAuth(ctx context.Context, in *GetCountriesNoAuthRequest, opts ...grpc.CallOption) (*GetCountriesNoAuthResponse, error)
 	GetSchools(ctx context.Context, in *GetSchoolsRequest, opts ...grpc.CallOption) (*GetSchoolsResponse, error)
 	GetStudents(ctx context.Context, in *GetStudentsRequest, opts ...grpc.CallOption) (*GetStudentsResponse, error)
 	GetVolunteers(ctx context.Context, in *GetVolunteersRequest, opts ...grpc.CallOption) (*GetVolunteersResponse, error)
@@ -247,6 +249,16 @@ func (c *userManagementServiceClient) GetCountries(ctx context.Context, in *GetC
 	return out, nil
 }
 
+func (c *userManagementServiceClient) GetCountriesNoAuth(ctx context.Context, in *GetCountriesNoAuthRequest, opts ...grpc.CallOption) (*GetCountriesNoAuthResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetCountriesNoAuthResponse)
+	err := c.cc.Invoke(ctx, UserManagementService_GetCountriesNoAuth_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *userManagementServiceClient) GetSchools(ctx context.Context, in *GetSchoolsRequest, opts ...grpc.CallOption) (*GetSchoolsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetSchoolsResponse)
@@ -367,6 +379,7 @@ type UserManagementServiceServer interface {
 	ReactivateAccount(context.Context, *ReactivateAccountRequest) (*ReactivateAccountResponse, error)
 	GetAccountStatus(context.Context, *GetAccountStatusRequest) (*GetAccountStatusResponse, error)
 	GetCountries(context.Context, *GetCountriesRequest) (*GetCountriesResponse, error)
+	GetCountriesNoAuth(context.Context, *GetCountriesNoAuthRequest) (*GetCountriesNoAuthResponse, error)
 	GetSchools(context.Context, *GetSchoolsRequest) (*GetSchoolsResponse, error)
 	GetStudents(context.Context, *GetStudentsRequest) (*GetStudentsResponse, error)
 	GetVolunteers(context.Context, *GetVolunteersRequest) (*GetVolunteersResponse, error)
@@ -434,6 +447,9 @@ func (UnimplementedUserManagementServiceServer) GetAccountStatus(context.Context
 }
 func (UnimplementedUserManagementServiceServer) GetCountries(context.Context, *GetCountriesRequest) (*GetCountriesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCountries not implemented")
+}
+func (UnimplementedUserManagementServiceServer) GetCountriesNoAuth(context.Context, *GetCountriesNoAuthRequest) (*GetCountriesNoAuthResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCountriesNoAuth not implemented")
 }
 func (UnimplementedUserManagementServiceServer) GetSchools(context.Context, *GetSchoolsRequest) (*GetSchoolsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSchools not implemented")
@@ -774,6 +790,24 @@ func _UserManagementService_GetCountries_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserManagementService_GetCountriesNoAuth_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetCountriesNoAuthRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserManagementServiceServer).GetCountriesNoAuth(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserManagementService_GetCountriesNoAuth_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserManagementServiceServer).GetCountriesNoAuth(ctx, req.(*GetCountriesNoAuthRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _UserManagementService_GetSchools_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetSchoolsRequest)
 	if err := dec(in); err != nil {
@@ -1024,6 +1058,10 @@ var UserManagementService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetCountries",
 			Handler:    _UserManagementService_GetCountries_Handler,
+		},
+		{
+			MethodName: "GetCountriesNoAuth",
+			Handler:    _UserManagementService_GetCountriesNoAuth_Handler,
 		},
 		{
 			MethodName: "GetSchools",
