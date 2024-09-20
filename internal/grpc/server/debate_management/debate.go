@@ -203,5 +203,27 @@ func (s *debateServer) GenerateEliminationPairings(ctx context.Context, req *deb
     return response, nil
 }
 
+func (s *debateServer) GetTournamentStudentRanking(ctx context.Context, req *debate_management.TournamentRankingRequest) (*debate_management.TournamentRankingResponse, error) {
+    response, err := s.rankingService.GetTournamentStudentRanking(ctx, req)
+    if err != nil {
+        return nil, status.Errorf(codes.Internal, "Failed to get tournament student ranking: %v", err)
+    }
+    return response, nil
+}
 
+func (s *debateServer) GetOverallStudentRanking(ctx context.Context, req *debate_management.OverallRankingRequest) (*debate_management.OverallRankingResponse, error) {
+    response, err := s.rankingService.GetOverallStudentRanking(ctx, req)
+    if err != nil {
+        return nil, status.Errorf(codes.Internal, "Failed to get overall student ranking: %v", err)
+    }
+    return response, nil
+}
+
+func (s *debateServer) GetStudentOverallPerformance(ctx context.Context, req *debate_management.PerformanceRequest) (*debate_management.PerformanceResponse, error) {
+    response, err := s.rankingService.GetStudentOverallPerformance(ctx, req)
+    if err != nil {
+        return nil, status.Errorf(codes.Internal, "Failed to get student overall performance: %v", err)
+    }
+    return response, nil
+}
 
