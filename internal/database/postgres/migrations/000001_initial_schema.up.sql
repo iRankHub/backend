@@ -291,13 +291,6 @@ CREATE TABLE Schedules (
    ScheduledTime TIMESTAMP NOT NULL
 );
 
-CREATE TABLE Results (
-   ResultID SERIAL PRIMARY KEY,
-   TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
-   TeamID INTEGER NOT NULL REFERENCES Teams(TeamID),
-   Rank INTEGER,
-   Points NUMERIC
-);
 
 CREATE TABLE TeamScores (
     ScoreID SERIAL PRIMARY KEY,
@@ -307,8 +300,6 @@ CREATE TABLE TeamScores (
     Rank INTEGER,
     IsElimination BOOLEAN
 );
-
-
 
 CREATE TABLE Communications (
    CommunicationID SERIAL PRIMARY KEY,
@@ -334,14 +325,6 @@ CREATE TABLE VolunteerRatings (
    RatingScore NUMERIC NOT NULL,
    RatingComments TEXT,
    CumulativeRating NUMERIC
-);
-
-CREATE TABLE StudentRanks (
-   RankID SERIAL PRIMARY KEY,
-   StudentID INTEGER NOT NULL REFERENCES Students(StudentID),
-   TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
-   RankValue NUMERIC NOT NULL,
-   RankComments TEXT
 );
 
 CREATE TABLE StudentTransfers (

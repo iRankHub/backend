@@ -567,7 +567,7 @@ ORDER BY Wins DESC, TotalSpeakerPoints DESC, AverageRank ASC
 LIMIT $2;
 
 -- name: GetDebateByBallotID :one
-SELECT d.DebateID, d.Team1ID, d.Team2ID, d.IsEliminationRound
+SELECT d.DebateID, d.Team1ID, d.Team2ID, d.IsEliminationRound, d.TournamentID
 FROM Debates d
 JOIN Ballots b ON d.DebateID = b.DebateID
 WHERE b.BallotID = $1;
@@ -595,3 +595,181 @@ WHERE tm.TeamID = $1 AND ss.BallotID = $2;
 UPDATE TeamScores
 SET Rank = $3
 WHERE TeamID = $1 AND DebateID = $2;
+
+-- name: UpdateTeamStats :exec
+WITH team_stats AS (
+    SELECT
+        t.TeamID,
+        t.TournamentID,
+        COUNT(CASE WHEN b.Verdict = t.Name THEN 1 ELSE NULL END) AS TotalWins,
+        AVG(ts.Rank) AS AvgRank,
+        SUM(ts.TotalScore::NUMERIC) AS TotalSpeakerPoints
+    FROM
+        Teams t
+    JOIN
+        Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID) AND t.TournamentID = d.TournamentID
+    JOIN
+        Ballots b ON d.DebateID = b.DebateID
+    JOIN
+        TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+    WHERE
+        t.TeamID = $1 AND t.TournamentID = $2
+    GROUP BY
+        t.TeamID, t.TournamentID
+)
+UPDATE Teams
+SET
+    TotalWins = team_stats.TotalWins,
+    AverageRank = team_stats.AvgRank,
+    TotalSpeakerPoints = team_stats.TotalSpeakerPoints
+FROM
+    team_stats
+WHERE
+    Teams.TeamID = team_stats.TeamID AND Teams.TournamentID = team_stats.TournamentID;
+
+-- name: GetTournamentStudentRanking :many
+WITH student_performance AS (
+    SELECT
+        s.StudentID,
+        s.FirstName || ' ' || s.LastName AS StudentName,
+        sch.SchoolName,
+        COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) AS TotalWins,
+        SUM(ss.SpeakerPoints) AS TotalPoints,
+        AVG(ss.SpeakerRank) AS AverageRank
+    FROM
+        Students s
+    JOIN TeamMembers tm ON s.StudentID = tm.StudentID
+    JOIN Teams t ON tm.TeamID = t.TeamID
+    JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
+    JOIN Ballots b ON d.DebateID = b.DebateID
+    JOIN SpeakerScores ss ON s.StudentID = ss.SpeakerID AND b.BallotID = ss.BallotID
+    JOIN Schools sch ON s.SchoolID = sch.SchoolID
+    WHERE
+        d.TournamentID = $1 AND d.IsEliminationRound = false
+    GROUP BY
+        s.StudentID, StudentName, sch.SchoolName
+)
+SELECT
+    StudentID,
+    StudentName,
+    SchoolName,
+    TotalWins,
+    TotalPoints,
+    AverageRank
+FROM
+    student_performance
+ORDER BY
+    TotalPoints DESC, AverageRank ASC, TotalWins DESC;
+
+-- name: GetOverallStudentRanking :one
+WITH base_rankings AS (
+    SELECT
+        s.StudentID,
+        s.FirstName || ' ' || s.LastName AS StudentName,
+        SUM(ss.SpeakerPoints) AS TotalPoints,
+        AVG(ss.SpeakerRank) AS AverageRank,
+        COUNT(DISTINCT d.TournamentID) AS TournamentsParticipated,
+        MAX(t.StartDate) AS LastTournamentDate
+    FROM
+        Students s
+    JOIN TeamMembers tm ON s.StudentID = tm.StudentID
+    JOIN Teams te ON tm.TeamID = te.TeamID
+    JOIN Debates d ON (te.TeamID = d.Team1ID OR te.TeamID = d.Team2ID)
+    JOIN Ballots b ON d.DebateID = b.DebateID
+    JOIN SpeakerScores ss ON s.StudentID = ss.SpeakerID AND b.BallotID = ss.BallotID
+    JOIN Tournaments t ON d.TournamentID = t.TournamentID
+    GROUP BY
+        s.StudentID, s.FirstName, s.LastName
+),
+current_ranks AS (
+    SELECT
+        *,
+        RANK() OVER (ORDER BY TotalPoints DESC, AverageRank ASC, TournamentsParticipated DESC) AS CurrentRank,
+        COUNT(*) OVER () AS TotalStudents
+    FROM
+        base_rankings
+),
+rank_changes AS (
+    SELECT
+        *,
+        CurrentRank - LAG(CurrentRank, 1, CurrentRank) OVER (PARTITION BY StudentID ORDER BY LastTournamentDate DESC) AS RankChange
+    FROM
+        current_ranks
+),
+top_students AS (
+    SELECT
+        CurrentRank,
+        StudentName,
+        TotalPoints,
+        RankChange
+    FROM
+        rank_changes
+    WHERE
+        CurrentRank <= 3
+    ORDER BY
+        CurrentRank
+),
+student_result AS (
+    SELECT
+        CurrentRank AS StudentRank,
+        TotalStudents,
+        COALESCE(RankChange, 0) AS RankChange,
+        StudentName,
+        TotalPoints
+    FROM
+        rank_changes
+    WHERE
+        s.StudentID = $1
+),
+top_students_json AS (
+    SELECT
+        json_agg(json_build_object(
+            'rank', CurrentRank,
+            'name', StudentName,
+            'totalPoints', TotalPoints,
+            'rankChange', RankChange
+        )) AS TopStudentsJson
+    FROM
+        top_students
+)
+SELECT
+    sr.StudentRank,
+    sr.TotalStudents,
+    sr.RankChange,
+    sr.StudentName,
+    sr.TotalPoints,
+    tsj.TopStudentsJson AS TopStudents
+FROM
+    student_result sr
+CROSS JOIN
+    top_students_json tsj;
+
+-- name: GetStudentOverallPerformance :many
+WITH tournament_performance AS (
+    SELECT
+        d.TournamentID,
+        t.StartDate,
+        s.StudentID,
+        AVG(ss.SpeakerRank) AS StudentRank,
+        AVG(AVG(ss.SpeakerRank)) OVER (PARTITION BY d.TournamentID) AS AverageRank
+    FROM
+        Students s
+    JOIN TeamMembers tm ON s.StudentID = tm.StudentID
+    JOIN Teams te ON tm.TeamID = te.TeamID
+    JOIN Debates d ON (te.TeamID = d.Team1ID OR te.TeamID = d.Team2ID)
+    JOIN Ballots b ON d.DebateID = b.DebateID
+    JOIN SpeakerScores ss ON s.StudentID = ss.SpeakerID AND b.BallotID = ss.BallotID
+    JOIN Tournaments t ON d.TournamentID = t.TournamentID
+    WHERE
+        s.StudentID = $1 AND t.StartDate BETWEEN $2 AND $3
+    GROUP BY
+        d.TournamentID, t.StartDate, s.StudentID
+)
+SELECT
+    StartDate,
+    StudentRank,
+    AverageRank
+FROM
+    tournament_performance
+ORDER BY
+    StartDate;

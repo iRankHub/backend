@@ -289,15 +289,17 @@ func (s *PairingService) generatePreliminaryPairings(ctx context.Context, querie
         JudgesPerDebate:   int(tournament.Judgesperdebatepreliminary),
     }
 
-  debates, err := pairing_algorithm.GeneratePairings(algorithmTeams, algorithmJudges, roomIDs, specs, 0, false)
+    debates, err := pairing_algorithm.GeneratePairings(algorithmTeams, algorithmJudges, roomIDs, specs, 0, false)
     if err != nil {
         return nil, fmt.Errorf("failed to generate pairings: %v", err)
     }
 
     // Save new pairings to the database
     dbPairings := make([]*debate_management.Pairing, 0, len(debates))
+    debateIndex := 0
     for roundNumber := 1; roundNumber <= int(tournament.Numberofpreliminaryrounds); roundNumber++ {
-        for _, pair := range debates {
+        for i := 0; i < len(teams)/2; i++ {
+            pair := debates[debateIndex]
             startTime := time.Now().Add(time.Duration(roundNumber) * time.Hour)
 
             roundID, ok := roundIDs[int32(roundNumber)]
@@ -390,6 +392,8 @@ func (s *PairingService) generatePreliminaryPairings(ctx context.Context, querie
             if err != nil {
                 return nil, fmt.Errorf("failed to record pairing history: %v", err)
             }
+
+            debateIndex++
         }
     }
 

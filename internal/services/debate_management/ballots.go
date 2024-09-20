@@ -229,6 +229,22 @@ func (s *BallotService) UpdateBallot(ctx context.Context, req *debate_management
 		return nil, err
 	}
 
+	    // Update team stats
+    err = queries.UpdateTeamStats(ctx, models.UpdateTeamStatsParams{
+        Teamid:       debate.Team1id,
+        Tournamentid: debate.Tournamentid,
+    })
+    if err != nil {
+        return nil, fmt.Errorf("failed to update team 1 stats: %v", err)
+    }
+    err = queries.UpdateTeamStats(ctx, models.UpdateTeamStatsParams{
+        Teamid:       debate.Team2id,
+        Tournamentid: debate.Tournamentid,
+    })
+    if err != nil {
+        return nil, fmt.Errorf("failed to update team 2 stats: %v", err)
+    }
+
 	// Fetch the updated ballot before committing the transaction
 	updatedBallot, err := queries.GetBallotByID(ctx, req.GetBallot().GetBallotId())
 	if err != nil {

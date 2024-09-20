@@ -19,25 +19,28 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	DebateService_GetRooms_FullMethodName                    = "/debate_management.DebateService/GetRooms"
-	DebateService_GetRoom_FullMethodName                     = "/debate_management.DebateService/GetRoom"
-	DebateService_UpdateRoom_FullMethodName                  = "/debate_management.DebateService/UpdateRoom"
-	DebateService_GetJudges_FullMethodName                   = "/debate_management.DebateService/GetJudges"
-	DebateService_GetJudge_FullMethodName                    = "/debate_management.DebateService/GetJudge"
-	DebateService_UpdateJudge_FullMethodName                 = "/debate_management.DebateService/UpdateJudge"
-	DebateService_GetPairings_FullMethodName                 = "/debate_management.DebateService/GetPairings"
-	DebateService_UpdatePairings_FullMethodName              = "/debate_management.DebateService/UpdatePairings"
-	DebateService_GetBallots_FullMethodName                  = "/debate_management.DebateService/GetBallots"
-	DebateService_GetBallot_FullMethodName                   = "/debate_management.DebateService/GetBallot"
-	DebateService_UpdateBallot_FullMethodName                = "/debate_management.DebateService/UpdateBallot"
-	DebateService_GetBallotByJudgeID_FullMethodName          = "/debate_management.DebateService/GetBallotByJudgeID"
-	DebateService_GeneratePreliminaryPairings_FullMethodName = "/debate_management.DebateService/GeneratePreliminaryPairings"
-	DebateService_GenerateEliminationPairings_FullMethodName = "/debate_management.DebateService/GenerateEliminationPairings"
-	DebateService_CreateTeam_FullMethodName                  = "/debate_management.DebateService/CreateTeam"
-	DebateService_GetTeam_FullMethodName                     = "/debate_management.DebateService/GetTeam"
-	DebateService_UpdateTeam_FullMethodName                  = "/debate_management.DebateService/UpdateTeam"
-	DebateService_GetTeamsByTournament_FullMethodName        = "/debate_management.DebateService/GetTeamsByTournament"
-	DebateService_DeleteTeam_FullMethodName                  = "/debate_management.DebateService/DeleteTeam"
+	DebateService_GetRooms_FullMethodName                     = "/debate_management.DebateService/GetRooms"
+	DebateService_GetRoom_FullMethodName                      = "/debate_management.DebateService/GetRoom"
+	DebateService_UpdateRoom_FullMethodName                   = "/debate_management.DebateService/UpdateRoom"
+	DebateService_GetJudges_FullMethodName                    = "/debate_management.DebateService/GetJudges"
+	DebateService_GetJudge_FullMethodName                     = "/debate_management.DebateService/GetJudge"
+	DebateService_UpdateJudge_FullMethodName                  = "/debate_management.DebateService/UpdateJudge"
+	DebateService_GetPairings_FullMethodName                  = "/debate_management.DebateService/GetPairings"
+	DebateService_UpdatePairings_FullMethodName               = "/debate_management.DebateService/UpdatePairings"
+	DebateService_GetBallots_FullMethodName                   = "/debate_management.DebateService/GetBallots"
+	DebateService_GetBallot_FullMethodName                    = "/debate_management.DebateService/GetBallot"
+	DebateService_UpdateBallot_FullMethodName                 = "/debate_management.DebateService/UpdateBallot"
+	DebateService_GetBallotByJudgeID_FullMethodName           = "/debate_management.DebateService/GetBallotByJudgeID"
+	DebateService_GeneratePreliminaryPairings_FullMethodName  = "/debate_management.DebateService/GeneratePreliminaryPairings"
+	DebateService_GenerateEliminationPairings_FullMethodName  = "/debate_management.DebateService/GenerateEliminationPairings"
+	DebateService_CreateTeam_FullMethodName                   = "/debate_management.DebateService/CreateTeam"
+	DebateService_GetTeam_FullMethodName                      = "/debate_management.DebateService/GetTeam"
+	DebateService_UpdateTeam_FullMethodName                   = "/debate_management.DebateService/UpdateTeam"
+	DebateService_GetTeamsByTournament_FullMethodName         = "/debate_management.DebateService/GetTeamsByTournament"
+	DebateService_DeleteTeam_FullMethodName                   = "/debate_management.DebateService/DeleteTeam"
+	DebateService_GetTournamentStudentRanking_FullMethodName  = "/debate_management.DebateService/GetTournamentStudentRanking"
+	DebateService_GetOverallStudentRanking_FullMethodName     = "/debate_management.DebateService/GetOverallStudentRanking"
+	DebateService_GetStudentOverallPerformance_FullMethodName = "/debate_management.DebateService/GetStudentOverallPerformance"
 )
 
 // DebateServiceClient is the client API for DebateService service.
@@ -69,6 +72,10 @@ type DebateServiceClient interface {
 	UpdateTeam(ctx context.Context, in *UpdateTeamRequest, opts ...grpc.CallOption) (*Team, error)
 	GetTeamsByTournament(ctx context.Context, in *GetTeamsByTournamentRequest, opts ...grpc.CallOption) (*GetTeamsByTournamentResponse, error)
 	DeleteTeam(ctx context.Context, in *DeleteTeamRequest, opts ...grpc.CallOption) (*DeleteTeamResponse, error)
+	// Ranking operations
+	GetTournamentStudentRanking(ctx context.Context, in *TournamentRankingRequest, opts ...grpc.CallOption) (*TournamentRankingResponse, error)
+	GetOverallStudentRanking(ctx context.Context, in *OverallRankingRequest, opts ...grpc.CallOption) (*OverallRankingResponse, error)
+	GetStudentOverallPerformance(ctx context.Context, in *PerformanceRequest, opts ...grpc.CallOption) (*PerformanceResponse, error)
 }
 
 type debateServiceClient struct {
@@ -269,6 +276,36 @@ func (c *debateServiceClient) DeleteTeam(ctx context.Context, in *DeleteTeamRequ
 	return out, nil
 }
 
+func (c *debateServiceClient) GetTournamentStudentRanking(ctx context.Context, in *TournamentRankingRequest, opts ...grpc.CallOption) (*TournamentRankingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TournamentRankingResponse)
+	err := c.cc.Invoke(ctx, DebateService_GetTournamentStudentRanking_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *debateServiceClient) GetOverallStudentRanking(ctx context.Context, in *OverallRankingRequest, opts ...grpc.CallOption) (*OverallRankingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OverallRankingResponse)
+	err := c.cc.Invoke(ctx, DebateService_GetOverallStudentRanking_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *debateServiceClient) GetStudentOverallPerformance(ctx context.Context, in *PerformanceRequest, opts ...grpc.CallOption) (*PerformanceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PerformanceResponse)
+	err := c.cc.Invoke(ctx, DebateService_GetStudentOverallPerformance_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DebateServiceServer is the server API for DebateService service.
 // All implementations must embed UnimplementedDebateServiceServer
 // for forward compatibility.
@@ -298,6 +335,10 @@ type DebateServiceServer interface {
 	UpdateTeam(context.Context, *UpdateTeamRequest) (*Team, error)
 	GetTeamsByTournament(context.Context, *GetTeamsByTournamentRequest) (*GetTeamsByTournamentResponse, error)
 	DeleteTeam(context.Context, *DeleteTeamRequest) (*DeleteTeamResponse, error)
+	// Ranking operations
+	GetTournamentStudentRanking(context.Context, *TournamentRankingRequest) (*TournamentRankingResponse, error)
+	GetOverallStudentRanking(context.Context, *OverallRankingRequest) (*OverallRankingResponse, error)
+	GetStudentOverallPerformance(context.Context, *PerformanceRequest) (*PerformanceResponse, error)
 	mustEmbedUnimplementedDebateServiceServer()
 }
 
@@ -364,6 +405,15 @@ func (UnimplementedDebateServiceServer) GetTeamsByTournament(context.Context, *G
 }
 func (UnimplementedDebateServiceServer) DeleteTeam(context.Context, *DeleteTeamRequest) (*DeleteTeamResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteTeam not implemented")
+}
+func (UnimplementedDebateServiceServer) GetTournamentStudentRanking(context.Context, *TournamentRankingRequest) (*TournamentRankingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTournamentStudentRanking not implemented")
+}
+func (UnimplementedDebateServiceServer) GetOverallStudentRanking(context.Context, *OverallRankingRequest) (*OverallRankingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOverallStudentRanking not implemented")
+}
+func (UnimplementedDebateServiceServer) GetStudentOverallPerformance(context.Context, *PerformanceRequest) (*PerformanceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStudentOverallPerformance not implemented")
 }
 func (UnimplementedDebateServiceServer) mustEmbedUnimplementedDebateServiceServer() {}
 func (UnimplementedDebateServiceServer) testEmbeddedByValue()                       {}
@@ -728,6 +778,60 @@ func _DebateService_DeleteTeam_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DebateService_GetTournamentStudentRanking_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TournamentRankingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DebateServiceServer).GetTournamentStudentRanking(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DebateService_GetTournamentStudentRanking_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DebateServiceServer).GetTournamentStudentRanking(ctx, req.(*TournamentRankingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DebateService_GetOverallStudentRanking_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OverallRankingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DebateServiceServer).GetOverallStudentRanking(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DebateService_GetOverallStudentRanking_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DebateServiceServer).GetOverallStudentRanking(ctx, req.(*OverallRankingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DebateService_GetStudentOverallPerformance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PerformanceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DebateServiceServer).GetStudentOverallPerformance(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DebateService_GetStudentOverallPerformance_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DebateServiceServer).GetStudentOverallPerformance(ctx, req.(*PerformanceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DebateService_ServiceDesc is the grpc.ServiceDesc for DebateService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -810,6 +914,18 @@ var DebateService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteTeam",
 			Handler:    _DebateService_DeleteTeam_Handler,
+		},
+		{
+			MethodName: "GetTournamentStudentRanking",
+			Handler:    _DebateService_GetTournamentStudentRanking_Handler,
+		},
+		{
+			MethodName: "GetOverallStudentRanking",
+			Handler:    _DebateService_GetOverallStudentRanking_Handler,
+		},
+		{
+			MethodName: "GetStudentOverallPerformance",
+			Handler:    _DebateService_GetStudentOverallPerformance_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

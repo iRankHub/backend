@@ -183,6 +183,43 @@ func (q *Queries) GetStudentByIDebateID(ctx context.Context, idebatestudentid sq
 	return i, err
 }
 
+const getStudentByUserID = `-- name: GetStudentByUserID :one
+SELECT
+    s.StudentID,
+    s.FirstName,
+    s.LastName,
+    s.Email,
+    s.SchoolID
+FROM
+    Users u
+JOIN
+    Students s ON u.UserID = s.UserID
+WHERE
+    u.UserID = $1
+    AND u.UserRole = 'student'
+`
+
+type GetStudentByUserIDRow struct {
+	Studentid int32          `json:"studentid"`
+	Firstname string         `json:"firstname"`
+	Lastname  string         `json:"lastname"`
+	Email     sql.NullString `json:"email"`
+	Schoolid  int32          `json:"schoolid"`
+}
+
+func (q *Queries) GetStudentByUserID(ctx context.Context, userid int32) (GetStudentByUserIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getStudentByUserID, userid)
+	var i GetStudentByUserIDRow
+	err := row.Scan(
+		&i.Studentid,
+		&i.Firstname,
+		&i.Lastname,
+		&i.Email,
+		&i.Schoolid,
+	)
+	return i, err
+}
+
 const getStudentsPaginated = `-- name: GetStudentsPaginated :many
 SELECT s.studentid, s.idebatestudentid, s.firstname, s.lastname, s.gender, s.grade, s.dateofbirth, s.email, s.password, s.schoolid, s.userid, sch.SchoolName
 FROM Students s

@@ -4,6 +4,8 @@ package debate_management;
 
 option go_package = "github.com/iRankHub/backend/internal/grpc/proto/debate_management";
 
+import "google/protobuf/timestamp.proto";
+
 service DebateService {
   // Room operations
   rpc GetRooms(GetRoomsRequest) returns (GetRoomsResponse);
@@ -37,7 +39,10 @@ service DebateService {
   rpc GetTeamsByTournament(GetTeamsByTournamentRequest) returns (GetTeamsByTournamentResponse);
   rpc DeleteTeam(DeleteTeamRequest) returns (DeleteTeamResponse);
 
-  // TODO: Regenerate pairings operation
+  // Ranking operations
+  rpc GetTournamentStudentRanking(TournamentRankingRequest) returns (TournamentRankingResponse);
+  rpc GetOverallStudentRanking(OverallRankingRequest) returns (OverallRankingResponse);
+  rpc GetStudentOverallPerformance(PerformanceRequest) returns (PerformanceResponse);
 
 }
 
@@ -308,4 +313,65 @@ message GetTeamsByTournamentRequest {
 
 message GetTeamsByTournamentResponse {
   repeated Team teams = 1;
+}
+
+message OverallRankingRequest {
+  int32 user_id = 1;
+  string token = 2;
+}
+
+message OverallRankingResponse {
+  int32 student_rank = 1;
+  int32 total_students = 2;
+  int32 rank_change = 3; // Positive for improvement, negative for decline
+  repeated TopStudent top_students = 4;
+  StudentInfo student_info = 5;
+}
+
+message TopStudent {
+  int32 rank = 1;
+  string name = 2;
+  double total_points = 3;
+  int32 rank_change = 4;
+}
+
+message StudentInfo {
+  string name = 1;
+  double total_points = 2;
+}
+
+message PerformanceRequest {
+  int32 user_id = 1;
+  google.protobuf.Timestamp start_date = 2;
+  google.protobuf.Timestamp end_date = 3;
+  string token = 4;
+}
+
+message PerformanceResponse {
+  repeated PerformanceData performance_data = 1;
+}
+
+message PerformanceData {
+  google.protobuf.Timestamp tournament_date = 1;
+  double student_rank = 2;
+  double average_rank = 3;
+}
+
+
+message TournamentRankingRequest {
+  int32 tournament_id = 1;
+  string token = 2;
+}
+
+message TournamentRankingResponse {
+  repeated StudentRanking rankings = 1;
+}
+
+message StudentRanking {
+  int32 student_id = 1;
+  string student_name = 2;
+  string school_name = 3;
+  int32 total_wins = 4;
+  double total_points = 5;
+  double average_rank = 6;
 }

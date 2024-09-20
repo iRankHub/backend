@@ -49,7 +49,6 @@ func GeneratePairings(teams []*Team, judges []*Judge, rooms []int, specs Tournam
 	return generatePreliminaryPairings(teams, judges, rooms, specs)
 }
 
-
 func generateEliminationPairings(teams []*Team, judges []*Judge, rooms []int, specs TournamentSpecs, roundNumber int) ([]*Debate, error) {
 	teamsNeeded := int(math.Pow(2, float64(specs.EliminationRounds-roundNumber+1)))
 	if len(teams) < teamsNeeded {
@@ -90,52 +89,137 @@ func generateEliminationPairings(teams []*Team, judges []*Judge, rooms []int, sp
 	return debates, nil
 }
 
+func generatePreliminaryPairings(teams []*Team, judges []*Judge, rooms []int, specs TournamentSpecs) ([]*Debate, error) {
+	teamIDs := make([]int, len(teams))
+	for i, team := range teams {
+		teamIDs[i] = team.ID
+	}
 
-func GeneratePreliminaryPairingIDs(teamIDs []int, rounds int) ([][][]int, error) {
+	prelimPairings, err := GeneratePreliminaryPairings(teamIDs, specs.PreliminaryRounds)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(judges) < specs.JudgesPerDebate {
+		return nil, fmt.Errorf("not enough judges: have %d, need at least %d", len(judges), specs.JudgesPerDebate)
+	}
+
+	if len(rooms) < len(teams)/2 {
+		return nil, fmt.Errorf("not enough rooms: have %d, need at least %d", len(rooms), len(teams)/2)
+	}
+
+	allDebates := make([]*Debate, 0, len(teams)/2*specs.PreliminaryRounds)
+
+	for round := 0; round < specs.PreliminaryRounds; round++ {
+		roundPairings := prelimPairings[round]
+		roundDebates := make([]*Debate, len(roundPairings))
+
+		for i, pair := range roundPairings {
+			team1 := findTeamByID(teams, pair[0])
+			team2 := findTeamByID(teams, pair[1])
+			if team1 == nil || team2 == nil {
+				return nil, errors.New("invalid team ID in pairings")
+			}
+			roundDebates[i] = &Debate{
+				Team1: team1,
+				Team2: team2,
+			}
+		}
+
+		roundDebates = assignJudgesAndRooms(roundDebates, judges, rooms, specs.JudgesPerDebate)
+		allDebates = append(allDebates, roundDebates...)
+	}
+
+	return allDebates, nil
+}
+
+func GeneratePreliminaryPairings(teamIDs []int, rounds int) ([][][]int, error) {
 	originalLength := len(teamIDs)
 	if originalLength%2 != 0 {
 		teamIDs = append(teamIDs, -1) // Add a "Public Speaking" team with ID -1
 	}
 
-	n := len(teamIDs)
+	n := len(teamIDs) / 2
+	proposition := make([]int, n)
+	opposition := make([]int, n)
+	copy(proposition, teamIDs[:n])
+	copy(opposition, teamIDs[n:])
+
 	pairings := make([][][]int, rounds)
 
 	for round := 0; round < rounds; round++ {
-		roundPairings := make([][]int, n/2)
+		roundPairings := make([][]int, n)
 
-		for i := 0; i < n/2; i++ {
-			team1 := teamIDs[i]
-			team2 := teamIDs[n-1-i]
-			if team1 == -1 || team2 == -1 {
-				// Handle bye
-				if team1 == -1 {
-					roundPairings[i] = []int{team2, -1}
+		if round == rounds-1 { // Last round
+			// Switch sides first
+			proposition, opposition = opposition, proposition
+
+			// Combine arrays
+			combined := append(proposition, opposition...)
+
+			// Create new proposition and opposition
+			newProp := make([]int, 0, n)
+			newOpp := make([]int, 0, n)
+			for i := 0; i < len(combined); i++ {
+				if i%2 == 0 {
+					newProp = append(newProp, combined[i])
 				} else {
-					roundPairings[i] = []int{team1, -1}
+					newOpp = append(newOpp, combined[i])
 				}
-			} else {
-				roundPairings[i] = []int{team1, team2}
+			}
+
+			// Pair across
+			for i := 0; i < n; i++ {
+				if i < len(newProp) && i < len(newOpp) {
+					roundPairings[i] = []int{newProp[i], newOpp[i]}
+				} else if i < len(newProp) {
+					roundPairings[i] = []int{newProp[i], -1} // Handle odd number of teams
+				}
+			}
+		} else {
+			switch round % 4 {
+			case 0: // Pair across
+				for i := 0; i < n; i++ {
+					roundPairings[i] = []int{proposition[i], opposition[i]}
+				}
+			case 1: // Pair diagonal first-last
+				for i := 0; i < n; i++ {
+					roundPairings[i] = []int{opposition[i], proposition[n-1-i]}
+				}
+			case 2: // Pair diagonal two by two
+				for i := 0; i < n; i += 2 {
+					if i+1 < n {
+						roundPairings[i] = []int{proposition[i], opposition[i+1]}
+						roundPairings[i+1] = []int{proposition[i+1], opposition[i]}
+					} else {
+						roundPairings[i] = []int{proposition[i], -1} // Handle odd number of teams
+					}
+				}
+			case 3: // Pair diagonal first and second last
+				for i := 0; i < n; i++ {
+					roundPairings[i] = []int{opposition[i], proposition[(i+n/2)%n]}
+				}
+			}
+
+			// Switch sides for next round, except after the first round
+			if round != 0 {
+				proposition, opposition = opposition, proposition
 			}
 		}
 
 		pairings[round] = roundPairings
-
-		// Rotate teams for the next round
-		if round < rounds-1 {
-			teamIDs = append(teamIDs[1:n-1], teamIDs[0], teamIDs[n-1])
-		}
 	}
 
 	return pairings, nil
 }
 
-func assignJudgesAndRooms(debates []*Debate, judges []*Judge, rooms []int, judgesPerDebate int) []*Debate {
+func assignJudgesAndRooms(pairings []*Debate, judges []*Judge, rooms []int, judgesPerDebate int) []*Debate {
 	availableJudges := make([]*Judge, len(judges))
 	copy(availableJudges, judges)
 	availableRooms := make([]int, len(rooms))
 	copy(availableRooms, rooms)
 
-	for _, debate := range debates {
+	for _, debate := range pairings {
 		// Assign judges
 		debate.Judges = make([]*Judge, 0, judgesPerDebate)
 		for i := 0; i < judgesPerDebate; i++ {
@@ -152,10 +236,10 @@ func assignJudgesAndRooms(debates []*Debate, judges []*Judge, rooms []int, judge
 		// Assign head judge
 		if len(debate.Judges) > 0 {
 			headJudgeIndex := 0
-			debate.Judges[headJudgeIndex].IsHeadJudge = true
-			for i := 1; i < len(debate.Judges); i++ {
-				debate.Judges[i].IsHeadJudge = false
+			if len(debate.Judges) > 1 {
+				headJudgeIndex = rand.Intn(len(debate.Judges))
 			}
+			debate.Judges[headJudgeIndex].IsHeadJudge = true
 		}
 
 		// Assign room
@@ -169,47 +253,7 @@ func assignJudgesAndRooms(debates []*Debate, judges []*Judge, rooms []int, judge
 		}
 	}
 
-	return debates
-}
-
-func generatePreliminaryPairings(teams []*Team, judges []*Judge, rooms []int, specs TournamentSpecs) ([]*Debate, error) {
-	teamIDs := make([]int, len(teams))
-	for i, team := range teams {
-		teamIDs[i] = team.ID
-	}
-
-	prelimPairings, err := GeneratePreliminaryPairingIDs(teamIDs, specs.PreliminaryRounds)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(judges) < specs.JudgesPerDebate {
-		return nil, fmt.Errorf("not enough judges: have %d, need at least %d", len(judges), specs.JudgesPerDebate)
-	}
-
-	if len(rooms) < len(teams)/2 {
-		return nil, fmt.Errorf("not enough rooms: have %d, need at least %d", len(rooms), len(teams)/2)
-	}
-
-	// We'll use the pairings for the current round (index 0)
-	currentRoundPairings := prelimPairings[0]
-	debates := make([]*Debate, len(currentRoundPairings))
-
-	for i, pair := range currentRoundPairings {
-		team1 := findTeamByID(teams, pair[0])
-		team2 := findTeamByID(teams, pair[1])
-		if team1 == nil || team2 == nil {
-			return nil, errors.New("invalid team ID in pairings")
-		}
-		debates[i] = &Debate{
-			Team1: team1,
-			Team2: team2,
-		}
-	}
-
-	debates = assignJudgesAndRooms(debates, judges, rooms, specs.JudgesPerDebate)
-
-	return debates, nil
+	return pairings
 }
 
 func findTeamByID(teams []*Team, id int) *Team {

@@ -56,7 +56,7 @@ func TestPreliminaryPairings(t *testing.T) {
 				teams[i] = i + 1
 			}
 
-			pairings, err := GeneratePreliminaryPairingIDs(teams, tc.rounds)
+			pairings, err := GeneratePreliminaryPairings(teams, tc.rounds)
 			if err != nil {
 				t.Fatalf("Error generating pairings: %v", err)
 			}
@@ -251,13 +251,11 @@ func TestGeneratePairings(t *testing.T) {
 			}
 
 			// Test preliminary rounds
-			for round := 1; round <= tc.prelimRounds; round++ {
-				debates, err := GeneratePairings(teams, judges, rooms, specs, round, false)
-				if err != nil {
-					t.Fatalf("Error generating preliminary pairings for round %d: %v", round, err)
-				}
-				validatePairings(t, debates, tc.teams/2, tc.judgesPerDebate, false)
+			prelimDebates, err := GeneratePairings(teams, judges, rooms, specs, 0, false)
+			if err != nil {
+				t.Fatalf("Error generating preliminary pairings: %v", err)
 			}
+			validatePreliminaryPairings(t, prelimDebates, tc.teams, tc.prelimRounds, tc.judgesPerDebate)
 
 			// Simulate preliminary results
 			simulatePreliminaryResults(teams)
@@ -269,8 +267,7 @@ func TestGeneratePairings(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Error generating elimination pairings for round %d: %v", round, err)
 				}
-				validatePairings(t, debates, teamsInRound/2, tc.judgesPerDebate, true)
-				validateEliminationRanks(t, debates, round) // Updated this line
+				validateEliminationPairings(t, debates, teamsInRound/2, tc.judgesPerDebate, round)
 
 				// Simulate elimination results for the next round
 				simulateEliminationResults(debates)
@@ -279,6 +276,89 @@ func TestGeneratePairings(t *testing.T) {
 	}
 }
 
+func validatePreliminaryPairings(t *testing.T, debates []*Debate, totalTeams, rounds, judgesPerDebate int) {
+	expectedDebates := (totalTeams / 2) * rounds
+	if len(debates) != expectedDebates {
+		t.Errorf("Expected %d debates, got %d", expectedDebates, len(debates))
+	}
+
+	for i := 0; i < rounds; i++ {
+		roundStart := i * (totalTeams / 2)
+		roundEnd := (i + 1) * (totalTeams / 2)
+		validateRoundPairings(t, debates[roundStart:roundEnd], totalTeams/2, judgesPerDebate)
+	}
+}
+
+func validateRoundPairings(t *testing.T, debates []*Debate, expectedPairings, judgesPerDebate int) {
+	if len(debates) != expectedPairings {
+		t.Errorf("Expected %d pairings in round, got %d", expectedPairings, len(debates))
+	}
+
+	usedTeams := make(map[int]bool)
+	usedRooms := make(map[int]bool)
+	usedJudges := make(map[int]bool)
+
+	for _, debate := range debates {
+		validateDebate(t, debate, usedTeams, usedRooms, usedJudges, judgesPerDebate)
+	}
+}
+
+func validateEliminationPairings(t *testing.T, debates []*Debate, expectedDebates, judgesPerDebate, round int) {
+	if len(debates) != expectedDebates {
+		t.Errorf("Expected %d debates, got %d", expectedDebates, len(debates))
+	}
+
+	usedTeams := make(map[int]bool)
+	usedRooms := make(map[int]bool)
+	usedJudges := make(map[int]bool)
+
+	for _, debate := range debates {
+		validateDebate(t, debate, usedTeams, usedRooms, usedJudges, judgesPerDebate)
+		validateEliminationRanks(t, debate, round)
+	}
+}
+
+func validateDebate(t *testing.T, debate *Debate, usedTeams, usedRooms, usedJudges map[int]bool, judgesPerDebate int) {
+	if debate.Team1 == nil || debate.Team2 == nil {
+		t.Errorf("Debate has nil team(s)")
+	}
+	if usedTeams[debate.Team1.ID] || usedTeams[debate.Team2.ID] {
+		t.Errorf("Team used more than once: %d or %d", debate.Team1.ID, debate.Team2.ID)
+	}
+	usedTeams[debate.Team1.ID] = true
+	usedTeams[debate.Team2.ID] = true
+
+	if debate.Room == 0 {
+		t.Errorf("Debate not assigned a room")
+	}
+	if usedRooms[debate.Room] {
+		t.Errorf("Room %d assigned more than once", debate.Room)
+	}
+	usedRooms[debate.Room] = true
+
+	if len(debate.Judges) != judgesPerDebate {
+		t.Errorf("Expected %d judges, got %d", judgesPerDebate, len(debate.Judges))
+	}
+	headJudgeCount := 0
+	for _, judge := range debate.Judges {
+		if usedJudges[judge.ID] {
+			t.Errorf("Judge %d assigned more than once", judge.ID)
+		}
+		usedJudges[judge.ID] = true
+		if judge.IsHeadJudge {
+			headJudgeCount++
+		}
+	}
+	if headJudgeCount != 1 {
+		t.Errorf("Debate does not have exactly one head judge: %d", headJudgeCount)
+	}
+}
+
+func validateEliminationRanks(t *testing.T, debate *Debate, round int) {
+	if debate.Team1.EliminationRank >= debate.Team2.EliminationRank {
+		t.Errorf("Round %d: Elimination pairing order incorrect: %d vs %d", round, debate.Team1.EliminationRank, debate.Team2.EliminationRank)
+	}
+}
 
 func createMockTeams(count int) []*Team {
 	teams := make([]*Team, count)
@@ -312,73 +392,6 @@ func createMockRooms(count int) []int {
 		rooms[i] = i + 101
 	}
 	return rooms
-}
-
-func validatePairings(t *testing.T, debates []*Debate, expectedCount, judgesPerDebate int, isElimination bool) {
-	if len(debates) != expectedCount {
-		t.Errorf("Expected %d debates, got %d", expectedCount, len(debates))
-	}
-
-	usedTeams := make(map[int]bool)
-	usedRooms := make(map[int]bool)
-	usedJudges := make(map[int]bool)
-
-	for _, debate := range debates {
-		if debate.Team1 == nil || debate.Team2 == nil {
-			t.Errorf("Debate has nil team(s)")
-		}
-		if usedTeams[debate.Team1.ID] || usedTeams[debate.Team2.ID] {
-			t.Errorf("Team used more than once: %d or %d", debate.Team1.ID, debate.Team2.ID)
-		}
-		usedTeams[debate.Team1.ID] = true
-		usedTeams[debate.Team2.ID] = true
-
-		if debate.Room == 0 {
-			t.Errorf("Debate not assigned a room")
-		}
-		if usedRooms[debate.Room] {
-			t.Errorf("Room %d assigned more than once", debate.Room)
-		}
-		usedRooms[debate.Room] = true
-
-		if len(debate.Judges) != judgesPerDebate {
-			t.Errorf("Expected %d judges, got %d", judgesPerDebate, len(debate.Judges))
-		}
-		headJudgeCount := 0
-		for _, judge := range debate.Judges {
-			if usedJudges[judge.ID] {
-				t.Errorf("Judge %d assigned more than once", judge.ID)
-			}
-			usedJudges[judge.ID] = true
-			if judge.IsHeadJudge {
-				headJudgeCount++
-			}
-		}
-		if headJudgeCount != 1 {
-			t.Errorf("Debate does not have exactly one head judge: %d", headJudgeCount)
-		}
-
-		if isElimination {
-			if debate.Team1.EliminationRank >= debate.Team2.EliminationRank {
-				t.Errorf("Elimination pairing order incorrect: %d vs %d", debate.Team1.EliminationRank, debate.Team2.EliminationRank)
-			}
-		}
-	}
-}
-
-func validateEliminationRanks(t *testing.T, debates []*Debate, round int) {
-	teamsInRound := len(debates) * 2
-	for i, debate := range debates {
-		expectedRank1 := i + 1
-		expectedRank2 := teamsInRound - i
-
-		if debate.Team1.EliminationRank != expectedRank1 {
-			t.Errorf("Round %d: Team1 elimination rank incorrect. Expected %d, got %d", round, expectedRank1, debate.Team1.EliminationRank)
-		}
-		if debate.Team2.EliminationRank != expectedRank2 {
-			t.Errorf("Round %d: Team2 elimination rank incorrect. Expected %d, got %d", round, expectedRank2, debate.Team2.EliminationRank)
-		}
-	}
 }
 
 func simulatePreliminaryResults(teams []*Team) {

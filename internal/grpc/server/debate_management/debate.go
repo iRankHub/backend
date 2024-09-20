@@ -19,6 +19,7 @@ type debateServer struct {
 	pairingService *services.PairingService
 	ballotService  *services.BallotService
 	teamService    *services.TeamService
+	rankingService *services.RankingService
 }
 
 func NewDebateServer(db *sql.DB) (debate_management.DebateServiceServer, error) {
@@ -28,6 +29,7 @@ func NewDebateServer(db *sql.DB) (debate_management.DebateServiceServer, error) 
 		pairingService: services.NewPairingService(db),
 		ballotService:  services.NewBallotService(db),
 		teamService:    services.NewTeamService(db),
+		rankingService: services.NewRankingService(db),
 	}, nil
 }
 

@@ -6,6 +6,21 @@ WHERE StudentID = $1;
 SELECT * FROM Students
 WHERE iDebateStudentID = $1;
 
+-- name: GetStudentByUserID :one
+SELECT
+    s.StudentID,
+    s.FirstName,
+    s.LastName,
+    s.Email,
+    s.SchoolID
+FROM
+    Users u
+JOIN
+    Students s ON u.UserID = s.UserID
+WHERE
+    u.UserID = $1
+    AND u.UserRole = 'student';
+
 -- name: GetStudentByEmail :one
 SELECT * FROM Students
 WHERE Email = $1;
