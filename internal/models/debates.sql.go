@@ -1876,10 +1876,17 @@ func (q *Queries) GetStudentOverallPerformance(ctx context.Context, arg GetStude
 }
 
 const getTeamAverageRank = `-- name: GetTeamAverageRank :one
-SELECT AVG(SpeakerRank)::FLOAT as AvgRank
-FROM SpeakerScores ss
-JOIN TeamMembers tm ON ss.SpeakerID = tm.StudentID
-WHERE tm.TeamID = $1 AND ss.BallotID = $2
+WITH speaker_ranks AS (
+    SELECT ss.SpeakerRank
+    FROM SpeakerScores ss
+    JOIN TeamMembers tm ON ss.SpeakerID = tm.StudentID
+    WHERE tm.TeamID = $1 AND ss.BallotID = $2
+)
+SELECT
+    AVG(SpeakerRank)::FLOAT as AvgRank,
+    COUNT(*) as SpeakerCount,
+    array_agg(SpeakerRank) as AllRanks
+FROM speaker_ranks
 `
 
 type GetTeamAverageRankParams struct {
@@ -1887,11 +1894,17 @@ type GetTeamAverageRankParams struct {
 	Ballotid int32 `json:"ballotid"`
 }
 
-func (q *Queries) GetTeamAverageRank(ctx context.Context, arg GetTeamAverageRankParams) (float64, error) {
+type GetTeamAverageRankRow struct {
+	Avgrank      float64     `json:"avgrank"`
+	Speakercount int64       `json:"speakercount"`
+	Allranks     interface{} `json:"allranks"`
+}
+
+func (q *Queries) GetTeamAverageRank(ctx context.Context, arg GetTeamAverageRankParams) (GetTeamAverageRankRow, error) {
 	row := q.db.QueryRowContext(ctx, getTeamAverageRank, arg.Teamid, arg.Ballotid)
-	var avgrank float64
-	err := row.Scan(&avgrank)
-	return avgrank, err
+	var i GetTeamAverageRankRow
+	err := row.Scan(&i.Avgrank, &i.Speakercount, &i.Allranks)
+	return i, err
 }
 
 const getTeamByID = `-- name: GetTeamByID :one

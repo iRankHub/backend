@@ -586,10 +586,17 @@ WHERE NOT EXISTS (
 );
 
 -- name: GetTeamAverageRank :one
-SELECT AVG(SpeakerRank)::FLOAT as AvgRank
-FROM SpeakerScores ss
-JOIN TeamMembers tm ON ss.SpeakerID = tm.StudentID
-WHERE tm.TeamID = $1 AND ss.BallotID = $2;
+WITH speaker_ranks AS (
+    SELECT ss.SpeakerRank
+    FROM SpeakerScores ss
+    JOIN TeamMembers tm ON ss.SpeakerID = tm.StudentID
+    WHERE tm.TeamID = $1 AND ss.BallotID = $2
+)
+SELECT
+    AVG(SpeakerRank)::FLOAT as AvgRank,
+    COUNT(*) as SpeakerCount,
+    array_agg(SpeakerRank) as AllRanks
+FROM speaker_ranks;
 
 -- name: UpdateTeamScoreRank :exec
 UPDATE TeamScores
