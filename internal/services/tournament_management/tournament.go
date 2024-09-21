@@ -213,7 +213,7 @@ func calculatePercentageChange(oldValue, newValue int64) string {
 		return "0.00%"
 	}
 	if oldValue == 0 {
-		return "+∞%"
+		return "0.00%"
 	}
 	change := float64(newValue-oldValue) / float64(oldValue) * 100
 	sign := "+"

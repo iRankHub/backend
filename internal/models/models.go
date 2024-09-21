@@ -114,14 +114,6 @@ type Pairinghistory struct {
 	Iselimination bool  `json:"iselimination"`
 }
 
-type Result struct {
-	Resultid     int32          `json:"resultid"`
-	Tournamentid int32          `json:"tournamentid"`
-	Teamid       int32          `json:"teamid"`
-	Rank         sql.NullInt32  `json:"rank"`
-	Points       sql.NullString `json:"points"`
-}
-
 type Room struct {
 	Roomid       int32         `json:"roomid"`
 	Roomname     string        `json:"roomname"`
@@ -181,14 +173,6 @@ type Student struct {
 	Password         string         `json:"password"`
 	Schoolid         int32          `json:"schoolid"`
 	Userid           int32          `json:"userid"`
-}
-
-type Studentrank struct {
-	Rankid       int32          `json:"rankid"`
-	Studentid    int32          `json:"studentid"`
-	Tournamentid int32          `json:"tournamentid"`
-	Rankvalue    string         `json:"rankvalue"`
-	Rankcomments sql.NullString `json:"rankcomments"`
 }
 
 type Studenttransfer struct {

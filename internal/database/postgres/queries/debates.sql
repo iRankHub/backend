@@ -553,7 +553,7 @@ ORDER BY d.RoundNumber DESC, b.Team1TotalScore + b.Team2TotalScore DESC
 LIMIT $3;
 
 -- name: GetTopPerformingTeams :many
-SELECT t.*,
+SELECT t.TeamID, t.Name, t.TournamentID,
        COALESCE(SUM(CASE WHEN b.Verdict = t.Name THEN 1 ELSE 0 END), 0) as Wins,
        COALESCE(SUM(ts.TotalScore), 0) as TotalSpeakerPoints,
        COALESCE(AVG(ts.Rank), 0) as AverageRank
@@ -562,7 +562,7 @@ LEFT JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
 LEFT JOIN Ballots b ON d.DebateID = b.DebateID
 LEFT JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
 WHERE t.TournamentID = $1 AND d.IsEliminationRound = false
-GROUP BY t.TeamID
+GROUP BY t.TeamID, t.Name, t.TournamentID
 ORDER BY Wins DESC, TotalSpeakerPoints DESC, AverageRank ASC
 LIMIT $2;
 

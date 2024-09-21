@@ -1908,7 +1908,7 @@ func (q *Queries) GetTeamsByTournament(ctx context.Context, tournamentid int32) 
 }
 
 const getTopPerformingTeams = `-- name: GetTopPerformingTeams :many
-SELECT t.teamid, t.name, t.tournamentid, t.totalwins, t.totalspeakerpoints, t.averagerank,
+SELECT t.TeamID, t.Name, t.TournamentID,
        COALESCE(SUM(CASE WHEN b.Verdict = t.Name THEN 1 ELSE 0 END), 0) as Wins,
        COALESCE(SUM(ts.TotalScore), 0) as TotalSpeakerPoints,
        COALESCE(AVG(ts.Rank), 0) as AverageRank
@@ -1917,7 +1917,7 @@ LEFT JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
 LEFT JOIN Ballots b ON d.DebateID = b.DebateID
 LEFT JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
 WHERE t.TournamentID = $1 AND d.IsEliminationRound = false
-GROUP BY t.TeamID
+GROUP BY t.TeamID, t.Name, t.TournamentID
 ORDER BY Wins DESC, TotalSpeakerPoints DESC, AverageRank ASC
 LIMIT $2
 `
@@ -1928,15 +1928,12 @@ type GetTopPerformingTeamsParams struct {
 }
 
 type GetTopPerformingTeamsRow struct {
-	Teamid               int32          `json:"teamid"`
-	Name                 string         `json:"name"`
-	Tournamentid         int32          `json:"tournamentid"`
-	Totalwins            sql.NullInt32  `json:"totalwins"`
-	Totalspeakerpoints   sql.NullString `json:"totalspeakerpoints"`
-	Averagerank          sql.NullString `json:"averagerank"`
-	Wins                 interface{}    `json:"wins"`
-	Totalspeakerpoints_2 interface{}    `json:"totalspeakerpoints_2"`
-	Averagerank_2        interface{}    `json:"averagerank_2"`
+	Teamid             int32       `json:"teamid"`
+	Name               string      `json:"name"`
+	Tournamentid       int32       `json:"tournamentid"`
+	Wins               interface{} `json:"wins"`
+	Totalspeakerpoints interface{} `json:"totalspeakerpoints"`
+	Averagerank        interface{} `json:"averagerank"`
 }
 
 func (q *Queries) GetTopPerformingTeams(ctx context.Context, arg GetTopPerformingTeamsParams) ([]GetTopPerformingTeamsRow, error) {
@@ -1952,12 +1949,9 @@ func (q *Queries) GetTopPerformingTeams(ctx context.Context, arg GetTopPerformin
 			&i.Teamid,
 			&i.Name,
 			&i.Tournamentid,
-			&i.Totalwins,
+			&i.Wins,
 			&i.Totalspeakerpoints,
 			&i.Averagerank,
-			&i.Wins,
-			&i.Totalspeakerpoints_2,
-			&i.Averagerank_2,
 		); err != nil {
 			return nil, err
 		}
