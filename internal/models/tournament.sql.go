@@ -544,7 +544,7 @@ func (q *Queries) GetPendingInvitations(ctx context.Context, tournamentid int32)
 const getTournamentByID = `-- name: GetTournamentByID :one
 SELECT t.tournamentid, t.name, t.startdate, t.enddate, t.location, t.formatid, t.leagueid, t.coordinatorid, t.numberofpreliminaryrounds, t.numberofeliminationrounds, t.judgesperdebatepreliminary, t.judgesperdebateelimination, t.tournamentfee, t.imageurl, t.created_at, t.updated_at, t.deleted_at, t.yesterday_total_count, t.yesterday_upcoming_count, tf.FormatName, tf.Description AS FormatDescription, tf.SpeakersPerTeam,
        l.Name AS LeagueName, l.LeagueType, l.Details AS LeagueDetails,
-       u.Name AS CoordinatorName
+       u.Name AS CoordinatorName, u.UserID AS CoordinatorID
 FROM Tournaments t
 JOIN TournamentFormats tf ON t.FormatID = tf.FormatID
 JOIN Leagues l ON t.LeagueID = l.LeagueID
@@ -579,6 +579,7 @@ type GetTournamentByIDRow struct {
 	Leaguetype                 string          `json:"leaguetype"`
 	Leaguedetails              json.RawMessage `json:"leaguedetails"`
 	Coordinatorname            string          `json:"coordinatorname"`
+	Coordinatorid_2            int32           `json:"coordinatorid_2"`
 }
 
 func (q *Queries) GetTournamentByID(ctx context.Context, tournamentid int32) (GetTournamentByIDRow, error) {
@@ -611,6 +612,7 @@ func (q *Queries) GetTournamentByID(ctx context.Context, tournamentid int32) (Ge
 		&i.Leaguetype,
 		&i.Leaguedetails,
 		&i.Coordinatorname,
+		&i.Coordinatorid_2,
 	)
 	return i, err
 }
@@ -806,6 +808,7 @@ SELECT
     tf.FormatName,
     l.Name AS LeagueName,
     u.Name AS CoordinatorName,
+    u.UserID AS CoordinatorID,
     COUNT(DISTINCT CASE WHEN ti.InviteeRole = 'school' AND ti.Status = 'accepted' THEN ti.InvitationID END) AS AcceptedSchoolsCount,
     COUNT(DISTINCT tm.TeamID) AS TeamsCount
 FROM
@@ -823,7 +826,7 @@ LEFT JOIN
 WHERE
     t.deleted_at IS NULL
 GROUP BY
-    t.TournamentID, tf.FormatName, l.Name, u.Name
+    t.TournamentID, tf.FormatName, l.Name, u.Name, u.UserID
 ORDER BY
     t.StartDate DESC
 LIMIT $1 OFFSET $2
@@ -857,6 +860,7 @@ type ListTournamentsPaginatedRow struct {
 	Formatname                 string         `json:"formatname"`
 	Leaguename                 string         `json:"leaguename"`
 	Coordinatorname            string         `json:"coordinatorname"`
+	Coordinatorid_2            int32          `json:"coordinatorid_2"`
 	Acceptedschoolscount       int64          `json:"acceptedschoolscount"`
 	Teamscount                 int64          `json:"teamscount"`
 }
@@ -893,6 +897,7 @@ func (q *Queries) ListTournamentsPaginated(ctx context.Context, arg ListTourname
 			&i.Formatname,
 			&i.Leaguename,
 			&i.Coordinatorname,
+			&i.Coordinatorid_2,
 			&i.Acceptedschoolscount,
 			&i.Teamscount,
 		); err != nil {

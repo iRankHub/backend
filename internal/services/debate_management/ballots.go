@@ -205,19 +205,23 @@ func (s *BallotService) UpdateBallot(ctx context.Context, req *debate_management
 		return nil, err
 	}
 
-	// Update speaker scores
-	for _, speaker := range req.GetBallot().GetTeam1().GetSpeakers() {
-		err = updateSpeakerScore(ctx, queries, speaker, req.GetBallot().GetBallotId())
-		if err != nil {
-			return nil, err
-		}
-	}
-	for _, speaker := range req.GetBallot().GetTeam2().GetSpeakers() {
-		err = updateSpeakerScore(ctx, queries, speaker, req.GetBallot().GetBallotId())
-		if err != nil {
-			return nil, err
-		}
-	}
+    // Update speaker scores
+    if req.GetBallot().GetTeam1().GetName() != "Public Speaking" {
+        for _, speaker := range req.GetBallot().GetTeam1().GetSpeakers() {
+            err = updateSpeakerScore(ctx, queries, speaker, req.GetBallot().GetBallotId())
+            if err != nil {
+                return nil, err
+            }
+        }
+    }
+    if req.GetBallot().GetTeam2().GetName() != "Public Speaking" {
+        for _, speaker := range req.GetBallot().GetTeam2().GetSpeakers() {
+            err = updateSpeakerScore(ctx, queries, speaker, req.GetBallot().GetBallotId())
+            if err != nil {
+                return nil, err
+            }
+        }
+    }
 
 	// Update team ranks
 	err = updateTeamRanks(ctx, queries, debate.Team1id, req.GetBallot().GetBallotId(), debate.Debateid)

@@ -61,7 +61,7 @@ RETURNING *;
 -- name: GetTournamentByID :one
 SELECT t.*, tf.FormatName, tf.Description AS FormatDescription, tf.SpeakersPerTeam,
        l.Name AS LeagueName, l.LeagueType, l.Details AS LeagueDetails,
-       u.Name AS CoordinatorName
+       u.Name AS CoordinatorName, u.UserID AS CoordinatorID
 FROM Tournaments t
 JOIN TournamentFormats tf ON t.FormatID = tf.FormatID
 JOIN Leagues l ON t.LeagueID = l.LeagueID
@@ -80,6 +80,7 @@ SELECT
     tf.FormatName,
     l.Name AS LeagueName,
     u.Name AS CoordinatorName,
+    u.UserID AS CoordinatorID,
     COUNT(DISTINCT CASE WHEN ti.InviteeRole = 'school' AND ti.Status = 'accepted' THEN ti.InvitationID END) AS AcceptedSchoolsCount,
     COUNT(DISTINCT tm.TeamID) AS TeamsCount
 FROM
@@ -97,7 +98,7 @@ LEFT JOIN
 WHERE
     t.deleted_at IS NULL
 GROUP BY
-    t.TournamentID, tf.FormatName, l.Name, u.Name
+    t.TournamentID, tf.FormatName, l.Name, u.Name, u.UserID
 ORDER BY
     t.StartDate DESC
 LIMIT $1 OFFSET $2;

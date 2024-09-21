@@ -79,16 +79,17 @@ message Tournament {
   string location = 5;
   int32 format_id = 6;
   int32 league_id = 7;
-  string coordinator_name = 8;
-  int32 number_of_preliminary_rounds = 9;
-  int32 number_of_elimination_rounds = 10;
-  int32 judges_per_debate_preliminary = 11;
-  int32 judges_per_debate_elimination = 12;
-  double tournament_fee = 13;
-  string image_url = 14;
-  int32 number_of_schools = 15;
-  int32 number_of_teams = 16;
-  string league_name = 17;
+  int32 coordinator_id = 8;
+  string coordinator_name = 9;
+  int32 number_of_preliminary_rounds = 10;
+  int32 number_of_elimination_rounds = 11;
+  int32 judges_per_debate_preliminary = 12;
+  int32 judges_per_debate_elimination = 13;
+  double tournament_fee = 14;
+  string image_url = 15;
+  int32 number_of_schools = 16;
+  int32 number_of_teams = 17;
+  string league_name = 18;
 }
 
 message GetTournamentStatsRequest {

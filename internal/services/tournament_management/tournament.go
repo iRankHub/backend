@@ -259,6 +259,7 @@ func tournamentPaginatedRowToProto(t models.ListTournamentsPaginatedRow) *tourna
 		Location:                   t.Location,
 		FormatId:                   t.Formatid,
 		LeagueId:                   t.Leagueid.Int32,
+		CoordinatorId:              t.Coordinatorid,
 		CoordinatorName:            t.Coordinatorname,
 		NumberOfPreliminaryRounds:  int32(t.Numberofpreliminaryrounds),
 		NumberOfEliminationRounds:  int32(t.Numberofeliminationrounds),
@@ -267,7 +268,7 @@ func tournamentPaginatedRowToProto(t models.ListTournamentsPaginatedRow) *tourna
 		TournamentFee:              parseFloat64(t.Tournamentfee),
 		NumberOfSchools:            int32(t.Acceptedschoolscount),
 		NumberOfTeams:              int32(t.Teamscount),
-		LeagueName: 				t.Leaguename,
+		LeagueName:                 t.Leaguename,
 	}
 }
 
@@ -496,6 +497,7 @@ func tournamentRowToProto(t models.GetTournamentByIDRow) *tournament_management.
 		Location:                   t.Location,
 		FormatId:                   t.Formatid,
 		LeagueId:                   t.Leagueid.Int32,
+		CoordinatorId:              t.Coordinatorid,
 		CoordinatorName:            t.Coordinatorname,
 		NumberOfPreliminaryRounds:  int32(t.Numberofpreliminaryrounds),
 		NumberOfEliminationRounds:  int32(t.Numberofeliminationrounds),
@@ -505,7 +507,6 @@ func tournamentRowToProto(t models.GetTournamentByIDRow) *tournament_management.
 		LeagueName:                 t.Leaguename,
 	}
 }
-
 
 func parseFloat64(s string) float64 {
 	f, _ := strconv.ParseFloat(s, 64)
