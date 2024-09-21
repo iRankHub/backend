@@ -190,6 +190,20 @@ func (q *Queries) GetSchoolIDByName(ctx context.Context, schoolname string) (int
 	return schoolid, err
 }
 
+const getSchoolIDByUserID = `-- name: GetSchoolIDByUserID :one
+SELECT s.SchoolID
+FROM Schools s
+JOIN Users u ON s.ContactPersonID = u.UserID
+WHERE u.UserID = $1
+`
+
+func (q *Queries) GetSchoolIDByUserID(ctx context.Context, userid int32) (int32, error) {
+	row := q.db.QueryRowContext(ctx, getSchoolIDByUserID, userid)
+	var schoolid int32
+	err := row.Scan(&schoolid)
+	return schoolid, err
+}
+
 const getSchoolIDsByNames = `-- name: GetSchoolIDsByNames :many
 SELECT SchoolID, SchoolName FROM Schools WHERE LOWER(SchoolName) = ANY(ARRAY(SELECT LOWER(unnest($1::text[]))))
 `

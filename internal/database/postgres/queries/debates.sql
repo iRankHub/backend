@@ -648,7 +648,8 @@ WHERE
 GROUP BY
     s.StudentID, StudentName, sch.SchoolName
 ORDER BY
-    TotalPoints DESC, AverageRank ASC, TotalWins DESC;
+    TotalPoints DESC, AverageRank ASC, TotalWins DESC
+LIMIT $2 OFFSET $3;
 
 -- name: GetOverallStudentRanking :many
 WITH student_ranking AS (
@@ -711,3 +712,171 @@ FROM
     tournament_performance
 ORDER BY
     StartDate;
+
+-- name: GetTournamentTeamsRanking :many
+WITH team_data AS (
+  SELECT
+    t.TeamID,
+    t.Name AS TeamName,
+    ARRAY_AGG(DISTINCT s.SchoolName) AS SchoolNames,
+    COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) AS Wins,
+    COALESCE(SUM(ts.TotalScore), 0) AS TotalPoints,
+    COALESCE(AVG(ts.Rank), 0) AS AverageRank
+  FROM
+    Teams t
+    JOIN TeamMembers tm ON t.TeamID = tm.TeamID
+    JOIN Students stu ON tm.StudentID = stu.StudentID
+    JOIN Schools s ON stu.SchoolID = s.SchoolID
+    LEFT JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
+    LEFT JOIN Ballots b ON d.DebateID = b.DebateID
+    LEFT JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+  WHERE
+    t.TournamentID = $1 AND d.IsEliminationRound = false
+  GROUP BY
+    t.TeamID, t.Name
+)
+SELECT
+  TeamID,
+  TeamName,
+  SchoolNames,
+  Wins,
+  TotalPoints,
+  AverageRank
+FROM
+  team_data
+ORDER BY
+  Wins DESC, TotalPoints DESC, AverageRank ASC
+LIMIT $2 OFFSET $3;
+
+-- name: GetTournamentTeamsRankingCount :one
+SELECT COUNT(DISTINCT t.TeamID)
+FROM Teams t
+WHERE t.TournamentID = $1;
+
+-- name: GetTournamentSchoolRanking :many
+WITH team_data AS (
+  SELECT
+    s.SchoolID,
+    t.TeamID,
+    CASE WHEN b.Verdict = t.Name THEN 1 ELSE 0 END AS Win,
+    COALESCE(ts.TotalScore, 0) AS TotalScore,
+    COALESCE(ts.Rank, 0) AS Rank
+  FROM
+    Schools s
+    JOIN Students stu ON s.SchoolID = stu.SchoolID
+    JOIN TeamMembers tm ON stu.StudentID = tm.StudentID
+    JOIN Teams t ON tm.TeamID = t.TeamID
+    JOIN Tournaments tour ON t.TournamentID = tour.TournamentID
+    LEFT JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
+    LEFT JOIN Ballots b ON d.DebateID = b.DebateID
+    LEFT JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+    LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
+  WHERE
+    t.TournamentID = $1
+    AND l.Name != 'DAC'
+    AND d.IsEliminationRound = false
+),
+school_stats AS (
+  SELECT
+    s.SchoolID,
+    s.SchoolName,
+    COUNT(DISTINCT td.TeamID) AS TeamCount,
+    SUM(td.Win) AS TotalWins,
+    AVG(td.Rank) AS AverageRank,
+    SUM(td.TotalScore) AS TotalPoints
+  FROM
+    Schools s
+    LEFT JOIN team_data td ON s.SchoolID = td.SchoolID
+  GROUP BY
+    s.SchoolID, s.SchoolName
+)
+SELECT
+  SchoolName,
+  TeamCount,
+  TotalWins,
+  COALESCE(AverageRank, 0) AS AverageRank,
+  CAST(COALESCE(TotalPoints, 0) AS DECIMAL(10,2)) AS TotalPoints
+FROM
+  school_stats
+WHERE
+  TeamCount > 0
+ORDER BY
+  TotalWins DESC, TotalPoints DESC, AverageRank ASC
+LIMIT $2 OFFSET $3;
+
+-- name: GetTournamentSchoolRankingCount :one
+SELECT COUNT(DISTINCT s.SchoolID)
+FROM Schools s
+JOIN Students stu ON s.SchoolID = stu.SchoolID
+JOIN TeamMembers tm ON stu.StudentID = tm.StudentID
+JOIN Teams t ON tm.TeamID = t.TeamID
+JOIN Tournaments tour ON t.TournamentID = tour.TournamentID
+LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
+WHERE t.TournamentID = $1 AND l.Name != 'DAC';
+
+-- name: GetOverallSchoolRanking :many
+WITH school_ranking AS (
+  SELECT
+    s.SchoolID,
+    s.SchoolName,
+    CAST(SUM(ts.TotalScore) AS DECIMAL(10,2)) AS TotalPoints,
+    AVG(ts.Rank) AS AverageRank,
+    COUNT(DISTINCT tour.TournamentID) AS TournamentsParticipated,
+    RANK() OVER (ORDER BY SUM(ts.TotalScore) DESC, AVG(ts.Rank) ASC) AS CurrentRank,
+    COUNT(*) OVER () AS TotalSchools,
+    MAX(tour.StartDate) AS LastTournamentDate
+  FROM
+    Schools s
+    JOIN Students stu ON s.SchoolID = stu.SchoolID
+    JOIN TeamMembers tm ON stu.StudentID = tm.StudentID
+    JOIN Teams te ON tm.TeamID = te.TeamID
+    JOIN Debates d ON (te.TeamID = d.Team1ID OR te.TeamID = d.Team2ID)
+    JOIN Ballots b ON d.DebateID = b.DebateID
+    JOIN TeamScores ts ON te.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+    JOIN Tournaments tour ON d.TournamentID = tour.TournamentID
+    LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
+  WHERE
+    l.Name != 'DAC' OR l.Name IS NULL
+  GROUP BY
+    s.SchoolID, s.SchoolName
+)
+SELECT *
+FROM school_ranking
+ORDER BY CurrentRank;
+
+-- name: GetSchoolOverallPerformance :many
+WITH tournament_performance AS (
+  SELECT
+    d.TournamentID,
+    t.StartDate,
+    s.SchoolID,
+    CAST(SUM(ts.TotalScore) AS DECIMAL(10,2)) AS SchoolTotalPoints,
+    CAST(AVG(ts.TotalScore) AS DECIMAL(10,2)) AS SchoolAveragePoints,
+    CAST(AVG(SUM(ts.TotalScore)) OVER (PARTITION BY d.TournamentID) AS DECIMAL(10,2)) AS OverallAverageTotalPoints,
+    CAST(AVG(AVG(ts.TotalScore)) OVER (PARTITION BY d.TournamentID) AS DECIMAL(10,2)) AS OverallAveragePoints,
+    RANK() OVER (PARTITION BY d.TournamentID ORDER BY SUM(ts.TotalScore) DESC) AS TournamentRank
+  FROM
+    Schools s
+    JOIN Students stu ON s.SchoolID = stu.SchoolID
+    JOIN TeamMembers tm ON stu.StudentID = tm.StudentID
+    JOIN Teams te ON tm.TeamID = te.TeamID
+    JOIN Debates d ON (te.TeamID = d.Team1ID OR te.TeamID = d.Team2ID)
+    JOIN TeamScores ts ON te.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+    JOIN Tournaments t ON d.TournamentID = t.TournamentID
+    LEFT JOIN Leagues l ON t.LeagueID = l.LeagueID
+  WHERE
+    s.SchoolID = $1 AND t.StartDate BETWEEN $2 AND $3 AND l.Name != 'DAC'
+  GROUP BY
+    d.TournamentID, t.StartDate, s.SchoolID
+)
+SELECT
+  StartDate,
+  SchoolTotalPoints,
+  SchoolAveragePoints,
+  OverallAverageTotalPoints,
+  OverallAveragePoints,
+  TournamentRank
+FROM
+  tournament_performance
+ORDER BY
+  StartDate;

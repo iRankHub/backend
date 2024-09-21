@@ -41,6 +41,10 @@ const (
 	DebateService_GetTournamentStudentRanking_FullMethodName  = "/debate_management.DebateService/GetTournamentStudentRanking"
 	DebateService_GetOverallStudentRanking_FullMethodName     = "/debate_management.DebateService/GetOverallStudentRanking"
 	DebateService_GetStudentOverallPerformance_FullMethodName = "/debate_management.DebateService/GetStudentOverallPerformance"
+	DebateService_GetTournamentTeamsRanking_FullMethodName    = "/debate_management.DebateService/GetTournamentTeamsRanking"
+	DebateService_GetTournamentSchoolRanking_FullMethodName   = "/debate_management.DebateService/GetTournamentSchoolRanking"
+	DebateService_GetOverallSchoolRanking_FullMethodName      = "/debate_management.DebateService/GetOverallSchoolRanking"
+	DebateService_GetSchoolOverallPerformance_FullMethodName  = "/debate_management.DebateService/GetSchoolOverallPerformance"
 )
 
 // DebateServiceClient is the client API for DebateService service.
@@ -76,6 +80,10 @@ type DebateServiceClient interface {
 	GetTournamentStudentRanking(ctx context.Context, in *TournamentRankingRequest, opts ...grpc.CallOption) (*TournamentRankingResponse, error)
 	GetOverallStudentRanking(ctx context.Context, in *OverallRankingRequest, opts ...grpc.CallOption) (*OverallRankingResponse, error)
 	GetStudentOverallPerformance(ctx context.Context, in *PerformanceRequest, opts ...grpc.CallOption) (*PerformanceResponse, error)
+	GetTournamentTeamsRanking(ctx context.Context, in *TournamentTeamsRankingRequest, opts ...grpc.CallOption) (*TournamentTeamsRankingResponse, error)
+	GetTournamentSchoolRanking(ctx context.Context, in *TournamentSchoolRankingRequest, opts ...grpc.CallOption) (*TournamentSchoolRankingResponse, error)
+	GetOverallSchoolRanking(ctx context.Context, in *OverallSchoolRankingRequest, opts ...grpc.CallOption) (*OverallSchoolRankingResponse, error)
+	GetSchoolOverallPerformance(ctx context.Context, in *SchoolPerformanceRequest, opts ...grpc.CallOption) (*SchoolPerformanceResponse, error)
 }
 
 type debateServiceClient struct {
@@ -306,6 +314,46 @@ func (c *debateServiceClient) GetStudentOverallPerformance(ctx context.Context, 
 	return out, nil
 }
 
+func (c *debateServiceClient) GetTournamentTeamsRanking(ctx context.Context, in *TournamentTeamsRankingRequest, opts ...grpc.CallOption) (*TournamentTeamsRankingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TournamentTeamsRankingResponse)
+	err := c.cc.Invoke(ctx, DebateService_GetTournamentTeamsRanking_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *debateServiceClient) GetTournamentSchoolRanking(ctx context.Context, in *TournamentSchoolRankingRequest, opts ...grpc.CallOption) (*TournamentSchoolRankingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TournamentSchoolRankingResponse)
+	err := c.cc.Invoke(ctx, DebateService_GetTournamentSchoolRanking_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *debateServiceClient) GetOverallSchoolRanking(ctx context.Context, in *OverallSchoolRankingRequest, opts ...grpc.CallOption) (*OverallSchoolRankingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OverallSchoolRankingResponse)
+	err := c.cc.Invoke(ctx, DebateService_GetOverallSchoolRanking_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *debateServiceClient) GetSchoolOverallPerformance(ctx context.Context, in *SchoolPerformanceRequest, opts ...grpc.CallOption) (*SchoolPerformanceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SchoolPerformanceResponse)
+	err := c.cc.Invoke(ctx, DebateService_GetSchoolOverallPerformance_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DebateServiceServer is the server API for DebateService service.
 // All implementations must embed UnimplementedDebateServiceServer
 // for forward compatibility.
@@ -339,6 +387,10 @@ type DebateServiceServer interface {
 	GetTournamentStudentRanking(context.Context, *TournamentRankingRequest) (*TournamentRankingResponse, error)
 	GetOverallStudentRanking(context.Context, *OverallRankingRequest) (*OverallRankingResponse, error)
 	GetStudentOverallPerformance(context.Context, *PerformanceRequest) (*PerformanceResponse, error)
+	GetTournamentTeamsRanking(context.Context, *TournamentTeamsRankingRequest) (*TournamentTeamsRankingResponse, error)
+	GetTournamentSchoolRanking(context.Context, *TournamentSchoolRankingRequest) (*TournamentSchoolRankingResponse, error)
+	GetOverallSchoolRanking(context.Context, *OverallSchoolRankingRequest) (*OverallSchoolRankingResponse, error)
+	GetSchoolOverallPerformance(context.Context, *SchoolPerformanceRequest) (*SchoolPerformanceResponse, error)
 	mustEmbedUnimplementedDebateServiceServer()
 }
 
@@ -414,6 +466,18 @@ func (UnimplementedDebateServiceServer) GetOverallStudentRanking(context.Context
 }
 func (UnimplementedDebateServiceServer) GetStudentOverallPerformance(context.Context, *PerformanceRequest) (*PerformanceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStudentOverallPerformance not implemented")
+}
+func (UnimplementedDebateServiceServer) GetTournamentTeamsRanking(context.Context, *TournamentTeamsRankingRequest) (*TournamentTeamsRankingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTournamentTeamsRanking not implemented")
+}
+func (UnimplementedDebateServiceServer) GetTournamentSchoolRanking(context.Context, *TournamentSchoolRankingRequest) (*TournamentSchoolRankingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTournamentSchoolRanking not implemented")
+}
+func (UnimplementedDebateServiceServer) GetOverallSchoolRanking(context.Context, *OverallSchoolRankingRequest) (*OverallSchoolRankingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOverallSchoolRanking not implemented")
+}
+func (UnimplementedDebateServiceServer) GetSchoolOverallPerformance(context.Context, *SchoolPerformanceRequest) (*SchoolPerformanceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSchoolOverallPerformance not implemented")
 }
 func (UnimplementedDebateServiceServer) mustEmbedUnimplementedDebateServiceServer() {}
 func (UnimplementedDebateServiceServer) testEmbeddedByValue()                       {}
@@ -832,6 +896,78 @@ func _DebateService_GetStudentOverallPerformance_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DebateService_GetTournamentTeamsRanking_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TournamentTeamsRankingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DebateServiceServer).GetTournamentTeamsRanking(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DebateService_GetTournamentTeamsRanking_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DebateServiceServer).GetTournamentTeamsRanking(ctx, req.(*TournamentTeamsRankingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DebateService_GetTournamentSchoolRanking_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TournamentSchoolRankingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DebateServiceServer).GetTournamentSchoolRanking(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DebateService_GetTournamentSchoolRanking_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DebateServiceServer).GetTournamentSchoolRanking(ctx, req.(*TournamentSchoolRankingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DebateService_GetOverallSchoolRanking_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OverallSchoolRankingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DebateServiceServer).GetOverallSchoolRanking(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DebateService_GetOverallSchoolRanking_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DebateServiceServer).GetOverallSchoolRanking(ctx, req.(*OverallSchoolRankingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DebateService_GetSchoolOverallPerformance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SchoolPerformanceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DebateServiceServer).GetSchoolOverallPerformance(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DebateService_GetSchoolOverallPerformance_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DebateServiceServer).GetSchoolOverallPerformance(ctx, req.(*SchoolPerformanceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DebateService_ServiceDesc is the grpc.ServiceDesc for DebateService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -926,6 +1062,22 @@ var DebateService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetStudentOverallPerformance",
 			Handler:    _DebateService_GetStudentOverallPerformance_Handler,
+		},
+		{
+			MethodName: "GetTournamentTeamsRanking",
+			Handler:    _DebateService_GetTournamentTeamsRanking_Handler,
+		},
+		{
+			MethodName: "GetTournamentSchoolRanking",
+			Handler:    _DebateService_GetTournamentSchoolRanking_Handler,
+		},
+		{
+			MethodName: "GetOverallSchoolRanking",
+			Handler:    _DebateService_GetOverallSchoolRanking_Handler,
+		},
+		{
+			MethodName: "GetSchoolOverallPerformance",
+			Handler:    _DebateService_GetSchoolOverallPerformance_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

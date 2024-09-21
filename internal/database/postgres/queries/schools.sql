@@ -13,6 +13,12 @@ SELECT s.* FROM Schools s
 JOIN Users u ON s.ContactPersonID = u.UserID
 WHERE s.ContactPersonID = $1 AND u.deleted_at IS NULL;
 
+-- name: GetSchoolIDByUserID :one
+SELECT s.SchoolID
+FROM Schools s
+JOIN Users u ON s.ContactPersonID = u.UserID
+WHERE u.UserID = $1;
+
 -- name: GetSchoolByContactEmail :one
 SELECT s.* FROM Schools s
 JOIN Users u ON s.ContactPersonID = u.UserID

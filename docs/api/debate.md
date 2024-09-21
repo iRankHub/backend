@@ -328,8 +328,57 @@ Request:
 ```json
 {
   "user_id": 1,
-  "start_date": "2023-01-01T00:00:00Z",
-  "end_date": "2023-12-31T23:59:59Z",
+  "start_date": "2023-01-01",
+  "end_date": "2023-12-31",
+  "token": "your_auth_token_here"
+}
+```
+
+### GetTournamentTeamsRanking
+
+Endpoint: `DebateService.GetTournamentTeamsRanking`
+Request:
+```json
+{
+  "tournament_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+### GetTournamentSchoolRanking
+
+Endpoint: `DebateService.GetTournamentSchoolRanking`
+
+Request:
+```json
+{
+  "tournament_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+### GetOverallSchoolRanking
+
+Endpoint: `DebateService.GetOverallSchoolRanking`
+
+Request:
+```json
+{
+  "user_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+### GetSchoolOverallPerformance
+
+Endpoint: `DebateService.GetSchoolOverallPerformance`
+
+Request:
+```json
+{
+  "user_id": 1,
+  "start_date": "2023-01-01",
+  "end_date": "2023-12-31",
   "token": "your_auth_token_here"
 }
 ```

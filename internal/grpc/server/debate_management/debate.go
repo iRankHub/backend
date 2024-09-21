@@ -227,3 +227,34 @@ func (s *debateServer) GetStudentOverallPerformance(ctx context.Context, req *de
     return response, nil
 }
 
+func (s *debateServer) GetTournamentTeamsRanking(ctx context.Context, req *debate_management.TournamentTeamsRankingRequest) (*debate_management.TournamentTeamsRankingResponse, error) {
+	response, err := s.rankingService.GetTournamentTeamsRanking(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get tournament teams ranking: %v", err)
+	}
+	return response, nil
+}
+
+func (s *debateServer) GetTournamentSchoolRanking(ctx context.Context, req *debate_management.TournamentSchoolRankingRequest) (*debate_management.TournamentSchoolRankingResponse, error) {
+	response, err := s.rankingService.GetTournamentSchoolRanking(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get tournament school ranking: %v", err)
+	}
+	return response, nil
+}
+
+func (s *debateServer) GetOverallSchoolRanking(ctx context.Context, req *debate_management.OverallSchoolRankingRequest) (*debate_management.OverallSchoolRankingResponse, error) {
+	response, err := s.rankingService.GetOverallSchoolRanking(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get overall school ranking: %v", err)
+	}
+	return response, nil
+}
+
+func (s *debateServer) GetSchoolOverallPerformance(ctx context.Context, req *debate_management.SchoolPerformanceRequest) (*debate_management.SchoolPerformanceResponse, error) {
+	response, err := s.rankingService.GetSchoolOverallPerformance(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get school overall performance: %v", err)
+	}
+	return response, nil
+}
