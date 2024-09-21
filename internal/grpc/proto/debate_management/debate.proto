@@ -4,8 +4,6 @@ package debate_management;
 
 option go_package = "github.com/iRankHub/backend/internal/grpc/proto/debate_management";
 
-import "google/protobuf/timestamp.proto";
-
 service DebateService {
   // Room operations
   rpc GetRooms(GetRoomsRequest) returns (GetRoomsResponse);
@@ -342,8 +340,8 @@ message StudentInfo {
 
 message PerformanceRequest {
   int32 user_id = 1;
-  google.protobuf.Timestamp start_date = 2;
-  google.protobuf.Timestamp end_date = 3;
+  string start_date = 2;
+  string end_date = 3;
   string token = 4;
 }
 
@@ -352,11 +350,11 @@ message PerformanceResponse {
 }
 
 message PerformanceData {
-  google.protobuf.Timestamp tournament_date = 1;
-  double student_rank = 2;
-  double average_rank = 3;
+  string tournament_date = 1;
+  double student_total_points = 2;
+  double student_average_points = 3;
+  int32 tournament_rank = 6;
 }
-
 
 message TournamentRankingRequest {
   int32 tournament_id = 1;

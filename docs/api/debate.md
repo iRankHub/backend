@@ -294,6 +294,52 @@ Notes for UpdateBallot:
 - The `verdict` should be one of: "team1 name", "team2 name".
 - Any existing speaker scores will be overwritten by the new scores provided in the update request.
 
+## Ranking Management
+
+### GetTournamentStudentRanking
+
+Endpoint: `DebateService.GetTournamentStudentRanking`
+
+Request:
+```json
+{
+  "tournament_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+### GetOverallStudentRanking
+
+Endpoint: `DebateService.GetOverallStudentRanking`
+
+Request:
+```json
+{
+  "user_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+### GetStudentOverallPerformance
+
+Endpoint: `DebateService.GetStudentOverallPerformance`
+
+Request:
+```json
+{
+  "user_id": 1,
+  "start_date": "2023-01-01T00:00:00Z",
+  "end_date": "2023-12-31T23:59:59Z",
+  "token": "your_auth_token_here"
+}
+```
+
+Notes for Ranking Endpoints:
+- All ranking endpoints require authentication.
+- Dates in requests and responses should be in ISO 8601 format.
+- The `rank_change` field in responses indicates improvement (positive value) or decline (negative value) in ranking.
+- For `GetOverallStudentRanking`, the response includes the top 3 students' information along with the requested student's ranking.
+- `GetStudentOverallPerformance` allows for querying performance data within a specific date range.
 
 ## Team Management
 

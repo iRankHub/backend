@@ -8,7 +8,6 @@ package models
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"time"
 )
 
@@ -1032,14 +1031,16 @@ func (q *Queries) GetJudgesForTournament(ctx context.Context, tournamentid int32
 	return items, nil
 }
 
-const getOverallStudentRanking = `-- name: GetOverallStudentRanking :one
-WITH base_rankings AS (
+const getOverallStudentRanking = `-- name: GetOverallStudentRanking :many
+WITH student_ranking AS (
     SELECT
         s.StudentID,
         s.FirstName || ' ' || s.LastName AS StudentName,
-        SUM(ss.SpeakerPoints) AS TotalPoints,
+        CAST(SUM(ss.SpeakerPoints) AS DECIMAL(10,2)) AS TotalPoints,
         AVG(ss.SpeakerRank) AS AverageRank,
         COUNT(DISTINCT d.TournamentID) AS TournamentsParticipated,
+        RANK() OVER (ORDER BY SUM(ss.SpeakerPoints) DESC, AVG(ss.SpeakerRank) ASC) AS CurrentRank,
+        COUNT(*) OVER () AS TotalStudents,
         MAX(t.StartDate) AS LastTournamentDate
     FROM
         Students s
@@ -1051,92 +1052,53 @@ WITH base_rankings AS (
     JOIN Tournaments t ON d.TournamentID = t.TournamentID
     GROUP BY
         s.StudentID, s.FirstName, s.LastName
-),
-current_ranks AS (
-    SELECT
-        studentid, studentname, totalpoints, averagerank, tournamentsparticipated, lasttournamentdate,
-        RANK() OVER (ORDER BY TotalPoints DESC, AverageRank ASC, TournamentsParticipated DESC) AS CurrentRank,
-        COUNT(*) OVER () AS TotalStudents
-    FROM
-        base_rankings
-),
-rank_changes AS (
-    SELECT
-        studentid, studentname, totalpoints, averagerank, tournamentsparticipated, lasttournamentdate, currentrank, totalstudents,
-        CurrentRank - LAG(CurrentRank, 1, CurrentRank) OVER (PARTITION BY StudentID ORDER BY LastTournamentDate DESC) AS RankChange
-    FROM
-        current_ranks
-),
-top_students AS (
-    SELECT
-        CurrentRank,
-        StudentName,
-        TotalPoints,
-        RankChange
-    FROM
-        rank_changes
-    WHERE
-        CurrentRank <= 3
-    ORDER BY
-        CurrentRank
-),
-student_result AS (
-    SELECT
-        CurrentRank AS StudentRank,
-        TotalStudents,
-        COALESCE(RankChange, 0) AS RankChange,
-        StudentName,
-        TotalPoints
-    FROM
-        rank_changes
-    WHERE
-        s.StudentID = $1
-),
-top_students_json AS (
-    SELECT
-        json_agg(json_build_object(
-            'rank', CurrentRank,
-            'name', StudentName,
-            'totalPoints', TotalPoints,
-            'rankChange', RankChange
-        )) AS TopStudentsJson
-    FROM
-        top_students
 )
-SELECT
-    sr.StudentRank,
-    sr.TotalStudents,
-    sr.RankChange,
-    sr.StudentName,
-    sr.TotalPoints,
-    tsj.TopStudentsJson AS TopStudents
-FROM
-    student_result sr
-CROSS JOIN
-    top_students_json tsj
+SELECT studentid, studentname, totalpoints, averagerank, tournamentsparticipated, currentrank, totalstudents, lasttournamentdate
+FROM student_ranking
+ORDER BY CurrentRank
 `
 
 type GetOverallStudentRankingRow struct {
-	Studentrank   int64           `json:"studentrank"`
-	Totalstudents int64           `json:"totalstudents"`
-	Rankchange    int32           `json:"rankchange"`
-	Studentname   interface{}     `json:"studentname"`
-	Totalpoints   int64           `json:"totalpoints"`
-	Topstudents   json.RawMessage `json:"topstudents"`
+	Studentid               int32       `json:"studentid"`
+	Studentname             interface{} `json:"studentname"`
+	Totalpoints             string      `json:"totalpoints"`
+	Averagerank             float64     `json:"averagerank"`
+	Tournamentsparticipated int64       `json:"tournamentsparticipated"`
+	Currentrank             int64       `json:"currentrank"`
+	Totalstudents           int64       `json:"totalstudents"`
+	Lasttournamentdate      interface{} `json:"lasttournamentdate"`
 }
 
-func (q *Queries) GetOverallStudentRanking(ctx context.Context, studentid int32) (GetOverallStudentRankingRow, error) {
-	row := q.db.QueryRowContext(ctx, getOverallStudentRanking, studentid)
-	var i GetOverallStudentRankingRow
-	err := row.Scan(
-		&i.Studentrank,
-		&i.Totalstudents,
-		&i.Rankchange,
-		&i.Studentname,
-		&i.Totalpoints,
-		&i.Topstudents,
-	)
-	return i, err
+func (q *Queries) GetOverallStudentRanking(ctx context.Context) ([]GetOverallStudentRankingRow, error) {
+	rows, err := q.db.QueryContext(ctx, getOverallStudentRanking)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetOverallStudentRankingRow{}
+	for rows.Next() {
+		var i GetOverallStudentRankingRow
+		if err := rows.Scan(
+			&i.Studentid,
+			&i.Studentname,
+			&i.Totalpoints,
+			&i.Averagerank,
+			&i.Tournamentsparticipated,
+			&i.Currentrank,
+			&i.Totalstudents,
+			&i.Lasttournamentdate,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getPairingByID = `-- name: GetPairingByID :one
@@ -1680,8 +1642,11 @@ WITH tournament_performance AS (
         d.TournamentID,
         t.StartDate,
         s.StudentID,
-        AVG(ss.SpeakerRank) AS StudentRank,
-        AVG(AVG(ss.SpeakerRank)) OVER (PARTITION BY d.TournamentID) AS AverageRank
+        CAST(SUM(ss.SpeakerPoints) AS NUMERIC(10,2)) AS StudentTotalPoints,
+        CAST(AVG(ss.SpeakerPoints) AS NUMERIC(10,2)) AS StudentAveragePoints,
+        CAST(AVG(SUM(ss.SpeakerPoints)) OVER (PARTITION BY d.TournamentID) AS NUMERIC(10,2)) AS OverallAverageTotalPoints,
+        CAST(AVG(AVG(ss.SpeakerPoints)) OVER (PARTITION BY d.TournamentID) AS NUMERIC(10,2)) AS OverallAveragePoints,
+        RANK() OVER (PARTITION BY d.TournamentID ORDER BY SUM(ss.SpeakerPoints) DESC) AS TournamentRank
     FROM
         Students s
     JOIN TeamMembers tm ON s.StudentID = tm.StudentID
@@ -1697,8 +1662,11 @@ WITH tournament_performance AS (
 )
 SELECT
     StartDate,
-    StudentRank,
-    AverageRank
+    StudentTotalPoints,
+    StudentAveragePoints,
+    OverallAverageTotalPoints,
+    OverallAveragePoints,
+    TournamentRank
 FROM
     tournament_performance
 ORDER BY
@@ -1712,9 +1680,12 @@ type GetStudentOverallPerformanceParams struct {
 }
 
 type GetStudentOverallPerformanceRow struct {
-	Startdate   time.Time `json:"startdate"`
-	Studentrank float64   `json:"studentrank"`
-	Averagerank float64   `json:"averagerank"`
+	Startdate                 time.Time `json:"startdate"`
+	Studenttotalpoints        string    `json:"studenttotalpoints"`
+	Studentaveragepoints      string    `json:"studentaveragepoints"`
+	Overallaveragetotalpoints string    `json:"overallaveragetotalpoints"`
+	Overallaveragepoints      string    `json:"overallaveragepoints"`
+	Tournamentrank            int64     `json:"tournamentrank"`
 }
 
 func (q *Queries) GetStudentOverallPerformance(ctx context.Context, arg GetStudentOverallPerformanceParams) ([]GetStudentOverallPerformanceRow, error) {
@@ -1726,7 +1697,14 @@ func (q *Queries) GetStudentOverallPerformance(ctx context.Context, arg GetStude
 	items := []GetStudentOverallPerformanceRow{}
 	for rows.Next() {
 		var i GetStudentOverallPerformanceRow
-		if err := rows.Scan(&i.Startdate, &i.Studentrank, &i.Averagerank); err != nil {
+		if err := rows.Scan(
+			&i.Startdate,
+			&i.Studenttotalpoints,
+			&i.Studentaveragepoints,
+			&i.Overallaveragetotalpoints,
+			&i.Overallaveragepoints,
+			&i.Tournamentrank,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -1967,36 +1945,25 @@ func (q *Queries) GetTopPerformingTeams(ctx context.Context, arg GetTopPerformin
 }
 
 const getTournamentStudentRanking = `-- name: GetTournamentStudentRanking :many
-WITH student_performance AS (
-    SELECT
-        s.StudentID,
-        s.FirstName || ' ' || s.LastName AS StudentName,
-        sch.SchoolName,
-        COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) AS TotalWins,
-        SUM(ss.SpeakerPoints) AS TotalPoints,
-        AVG(ss.SpeakerRank) AS AverageRank
-    FROM
-        Students s
-    JOIN TeamMembers tm ON s.StudentID = tm.StudentID
-    JOIN Teams t ON tm.TeamID = t.TeamID
-    JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
-    JOIN Ballots b ON d.DebateID = b.DebateID
-    JOIN SpeakerScores ss ON s.StudentID = ss.SpeakerID AND b.BallotID = ss.BallotID
-    JOIN Schools sch ON s.SchoolID = sch.SchoolID
-    WHERE
-        d.TournamentID = $1 AND d.IsEliminationRound = false
-    GROUP BY
-        s.StudentID, StudentName, sch.SchoolName
-)
 SELECT
-    StudentID,
-    StudentName,
-    SchoolName,
-    TotalWins,
-    TotalPoints,
-    AverageRank
+    s.StudentID,
+    s.FirstName || ' ' || s.LastName AS StudentName,
+    sch.SchoolName,
+    COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) AS TotalWins,
+    CAST(SUM(ss.SpeakerPoints) AS DECIMAL(10,2)) AS TotalPoints,
+    AVG(ss.SpeakerRank) AS AverageRank
 FROM
-    student_performance
+    Students s
+JOIN TeamMembers tm ON s.StudentID = tm.StudentID
+JOIN Teams t ON tm.TeamID = t.TeamID
+JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
+JOIN Ballots b ON d.DebateID = b.DebateID
+JOIN SpeakerScores ss ON s.StudentID = ss.SpeakerID AND b.BallotID = ss.BallotID
+JOIN Schools sch ON s.SchoolID = sch.SchoolID
+WHERE
+    d.TournamentID = $1 AND d.IsEliminationRound = false
+GROUP BY
+    s.StudentID, StudentName, sch.SchoolName
 ORDER BY
     TotalPoints DESC, AverageRank ASC, TotalWins DESC
 `
@@ -2006,7 +1973,7 @@ type GetTournamentStudentRankingRow struct {
 	Studentname interface{} `json:"studentname"`
 	Schoolname  string      `json:"schoolname"`
 	Totalwins   int64       `json:"totalwins"`
-	Totalpoints int64       `json:"totalpoints"`
+	Totalpoints string      `json:"totalpoints"`
 	Averagerank float64     `json:"averagerank"`
 }
 
