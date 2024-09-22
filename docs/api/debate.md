@@ -304,7 +304,9 @@ Request:
 ```json
 {
   "tournament_id": 1,
-  "token": "your_auth_token_here"
+  "token": "your_auth_token_here",
+    "page": 2,
+  "pageSize": 10
 }
 ```
 
@@ -341,7 +343,9 @@ Request:
 ```json
 {
   "tournament_id": 1,
-  "token": "your_auth_token_here"
+  "token": "your_auth_token_here",
+    "page": 2,
+  "pageSize": 10
 }
 ```
 
