@@ -540,16 +540,39 @@ WHERE ja.JudgeID = $1
   );
 
 -- name: GetEliminationRoundTeams :many
-SELECT t.*,
-       b.Verdict as LastRoundResult
-FROM Teams t
-JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
-JOIN Ballots b ON d.DebateID = b.DebateID
-WHERE t.TournamentID = $1
-  AND d.IsEliminationRound = true
-  AND d.RoundNumber = $2
-  AND b.Verdict = t.Name
-ORDER BY d.RoundNumber DESC, b.Team1TotalScore + b.Team2TotalScore DESC
+SELECT
+    CASE
+        WHEN b.Verdict = t1.Name THEN d.Team1ID
+        WHEN b.Verdict = t2.Name THEN d.Team2ID
+    END AS TeamID,
+    CASE
+        WHEN b.Verdict = t1.Name THEN t1.Name
+        WHEN b.Verdict = t2.Name THEN t2.Name
+    END AS TeamName,
+    d.TournamentID,
+    CASE
+        WHEN b.Verdict = t1.Name THEN b.Team1TotalScore
+        WHEN b.Verdict = t2.Name THEN b.Team2TotalScore
+    END AS TotalScore
+FROM
+    Debates d
+JOIN
+    Ballots b ON d.DebateID = b.DebateID
+JOIN
+    Teams t1 ON d.Team1ID = t1.TeamID
+JOIN
+    Teams t2 ON d.Team2ID = t2.TeamID
+WHERE
+    d.TournamentID = $1
+    AND d.RoundNumber = $2
+    AND d.IsEliminationRound = true
+    AND b.RecordingStatus = 'Recorded'
+    AND (b.Verdict = t1.Name OR b.Verdict = t2.Name)
+ORDER BY
+    CASE
+        WHEN b.Verdict = t1.Name THEN b.Team1TotalScore
+        WHEN b.Verdict = t2.Name THEN b.Team2TotalScore
+    END DESC
 LIMIT $3;
 
 -- name: GetTopPerformingTeams :many

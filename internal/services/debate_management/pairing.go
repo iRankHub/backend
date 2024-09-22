@@ -401,44 +401,31 @@ func (s *PairingService) generatePreliminaryPairings(ctx context.Context, querie
 }
 
 func (s *PairingService) generateEliminationPairings(ctx context.Context, queries *models.Queries, tournament models.GetTournamentByIDRow, tournamentID int32, roundNumber int32) ([]*debate_management.Pairing, error) {
+    teamsNeeded := int(math.Pow(2, float64(tournament.Numberofeliminationrounds-roundNumber+1)))
 
-    // Get tournament details
-    tournament, err := queries.GetTournamentByID(ctx, tournamentID)
-    if err != nil {
-        return nil, fmt.Errorf("failed to get tournament: %v", err)
-    }
-
-    // Create or get the elimination round
-    round, err := queries.CreateRound(ctx, models.CreateRoundParams{
-        Tournamentid:       tournamentID,
-        Roundnumber:        roundNumber,
-        Iseliminationround: true,
-    })
-    if err != nil {
-        if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
-            existingRound, err := queries.GetRoundByTournamentAndNumber(ctx, models.GetRoundByTournamentAndNumberParams{
-                Tournamentid:       tournamentID,
-                Roundnumber:        roundNumber,
-                Iseliminationround: true,
-            })
-            if err != nil {
-                return nil, fmt.Errorf("failed to get existing round: %v", err)
+    // Check if all ballots from the previous round are recorded
+    if roundNumber > 1 {
+        prevRoundBallots, err := queries.GetBallotsByTournamentAndRound(ctx, models.GetBallotsByTournamentAndRoundParams{
+            Tournamentid:       tournamentID,
+            Roundnumber:        roundNumber - 1,
+            Iseliminationround: true,
+        })
+        if err != nil {
+            return nil, fmt.Errorf("failed to get previous round ballots: %v", err)
+        }
+        for _, ballot := range prevRoundBallots {
+            if ballot.Recordingstatus != "Recorded" {
+                return nil, fmt.Errorf("cannot generate pairings: not all ballots from previous round are recorded")
             }
-            round = existingRound
-        } else {
-            return nil, fmt.Errorf("failed to create round: %v", err)
         }
     }
 
-    // Get teams for the elimination round
     var teams []models.GetTeamsByTournamentRow
-    teamsNeededForElims := int32(math.Pow(2, float64(tournament.Numberofeliminationrounds-roundNumber+1)))
-
     if roundNumber == 1 {
         // For the first elimination round, get top performing teams from preliminaries
         topTeams, err := queries.GetTopPerformingTeams(ctx, models.GetTopPerformingTeamsParams{
             Tournamentid: tournamentID,
-            Limit:        teamsNeededForElims,
+            Limit:        int32(teamsNeeded),
         })
         if err != nil {
             return nil, fmt.Errorf("failed to get top performing teams: %v", err)
@@ -449,13 +436,19 @@ func (s *PairingService) generateEliminationPairings(ctx context.Context, querie
         winningTeams, err := queries.GetEliminationRoundTeams(ctx, models.GetEliminationRoundTeamsParams{
             Tournamentid: tournamentID,
             Roundnumber:  roundNumber - 1,
-            Limit:        teamsNeededForElims,
+            Limit:        int32(teamsNeeded),
         })
         if err != nil {
             return nil, fmt.Errorf("failed to get winning teams from previous elimination round: %v", err)
         }
         teams = convertEliminationRoundTeamsToTeamsByTournament(winningTeams)
     }
+
+    if len(teams) < teamsNeeded {
+        return nil, fmt.Errorf("not enough teams for elimination round %d: have %d, need %d", roundNumber, len(teams), teamsNeeded)
+    }
+
+
 
     // Convert teams to the format expected by the pairing algorithm
     algorithmTeams := make([]*pairing_algorithm.Team, len(teams))
@@ -481,7 +474,7 @@ func (s *PairingService) generateEliminationPairings(ctx context.Context, querie
         }
     }
 
-    // Create or get rooms
+    // Get or create rooms
     rooms, err := queries.GetRoomsByTournament(ctx, sql.NullInt32{Int32: tournamentID, Valid: true})
     if err != nil {
         return nil, fmt.Errorf("failed to get rooms: %v", err)
@@ -521,6 +514,28 @@ func (s *PairingService) generateEliminationPairings(ctx context.Context, querie
         return nil, fmt.Errorf("failed to generate elimination pairings: %v", err)
     }
 
+    // Create or get the elimination round
+    round, err := queries.CreateRound(ctx, models.CreateRoundParams{
+        Tournamentid:       tournamentID,
+        Roundnumber:        roundNumber,
+        Iseliminationround: true,
+    })
+    if err != nil {
+        if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+            existingRound, err := queries.GetRoundByTournamentAndNumber(ctx, models.GetRoundByTournamentAndNumberParams{
+                Tournamentid:       tournamentID,
+                Roundnumber:        roundNumber,
+                Iseliminationround: true,
+            })
+            if err != nil {
+                return nil, fmt.Errorf("failed to get existing round: %v", err)
+            }
+            round = existingRound
+        } else {
+            return nil, fmt.Errorf("failed to create round: %v", err)
+        }
+    }
+
     dbPairings, err := s.saveDebatesToDatabase(ctx, queries, debates, tournamentID, roundNumber, true, round.Roundid)
     if err != nil {
         return nil, fmt.Errorf("failed to save debates to database: %v", err)
@@ -528,7 +543,6 @@ func (s *PairingService) generateEliminationPairings(ctx context.Context, querie
 
     return dbPairings, nil
 }
-
 
 func (s *PairingService) saveDebatesToDatabase(ctx context.Context, queries *models.Queries, debates []*pairing_algorithm.Debate, tournamentID int32, roundNumber int32, isElimination bool, roundID int32) ([]*debate_management.Pairing, error) {
     dbPairings := make([]*debate_management.Pairing, 0, len(debates))
@@ -642,9 +656,9 @@ func convertEliminationRoundTeamsToTeamsByTournament(elimTeams []models.GetElimi
     result := make([]models.GetTeamsByTournamentRow, len(elimTeams))
     for i, team := range elimTeams {
         result[i] = models.GetTeamsByTournamentRow{
-            Teamid:       team.Teamid,
-            Name:         team.Name,
-            Tournamentid: team.Tournamentid,
+            Teamid:       int32(team.Teamid.(int64)),  // Convert int64 to int32
+            Name:         team.Teamname.(string),
+            Tournamentid: team.Tournamentid, 
         }
     }
     return result

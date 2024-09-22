@@ -376,7 +376,7 @@ func updateTeamRanks(ctx context.Context, queries *models.Queries, teamID int32,
 
 	var rank int32
 	if team.Name == "Public Speaking" {
-		rank = 1000
+		rank = 99
 		log.Println("Public speaking team detected. Assigning rank 1000")
 	} else {
 		avgRank, err := queries.GetTeamAverageRank(ctx, models.GetTeamAverageRankParams{
@@ -393,7 +393,7 @@ func updateTeamRanks(ctx context.Context, queries *models.Queries, teamID int32,
 			rank = int32(avgRank.Avgrank)
 		} else {
 			log.Printf("Average rank is 0 for teamID=%d, ballotID=%d. Assigning default rank.", teamID, ballotID)
-			rank = 999
+			rank = 99
 		}
 	}
 
