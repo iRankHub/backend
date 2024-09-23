@@ -646,6 +646,147 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+
+-- Trigger function for calculating team average rank
+CREATE OR REPLACE FUNCTION calculate_team_average_rank()
+RETURNS TRIGGER AS $$
+DECLARE
+    avg_rank FLOAT;
+BEGIN
+    IF NEW.RecordingStatus = 'Recorded' THEN
+        -- Calculate average rank for Team 1
+        SELECT AVG(ss.SpeakerRank)::FLOAT INTO avg_rank
+        FROM SpeakerScores ss
+        JOIN TeamMembers tm ON ss.SpeakerID = tm.StudentID
+        WHERE tm.TeamID = NEW.Team1ID AND ss.BallotID = NEW.BallotID;
+
+        UPDATE TeamScores
+        SET Rank = avg_rank
+        WHERE TeamID = NEW.Team1ID AND DebateID = NEW.DebateID;
+
+        -- Calculate average rank for Team 2
+        SELECT AVG(ss.SpeakerRank)::FLOAT INTO avg_rank
+        FROM SpeakerScores ss
+        JOIN TeamMembers tm ON ss.SpeakerID = tm.StudentID
+        WHERE tm.TeamID = NEW.Team2ID AND ss.BallotID = NEW.BallotID;
+
+        UPDATE TeamScores
+        SET Rank = avg_rank
+        WHERE TeamID = NEW.Team2ID AND DebateID = NEW.DebateID;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger for calculating team average rank
+CREATE TRIGGER calculate_team_average_rank_trigger
+AFTER UPDATE OF RecordingStatus ON Ballots
+FOR EACH ROW
+EXECUTE FUNCTION calculate_team_average_rank();
+
+-- Trigger function for updating team stats
+CREATE OR REPLACE FUNCTION update_team_stats()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.RecordingStatus = 'Recorded' THEN
+        -- Update stats for Team 1
+        WITH team_stats AS (
+            SELECT
+                t.TeamID,
+                t.TournamentID,
+                COUNT(CASE WHEN b.Verdict = t.Name THEN 1 ELSE NULL END) AS TotalWins,
+                AVG(ts.Rank) AS AvgRank,
+                SUM(ts.TotalScore::NUMERIC) AS TotalSpeakerPoints
+            FROM
+                Teams t
+            JOIN
+                Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID) AND t.TournamentID = d.TournamentID
+            JOIN
+                Ballots b ON d.DebateID = b.DebateID
+            JOIN
+                TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+            WHERE
+                t.TeamID = NEW.Team1ID AND t.TournamentID = (SELECT TournamentID FROM Debates WHERE DebateID = NEW.DebateID)
+            GROUP BY
+                t.TeamID, t.TournamentID
+        )
+        UPDATE Teams
+        SET
+            TotalWins = team_stats.TotalWins,
+            AverageRank = team_stats.AvgRank,
+            TotalSpeakerPoints = team_stats.TotalSpeakerPoints
+        FROM
+            team_stats
+        WHERE
+            Teams.TeamID = team_stats.TeamID AND Teams.TournamentID = team_stats.TournamentID;
+
+        -- Update stats for Team 2
+        WITH team_stats AS (
+            SELECT
+                t.TeamID,
+                t.TournamentID,
+                COUNT(CASE WHEN b.Verdict = t.Name THEN 1 ELSE NULL END) AS TotalWins,
+                AVG(ts.Rank) AS AvgRank,
+                SUM(ts.TotalScore::NUMERIC) AS TotalSpeakerPoints
+            FROM
+                Teams t
+            JOIN
+                Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID) AND t.TournamentID = d.TournamentID
+            JOIN
+                Ballots b ON d.DebateID = b.DebateID
+            JOIN
+                TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+            WHERE
+                t.TeamID = NEW.Team2ID AND t.TournamentID = (SELECT TournamentID FROM Debates WHERE DebateID = NEW.DebateID)
+            GROUP BY
+                t.TeamID, t.TournamentID
+        )
+        UPDATE Teams
+        SET
+            TotalWins = team_stats.TotalWins,
+            AverageRank = team_stats.AvgRank,
+            TotalSpeakerPoints = team_stats.TotalSpeakerPoints
+        FROM
+            team_stats
+        WHERE
+            Teams.TeamID = team_stats.TeamID AND Teams.TournamentID = team_stats.TournamentID;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger for updating team stats
+CREATE TRIGGER update_team_stats_trigger
+AFTER UPDATE OF RecordingStatus ON Ballots
+FOR EACH ROW
+EXECUTE FUNCTION update_team_stats();
+
+-- Additional trigger to handle the special case for "Public Speaking" teams
+CREATE OR REPLACE FUNCTION handle_public_speaking_team()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.RecordingStatus = 'Recorded' THEN
+        -- Set rank to 99 for "Public Speaking" teams
+        UPDATE TeamScores ts
+        SET Rank = 99
+        WHERE ts.DebateID = NEW.DebateID
+          AND ts.TeamID IN (
+              SELECT t.TeamID
+              FROM Teams t
+              WHERE t.TeamID IN (NEW.Team1ID, NEW.Team2ID)
+                AND t.Name = 'Public Speaking'
+          );
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER handle_public_speaking_team_trigger
+AFTER UPDATE OF RecordingStatus ON Ballots
+FOR EACH ROW
+EXECUTE FUNCTION handle_public_speaking_team();
+
+
 -- Function to generate the school ID
 CREATE OR REPLACE FUNCTION generate_idebate_school_id()
 RETURNS trigger AS $$
