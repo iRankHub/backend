@@ -14,7 +14,6 @@ import (
 
 	pb "github.com/iRankHub/backend/internal/grpc/proto/notification"
 	"github.com/iRankHub/backend/internal/models"
-
 )
 
 type NotificationType string
@@ -132,10 +131,10 @@ func (s *NotificationService) SendNotification(ctx context.Context, notification
 	}
 
 	err = s.channel.PublishWithContext(ctx,
-		"",              // exchange
-		s.queue.Name,    // routing key
-		false,           // mandatory
-		false,           // immediate
+		"",           // exchange
+		s.queue.Name, // routing key
+		false,        // mandatory
+		false,        // immediate
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        body,

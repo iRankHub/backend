@@ -8,23 +8,22 @@ import (
 	"time"
 
 	"github.com/iRankHub/backend/internal/models"
+	notificationService "github.com/iRankHub/backend/internal/services/notification"
 	"github.com/iRankHub/backend/internal/utils"
 	notification "github.com/iRankHub/backend/internal/utils/notifications"
-	notificationService "github.com/iRankHub/backend/internal/services/notification"
 )
 
 type SignUpService struct {
-	db                 *sql.DB
+	db                  *sql.DB
 	notificationService *notificationService.NotificationService
 }
 
 func NewSignUpService(db *sql.DB, ns *notificationService.NotificationService) *SignUpService {
 	return &SignUpService{
-		db:                 db,
+		db:                  db,
 		notificationService: ns,
 	}
 }
-
 
 func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, password, userRole, gender string, nationalID string, safeguardingCertificate []byte, additionalInfo map[string]interface{}) error {
 	if firstName == "" || lastName == "" || email == "" || password == "" || userRole == "" {
@@ -201,17 +200,17 @@ func (s *SignUpService) createSchoolRecord(ctx context.Context, queries *models.
 	}
 
 	_, err := queries.CreateSchool(ctx, models.CreateSchoolParams{
-			Schoolname:              schoolName,
-			Address:                 address,
-			Country:                 sql.NullString{String: country, Valid: true},
-			Province:                sql.NullString{String: province, Valid: true},
-			District:                sql.NullString{String: district, Valid: true},
-			Contactpersonid:         userID,
-			Contactemail:            contactEmail,
-			Schoolemail:             email,
-			Schooltype:              schoolType,
-			Contactpersonnationalid: sql.NullString{String: nationalID, Valid: true},
-		})
+		Schoolname:              schoolName,
+		Address:                 address,
+		Country:                 sql.NullString{String: country, Valid: true},
+		Province:                sql.NullString{String: province, Valid: true},
+		District:                sql.NullString{String: district, Valid: true},
+		Contactpersonid:         userID,
+		Contactemail:            contactEmail,
+		Schoolemail:             email,
+		Schooltype:              schoolType,
+		Contactpersonnationalid: sql.NullString{String: nationalID, Valid: true},
+	})
 	return err
 }
 
@@ -246,19 +245,19 @@ func (s *SignUpService) createVolunteerRecord(ctx context.Context, queries *mode
 	}
 
 	_, err = queries.CreateVolunteer(ctx, models.CreateVolunteerParams{
-			Firstname:              firstName,
-			Lastname:               lastName,
-			Dateofbirth:            sql.NullTime{Time: dateOfBirth, Valid: true},
-			Role:                   roleInterestedIn,
-			Graduateyear:           sql.NullInt32{Int32: graduationYear, Valid: true},
-			Password:               hashedPassword,
-			Safeguardcertificate:   safeguardingCertificate,
-			Hasinternship:          sql.NullBool{Bool: hasInternship, Valid: true},
-			Userid:                 userID,
-			Isenrolledinuniversity: sql.NullBool{Bool: isEnrolledInUniversity, Valid: true},
-			Gender:                 sql.NullString{String: gender, Valid: true},
-			Nationalid:             sql.NullString{String: nationalID, Valid: true},
-		})
+		Firstname:              firstName,
+		Lastname:               lastName,
+		Dateofbirth:            sql.NullTime{Time: dateOfBirth, Valid: true},
+		Role:                   roleInterestedIn,
+		Graduateyear:           sql.NullInt32{Int32: graduationYear, Valid: true},
+		Password:               hashedPassword,
+		Safeguardcertificate:   safeguardingCertificate,
+		Hasinternship:          sql.NullBool{Bool: hasInternship, Valid: true},
+		Userid:                 userID,
+		Isenrolledinuniversity: sql.NullBool{Bool: isEnrolledInUniversity, Valid: true},
+		Gender:                 sql.NullString{String: gender, Valid: true},
+		Nationalid:             sql.NullString{String: nationalID, Valid: true},
+	})
 	return err
 }
 

@@ -19,24 +19,24 @@ func NewRoomService(db *sql.DB) *RoomService {
 }
 
 func (s *RoomService) GetRooms(ctx context.Context, req *debate_management.GetRoomsRequest) (*debate_management.GetRoomsResponse, error) {
-    if err := s.validateAuthentication(req.GetToken()); err != nil {
-        return nil, err
-    }
+	if err := s.validateAuthentication(req.GetToken()); err != nil {
+		return nil, err
+	}
 
-    queries := models.New(s.db)
-    dbRooms, err := queries.GetRoomsByTournament(ctx, sql.NullInt32{Int32: req.GetTournamentId(), Valid: true})
-    if err != nil {
-        return nil, fmt.Errorf("failed to get rooms: %v", err)
-    }
+	queries := models.New(s.db)
+	dbRooms, err := queries.GetRoomsByTournament(ctx, sql.NullInt32{Int32: req.GetTournamentId(), Valid: true})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get rooms: %v", err)
+	}
 
-    roomStatuses, err := s.convertRooms(ctx, req.GetTournamentId(), dbRooms)
-    if err != nil {
-        return nil, fmt.Errorf("failed to convert rooms: %v", err)
-    }
+	roomStatuses, err := s.convertRooms(ctx, req.GetTournamentId(), dbRooms)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert rooms: %v", err)
+	}
 
-    return &debate_management.GetRoomsResponse{
-        Rooms: roomStatuses,
-    }, nil
+	return &debate_management.GetRoomsResponse{
+		Rooms: roomStatuses,
+	}, nil
 }
 
 func (s *RoomService) GetRoom(ctx context.Context, req *debate_management.GetRoomRequest) (*debate_management.GetRoomResponse, error) {
@@ -162,42 +162,42 @@ func (s *RoomService) validateAuthentication(token string) error {
 }
 
 func (s *RoomService) convertRooms(ctx context.Context, tournamentID int32, dbRooms []models.Room) ([]*debate_management.RoomStatus, error) {
-    rooms := make([]*debate_management.RoomStatus, len(dbRooms))
-    for i, dbRoom := range dbRooms {
-        preliminaryStatus, err := s.getRoomStatus(ctx, tournamentID, dbRoom.Roomid, false)
-        if err != nil {
-            return nil, fmt.Errorf("failed to get preliminary status for room %d: %v", dbRoom.Roomid, err)
-        }
+	rooms := make([]*debate_management.RoomStatus, len(dbRooms))
+	for i, dbRoom := range dbRooms {
+		preliminaryStatus, err := s.getRoomStatus(ctx, tournamentID, dbRoom.Roomid, false)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get preliminary status for room %d: %v", dbRoom.Roomid, err)
+		}
 
-        eliminationStatus, err := s.getRoomStatus(ctx, tournamentID, dbRoom.Roomid, true)
-        if err != nil {
-            return nil, fmt.Errorf("failed to get elimination status for room %d: %v", dbRoom.Roomid, err)
-        }
+		eliminationStatus, err := s.getRoomStatus(ctx, tournamentID, dbRoom.Roomid, true)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get elimination status for room %d: %v", dbRoom.Roomid, err)
+		}
 
-        rooms[i] = &debate_management.RoomStatus{
-            RoomId:      dbRoom.Roomid,
-            RoomName:    dbRoom.Roomname,
-            Preliminary: preliminaryStatus,
-            Elimination: eliminationStatus,
-        }
-    }
-    return rooms, nil
+		rooms[i] = &debate_management.RoomStatus{
+			RoomId:      dbRoom.Roomid,
+			RoomName:    dbRoom.Roomname,
+			Preliminary: preliminaryStatus,
+			Elimination: eliminationStatus,
+		}
+	}
+	return rooms, nil
 }
 
 func convertSingleRoom(dbRoom models.GetRoomByIDRow, preliminaryRounds, eliminationRounds []*debate_management.RoundStatus) *debate_management.GetRoomResponse {
-    return &debate_management.GetRoomResponse{
-        RoomId:      dbRoom.Roomid,
-        Name:        dbRoom.Roomname,
-        Preliminary: preliminaryRounds,
-        Elimination: eliminationRounds,
-    }
+	return &debate_management.GetRoomResponse{
+		RoomId:      dbRoom.Roomid,
+		Name:        dbRoom.Roomname,
+		Preliminary: preliminaryRounds,
+		Elimination: eliminationRounds,
+	}
 }
 
 func convertRoom(dbRoom models.Room) *debate_management.Room {
-    return &debate_management.Room{
-        RoomId:   dbRoom.Roomid,
-        RoomName: dbRoom.Roomname,
-        Location: dbRoom.Location,
-        Capacity: dbRoom.Capacity,
-    }
+	return &debate_management.Room{
+		RoomId:   dbRoom.Roomid,
+		RoomName: dbRoom.Roomname,
+		Location: dbRoom.Location,
+		Capacity: dbRoom.Capacity,
+	}
 }

@@ -6,19 +6,19 @@ import (
 	"sync"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
+	notificationService "github.com/iRankHub/backend/internal/services/notification"
 	"github.com/iRankHub/backend/internal/utils"
 	notification "github.com/iRankHub/backend/internal/utils/notifications"
-	notificationService "github.com/iRankHub/backend/internal/services/notification"
 )
 
 type ImportUsersService struct {
-	signUpService      *SignUpService
+	signUpService       *SignUpService
 	notificationService *notificationService.NotificationService
 }
 
 func NewImportUsersService(signUpService *SignUpService, ns *notificationService.NotificationService) *ImportUsersService {
 	return &ImportUsersService{
-		signUpService:      signUpService,
+		signUpService:       signUpService,
 		notificationService: ns,
 	}
 }
@@ -36,22 +36,21 @@ func (s *ImportUsersService) BatchImportUsers(ctx context.Context, users []*auth
 		go func(userData *authentication.UserData) {
 			defer wg.Done()
 
-
 			additionalInfo := map[string]interface{}{
-				"dateOfBirth":             userData.DateOfBirth,
-				"schoolID":                userData.SchoolID,
-				"schoolName":              userData.SchoolName,
-				"address":                 userData.Address,
-				"country":                 userData.Country,
-				"province":                userData.Province,
-				"district":                userData.District,
-				"contactEmail":            userData.ContactEmail,
-				"schoolType":              userData.SchoolType,
-				"roleInterestedIn":        userData.RoleInterestedIn,
-				"graduationYear":          userData.GraduationYear,
-				"grade":                   userData.Grade,
-				"hasInternship":           userData.HasInternship,
-				"isEnrolledInUniversity":  userData.IsEnrolledInUniversity,
+				"dateOfBirth":            userData.DateOfBirth,
+				"schoolID":               userData.SchoolID,
+				"schoolName":             userData.SchoolName,
+				"address":                userData.Address,
+				"country":                userData.Country,
+				"province":               userData.Province,
+				"district":               userData.District,
+				"contactEmail":           userData.ContactEmail,
+				"schoolType":             userData.SchoolType,
+				"roleInterestedIn":       userData.RoleInterestedIn,
+				"graduationYear":         userData.GraduationYear,
+				"grade":                  userData.Grade,
+				"hasInternship":          userData.HasInternship,
+				"isEnrolledInUniversity": userData.IsEnrolledInUniversity,
 			}
 
 			password := utils.GenerateRandomPassword()

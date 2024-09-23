@@ -9,9 +9,9 @@ import (
 
 	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
 	"github.com/iRankHub/backend/internal/models"
+	notifications "github.com/iRankHub/backend/internal/services/notification"
 	"github.com/iRankHub/backend/internal/utils"
 	notification "github.com/iRankHub/backend/internal/utils/notifications"
-	notifications "github.com/iRankHub/backend/internal/services/notification"
 )
 
 type InvitationService struct {
@@ -195,20 +195,20 @@ func (s *InvitationService) BulkResendInvitations(ctx context.Context, req *tour
 }
 
 func (s *InvitationService) sendInvitationEmailAsync(invitationID int32) {
-    ctx := context.Background()
-    queries := models.New(s.db)
+	ctx := context.Background()
+	queries := models.New(s.db)
 
-    notificationService, err := notifications.NewNotificationService(s.db)
-    if err != nil {
-        log.Printf("Failed to create notification service: %v", err)
-        return
-    }
+	notificationService, err := notifications.NewNotificationService(s.db)
+	if err != nil {
+		log.Printf("Failed to create notification service: %v", err)
+		return
+	}
 
-    invitation, err := queries.GetInvitationByID(ctx, invitationID)
-    if err != nil {
-        log.Printf("Failed to get invitation for ID %d: %v", invitationID, err)
-        return
-    }
+	invitation, err := queries.GetInvitationByID(ctx, invitationID)
+	if err != nil {
+		log.Printf("Failed to get invitation for ID %d: %v", invitationID, err)
+		return
+	}
 
 	tournament, err := queries.GetTournamentByID(ctx, invitation.Tournamentid)
 	if err != nil {
@@ -285,12 +285,12 @@ func (s *InvitationService) sendInvitationEmailAsync(invitationID int32) {
 		return
 	}
 
-    err = notification.SendNotification(notificationService, notifications.EmailNotification, email, subject, content)
-    if err != nil {
-        log.Printf("Failed to send invitation email to %s for invitation ID %d: %v", email, invitationID, err)
-    } else {
-        log.Printf("Successfully sent invitation email to %s for invitation ID %d", email, invitationID)
-    }
+	err = notification.SendNotification(notificationService, notifications.EmailNotification, email, subject, content)
+	if err != nil {
+		log.Printf("Failed to send invitation email to %s for invitation ID %d: %v", email, invitationID, err)
+	} else {
+		log.Printf("Successfully sent invitation email to %s for invitation ID %d", email, invitationID)
+	}
 }
 
 func (s *InvitationService) validateAdminRole(token string) (map[string]interface{}, error) {

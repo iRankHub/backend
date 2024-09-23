@@ -16,13 +16,13 @@ import (
 )
 
 type TwoFactorService struct {
-	db                 *sql.DB
+	db                  *sql.DB
 	notificationService *notificationService.NotificationService
 }
 
 func NewTwoFactorService(db *sql.DB, ns *notificationService.NotificationService) *TwoFactorService {
 	return &TwoFactorService{
-		db:                 db,
+		db:                  db,
 		notificationService: ns,
 	}
 }
@@ -38,9 +38,9 @@ func (s *TwoFactorService) GenerateSecret() (string, error) {
 
 func (s *TwoFactorService) GenerateOTP(secret string) (string, error) {
 	return totp.GenerateCodeCustom(secret, time.Now(), totp.ValidateOpts{
-		Period:    900, // 15 minutes in seconds
-		Skew:      1,   // Allow 1 period before and after
-		Digits:    6,
+		Period: 900, // 15 minutes in seconds
+		Skew:   1,   // Allow 1 period before and after
+		Digits: 6,
 	})
 }
 
@@ -84,9 +84,9 @@ func (s *TwoFactorService) VerifyTwoFactor(ctx context.Context, email, code stri
 	}
 
 	valid, err := totp.ValidateCustom(code, user.TwoFactorSecret.String, time.Now(), totp.ValidateOpts{
-		Period:    900, // 15 minutes in seconds
-		Skew:      1,   // Allow 1 period before and after
-		Digits:    6,
+		Period: 900, // 15 minutes in seconds
+		Skew:   1,   // Allow 1 period before and after
+		Digits: 6,
 	})
 
 	if err != nil {
@@ -116,8 +116,8 @@ func (s *TwoFactorService) EnableTwoFactor(ctx context.Context, userID int32) er
 	}
 
 	err = queries.UpdateAndEnableTwoFactor(ctx, models.UpdateAndEnableTwoFactorParams{
-		Userid:           userID,
-		TwoFactorSecret:  sql.NullString{String: secret, Valid: true},
+		Userid:          userID,
+		TwoFactorSecret: sql.NullString{String: secret, Valid: true},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to enable two-factor authentication: %v", err)
@@ -152,8 +152,8 @@ func (s *TwoFactorService) DisableTwoFactor(ctx context.Context, userID int32) e
 	queries := models.New(tx)
 
 	err = queries.UpdateAndEnableTwoFactor(ctx, models.UpdateAndEnableTwoFactorParams{
-		Userid:           userID,
-		TwoFactorSecret:  sql.NullString{String: "", Valid: false},
+		Userid:          userID,
+		TwoFactorSecret: sql.NullString{String: "", Valid: false},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to disable two-factor authentication: %v", err)
@@ -168,8 +168,8 @@ func (s *TwoFactorService) DisableTwoFactor(ctx context.Context, userID int32) e
 
 func (s *TwoFactorService) ValidateCode(secret, code string) (bool, error) {
 	return totp.ValidateCustom(code, secret, time.Now(), totp.ValidateOpts{
-		Period:    900, // 15 minutes in seconds
-		Skew:      1,   // Allow 1 period before and after
-		Digits:    6,
+		Period: 900, // 15 minutes in seconds
+		Skew:   1,   // Allow 1 period before and after
+		Digits: 6,
 	})
 }

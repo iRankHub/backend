@@ -13,19 +13,18 @@ import (
 	services "github.com/iRankHub/backend/internal/services/authentication"
 	notificationService "github.com/iRankHub/backend/internal/services/notification"
 	"github.com/iRankHub/backend/internal/utils"
-
 )
 
 type authServer struct {
 	authentication.UnimplementedAuthServiceServer
-	db                 *sql.DB
-	webauthn           *webauthn.WebAuthn
-	loginService       *services.LoginService
-	signUpService      *services.SignUpService
-	importUsersService *services.ImportUsersService
-	twoFactorService   *services.TwoFactorService
-	recoveryService    *services.RecoveryService
-	biometricService   *services.BiometricService
+	db                  *sql.DB
+	webauthn            *webauthn.WebAuthn
+	loginService        *services.LoginService
+	signUpService       *services.SignUpService
+	importUsersService  *services.ImportUsersService
+	twoFactorService    *services.TwoFactorService
+	recoveryService     *services.RecoveryService
+	biometricService    *services.BiometricService
 	notificationService *notificationService.NotificationService
 }
 
@@ -54,34 +53,34 @@ func NewAuthServer(db *sql.DB) (authentication.AuthServiceServer, error) {
 	importUsersService := services.NewImportUsersService(signUpService, ns)
 
 	return &authServer{
-		db:                 db,
-		webauthn:           w,
-		loginService:       loginService,
-		signUpService:      signUpService,
-		importUsersService: importUsersService,
-		twoFactorService:   twoFactorService,
-		recoveryService:    recoveryService,
-		biometricService:   biometricService,
+		db:                  db,
+		webauthn:            w,
+		loginService:        loginService,
+		signUpService:       signUpService,
+		importUsersService:  importUsersService,
+		twoFactorService:    twoFactorService,
+		recoveryService:     recoveryService,
+		biometricService:    biometricService,
 		notificationService: ns,
 	}, nil
 }
 
 func (s *authServer) SignUp(ctx context.Context, req *authentication.SignUpRequest) (*authentication.SignUpResponse, error) {
 	additionalInfo := map[string]interface{}{
-		"dateOfBirth":             req.DateOfBirth,
-		"schoolID":                req.SchoolID,
-		"schoolName":              req.SchoolName,
-		"address":                 req.Address,
-		"country":                 req.Country,
-		"province":                req.Province,
-		"district":                req.District,
-		"contactEmail":            req.ContactEmail,
-		"schoolType":              req.SchoolType,
-		"roleInterestedIn":        req.RoleInterestedIn,
-		"graduationYear":          req.GraduationYear,
-		"grade":                   req.Grade,
-		"hasInternship":           req.HasInternship,
-		"isEnrolledInUniversity":  req.IsEnrolledInUniversity,
+		"dateOfBirth":            req.DateOfBirth,
+		"schoolID":               req.SchoolID,
+		"schoolName":             req.SchoolName,
+		"address":                req.Address,
+		"country":                req.Country,
+		"province":               req.Province,
+		"district":               req.District,
+		"contactEmail":           req.ContactEmail,
+		"schoolType":             req.SchoolType,
+		"roleInterestedIn":       req.RoleInterestedIn,
+		"graduationYear":         req.GraduationYear,
+		"grade":                  req.Grade,
+		"hasInternship":          req.HasInternship,
+		"isEnrolledInUniversity": req.IsEnrolledInUniversity,
 	}
 
 	err := s.signUpService.SignUp(ctx, req.FirstName, req.LastName, req.Email, req.Password, req.UserRole, req.Gender, req.NationalID, req.SafeguardingCertificate, additionalInfo)
@@ -165,7 +164,6 @@ func (s *authServer) handleLoginError(ctx context.Context, emailOrId string, err
 	}
 	return &authentication.LoginResponse{Success: false, Message: "Invalid email/ID or password"}, nil
 }
-
 
 func (s *authServer) Logout(ctx context.Context, req *authentication.LogoutRequest) (*authentication.LogoutResponse, error) {
 	// Validate the token

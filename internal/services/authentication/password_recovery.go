@@ -9,19 +9,19 @@ import (
 	"time"
 
 	"github.com/iRankHub/backend/internal/models"
+	notificationService "github.com/iRankHub/backend/internal/services/notification"
 	"github.com/iRankHub/backend/internal/utils"
 	notification "github.com/iRankHub/backend/internal/utils/notifications"
-	notificationService "github.com/iRankHub/backend/internal/services/notification"
 )
 
 type RecoveryService struct {
-	db                 *sql.DB
+	db                  *sql.DB
 	notificationService *notificationService.NotificationService
 }
 
 func NewRecoveryService(db *sql.DB, ns *notificationService.NotificationService) *RecoveryService {
 	return &RecoveryService{
-		db:                 db,
+		db:                  db,
 		notificationService: ns,
 	}
 }

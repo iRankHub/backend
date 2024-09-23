@@ -15,11 +15,11 @@ import (
 
 type tournamentServer struct {
 	tournament_management.UnimplementedTournamentServiceServer
-	leagueService     *services.LeagueService
-	formatService     *services.FormatService
-	tournamentService *services.TournamentService
-	invitationService *services.InvitationService
-	reminderService   *cronservices.ReminderService
+	leagueService                 *services.LeagueService
+	formatService                 *services.FormatService
+	tournamentService             *services.TournamentService
+	invitationService             *services.InvitationService
+	reminderService               *cronservices.ReminderService
 	tournamentCountsUpdateService *cronservices.TournamentCountsUpdateService
 }
 
@@ -40,11 +40,11 @@ func NewTournamentServer(db *sql.DB) (tournament_management.TournamentServiceSer
 	}
 
 	server := &tournamentServer{
-		leagueService:     leagueService,
-		formatService:     formatService,
-		tournamentService: tournamentService,
-		invitationService: invitationService,
-		reminderService:   reminderService,
+		leagueService:                 leagueService,
+		formatService:                 formatService,
+		tournamentService:             tournamentService,
+		invitationService:             invitationService,
+		reminderService:               reminderService,
 		tournamentCountsUpdateService: tournamentCountsUpdateService,
 	}
 

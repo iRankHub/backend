@@ -114,38 +114,38 @@ func (s *TournamentService) CreateTournament(ctx context.Context, req *tournamen
 		return nil, fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-  	// Send notification asynchronously
-    go func() {
-        // Use a new context for background operations
-        bgCtx := context.Background()
+	// Send notification asynchronously
+	go func() {
+		// Use a new context for background operations
+		bgCtx := context.Background()
 
-        // Create a new NotificationService using the existing database connection
-        notificationService, err := notifications.NewNotificationService(s.db)
-        if err != nil {
-            log.Printf("Failed to create notification service: %v", err)
-            return
-        }
+		// Create a new NotificationService using the existing database connection
+		notificationService, err := notifications.NewNotificationService(s.db)
+		if err != nil {
+			log.Printf("Failed to create notification service: %v", err)
+			return
+		}
 
-        // Use the existing queries with the main database connection
-        bgQueries := models.New(s.db)
+		// Use the existing queries with the main database connection
+		bgQueries := models.New(s.db)
 
-        if err := notification.SendTournamentInvitations(bgCtx, notificationService, tournament, league, format, bgQueries); err != nil {
-            log.Printf("Failed to send tournament invitations: %v", err)
-        }
+		if err := notification.SendTournamentInvitations(bgCtx, notificationService, tournament, league, format, bgQueries); err != nil {
+			log.Printf("Failed to send tournament invitations: %v", err)
+		}
 
-        if err := notification.SendTournamentCreationConfirmation(notificationService, creatorEmail, creatorName, tournament.Name, creatorIDInt32); err != nil {
-            log.Printf("Failed to send tournament creation confirmation: %v", err)
-        }
+		if err := notification.SendTournamentCreationConfirmation(notificationService, creatorEmail, creatorName, tournament.Name, creatorIDInt32); err != nil {
+			log.Printf("Failed to send tournament creation confirmation: %v", err)
+		}
 
-        if err := notification.SendCoordinatorAssignmentEmail(notificationService, coordinator, tournament, league, format); err != nil {
-            log.Printf("Failed to send coordinator assignment email: %v", err)
-        }
-    }()
+		if err := notification.SendCoordinatorAssignmentEmail(notificationService, coordinator, tournament, league, format); err != nil {
+			log.Printf("Failed to send coordinator assignment email: %v", err)
+		}
+	}()
 
-    createdTournament := tournamentModelToProto(tournament)
-    createdTournament.CoordinatorName = coordinator.Name
+	createdTournament := tournamentModelToProto(tournament)
+	createdTournament.CoordinatorName = coordinator.Name
 
-    return createdTournament, nil
+	return createdTournament, nil
 }
 
 func (s *TournamentService) GetTournament(ctx context.Context, req *tournament_management.GetTournamentRequest) (*tournament_management.Tournament, error) {
@@ -201,9 +201,9 @@ func (s *TournamentService) GetTournamentStats(ctx context.Context, req *tournam
 	upcomingPercentageChange := calculatePercentageChange(int64(stats.YesterdayUpcomingCount.Int32), stats.UpcomingTournaments)
 
 	return &tournament_management.GetTournamentStatsResponse{
-		TotalTournaments:    int32(stats.TotalTournaments),
-		UpcomingTournaments: int32(stats.UpcomingTournaments),
-		TotalPercentageChange: totalPercentageChange,
+		TotalTournaments:         int32(stats.TotalTournaments),
+		UpcomingTournaments:      int32(stats.UpcomingTournaments),
+		TotalPercentageChange:    totalPercentageChange,
 		UpcomingPercentageChange: upcomingPercentageChange,
 	}, nil
 }
@@ -351,99 +351,99 @@ func (s *TournamentService) DeleteTournament(ctx context.Context, req *tournamen
 }
 
 func (s *TournamentService) createInvitations(ctx context.Context, queries *models.Queries, tournamentID int32, league models.League) error {
-    log.Printf("Creating invitations for tournament %d", tournamentID)
+	log.Printf("Creating invitations for tournament %d", tournamentID)
 
-    // Invite schools based on league details
-    var leagueDetails struct {
-        Districts []string `json:"districts,omitempty"`
-        Countries []string `json:"countries,omitempty"`
-    }
+	// Invite schools based on league details
+	var leagueDetails struct {
+		Districts []string `json:"districts,omitempty"`
+		Countries []string `json:"countries,omitempty"`
+	}
 
-    if err := json.Unmarshal(league.Details, &leagueDetails); err != nil {
-        return fmt.Errorf("failed to unmarshal league details: %v", err)
-    }
+	if err := json.Unmarshal(league.Details, &leagueDetails); err != nil {
+		return fmt.Errorf("failed to unmarshal league details: %v", err)
+	}
 
-    var schools []models.School
+	var schools []models.School
 
-    if league.Leaguetype == "local" {
-        for _, district := range leagueDetails.Districts {
-            schoolsBatch, err := queries.GetSchoolsByDistrict(ctx, sql.NullString{String: district, Valid: true})
-            if err != nil {
-                return fmt.Errorf("failed to fetch schools for district %s: %v", district, err)
-            }
-            schools = append(schools, schoolsBatch...)
-        }
-    } else if league.Leaguetype == "international" {
-        for _, country := range leagueDetails.Countries {
-            schoolsBatch, err := queries.GetSchoolsByCountry(ctx, sql.NullString{String: country, Valid: true})
-            if err != nil {
-                return fmt.Errorf("failed to fetch schools for country %s: %v", country, err)
-            }
-            schools = append(schools, schoolsBatch...)
-        }
-    } else {
-        return fmt.Errorf("invalid league type: %s", league.Leaguetype)
-    }
+	if league.Leaguetype == "local" {
+		for _, district := range leagueDetails.Districts {
+			schoolsBatch, err := queries.GetSchoolsByDistrict(ctx, sql.NullString{String: district, Valid: true})
+			if err != nil {
+				return fmt.Errorf("failed to fetch schools for district %s: %v", district, err)
+			}
+			schools = append(schools, schoolsBatch...)
+		}
+	} else if league.Leaguetype == "international" {
+		for _, country := range leagueDetails.Countries {
+			schoolsBatch, err := queries.GetSchoolsByCountry(ctx, sql.NullString{String: country, Valid: true})
+			if err != nil {
+				return fmt.Errorf("failed to fetch schools for country %s: %v", country, err)
+			}
+			schools = append(schools, schoolsBatch...)
+		}
+	} else {
+		return fmt.Errorf("invalid league type: %s", league.Leaguetype)
+	}
 
-    // Create invitations for schools
-    for _, school := range schools {
-        invitation, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
-            Tournamentid: tournamentID,
-            Inviteeid:    school.Idebateschoolid.String,
-            Inviteerole:  "school",
-            Status:       "pending",
-        })
-        if err != nil {
-            log.Printf("Failed to create invitation for school %d: %v", school.Schoolid, err)
-            return fmt.Errorf("failed to create invitation for school %d: %v", school.Schoolid, err)
-        }
-        log.Printf("Created invitation %d for school %d", invitation.Invitationid, school.Schoolid)
-    }
+	// Create invitations for schools
+	for _, school := range schools {
+		invitation, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
+			Tournamentid: tournamentID,
+			Inviteeid:    school.Idebateschoolid.String,
+			Inviteerole:  "school",
+			Status:       "pending",
+		})
+		if err != nil {
+			log.Printf("Failed to create invitation for school %d: %v", school.Schoolid, err)
+			return fmt.Errorf("failed to create invitation for school %d: %v", school.Schoolid, err)
+		}
+		log.Printf("Created invitation %d for school %d", invitation.Invitationid, school.Schoolid)
+	}
 
-    // Create invitations for volunteers
-    volunteers, err := queries.GetAllVolunteers(ctx)
-    if err != nil {
-        return fmt.Errorf("failed to fetch volunteers: %v", err)
-    }
+	// Create invitations for volunteers
+	volunteers, err := queries.GetAllVolunteers(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to fetch volunteers: %v", err)
+	}
 
-    for _, volunteer := range volunteers {
-        invitation, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
-            Tournamentid: tournamentID,
-            Inviteeid:    volunteer.Idebatevolunteerid.String,
-            Inviteerole:  "volunteer",
-            Status:       "pending",
-        })
-        if err != nil {
-            log.Printf("Failed to create invitation for volunteer %d: %v", volunteer.Volunteerid, err)
-            return fmt.Errorf("failed to create invitation for volunteer %d: %v", volunteer.Volunteerid, err)
-        }
-        log.Printf("Created invitation %d for volunteer %d", invitation.Invitationid, volunteer.Volunteerid)
-    }
+	for _, volunteer := range volunteers {
+		invitation, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
+			Tournamentid: tournamentID,
+			Inviteeid:    volunteer.Idebatevolunteerid.String,
+			Inviteerole:  "volunteer",
+			Status:       "pending",
+		})
+		if err != nil {
+			log.Printf("Failed to create invitation for volunteer %d: %v", volunteer.Volunteerid, err)
+			return fmt.Errorf("failed to create invitation for volunteer %d: %v", volunteer.Volunteerid, err)
+		}
+		log.Printf("Created invitation %d for volunteer %d", invitation.Invitationid, volunteer.Volunteerid)
+	}
 
-    // For DAC league, also invite all students
-    if league.Name == "DAC" {
-        students, err := queries.GetAllStudents(ctx)
-        if err != nil {
-            return fmt.Errorf("failed to fetch all students: %v", err)
-        }
+	// For DAC league, also invite all students
+	if league.Name == "DAC" {
+		students, err := queries.GetAllStudents(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to fetch all students: %v", err)
+		}
 
-        for _, student := range students {
-            invitation, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
-                Tournamentid: tournamentID,
-                Inviteeid:    student.Idebatestudentid.String,
-                Inviteerole:  "student",
-                Status:       "pending",
-            })
-            if err != nil {
-                log.Printf("Failed to create invitation for student %d: %v", student.Studentid, err)
-                return fmt.Errorf("failed to create invitation for student %d: %v", student.Studentid, err)
-            }
-            log.Printf("Created invitation %d for student %d", invitation.Invitationid, student.Studentid)
-        }
-    }
+		for _, student := range students {
+			invitation, err := queries.CreateInvitation(ctx, models.CreateInvitationParams{
+				Tournamentid: tournamentID,
+				Inviteeid:    student.Idebatestudentid.String,
+				Inviteerole:  "student",
+				Status:       "pending",
+			})
+			if err != nil {
+				log.Printf("Failed to create invitation for student %d: %v", student.Studentid, err)
+				return fmt.Errorf("failed to create invitation for student %d: %v", student.Studentid, err)
+			}
+			log.Printf("Created invitation %d for student %d", invitation.Invitationid, student.Studentid)
+		}
+	}
 
-    log.Printf("Finished creating invitations for tournament %d", tournamentID)
-    return nil
+	log.Printf("Finished creating invitations for tournament %d", tournamentID)
+	return nil
 }
 
 func (s *TournamentService) validateAuthentication(token string) error {

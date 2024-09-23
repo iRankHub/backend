@@ -85,11 +85,11 @@ func (s *debateServer) UpdateJudge(ctx context.Context, req *debate_management.U
 
 // Pairing operations
 func (s *debateServer) GetPairings(ctx context.Context, req *debate_management.GetPairingsRequest) (*debate_management.GetPairingsResponse, error) {
-    response, err := s.pairingService.GetPairings(ctx, req)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to get pairings: %v", err)
-    }
-    return response, nil
+	response, err := s.pairingService.GetPairings(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get pairings: %v", err)
+	}
+	return response, nil
 }
 
 func (s *debateServer) UpdatePairings(ctx context.Context, req *debate_management.UpdatePairingsRequest) (*debate_management.UpdatePairingsResponse, error) {
@@ -188,43 +188,43 @@ func (s *debateServer) DeleteTeam(ctx context.Context, req *debate_management.De
 
 // Algorithm integration
 func (s *debateServer) GeneratePreliminaryPairings(ctx context.Context, req *debate_management.GeneratePreliminaryPairingsRequest) (*debate_management.GeneratePairingsResponse, error) {
-    response, err := s.pairingService.GeneratePreliminaryPairings(ctx, req)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to generate preliminary pairings: %v", err)
-    }
-    return response, nil
+	response, err := s.pairingService.GeneratePreliminaryPairings(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to generate preliminary pairings: %v", err)
+	}
+	return response, nil
 }
 
 func (s *debateServer) GenerateEliminationPairings(ctx context.Context, req *debate_management.GenerateEliminationPairingsRequest) (*debate_management.GeneratePairingsResponse, error) {
-    response, err := s.pairingService.GenerateEliminationPairings(ctx, req)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to generate elimination pairings: %v", err)
-    }
-    return response, nil
+	response, err := s.pairingService.GenerateEliminationPairings(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to generate elimination pairings: %v", err)
+	}
+	return response, nil
 }
 
 func (s *debateServer) GetTournamentStudentRanking(ctx context.Context, req *debate_management.TournamentRankingRequest) (*debate_management.TournamentRankingResponse, error) {
-    response, err := s.rankingService.GetTournamentStudentRanking(ctx, req)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to get tournament student ranking: %v", err)
-    }
-    return response, nil
+	response, err := s.rankingService.GetTournamentStudentRanking(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get tournament student ranking: %v", err)
+	}
+	return response, nil
 }
 
 func (s *debateServer) GetOverallStudentRanking(ctx context.Context, req *debate_management.OverallRankingRequest) (*debate_management.OverallRankingResponse, error) {
-    response, err := s.rankingService.GetOverallStudentRanking(ctx, req)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to get overall student ranking: %v", err)
-    }
-    return response, nil
+	response, err := s.rankingService.GetOverallStudentRanking(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get overall student ranking: %v", err)
+	}
+	return response, nil
 }
 
 func (s *debateServer) GetStudentOverallPerformance(ctx context.Context, req *debate_management.PerformanceRequest) (*debate_management.PerformanceResponse, error) {
-    response, err := s.rankingService.GetStudentOverallPerformance(ctx, req)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to get student overall performance: %v", err)
-    }
-    return response, nil
+	response, err := s.rankingService.GetStudentOverallPerformance(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get student overall performance: %v", err)
+	}
+	return response, nil
 }
 
 func (s *debateServer) GetTournamentTeamsRanking(ctx context.Context, req *debate_management.TournamentTeamsRankingRequest) (*debate_management.TournamentTeamsRankingResponse, error) {

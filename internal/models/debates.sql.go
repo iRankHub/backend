@@ -2073,17 +2073,28 @@ func (q *Queries) GetTeamsByTournament(ctx context.Context, tournamentid int32) 
 }
 
 const getTopPerformingTeams = `-- name: GetTopPerformingTeams :many
-SELECT t.TeamID, t.Name, t.TournamentID,
-       COALESCE(SUM(CASE WHEN b.Verdict = t.Name THEN 1 ELSE 0 END), 0) as Wins,
-       COALESCE(SUM(ts.TotalScore), 0) as TotalSpeakerPoints,
-       COALESCE(AVG(ts.Rank), 0) as AverageRank
-FROM Teams t
-LEFT JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
-LEFT JOIN Ballots b ON d.DebateID = b.DebateID
-LEFT JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
-WHERE t.TournamentID = $1 AND d.IsEliminationRound = false
-GROUP BY t.TeamID, t.Name, t.TournamentID
-ORDER BY Wins DESC, TotalSpeakerPoints DESC, AverageRank ASC
+WITH ballot_check AS (
+    SELECT COUNT(*) = 0 AS all_recorded
+    FROM Ballots b
+    JOIN Debates d ON b.DebateID = d.DebateID
+    WHERE d.TournamentID = $1 AND d.IsEliminationRound = false AND b.RecordingStatus != 'Recorded'
+),
+team_performance AS (
+    SELECT t.TeamID, t.Name, t.TournamentID,
+           COALESCE(SUM(CASE WHEN b.Verdict = t.Name THEN 1 ELSE 0 END), 0) as Wins,
+           COALESCE(SUM(ts.TotalScore), 0) as TotalSpeakerPoints,
+           COALESCE(AVG(ts.Rank), 0) as AverageRank
+    FROM Teams t
+    LEFT JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
+    LEFT JOIN Ballots b ON d.DebateID = b.DebateID
+    LEFT JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+    WHERE t.TournamentID = $1 AND d.IsEliminationRound = false
+    GROUP BY t.TeamID, t.Name, t.TournamentID
+)
+SELECT tp.TeamID, tp.Name, tp.TournamentID, tp.Wins, tp.TotalSpeakerPoints, tp.AverageRank
+FROM team_performance tp, ballot_check
+WHERE ballot_check.all_recorded = true
+ORDER BY tp.Wins DESC, tp.TotalSpeakerPoints DESC, tp.AverageRank ASC
 LIMIT $2
 `
 

@@ -105,7 +105,6 @@ func (s *TeamService) CreateTeam(ctx context.Context, req *debate_management.Cre
 	return createdTeam, nil
 }
 
-
 func (s *TeamService) GetTeam(ctx context.Context, req *debate_management.GetTeamRequest) (*debate_management.Team, error) {
 	if err := s.validateAuthentication(req.GetToken()); err != nil {
 		return nil, err
@@ -155,15 +154,15 @@ func (s *TeamService) UpdateTeam(ctx context.Context, req *debate_management.Upd
 	}
 
 	// Add new team members
-    for _, speaker := range req.GetTeam().GetSpeakers() {
-        _, err := queries.AddTeamMember(ctx, models.AddTeamMemberParams{
-            Teamid:    req.GetTeam().GetTeamId(),
-            Studentid: speaker.GetSpeakerId(),
-        })
-        if err != nil {
-            return nil, fmt.Errorf("failed to add team member: %v", err)
-        }
-    }
+	for _, speaker := range req.GetTeam().GetSpeakers() {
+		_, err := queries.AddTeamMember(ctx, models.AddTeamMemberParams{
+			Teamid:    req.GetTeam().GetTeamId(),
+			Studentid: speaker.GetSpeakerId(),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to add team member: %v", err)
+		}
+	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %v", err)
@@ -232,37 +231,37 @@ func (s *TeamService) DeleteTeam(ctx context.Context, req *debate_management.Del
 }
 
 func convertTeam(dbTeam interface{}, dbSpeakers []models.GetTeamMembersRow) *debate_management.Team {
-    var teamId int32
-    var name string
-    var leagueName string
+	var teamId int32
+	var name string
+	var leagueName string
 
-    switch t := dbTeam.(type) {
-    case models.GetTeamByIDRow:
-        teamId = t.Teamid
-        name = t.Name
-        leagueName = "" // GetTeamByID doesn't return league name, so we leave it empty
-    case models.GetTeamsByTournamentRow:
-        teamId = t.Teamid
-        name = t.Name
-        leagueName = t.Leaguename
-    default:
-        // Handle unexpected type
-        return nil
-    }
-    speakers := make([]*debate_management.Speaker, len(dbSpeakers))
-    for i, dbSpeaker := range dbSpeakers {
-        speakers[i] = &debate_management.Speaker{
-            SpeakerId: dbSpeaker.Studentid,
-            Name: dbSpeaker.Firstname + " " + dbSpeaker.Lastname,
-        }
-    }
+	switch t := dbTeam.(type) {
+	case models.GetTeamByIDRow:
+		teamId = t.Teamid
+		name = t.Name
+		leagueName = "" // GetTeamByID doesn't return league name, so we leave it empty
+	case models.GetTeamsByTournamentRow:
+		teamId = t.Teamid
+		name = t.Name
+		leagueName = t.Leaguename
+	default:
+		// Handle unexpected type
+		return nil
+	}
+	speakers := make([]*debate_management.Speaker, len(dbSpeakers))
+	for i, dbSpeaker := range dbSpeakers {
+		speakers[i] = &debate_management.Speaker{
+			SpeakerId: dbSpeaker.Studentid,
+			Name:      dbSpeaker.Firstname + " " + dbSpeaker.Lastname,
+		}
+	}
 
-    return &debate_management.Team{
-        TeamId:     teamId,
-        Name:       name,
-        Speakers:   speakers,
-        LeagueName: leagueName,
-    }
+	return &debate_management.Team{
+		TeamId:     teamId,
+		Name:       name,
+		Speakers:   speakers,
+		LeagueName: leagueName,
+	}
 }
 
 func (s *TeamService) validateAuthentication(token string) error {

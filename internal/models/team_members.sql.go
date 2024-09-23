@@ -9,7 +9,6 @@ import (
 	"context"
 )
 
-
 const getTeamMember = `-- name: GetTeamMember :one
 SELECT teamid, studentid FROM TeamMembers WHERE TeamID = $1 AND StudentID = $2
 `
@@ -25,8 +24,6 @@ func (q *Queries) GetTeamMember(ctx context.Context, arg GetTeamMemberParams) (T
 	err := row.Scan(&i.Teamid, &i.Studentid)
 	return i, err
 }
-
-
 
 const removeTeamMember = `-- name: RemoveTeamMember :exec
 DELETE FROM TeamMembers WHERE TeamID = $1 AND StudentID = $2

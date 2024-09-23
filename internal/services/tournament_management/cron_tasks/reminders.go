@@ -10,13 +10,13 @@ import (
 	"github.com/robfig/cron/v3"
 
 	"github.com/iRankHub/backend/internal/models"
-	notification "github.com/iRankHub/backend/internal/utils/notifications"
 	notifications "github.com/iRankHub/backend/internal/services/notification"
+	notification "github.com/iRankHub/backend/internal/utils/notifications"
 )
 
 type ReminderService struct {
-	db                 *sql.DB
-	cron               *cron.Cron
+	db                  *sql.DB
+	cron                *cron.Cron
 	notificationService *notifications.NotificationService
 }
 
@@ -27,8 +27,8 @@ func NewReminderService(db *sql.DB) (*ReminderService, error) {
 		return nil, fmt.Errorf("failed to create notification service: %v", err)
 	}
 	return &ReminderService{
-		db:                 db,
-		cron:               c,
+		db:                  db,
+		cron:                c,
 		notificationService: notificationService,
 	}, nil
 }

@@ -12,17 +12,17 @@ import (
 )
 
 type RabbitMQ struct {
-	conn         *amqp.Connection
-	channel      *amqp.Channel
-	done         chan bool
-	notifyClose  chan *amqp.Error
+	conn          *amqp.Connection
+	channel       *amqp.Channel
+	done          chan bool
+	notifyClose   chan *amqp.Error
 	notifyConfirm chan amqp.Confirmation
-	isConnected  bool
-	url          string
-	exchange     string
-	queue        string
-	routingKey   string
-	mutex        sync.Mutex
+	isConnected   bool
+	url           string
+	exchange      string
+	queue         string
+	routingKey    string
+	mutex         sync.Mutex
 }
 
 func NewRabbitMQ(url, exchange, queue, routingKey string) (*RabbitMQ, error) {
