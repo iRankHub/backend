@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"time"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/debate_management"
 	"github.com/iRankHub/backend/internal/models"
@@ -194,14 +193,6 @@ func (s *BallotService) UpdateBallot(ctx context.Context, req *debate_management
 	}
 	log.Printf("Successfully updated main ballot information for ballotID=%d", req.GetBallot().GetBallotId())
 
-	// Get debate information
-	debate, err := queries.GetDebateByBallotID(ctx, req.GetBallot().GetBallotId())
-	if err != nil {
-		log.Printf("Failed to get debate information: %v", err)
-		return nil, fmt.Errorf("failed to get debate information: %v", err)
-	}
-	log.Printf("Debate information: %+v", debate)
-
 	// Update speaker scores
 	log.Println("Updating speaker scores")
 	err = updateSpeakerScores(ctx, queries, req.GetBallot())
@@ -212,34 +203,10 @@ func (s *BallotService) UpdateBallot(ctx context.Context, req *debate_management
 
 	// Update team scores
 	log.Println("Updating team scores")
-	err = updateTeamScores(ctx, queries, debate, req.GetBallot())
+	err = updateTeamScores(ctx, queries, req.GetBallot())
 	if err != nil {
 		log.Printf("Failed to update team scores: %v", err)
 		return nil, err
-	}
-
-	// Small delay to ensure all updates are processed
-	time.Sleep(100 * time.Millisecond)
-
-	// Update team ranks
-	log.Println("Updating team ranks")
-	err = updateTeamRanks(ctx, queries, debate, req.GetBallot())
-	if err != nil {
-		log.Printf("Failed to update team ranks: %v", err)
-		return nil, err
-	}
-
-	// Update team stats
-	log.Println("Updating team stats")
-	for _, teamID := range []int32{debate.Team1id, debate.Team2id} {
-		err = queries.UpdateTeamStats(ctx, models.UpdateTeamStatsParams{
-			Teamid:       teamID,
-			Tournamentid: debate.Tournamentid,
-		})
-		if err != nil {
-			log.Printf("Failed to update team stats for team %d: %v", teamID, err)
-			return nil, fmt.Errorf("failed to update team stats: %v", err)
-		}
 	}
 
 	// Fetch the updated ballot
@@ -283,22 +250,22 @@ func updateSpeakerScores(ctx context.Context, queries *models.Queries, ballot *d
 	return nil
 }
 
-func updateTeamScores(ctx context.Context, queries *models.Queries, debate models.GetDebateByBallotIDRow, ballot *debate_management.Ballot) error {
+func updateTeamScores(ctx context.Context, queries *models.Queries, ballot *debate_management.Ballot) error {
 	log.Println("Starting updateTeamScores")
 
 	// Update TeamScores for Team1
-	log.Printf("Updating TeamScores for Team1: teamID=%d, totalScore=%.2f, debateID=%d, isElimination=%v",
-		debate.Team1id, ballot.GetTeam1().GetTotalPoints(), debate.Debateid, debate.Iseliminationround)
-	err := updateTeamScore(ctx, queries, debate.Team1id, ballot.GetTeam1().GetTotalPoints(), debate.Debateid, debate.Iseliminationround)
+	log.Printf("Updating TeamScores for Team1: teamID=%d, totalScore=%.2f, debateID=%d",
+		ballot.GetTeam1().GetTeamId(), ballot.GetTeam1().GetTotalPoints(), ballot.GetBallotId())
+	err := updateTeamScore(ctx, queries, ballot.GetTeam1().GetTeamId(), ballot.GetTeam1().GetTotalPoints(), ballot.GetBallotId())
 	if err != nil {
 		log.Printf("Failed to update Team1 score: %v", err)
 		return err
 	}
 
 	// Update TeamScores for Team2
-	log.Printf("Updating TeamScores for Team2: teamID=%d, totalScore=%.2f, debateID=%d, isElimination=%v",
-		debate.Team2id, ballot.GetTeam2().GetTotalPoints(), debate.Debateid, debate.Iseliminationround)
-	err = updateTeamScore(ctx, queries, debate.Team2id, ballot.GetTeam2().GetTotalPoints(), debate.Debateid, debate.Iseliminationround)
+	log.Printf("Updating TeamScores for Team2: teamID=%d, totalScore=%.2f, debateID=%d",
+		ballot.GetTeam2().GetTeamId(), ballot.GetTeam2().GetTotalPoints(), ballot.GetBallotId())
+	err = updateTeamScore(ctx, queries, ballot.GetTeam2().GetTeamId(), ballot.GetTeam2().GetTotalPoints(), ballot.GetBallotId())
 	if err != nil {
 		log.Printf("Failed to update Team2 score: %v", err)
 		return err
@@ -308,79 +275,21 @@ func updateTeamScores(ctx context.Context, queries *models.Queries, debate model
 	return nil
 }
 
-func updateTeamScore(ctx context.Context, queries *models.Queries, teamID int32, totalScore float64, debateID int32, isElimination bool) error {
-	log.Printf("Starting updateTeamScore: teamID=%d, totalScore=%.2f, debateID=%d, isElimination=%v",
-		teamID, totalScore, debateID, isElimination)
+func updateTeamScore(ctx context.Context, queries *models.Queries, teamID int32, totalScore float64, debateID int32) error {
+	log.Printf("Starting updateTeamScore: teamID=%d, totalScore=%.2f, debateID=%d",
+		teamID, totalScore, debateID)
 
-	// First, try to update
 	err := queries.UpdateTeamScore(ctx, models.UpdateTeamScoreParams{
-		Teamid:        sql.NullInt32{Int32: teamID, Valid: true},
-		Debateid:      sql.NullInt32{Int32: debateID, Valid: true},
-		Totalscore:    sql.NullString{String: fmt.Sprintf("%.2f", totalScore), Valid: true},
-		Iselimination: sql.NullBool{Bool: isElimination, Valid: true},
+		Teamid:     sql.NullInt32{Int32: teamID, Valid: true},
+		Debateid:   sql.NullInt32{Int32: debateID, Valid: true},
+		Totalscore: sql.NullString{String: fmt.Sprintf("%.2f", totalScore), Valid: true},
 	})
 	if err != nil {
 		log.Printf("Failed to update team score: %v", err)
 		return fmt.Errorf("failed to update team score: %v", err)
 	}
 
-	// Then, try to insert if the update didn't affect any rows
-	err = queries.InsertTeamScore(ctx, models.InsertTeamScoreParams{
-		Teamid:        sql.NullInt32{Int32: teamID, Valid: true},
-		Debateid:      sql.NullInt32{Int32: debateID, Valid: true},
-		Totalscore:    sql.NullString{String: fmt.Sprintf("%.2f", totalScore), Valid: true},
-		Iselimination: sql.NullBool{Bool: isElimination, Valid: true},
-	})
-	if err != nil {
-		log.Printf("Failed to insert team score: %v", err)
-		return fmt.Errorf("failed to insert team score: %v", err)
-	}
-
 	log.Println("Finished updateTeamScore successfully")
-	return nil
-}
-
-func updateTeamRanks(ctx context.Context, queries *models.Queries, debate models.GetDebateByBallotIDRow, ballot *debate_management.Ballot) error {
-	log.Println("Starting updateTeamRanks")
-
-	for _, teamID := range []int32{debate.Team1id, debate.Team2id} {
-		log.Printf("Updating team rank for teamID=%d, ballotID=%d, debateID=%d", teamID, ballot.GetBallotId(), debate.Debateid)
-
-		team, err := queries.GetTeamByID(ctx, teamID)
-		if err != nil {
-			log.Printf("Failed to get team: %v", err)
-			return fmt.Errorf("failed to get team: %v", err)
-		}
-		log.Printf("Team info: %+v", team)
-
-		avgRank, err := queries.GetTeamAverageRank(ctx, models.GetTeamAverageRankParams{
-			Teamid:   teamID,
-			Ballotid: ballot.GetBallotId(),
-		})
-		if err != nil {
-			log.Printf("Failed to get team average rank: %v", err)
-			return fmt.Errorf("failed to get team average rank: %v", err)
-		}
-		log.Printf("GetTeamAverageRank result: %+v", avgRank)
-
-		rank := int32(avgRank.Avgrank)
-		if team.Name == "Public Speaking" {
-			rank = 99
-			log.Println("Public speaking team detected. Assigning rank 99")
-		}
-
-		err = queries.UpdateTeamScoreRank(ctx, models.UpdateTeamScoreRankParams{
-			Teamid:   sql.NullInt32{Int32: teamID, Valid: true},
-			Debateid: sql.NullInt32{Int32: debate.Debateid, Valid: true},
-			Rank:     sql.NullInt32{Int32: rank, Valid: true},
-		})
-		if err != nil {
-			log.Printf("Failed to update team rank: %v", err)
-			return fmt.Errorf("failed to update team rank: %v", err)
-		}
-	}
-
-	log.Println("Finished updateTeamRanks successfully")
 	return nil
 }
 
