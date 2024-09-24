@@ -536,6 +536,39 @@ func (s *userManagementServer) GetSchoolIDsByNames(ctx context.Context, req *use
 	}, nil
 }
 
+func (s *userManagementServer) GetStudentsBySchoolContact(ctx context.Context, req *user_management.GetStudentsBySchoolContactRequest) (*user_management.GetStudentsBySchoolContactResponse, error) {
+	students, totalCount, err := s.studentsManagementService.GetStudentsBySchoolContactID(ctx, req.Token, req.UserID, req.Page, req.PageSize)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get students: %v", err)
+	}
+
+	var protoStudents []*user_management.Student
+	for _, student := range students {
+		dateOfBirth := ""
+		if student.Dateofbirth.Valid {
+			dateOfBirth = student.Dateofbirth.Time.Format("2006-01-02")
+		}
+		email := ""
+		if student.Email.Valid {
+			email = student.Email.String
+		}
+		protoStudents = append(protoStudents, &user_management.Student{
+			StudentID:   student.Studentid,
+			FirstName:   student.Firstname,
+			LastName:    student.Lastname,
+			Grade:       student.Grade,
+			DateOfBirth: dateOfBirth,
+			Email:       email,
+			SchoolID:    student.Schoolid,
+		})
+	}
+
+	return &user_management.GetStudentsBySchoolContactResponse{
+		Students:   protoStudents,
+		TotalCount: totalCount,
+	}, nil
+}
+
 func convertModelProfileToProto(profile *models.GetUserProfileRow) *user_management.UserProfile {
 	protoProfile := &user_management.UserProfile{
 		UserID:               profile.Userid,

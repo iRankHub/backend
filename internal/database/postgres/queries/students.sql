@@ -57,3 +57,17 @@ RETURNING *;
 -- name: DeleteStudent :exec
 DELETE FROM Students
 WHERE StudentID = $1;
+
+-- name: GetSchoolByContactPersonID :one
+SELECT * FROM Schools
+WHERE ContactPersonID = $1;
+
+-- name: GetStudentsBySchoolID :many
+SELECT * FROM Students
+WHERE SchoolID = $1
+ORDER BY StudentID
+LIMIT $2 OFFSET $3;
+
+-- name: GetStudentCountBySchoolID :one
+SELECT COUNT(*) FROM Students
+WHERE SchoolID = $1;

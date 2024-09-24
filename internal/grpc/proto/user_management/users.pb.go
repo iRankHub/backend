@@ -4284,6 +4284,132 @@ func (x *GetSchoolIDsByNamesResponse) GetSchoolIds() map[string]int32 {
 	return nil
 }
 
+type GetStudentsBySchoolContactRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Token    string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	UserID   int32  `protobuf:"varint,2,opt,name=userID,proto3" json:"userID,omitempty"`
+	Page     int32  `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize int32  `protobuf:"varint,4,opt,name=pageSize,proto3" json:"pageSize,omitempty"`
+}
+
+func (x *GetStudentsBySchoolContactRequest) Reset() {
+	*x = GetStudentsBySchoolContactRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_internal_grpc_proto_user_management_users_proto_msgTypes[63]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetStudentsBySchoolContactRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStudentsBySchoolContactRequest) ProtoMessage() {}
+
+func (x *GetStudentsBySchoolContactRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_grpc_proto_user_management_users_proto_msgTypes[63]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStudentsBySchoolContactRequest.ProtoReflect.Descriptor instead.
+func (*GetStudentsBySchoolContactRequest) Descriptor() ([]byte, []int) {
+	return file_internal_grpc_proto_user_management_users_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *GetStudentsBySchoolContactRequest) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *GetStudentsBySchoolContactRequest) GetUserID() int32 {
+	if x != nil {
+		return x.UserID
+	}
+	return 0
+}
+
+func (x *GetStudentsBySchoolContactRequest) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *GetStudentsBySchoolContactRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type GetStudentsBySchoolContactResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Students   []*Student `protobuf:"bytes,1,rep,name=students,proto3" json:"students,omitempty"`
+	TotalCount int32      `protobuf:"varint,2,opt,name=totalCount,proto3" json:"totalCount,omitempty"`
+}
+
+func (x *GetStudentsBySchoolContactResponse) Reset() {
+	*x = GetStudentsBySchoolContactResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_internal_grpc_proto_user_management_users_proto_msgTypes[64]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GetStudentsBySchoolContactResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStudentsBySchoolContactResponse) ProtoMessage() {}
+
+func (x *GetStudentsBySchoolContactResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_grpc_proto_user_management_users_proto_msgTypes[64]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStudentsBySchoolContactResponse.ProtoReflect.Descriptor instead.
+func (*GetStudentsBySchoolContactResponse) Descriptor() ([]byte, []int) {
+	return file_internal_grpc_proto_user_management_users_proto_rawDescGZIP(), []int{64}
+}
+
+func (x *GetStudentsBySchoolContactResponse) GetStudents() []*Student {
+	if x != nil {
+		return x.Students
+	}
+	return nil
+}
+
+func (x *GetStudentsBySchoolContactResponse) GetTotalCount() int32 {
+	if x != nil {
+		return x.TotalCount
+	}
+	return 0
+}
+
 var File_internal_grpc_proto_user_management_users_proto protoreflect.FileDescriptor
 
 var file_internal_grpc_proto_user_management_users_proto_rawDesc = []byte{
@@ -4824,7 +4950,23 @@ var file_internal_grpc_proto_user_management_users_proto_rawDesc = []byte{
 	0x63, 0x68, 0x6f, 0x6f, 0x6c, 0x49, 0x64, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a,
 	0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12,
 	0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x05, 0x52, 0x05,
-	0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x32, 0xc8, 0x16, 0x0a, 0x15, 0x55, 0x73,
+	0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x22, 0x81, 0x01, 0x0a, 0x21, 0x47, 0x65,
+	0x74, 0x53, 0x74, 0x75, 0x64, 0x65, 0x6e, 0x74, 0x73, 0x42, 0x79, 0x53, 0x63, 0x68, 0x6f, 0x6f,
+	0x6c, 0x43, 0x6f, 0x6e, 0x74, 0x61, 0x63, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12,
+	0x14, 0x0a, 0x05, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05,
+	0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x12, 0x16, 0x0a, 0x06, 0x75, 0x73, 0x65, 0x72, 0x49, 0x44, 0x18,
+	0x02, 0x20, 0x01, 0x28, 0x05, 0x52, 0x06, 0x75, 0x73, 0x65, 0x72, 0x49, 0x44, 0x12, 0x12, 0x0a,
+	0x04, 0x70, 0x61, 0x67, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x05, 0x52, 0x04, 0x70, 0x61, 0x67,
+	0x65, 0x12, 0x1a, 0x0a, 0x08, 0x70, 0x61, 0x67, 0x65, 0x53, 0x69, 0x7a, 0x65, 0x18, 0x04, 0x20,
+	0x01, 0x28, 0x05, 0x52, 0x08, 0x70, 0x61, 0x67, 0x65, 0x53, 0x69, 0x7a, 0x65, 0x22, 0x7a, 0x0a,
+	0x22, 0x47, 0x65, 0x74, 0x53, 0x74, 0x75, 0x64, 0x65, 0x6e, 0x74, 0x73, 0x42, 0x79, 0x53, 0x63,
+	0x68, 0x6f, 0x6f, 0x6c, 0x43, 0x6f, 0x6e, 0x74, 0x61, 0x63, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x12, 0x34, 0x0a, 0x08, 0x73, 0x74, 0x75, 0x64, 0x65, 0x6e, 0x74, 0x73, 0x18,
+	0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x18, 0x2e, 0x75, 0x73, 0x65, 0x72, 0x5f, 0x6d, 0x61, 0x6e,
+	0x61, 0x67, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x2e, 0x53, 0x74, 0x75, 0x64, 0x65, 0x6e, 0x74, 0x52,
+	0x08, 0x73, 0x74, 0x75, 0x64, 0x65, 0x6e, 0x74, 0x73, 0x12, 0x1e, 0x0a, 0x0a, 0x74, 0x6f, 0x74,
+	0x61, 0x6c, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x05, 0x52, 0x0a, 0x74,
+	0x6f, 0x74, 0x61, 0x6c, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x32, 0xd2, 0x17, 0x0a, 0x15, 0x55, 0x73,
 	0x65, 0x72, 0x4d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x53, 0x65, 0x72, 0x76,
 	0x69, 0x63, 0x65, 0x12, 0x66, 0x0a, 0x0f, 0x47, 0x65, 0x74, 0x50, 0x65, 0x6e, 0x64, 0x69, 0x6e,
 	0x67, 0x55, 0x73, 0x65, 0x72, 0x73, 0x12, 0x27, 0x2e, 0x75, 0x73, 0x65, 0x72, 0x5f, 0x6d, 0x61,
@@ -5005,11 +5147,20 @@ var file_internal_grpc_proto_user_management_users_proto_rawDesc = []byte{
 	0x75, 0x65, 0x73, 0x74, 0x1a, 0x2c, 0x2e, 0x75, 0x73, 0x65, 0x72, 0x5f, 0x6d, 0x61, 0x6e, 0x61,
 	0x67, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x2e, 0x47, 0x65, 0x74, 0x53, 0x63, 0x68, 0x6f, 0x6f, 0x6c,
 	0x49, 0x44, 0x73, 0x42, 0x79, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
-	0x73, 0x65, 0x22, 0x00, 0x42, 0x41, 0x5a, 0x3f, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63,
-	0x6f, 0x6d, 0x2f, 0x69, 0x52, 0x61, 0x6e, 0x6b, 0x48, 0x75, 0x62, 0x2f, 0x62, 0x61, 0x63, 0x6b,
-	0x65, 0x6e, 0x64, 0x2f, 0x69, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x2f, 0x67, 0x72, 0x70,
-	0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x75, 0x73, 0x65, 0x72, 0x5f, 0x6d, 0x61, 0x6e,
-	0x61, 0x67, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x73, 0x65, 0x22, 0x00, 0x12, 0x87, 0x01, 0x0a, 0x1a, 0x47, 0x65, 0x74, 0x53, 0x74, 0x75, 0x64,
+	0x65, 0x6e, 0x74, 0x73, 0x42, 0x79, 0x53, 0x63, 0x68, 0x6f, 0x6f, 0x6c, 0x43, 0x6f, 0x6e, 0x74,
+	0x61, 0x63, 0x74, 0x12, 0x32, 0x2e, 0x75, 0x73, 0x65, 0x72, 0x5f, 0x6d, 0x61, 0x6e, 0x61, 0x67,
+	0x65, 0x6d, 0x65, 0x6e, 0x74, 0x2e, 0x47, 0x65, 0x74, 0x53, 0x74, 0x75, 0x64, 0x65, 0x6e, 0x74,
+	0x73, 0x42, 0x79, 0x53, 0x63, 0x68, 0x6f, 0x6f, 0x6c, 0x43, 0x6f, 0x6e, 0x74, 0x61, 0x63, 0x74,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x33, 0x2e, 0x75, 0x73, 0x65, 0x72, 0x5f, 0x6d,
+	0x61, 0x6e, 0x61, 0x67, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x2e, 0x47, 0x65, 0x74, 0x53, 0x74, 0x75,
+	0x64, 0x65, 0x6e, 0x74, 0x73, 0x42, 0x79, 0x53, 0x63, 0x68, 0x6f, 0x6f, 0x6c, 0x43, 0x6f, 0x6e,
+	0x74, 0x61, 0x63, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x41,
+	0x5a, 0x3f, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x69, 0x52, 0x61,
+	0x6e, 0x6b, 0x48, 0x75, 0x62, 0x2f, 0x62, 0x61, 0x63, 0x6b, 0x65, 0x6e, 0x64, 0x2f, 0x69, 0x6e,
+	0x74, 0x65, 0x72, 0x6e, 0x61, 0x6c, 0x2f, 0x67, 0x72, 0x70, 0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x2f, 0x75, 0x73, 0x65, 0x72, 0x5f, 0x6d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x6d, 0x65, 0x6e,
+	0x74, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -5024,72 +5175,74 @@ func file_internal_grpc_proto_user_management_users_proto_rawDescGZIP() []byte {
 	return file_internal_grpc_proto_user_management_users_proto_rawDescData
 }
 
-var file_internal_grpc_proto_user_management_users_proto_msgTypes = make([]protoimpl.MessageInfo, 64)
+var file_internal_grpc_proto_user_management_users_proto_msgTypes = make([]protoimpl.MessageInfo, 66)
 var file_internal_grpc_proto_user_management_users_proto_goTypes = []any{
-	(*GetPendingUsersRequest)(nil),          // 0: user_management.GetPendingUsersRequest
-	(*GetPendingUsersResponse)(nil),         // 1: user_management.GetPendingUsersResponse
-	(*GetAllUsersRequest)(nil),              // 2: user_management.GetAllUsersRequest
-	(*GetAllUsersResponse)(nil),             // 3: user_management.GetAllUsersResponse
-	(*GetUserStatisticsRequest)(nil),        // 4: user_management.GetUserStatisticsRequest
-	(*GetUserStatisticsResponse)(nil),       // 5: user_management.GetUserStatisticsResponse
-	(*UserSummary)(nil),                     // 6: user_management.UserSummary
-	(*UserProfile)(nil),                     // 7: user_management.UserProfile
-	(*StudentDetails)(nil),                  // 8: user_management.StudentDetails
-	(*SchoolDetails)(nil),                   // 9: user_management.SchoolDetails
-	(*VolunteerDetails)(nil),                // 10: user_management.VolunteerDetails
-	(*ApproveUserRequest)(nil),              // 11: user_management.ApproveUserRequest
-	(*ApproveUserResponse)(nil),             // 12: user_management.ApproveUserResponse
-	(*RejectUserRequest)(nil),               // 13: user_management.RejectUserRequest
-	(*RejectUserResponse)(nil),              // 14: user_management.RejectUserResponse
-	(*ApproveUsersRequest)(nil),             // 15: user_management.ApproveUsersRequest
-	(*ApproveUsersResponse)(nil),            // 16: user_management.ApproveUsersResponse
-	(*RejectUsersRequest)(nil),              // 17: user_management.RejectUsersRequest
-	(*RejectUsersResponse)(nil),             // 18: user_management.RejectUsersResponse
-	(*DeleteUsersRequest)(nil),              // 19: user_management.DeleteUsersRequest
-	(*DeleteUsersResponse)(nil),             // 20: user_management.DeleteUsersResponse
-	(*GetUserProfileRequest)(nil),           // 21: user_management.GetUserProfileRequest
-	(*GetUserProfileResponse)(nil),          // 22: user_management.GetUserProfileResponse
-	(*UpdateAdminProfileRequest)(nil),       // 23: user_management.UpdateAdminProfileRequest
-	(*UpdateAdminProfileResponse)(nil),      // 24: user_management.UpdateAdminProfileResponse
-	(*UpdateSchoolProfileRequest)(nil),      // 25: user_management.UpdateSchoolProfileRequest
-	(*UpdateSchoolProfileResponse)(nil),     // 26: user_management.UpdateSchoolProfileResponse
-	(*UpdateStudentProfileRequest)(nil),     // 27: user_management.UpdateStudentProfileRequest
-	(*UpdateStudentProfileResponse)(nil),    // 28: user_management.UpdateStudentProfileResponse
-	(*UpdateVolunteerProfileRequest)(nil),   // 29: user_management.UpdateVolunteerProfileRequest
-	(*UpdateVolunteerProfileResponse)(nil),  // 30: user_management.UpdateVolunteerProfileResponse
-	(*DeleteUserProfileRequest)(nil),        // 31: user_management.DeleteUserProfileRequest
-	(*DeleteUserProfileResponse)(nil),       // 32: user_management.DeleteUserProfileResponse
-	(*DeactivateAccountRequest)(nil),        // 33: user_management.DeactivateAccountRequest
-	(*DeactivateAccountResponse)(nil),       // 34: user_management.DeactivateAccountResponse
-	(*ReactivateAccountRequest)(nil),        // 35: user_management.ReactivateAccountRequest
-	(*ReactivateAccountResponse)(nil),       // 36: user_management.ReactivateAccountResponse
-	(*GetAccountStatusRequest)(nil),         // 37: user_management.GetAccountStatusRequest
-	(*GetAccountStatusResponse)(nil),        // 38: user_management.GetAccountStatusResponse
-	(*GetCountriesRequest)(nil),             // 39: user_management.GetCountriesRequest
-	(*GetCountriesResponse)(nil),            // 40: user_management.GetCountriesResponse
-	(*GetCountriesNoAuthRequest)(nil),       // 41: user_management.GetCountriesNoAuthRequest
-	(*GetCountriesNoAuthResponse)(nil),      // 42: user_management.GetCountriesNoAuthResponse
-	(*Country)(nil),                         // 43: user_management.Country
-	(*GetSchoolsRequest)(nil),               // 44: user_management.GetSchoolsRequest
-	(*GetSchoolsResponse)(nil),              // 45: user_management.GetSchoolsResponse
-	(*School)(nil),                          // 46: user_management.School
-	(*GetStudentsRequest)(nil),              // 47: user_management.GetStudentsRequest
-	(*GetStudentsResponse)(nil),             // 48: user_management.GetStudentsResponse
-	(*Student)(nil),                         // 49: user_management.Student
-	(*GetVolunteersRequest)(nil),            // 50: user_management.GetVolunteersRequest
-	(*GetVolunteersResponse)(nil),           // 51: user_management.GetVolunteersResponse
-	(*Volunteer)(nil),                       // 52: user_management.Volunteer
-	(*GetVolunteersAndAdminsRequest)(nil),   // 53: user_management.GetVolunteersAndAdminsRequest
-	(*GetVolunteersAndAdminsResponse)(nil),  // 54: user_management.GetVolunteersAndAdminsResponse
-	(*GetSchoolsNoAuthRequest)(nil),         // 55: user_management.GetSchoolsNoAuthRequest
-	(*GetSchoolsNoAuthResponse)(nil),        // 56: user_management.GetSchoolsNoAuthResponse
-	(*InitiatePasswordUpdateRequest)(nil),   // 57: user_management.InitiatePasswordUpdateRequest
-	(*InitiatePasswordUpdateResponse)(nil),  // 58: user_management.InitiatePasswordUpdateResponse
-	(*VerifyAndUpdatePasswordRequest)(nil),  // 59: user_management.VerifyAndUpdatePasswordRequest
-	(*VerifyAndUpdatePasswordResponse)(nil), // 60: user_management.VerifyAndUpdatePasswordResponse
-	(*GetSchoolIDsByNamesRequest)(nil),      // 61: user_management.GetSchoolIDsByNamesRequest
-	(*GetSchoolIDsByNamesResponse)(nil),     // 62: user_management.GetSchoolIDsByNamesResponse
-	nil,                                     // 63: user_management.GetSchoolIDsByNamesResponse.SchoolIdsEntry
+	(*GetPendingUsersRequest)(nil),             // 0: user_management.GetPendingUsersRequest
+	(*GetPendingUsersResponse)(nil),            // 1: user_management.GetPendingUsersResponse
+	(*GetAllUsersRequest)(nil),                 // 2: user_management.GetAllUsersRequest
+	(*GetAllUsersResponse)(nil),                // 3: user_management.GetAllUsersResponse
+	(*GetUserStatisticsRequest)(nil),           // 4: user_management.GetUserStatisticsRequest
+	(*GetUserStatisticsResponse)(nil),          // 5: user_management.GetUserStatisticsResponse
+	(*UserSummary)(nil),                        // 6: user_management.UserSummary
+	(*UserProfile)(nil),                        // 7: user_management.UserProfile
+	(*StudentDetails)(nil),                     // 8: user_management.StudentDetails
+	(*SchoolDetails)(nil),                      // 9: user_management.SchoolDetails
+	(*VolunteerDetails)(nil),                   // 10: user_management.VolunteerDetails
+	(*ApproveUserRequest)(nil),                 // 11: user_management.ApproveUserRequest
+	(*ApproveUserResponse)(nil),                // 12: user_management.ApproveUserResponse
+	(*RejectUserRequest)(nil),                  // 13: user_management.RejectUserRequest
+	(*RejectUserResponse)(nil),                 // 14: user_management.RejectUserResponse
+	(*ApproveUsersRequest)(nil),                // 15: user_management.ApproveUsersRequest
+	(*ApproveUsersResponse)(nil),               // 16: user_management.ApproveUsersResponse
+	(*RejectUsersRequest)(nil),                 // 17: user_management.RejectUsersRequest
+	(*RejectUsersResponse)(nil),                // 18: user_management.RejectUsersResponse
+	(*DeleteUsersRequest)(nil),                 // 19: user_management.DeleteUsersRequest
+	(*DeleteUsersResponse)(nil),                // 20: user_management.DeleteUsersResponse
+	(*GetUserProfileRequest)(nil),              // 21: user_management.GetUserProfileRequest
+	(*GetUserProfileResponse)(nil),             // 22: user_management.GetUserProfileResponse
+	(*UpdateAdminProfileRequest)(nil),          // 23: user_management.UpdateAdminProfileRequest
+	(*UpdateAdminProfileResponse)(nil),         // 24: user_management.UpdateAdminProfileResponse
+	(*UpdateSchoolProfileRequest)(nil),         // 25: user_management.UpdateSchoolProfileRequest
+	(*UpdateSchoolProfileResponse)(nil),        // 26: user_management.UpdateSchoolProfileResponse
+	(*UpdateStudentProfileRequest)(nil),        // 27: user_management.UpdateStudentProfileRequest
+	(*UpdateStudentProfileResponse)(nil),       // 28: user_management.UpdateStudentProfileResponse
+	(*UpdateVolunteerProfileRequest)(nil),      // 29: user_management.UpdateVolunteerProfileRequest
+	(*UpdateVolunteerProfileResponse)(nil),     // 30: user_management.UpdateVolunteerProfileResponse
+	(*DeleteUserProfileRequest)(nil),           // 31: user_management.DeleteUserProfileRequest
+	(*DeleteUserProfileResponse)(nil),          // 32: user_management.DeleteUserProfileResponse
+	(*DeactivateAccountRequest)(nil),           // 33: user_management.DeactivateAccountRequest
+	(*DeactivateAccountResponse)(nil),          // 34: user_management.DeactivateAccountResponse
+	(*ReactivateAccountRequest)(nil),           // 35: user_management.ReactivateAccountRequest
+	(*ReactivateAccountResponse)(nil),          // 36: user_management.ReactivateAccountResponse
+	(*GetAccountStatusRequest)(nil),            // 37: user_management.GetAccountStatusRequest
+	(*GetAccountStatusResponse)(nil),           // 38: user_management.GetAccountStatusResponse
+	(*GetCountriesRequest)(nil),                // 39: user_management.GetCountriesRequest
+	(*GetCountriesResponse)(nil),               // 40: user_management.GetCountriesResponse
+	(*GetCountriesNoAuthRequest)(nil),          // 41: user_management.GetCountriesNoAuthRequest
+	(*GetCountriesNoAuthResponse)(nil),         // 42: user_management.GetCountriesNoAuthResponse
+	(*Country)(nil),                            // 43: user_management.Country
+	(*GetSchoolsRequest)(nil),                  // 44: user_management.GetSchoolsRequest
+	(*GetSchoolsResponse)(nil),                 // 45: user_management.GetSchoolsResponse
+	(*School)(nil),                             // 46: user_management.School
+	(*GetStudentsRequest)(nil),                 // 47: user_management.GetStudentsRequest
+	(*GetStudentsResponse)(nil),                // 48: user_management.GetStudentsResponse
+	(*Student)(nil),                            // 49: user_management.Student
+	(*GetVolunteersRequest)(nil),               // 50: user_management.GetVolunteersRequest
+	(*GetVolunteersResponse)(nil),              // 51: user_management.GetVolunteersResponse
+	(*Volunteer)(nil),                          // 52: user_management.Volunteer
+	(*GetVolunteersAndAdminsRequest)(nil),      // 53: user_management.GetVolunteersAndAdminsRequest
+	(*GetVolunteersAndAdminsResponse)(nil),     // 54: user_management.GetVolunteersAndAdminsResponse
+	(*GetSchoolsNoAuthRequest)(nil),            // 55: user_management.GetSchoolsNoAuthRequest
+	(*GetSchoolsNoAuthResponse)(nil),           // 56: user_management.GetSchoolsNoAuthResponse
+	(*InitiatePasswordUpdateRequest)(nil),      // 57: user_management.InitiatePasswordUpdateRequest
+	(*InitiatePasswordUpdateResponse)(nil),     // 58: user_management.InitiatePasswordUpdateResponse
+	(*VerifyAndUpdatePasswordRequest)(nil),     // 59: user_management.VerifyAndUpdatePasswordRequest
+	(*VerifyAndUpdatePasswordResponse)(nil),    // 60: user_management.VerifyAndUpdatePasswordResponse
+	(*GetSchoolIDsByNamesRequest)(nil),         // 61: user_management.GetSchoolIDsByNamesRequest
+	(*GetSchoolIDsByNamesResponse)(nil),        // 62: user_management.GetSchoolIDsByNamesResponse
+	(*GetStudentsBySchoolContactRequest)(nil),  // 63: user_management.GetStudentsBySchoolContactRequest
+	(*GetStudentsBySchoolContactResponse)(nil), // 64: user_management.GetStudentsBySchoolContactResponse
+	nil, // 65: user_management.GetSchoolIDsByNamesResponse.SchoolIdsEntry
 }
 var file_internal_grpc_proto_user_management_users_proto_depIdxs = []int32{
 	6,  // 0: user_management.GetPendingUsersResponse.users:type_name -> user_management.UserSummary
@@ -5105,66 +5258,69 @@ var file_internal_grpc_proto_user_management_users_proto_depIdxs = []int32{
 	52, // 10: user_management.GetVolunteersResponse.volunteers:type_name -> user_management.Volunteer
 	6,  // 11: user_management.GetVolunteersAndAdminsResponse.users:type_name -> user_management.UserSummary
 	46, // 12: user_management.GetSchoolsNoAuthResponse.schools:type_name -> user_management.School
-	63, // 13: user_management.GetSchoolIDsByNamesResponse.school_ids:type_name -> user_management.GetSchoolIDsByNamesResponse.SchoolIdsEntry
-	0,  // 14: user_management.UserManagementService.GetPendingUsers:input_type -> user_management.GetPendingUsersRequest
-	11, // 15: user_management.UserManagementService.ApproveUser:input_type -> user_management.ApproveUserRequest
-	13, // 16: user_management.UserManagementService.RejectUser:input_type -> user_management.RejectUserRequest
-	15, // 17: user_management.UserManagementService.ApproveUsers:input_type -> user_management.ApproveUsersRequest
-	17, // 18: user_management.UserManagementService.RejectUsers:input_type -> user_management.RejectUsersRequest
-	19, // 19: user_management.UserManagementService.DeleteUsers:input_type -> user_management.DeleteUsersRequest
-	21, // 20: user_management.UserManagementService.GetUserProfile:input_type -> user_management.GetUserProfileRequest
-	23, // 21: user_management.UserManagementService.UpdateAdminProfile:input_type -> user_management.UpdateAdminProfileRequest
-	25, // 22: user_management.UserManagementService.UpdateSchoolProfile:input_type -> user_management.UpdateSchoolProfileRequest
-	27, // 23: user_management.UserManagementService.UpdateStudentProfile:input_type -> user_management.UpdateStudentProfileRequest
-	29, // 24: user_management.UserManagementService.UpdateVolunteerProfile:input_type -> user_management.UpdateVolunteerProfileRequest
-	31, // 25: user_management.UserManagementService.DeleteUserProfile:input_type -> user_management.DeleteUserProfileRequest
-	33, // 26: user_management.UserManagementService.DeactivateAccount:input_type -> user_management.DeactivateAccountRequest
-	35, // 27: user_management.UserManagementService.ReactivateAccount:input_type -> user_management.ReactivateAccountRequest
-	37, // 28: user_management.UserManagementService.GetAccountStatus:input_type -> user_management.GetAccountStatusRequest
-	39, // 29: user_management.UserManagementService.GetCountries:input_type -> user_management.GetCountriesRequest
-	41, // 30: user_management.UserManagementService.GetCountriesNoAuth:input_type -> user_management.GetCountriesNoAuthRequest
-	44, // 31: user_management.UserManagementService.GetSchools:input_type -> user_management.GetSchoolsRequest
-	47, // 32: user_management.UserManagementService.GetStudents:input_type -> user_management.GetStudentsRequest
-	50, // 33: user_management.UserManagementService.GetVolunteers:input_type -> user_management.GetVolunteersRequest
-	2,  // 34: user_management.UserManagementService.GetAllUsers:input_type -> user_management.GetAllUsersRequest
-	4,  // 35: user_management.UserManagementService.GetUserStatistics:input_type -> user_management.GetUserStatisticsRequest
-	53, // 36: user_management.UserManagementService.GetVolunteersAndAdmins:input_type -> user_management.GetVolunteersAndAdminsRequest
-	55, // 37: user_management.UserManagementService.GetSchoolsNoAuth:input_type -> user_management.GetSchoolsNoAuthRequest
-	57, // 38: user_management.UserManagementService.InitiatePasswordUpdate:input_type -> user_management.InitiatePasswordUpdateRequest
-	59, // 39: user_management.UserManagementService.VerifyAndUpdatePassword:input_type -> user_management.VerifyAndUpdatePasswordRequest
-	61, // 40: user_management.UserManagementService.GetSchoolIDsByNames:input_type -> user_management.GetSchoolIDsByNamesRequest
-	1,  // 41: user_management.UserManagementService.GetPendingUsers:output_type -> user_management.GetPendingUsersResponse
-	12, // 42: user_management.UserManagementService.ApproveUser:output_type -> user_management.ApproveUserResponse
-	14, // 43: user_management.UserManagementService.RejectUser:output_type -> user_management.RejectUserResponse
-	16, // 44: user_management.UserManagementService.ApproveUsers:output_type -> user_management.ApproveUsersResponse
-	18, // 45: user_management.UserManagementService.RejectUsers:output_type -> user_management.RejectUsersResponse
-	20, // 46: user_management.UserManagementService.DeleteUsers:output_type -> user_management.DeleteUsersResponse
-	22, // 47: user_management.UserManagementService.GetUserProfile:output_type -> user_management.GetUserProfileResponse
-	24, // 48: user_management.UserManagementService.UpdateAdminProfile:output_type -> user_management.UpdateAdminProfileResponse
-	26, // 49: user_management.UserManagementService.UpdateSchoolProfile:output_type -> user_management.UpdateSchoolProfileResponse
-	28, // 50: user_management.UserManagementService.UpdateStudentProfile:output_type -> user_management.UpdateStudentProfileResponse
-	30, // 51: user_management.UserManagementService.UpdateVolunteerProfile:output_type -> user_management.UpdateVolunteerProfileResponse
-	32, // 52: user_management.UserManagementService.DeleteUserProfile:output_type -> user_management.DeleteUserProfileResponse
-	34, // 53: user_management.UserManagementService.DeactivateAccount:output_type -> user_management.DeactivateAccountResponse
-	36, // 54: user_management.UserManagementService.ReactivateAccount:output_type -> user_management.ReactivateAccountResponse
-	38, // 55: user_management.UserManagementService.GetAccountStatus:output_type -> user_management.GetAccountStatusResponse
-	40, // 56: user_management.UserManagementService.GetCountries:output_type -> user_management.GetCountriesResponse
-	42, // 57: user_management.UserManagementService.GetCountriesNoAuth:output_type -> user_management.GetCountriesNoAuthResponse
-	45, // 58: user_management.UserManagementService.GetSchools:output_type -> user_management.GetSchoolsResponse
-	48, // 59: user_management.UserManagementService.GetStudents:output_type -> user_management.GetStudentsResponse
-	51, // 60: user_management.UserManagementService.GetVolunteers:output_type -> user_management.GetVolunteersResponse
-	3,  // 61: user_management.UserManagementService.GetAllUsers:output_type -> user_management.GetAllUsersResponse
-	5,  // 62: user_management.UserManagementService.GetUserStatistics:output_type -> user_management.GetUserStatisticsResponse
-	54, // 63: user_management.UserManagementService.GetVolunteersAndAdmins:output_type -> user_management.GetVolunteersAndAdminsResponse
-	56, // 64: user_management.UserManagementService.GetSchoolsNoAuth:output_type -> user_management.GetSchoolsNoAuthResponse
-	58, // 65: user_management.UserManagementService.InitiatePasswordUpdate:output_type -> user_management.InitiatePasswordUpdateResponse
-	60, // 66: user_management.UserManagementService.VerifyAndUpdatePassword:output_type -> user_management.VerifyAndUpdatePasswordResponse
-	62, // 67: user_management.UserManagementService.GetSchoolIDsByNames:output_type -> user_management.GetSchoolIDsByNamesResponse
-	41, // [41:68] is the sub-list for method output_type
-	14, // [14:41] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	65, // 13: user_management.GetSchoolIDsByNamesResponse.school_ids:type_name -> user_management.GetSchoolIDsByNamesResponse.SchoolIdsEntry
+	49, // 14: user_management.GetStudentsBySchoolContactResponse.students:type_name -> user_management.Student
+	0,  // 15: user_management.UserManagementService.GetPendingUsers:input_type -> user_management.GetPendingUsersRequest
+	11, // 16: user_management.UserManagementService.ApproveUser:input_type -> user_management.ApproveUserRequest
+	13, // 17: user_management.UserManagementService.RejectUser:input_type -> user_management.RejectUserRequest
+	15, // 18: user_management.UserManagementService.ApproveUsers:input_type -> user_management.ApproveUsersRequest
+	17, // 19: user_management.UserManagementService.RejectUsers:input_type -> user_management.RejectUsersRequest
+	19, // 20: user_management.UserManagementService.DeleteUsers:input_type -> user_management.DeleteUsersRequest
+	21, // 21: user_management.UserManagementService.GetUserProfile:input_type -> user_management.GetUserProfileRequest
+	23, // 22: user_management.UserManagementService.UpdateAdminProfile:input_type -> user_management.UpdateAdminProfileRequest
+	25, // 23: user_management.UserManagementService.UpdateSchoolProfile:input_type -> user_management.UpdateSchoolProfileRequest
+	27, // 24: user_management.UserManagementService.UpdateStudentProfile:input_type -> user_management.UpdateStudentProfileRequest
+	29, // 25: user_management.UserManagementService.UpdateVolunteerProfile:input_type -> user_management.UpdateVolunteerProfileRequest
+	31, // 26: user_management.UserManagementService.DeleteUserProfile:input_type -> user_management.DeleteUserProfileRequest
+	33, // 27: user_management.UserManagementService.DeactivateAccount:input_type -> user_management.DeactivateAccountRequest
+	35, // 28: user_management.UserManagementService.ReactivateAccount:input_type -> user_management.ReactivateAccountRequest
+	37, // 29: user_management.UserManagementService.GetAccountStatus:input_type -> user_management.GetAccountStatusRequest
+	39, // 30: user_management.UserManagementService.GetCountries:input_type -> user_management.GetCountriesRequest
+	41, // 31: user_management.UserManagementService.GetCountriesNoAuth:input_type -> user_management.GetCountriesNoAuthRequest
+	44, // 32: user_management.UserManagementService.GetSchools:input_type -> user_management.GetSchoolsRequest
+	47, // 33: user_management.UserManagementService.GetStudents:input_type -> user_management.GetStudentsRequest
+	50, // 34: user_management.UserManagementService.GetVolunteers:input_type -> user_management.GetVolunteersRequest
+	2,  // 35: user_management.UserManagementService.GetAllUsers:input_type -> user_management.GetAllUsersRequest
+	4,  // 36: user_management.UserManagementService.GetUserStatistics:input_type -> user_management.GetUserStatisticsRequest
+	53, // 37: user_management.UserManagementService.GetVolunteersAndAdmins:input_type -> user_management.GetVolunteersAndAdminsRequest
+	55, // 38: user_management.UserManagementService.GetSchoolsNoAuth:input_type -> user_management.GetSchoolsNoAuthRequest
+	57, // 39: user_management.UserManagementService.InitiatePasswordUpdate:input_type -> user_management.InitiatePasswordUpdateRequest
+	59, // 40: user_management.UserManagementService.VerifyAndUpdatePassword:input_type -> user_management.VerifyAndUpdatePasswordRequest
+	61, // 41: user_management.UserManagementService.GetSchoolIDsByNames:input_type -> user_management.GetSchoolIDsByNamesRequest
+	63, // 42: user_management.UserManagementService.GetStudentsBySchoolContact:input_type -> user_management.GetStudentsBySchoolContactRequest
+	1,  // 43: user_management.UserManagementService.GetPendingUsers:output_type -> user_management.GetPendingUsersResponse
+	12, // 44: user_management.UserManagementService.ApproveUser:output_type -> user_management.ApproveUserResponse
+	14, // 45: user_management.UserManagementService.RejectUser:output_type -> user_management.RejectUserResponse
+	16, // 46: user_management.UserManagementService.ApproveUsers:output_type -> user_management.ApproveUsersResponse
+	18, // 47: user_management.UserManagementService.RejectUsers:output_type -> user_management.RejectUsersResponse
+	20, // 48: user_management.UserManagementService.DeleteUsers:output_type -> user_management.DeleteUsersResponse
+	22, // 49: user_management.UserManagementService.GetUserProfile:output_type -> user_management.GetUserProfileResponse
+	24, // 50: user_management.UserManagementService.UpdateAdminProfile:output_type -> user_management.UpdateAdminProfileResponse
+	26, // 51: user_management.UserManagementService.UpdateSchoolProfile:output_type -> user_management.UpdateSchoolProfileResponse
+	28, // 52: user_management.UserManagementService.UpdateStudentProfile:output_type -> user_management.UpdateStudentProfileResponse
+	30, // 53: user_management.UserManagementService.UpdateVolunteerProfile:output_type -> user_management.UpdateVolunteerProfileResponse
+	32, // 54: user_management.UserManagementService.DeleteUserProfile:output_type -> user_management.DeleteUserProfileResponse
+	34, // 55: user_management.UserManagementService.DeactivateAccount:output_type -> user_management.DeactivateAccountResponse
+	36, // 56: user_management.UserManagementService.ReactivateAccount:output_type -> user_management.ReactivateAccountResponse
+	38, // 57: user_management.UserManagementService.GetAccountStatus:output_type -> user_management.GetAccountStatusResponse
+	40, // 58: user_management.UserManagementService.GetCountries:output_type -> user_management.GetCountriesResponse
+	42, // 59: user_management.UserManagementService.GetCountriesNoAuth:output_type -> user_management.GetCountriesNoAuthResponse
+	45, // 60: user_management.UserManagementService.GetSchools:output_type -> user_management.GetSchoolsResponse
+	48, // 61: user_management.UserManagementService.GetStudents:output_type -> user_management.GetStudentsResponse
+	51, // 62: user_management.UserManagementService.GetVolunteers:output_type -> user_management.GetVolunteersResponse
+	3,  // 63: user_management.UserManagementService.GetAllUsers:output_type -> user_management.GetAllUsersResponse
+	5,  // 64: user_management.UserManagementService.GetUserStatistics:output_type -> user_management.GetUserStatisticsResponse
+	54, // 65: user_management.UserManagementService.GetVolunteersAndAdmins:output_type -> user_management.GetVolunteersAndAdminsResponse
+	56, // 66: user_management.UserManagementService.GetSchoolsNoAuth:output_type -> user_management.GetSchoolsNoAuthResponse
+	58, // 67: user_management.UserManagementService.InitiatePasswordUpdate:output_type -> user_management.InitiatePasswordUpdateResponse
+	60, // 68: user_management.UserManagementService.VerifyAndUpdatePassword:output_type -> user_management.VerifyAndUpdatePasswordResponse
+	62, // 69: user_management.UserManagementService.GetSchoolIDsByNames:output_type -> user_management.GetSchoolIDsByNamesResponse
+	64, // 70: user_management.UserManagementService.GetStudentsBySchoolContact:output_type -> user_management.GetStudentsBySchoolContactResponse
+	43, // [43:71] is the sub-list for method output_type
+	15, // [15:43] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_internal_grpc_proto_user_management_users_proto_init() }
@@ -5929,6 +6085,30 @@ func file_internal_grpc_proto_user_management_users_proto_init() {
 				return nil
 			}
 		}
+		file_internal_grpc_proto_user_management_users_proto_msgTypes[63].Exporter = func(v any, i int) any {
+			switch v := v.(*GetStudentsBySchoolContactRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_internal_grpc_proto_user_management_users_proto_msgTypes[64].Exporter = func(v any, i int) any {
+			switch v := v.(*GetStudentsBySchoolContactResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	file_internal_grpc_proto_user_management_users_proto_msgTypes[7].OneofWrappers = []any{
 		(*UserProfile_StudentDetails)(nil),
@@ -5941,7 +6121,7 @@ func file_internal_grpc_proto_user_management_users_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_internal_grpc_proto_user_management_users_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   64,
+			NumMessages:   66,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

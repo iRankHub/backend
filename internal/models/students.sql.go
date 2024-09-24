@@ -111,6 +111,31 @@ func (q *Queries) GetAllStudents(ctx context.Context) ([]Student, error) {
 	return items, nil
 }
 
+const getSchoolByContactPersonID = `-- name: GetSchoolByContactPersonID :one
+SELECT schoolid, idebateschoolid, schoolname, address, country, province, district, contactpersonid, contactpersonnationalid, contactemail, schoolemail, schooltype FROM Schools
+WHERE ContactPersonID = $1
+`
+
+func (q *Queries) GetSchoolByContactPersonID(ctx context.Context, contactpersonid int32) (School, error) {
+	row := q.db.QueryRowContext(ctx, getSchoolByContactPersonID, contactpersonid)
+	var i School
+	err := row.Scan(
+		&i.Schoolid,
+		&i.Idebateschoolid,
+		&i.Schoolname,
+		&i.Address,
+		&i.Country,
+		&i.Province,
+		&i.District,
+		&i.Contactpersonid,
+		&i.Contactpersonnationalid,
+		&i.Contactemail,
+		&i.Schoolemail,
+		&i.Schooltype,
+	)
+	return i, err
+}
+
 const getStudentByEmail = `-- name: GetStudentByEmail :one
 SELECT studentid, idebatestudentid, firstname, lastname, gender, grade, dateofbirth, email, password, schoolid, userid FROM Students
 WHERE Email = $1
@@ -218,6 +243,66 @@ func (q *Queries) GetStudentByUserID(ctx context.Context, userid int32) (GetStud
 		&i.Schoolid,
 	)
 	return i, err
+}
+
+const getStudentCountBySchoolID = `-- name: GetStudentCountBySchoolID :one
+SELECT COUNT(*) FROM Students
+WHERE SchoolID = $1
+`
+
+func (q *Queries) GetStudentCountBySchoolID(ctx context.Context, schoolid int32) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getStudentCountBySchoolID, schoolid)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const getStudentsBySchoolID = `-- name: GetStudentsBySchoolID :many
+SELECT studentid, idebatestudentid, firstname, lastname, gender, grade, dateofbirth, email, password, schoolid, userid FROM Students
+WHERE SchoolID = $1
+ORDER BY StudentID
+LIMIT $2 OFFSET $3
+`
+
+type GetStudentsBySchoolIDParams struct {
+	Schoolid int32 `json:"schoolid"`
+	Limit    int32 `json:"limit"`
+	Offset   int32 `json:"offset"`
+}
+
+func (q *Queries) GetStudentsBySchoolID(ctx context.Context, arg GetStudentsBySchoolIDParams) ([]Student, error) {
+	rows, err := q.db.QueryContext(ctx, getStudentsBySchoolID, arg.Schoolid, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Student{}
+	for rows.Next() {
+		var i Student
+		if err := rows.Scan(
+			&i.Studentid,
+			&i.Idebatestudentid,
+			&i.Firstname,
+			&i.Lastname,
+			&i.Gender,
+			&i.Grade,
+			&i.Dateofbirth,
+			&i.Email,
+			&i.Password,
+			&i.Schoolid,
+			&i.Userid,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getStudentsPaginated = `-- name: GetStudentsPaginated :many

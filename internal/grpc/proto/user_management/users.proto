@@ -32,6 +32,7 @@ service UserManagementService {
   rpc InitiatePasswordUpdate(InitiatePasswordUpdateRequest) returns (InitiatePasswordUpdateResponse) {}
   rpc VerifyAndUpdatePassword(VerifyAndUpdatePasswordRequest) returns (VerifyAndUpdatePasswordResponse) {}
   rpc GetSchoolIDsByNames(GetSchoolIDsByNamesRequest) returns (GetSchoolIDsByNamesResponse) {}
+  rpc GetStudentsBySchoolContact(GetStudentsBySchoolContactRequest) returns (GetStudentsBySchoolContactResponse) {}
 }
 
 message GetPendingUsersRequest {
@@ -446,4 +447,16 @@ message GetSchoolIDsByNamesRequest {
 
 message GetSchoolIDsByNamesResponse {
   map<string, int32> school_ids = 1;
+}
+
+message GetStudentsBySchoolContactRequest {
+  string token = 1;
+  int32 userID = 2;
+  int32 page = 3;
+  int32 pageSize = 4;
+}
+
+message GetStudentsBySchoolContactResponse {
+  repeated Student students = 1;
+  int32 totalCount = 2;
 }

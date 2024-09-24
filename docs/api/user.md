@@ -272,6 +272,21 @@ Request:
 }
 ```
 
+### GetStudentsBySchoolContact
+
+Endpoint: `UserManagementService.GetStudentsBySchoolContact`
+Authorization: Authorized User
+
+Request:
+```json
+{
+  "userID": 1,
+  "token": "your_auth_token_here",
+  "page": 1,
+  "pageSize": 10
+}
+```
+
 ### GetVolunteers
 
 Endpoint: `UserManagementService.GetVolunteers`
