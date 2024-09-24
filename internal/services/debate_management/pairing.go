@@ -183,6 +183,14 @@ func (s *PairingService) GenerateEliminationPairings(ctx context.Context, req *d
 }
 
 func (s *PairingService) generatePreliminaryPairings(ctx context.Context, queries *models.Queries, tournament models.GetTournamentByIDRow, tournamentID int32) ([]*debate_management.Pairing, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start transaction: %v", err)
+	}
+	defer tx.Rollback()
+
+	txQueries := queries.WithTx(tx)
+
 	// Create rounds if they don't exist
 	roundIDs := make(map[int32]int32)
 	for roundNumber := 1; roundNumber <= int(tournament.Numberofpreliminaryrounds); roundNumber++ {
@@ -193,7 +201,7 @@ func (s *PairingService) generatePreliminaryPairings(ctx context.Context, querie
 		})
 		if err != nil {
 			if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
-				existingRound, err := queries.GetRoundByTournamentAndNumber(ctx, models.GetRoundByTournamentAndNumberParams{
+				existingRound, err := txQueries.GetRoundByTournamentAndNumber(ctx, models.GetRoundByTournamentAndNumberParams{
 					Tournamentid:       tournamentID,
 					Roundnumber:        int32(roundNumber),
 					Iseliminationround: false,
@@ -211,14 +219,14 @@ func (s *PairingService) generatePreliminaryPairings(ctx context.Context, querie
 	}
 
 	// Get teams for the tournament
-	teams, err := queries.GetTeamsByTournament(ctx, tournamentID)
+	teams, err := txQueries.GetTeamsByTournament(ctx, tournamentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get teams: %v", err)
 	}
 
 	// If the number of teams is odd, create a "Public Speaking" team
 	if len(teams)%2 != 0 {
-		publicSpeakingTeam, err := queries.CreateTeam(ctx, models.CreateTeamParams{
+		publicSpeakingTeam, err := txQueries.CreateTeam(ctx, models.CreateTeamParams{
 			Name:         "Public Speaking",
 			Tournamentid: tournamentID,
 		})
@@ -242,7 +250,7 @@ func (s *PairingService) generatePreliminaryPairings(ctx context.Context, querie
 	}
 
 	// Get available judges
-	judges, err := queries.GetAvailableJudges(ctx, tournamentID)
+	judges, err := txQueries.GetAvailableJudges(ctx, tournamentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get available judges: %v", err)
 	}
@@ -256,7 +264,7 @@ func (s *PairingService) generatePreliminaryPairings(ctx context.Context, querie
 	}
 
 	// Create or get rooms
-	rooms, err := queries.GetRoomsByTournament(ctx, sql.NullInt32{Int32: tournamentID, Valid: true})
+	rooms, err := txQueries.GetRoomsByTournament(ctx, sql.NullInt32{Int32: tournamentID, Valid: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get rooms: %v", err)
 	}
@@ -265,7 +273,7 @@ func (s *PairingService) generatePreliminaryPairings(ctx context.Context, querie
 		neededRooms := len(teams)/2 - len(rooms)
 		for i := 0; i < neededRooms; i++ {
 			roomName := fmt.Sprintf("Room %d", len(rooms)+i+1)
-			room, err := queries.CreateRoom(ctx, models.CreateRoomParams{
+			room, err := txQueries.CreateRoom(ctx, models.CreateRoomParams{
 				Roomname:     roomName,
 				Location:     "TBD",
 				Capacity:     int32(tournament.Judgesperdebatepreliminary + 12),
@@ -306,7 +314,7 @@ func (s *PairingService) generatePreliminaryPairings(ctx context.Context, querie
 				return nil, fmt.Errorf("round ID not found for round number %d", roundNumber)
 			}
 
-			debate, err := queries.CreateDebate(ctx, models.CreateDebateParams{
+			debate, err := txQueries.CreateDebate(ctx, models.CreateDebateParams{
 				Roundid:            roundID,
 				Tournamentid:       tournamentID,
 				Roundnumber:        int32(roundNumber),
@@ -324,7 +332,7 @@ func (s *PairingService) generatePreliminaryPairings(ctx context.Context, querie
 			var headJudgeID int32
 			for i, judge := range pair.Judges {
 				isHeadJudge := (i == 0) || (len(pair.Judges) == 1)
-				err := queries.AssignJudgeToDebate(ctx, models.AssignJudgeToDebateParams{
+				err := txQueries.AssignJudgeToDebate(ctx, models.AssignJudgeToDebateParams{
 					Tournamentid:  tournamentID,
 					Judgeid:       int32(judge.ID),
 					Debateid:      debate,
@@ -341,7 +349,7 @@ func (s *PairingService) generatePreliminaryPairings(ctx context.Context, querie
 			}
 
 			// Create a ballot for the debate
-			_, err = queries.CreateBallot(ctx, models.CreateBallotParams{
+			_, err = txQueries.CreateBallot(ctx, models.CreateBallotParams{
 				Debateid:        debate,
 				Judgeid:         headJudgeID,
 				Recordingstatus: "not yet",
@@ -352,13 +360,13 @@ func (s *PairingService) generatePreliminaryPairings(ctx context.Context, querie
 			}
 
 			// Create initial speaker scores
-			err = queries.CreateInitialSpeakerScores(ctx, debate)
+			err = txQueries.CreateInitialSpeakerScores(ctx, debate)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create initial speaker scores: %v", err)
 			}
 
 			// Fetch room name
-			room, err := queries.GetRoomByID(ctx, int32(pair.Room))
+			room, err := txQueries.GetRoomByID(ctx, int32(pair.Room))
 			if err != nil {
 				return nil, fmt.Errorf("failed to get room: %v", err)
 			}
@@ -381,7 +389,7 @@ func (s *PairingService) generatePreliminaryPairings(ctx context.Context, querie
 			})
 
 			// Record pairing history
-			err = queries.CreatePairingHistory(ctx, models.CreatePairingHistoryParams{
+			err = txQueries.CreatePairingHistory(ctx, models.CreatePairingHistoryParams{
 				Tournamentid:  tournamentID,
 				Team1id:       int32(pair.Team1.ID),
 				Team2id:       int32(pair.Team2.ID),
@@ -396,15 +404,27 @@ func (s *PairingService) generatePreliminaryPairings(ctx context.Context, querie
 		}
 	}
 
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
 	return dbPairings, nil
 }
 
 func (s *PairingService) generateEliminationPairings(ctx context.Context, queries *models.Queries, tournament models.GetTournamentByIDRow, tournamentID int32, roundNumber int32) ([]*debate_management.Pairing, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start transaction: %v", err)
+	}
+	defer tx.Rollback()
+
+	txQueries := queries.WithTx(tx)
+
 	teamsNeeded := int(math.Pow(2, float64(tournament.Numberofeliminationrounds-roundNumber+1)))
 
 	// Check if all ballots from the previous round are recorded
 	if roundNumber > 1 {
-		prevRoundBallots, err := queries.GetBallotsByTournamentAndRound(ctx, models.GetBallotsByTournamentAndRoundParams{
+		prevRoundBallots, err := txQueries.GetBallotsByTournamentAndRound(ctx, models.GetBallotsByTournamentAndRoundParams{
 			Tournamentid:       tournamentID,
 			Roundnumber:        roundNumber - 1,
 			Iseliminationround: true,
@@ -422,7 +442,7 @@ func (s *PairingService) generateEliminationPairings(ctx context.Context, querie
 	var teams []models.GetTeamsByTournamentRow
 	if roundNumber == 1 {
 		// For the first elimination round, get top performing teams from preliminaries
-		topTeams, err := queries.GetTopPerformingTeams(ctx, models.GetTopPerformingTeamsParams{
+		topTeams, err := txQueries.GetTopPerformingTeams(ctx, models.GetTopPerformingTeamsParams{
 			Tournamentid: tournamentID,
 			Limit:        int32(teamsNeeded),
 		})
@@ -435,7 +455,7 @@ func (s *PairingService) generateEliminationPairings(ctx context.Context, querie
 		teams = convertTopPerformingTeamsToTeamsByTournament(topTeams)
 	} else {
 		// For subsequent elimination rounds, get winning teams from the previous round
-		winningTeams, err := queries.GetEliminationRoundTeams(ctx, models.GetEliminationRoundTeamsParams{
+		winningTeams, err := txQueries.GetEliminationRoundTeams(ctx, models.GetEliminationRoundTeamsParams{
 			Tournamentid: tournamentID,
 			Roundnumber:  roundNumber - 1,
 			Limit:        int32(teamsNeeded),
@@ -461,7 +481,7 @@ func (s *PairingService) generateEliminationPairings(ctx context.Context, querie
 	}
 
 	// Get available judges
-	judges, err := queries.GetAvailableJudges(ctx, tournamentID)
+	judges, err := txQueries.GetAvailableJudges(ctx, tournamentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get available judges: %v", err)
 	}
@@ -475,7 +495,7 @@ func (s *PairingService) generateEliminationPairings(ctx context.Context, querie
 	}
 
 	// Get or create rooms
-	rooms, err := queries.GetRoomsByTournament(ctx, sql.NullInt32{Int32: tournamentID, Valid: true})
+	rooms, err := txQueries.GetRoomsByTournament(ctx, sql.NullInt32{Int32: tournamentID, Valid: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get rooms: %v", err)
 	}
@@ -484,7 +504,7 @@ func (s *PairingService) generateEliminationPairings(ctx context.Context, querie
 		neededRooms := len(teams)/2 - len(rooms)
 		for i := 0; i < neededRooms; i++ {
 			roomName := fmt.Sprintf("Room %d", len(rooms)+i+1)
-			room, err := queries.CreateRoom(ctx, models.CreateRoomParams{
+			room, err := txQueries.CreateRoom(ctx, models.CreateRoomParams{
 				Roomname:     roomName,
 				Location:     "TBD",
 				Capacity:     int32(tournament.Judgesperdebateelimination + 12),
@@ -515,14 +535,14 @@ func (s *PairingService) generateEliminationPairings(ctx context.Context, querie
 	}
 
 	// Create or get the elimination round
-	round, err := queries.CreateRound(ctx, models.CreateRoundParams{
+	round, err := txQueries.CreateRound(ctx, models.CreateRoundParams{
 		Tournamentid:       tournamentID,
 		Roundnumber:        roundNumber,
 		Iseliminationround: true,
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
-			existingRound, err := queries.GetRoundByTournamentAndNumber(ctx, models.GetRoundByTournamentAndNumberParams{
+			existingRound, err := txQueries.GetRoundByTournamentAndNumber(ctx, models.GetRoundByTournamentAndNumberParams{
 				Tournamentid:       tournamentID,
 				Roundnumber:        roundNumber,
 				Iseliminationround: true,
@@ -536,9 +556,13 @@ func (s *PairingService) generateEliminationPairings(ctx context.Context, querie
 		}
 	}
 
-	dbPairings, err := s.saveDebatesToDatabase(ctx, queries, debates, tournamentID, roundNumber, true, round.Roundid)
+	dbPairings, err := s.saveDebatesToDatabase(ctx, txQueries, debates, tournamentID, roundNumber, true, round.Roundid)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save debates to database: %v", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
 	return dbPairings, nil
