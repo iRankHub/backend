@@ -172,7 +172,13 @@ WHERE InvitationID = $1
 RETURNING *;
 
 -- name: GetInvitationsByUser :many
-SELECT DISTINCT ti.*
+SELECT
+    ti.*,
+    CASE
+        WHEN ti.InviteeRole = 'school' THEN s.SchoolName
+        WHEN ti.InviteeRole = 'volunteer' THEN CONCAT(v.FirstName, ' ', v.LastName)
+        WHEN ti.InviteeRole = 'student' THEN CONCAT(st.FirstName, ' ', st.LastName)
+    END AS InviteeName
 FROM TournamentInvitations ti
 LEFT JOIN Schools s ON ti.InviteeRole = 'school' AND ti.InviteeID = s.iDebateSchoolID
 LEFT JOIN Volunteers v ON ti.InviteeRole = 'volunteer' AND ti.InviteeID = v.iDebateVolunteerID

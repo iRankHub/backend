@@ -46,6 +46,7 @@ func (s *InvitationService) GetInvitationsByUser(ctx context.Context, req *tourn
 			InvitationId: inv.Invitationid,
 			Status:       inv.Status,
 			IdebateId:    inv.Inviteeid,
+			InviteeName:  inv.Inviteename.(string),
 			InviteeRole:  inv.Inviteerole,
 			CreatedAt:    inv.CreatedAt.Time.Format(time.RFC3339),
 			UpdatedAt:    inv.UpdatedAt.Time.Format(time.RFC3339),

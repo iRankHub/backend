@@ -389,7 +389,13 @@ func (q *Queries) GetInvitationsByTournament(ctx context.Context, tournamentid i
 }
 
 const getInvitationsByUser = `-- name: GetInvitationsByUser :many
-SELECT DISTINCT ti.invitationid, ti.tournamentid, ti.inviteeid, ti.inviteerole, ti.status, ti.created_at, ti.updated_at, ti.remindersentat
+SELECT
+    ti.invitationid, ti.tournamentid, ti.inviteeid, ti.inviteerole, ti.status, ti.created_at, ti.updated_at, ti.remindersentat,
+    CASE
+        WHEN ti.InviteeRole = 'school' THEN s.SchoolName
+        WHEN ti.InviteeRole = 'volunteer' THEN CONCAT(v.FirstName, ' ', v.LastName)
+        WHEN ti.InviteeRole = 'student' THEN CONCAT(st.FirstName, ' ', st.LastName)
+    END AS InviteeName
 FROM TournamentInvitations ti
 LEFT JOIN Schools s ON ti.InviteeRole = 'school' AND ti.InviteeID = s.iDebateSchoolID
 LEFT JOIN Volunteers v ON ti.InviteeRole = 'volunteer' AND ti.InviteeID = v.iDebateVolunteerID
@@ -401,15 +407,27 @@ WHERE
 ORDER BY ti.created_at DESC
 `
 
-func (q *Queries) GetInvitationsByUser(ctx context.Context, contactpersonid int32) ([]Tournamentinvitation, error) {
+type GetInvitationsByUserRow struct {
+	Invitationid   int32        `json:"invitationid"`
+	Tournamentid   int32        `json:"tournamentid"`
+	Inviteeid      string       `json:"inviteeid"`
+	Inviteerole    string       `json:"inviteerole"`
+	Status         string       `json:"status"`
+	CreatedAt      sql.NullTime `json:"created_at"`
+	UpdatedAt      sql.NullTime `json:"updated_at"`
+	Remindersentat sql.NullTime `json:"remindersentat"`
+	Inviteename    interface{}  `json:"inviteename"`
+}
+
+func (q *Queries) GetInvitationsByUser(ctx context.Context, contactpersonid int32) ([]GetInvitationsByUserRow, error) {
 	rows, err := q.db.QueryContext(ctx, getInvitationsByUser, contactpersonid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Tournamentinvitation{}
+	items := []GetInvitationsByUserRow{}
 	for rows.Next() {
-		var i Tournamentinvitation
+		var i GetInvitationsByUserRow
 		if err := rows.Scan(
 			&i.Invitationid,
 			&i.Tournamentid,
@@ -419,6 +437,7 @@ func (q *Queries) GetInvitationsByUser(ctx context.Context, contactpersonid int3
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Remindersentat,
+			&i.Inviteename,
 		); err != nil {
 			return nil, err
 		}
