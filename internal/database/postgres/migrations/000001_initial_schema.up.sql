@@ -647,48 +647,51 @@ END;
 $$ LANGUAGE plpgsql;
 
 
--- Trigger function for calculating team average rank
+-- Corrected trigger function for calculating team average rank
 CREATE OR REPLACE FUNCTION calculate_team_average_rank()
 RETURNS TRIGGER AS $$
 DECLARE
     avg_rank FLOAT;
+    debate_record RECORD;
 BEGIN
     IF NEW.RecordingStatus = 'Recorded' THEN
+        -- Get the debate information
+        SELECT * INTO debate_record FROM Debates WHERE DebateID = NEW.DebateID;
+
         -- Calculate average rank for Team 1
         SELECT AVG(ss.SpeakerRank)::FLOAT INTO avg_rank
         FROM SpeakerScores ss
         JOIN TeamMembers tm ON ss.SpeakerID = tm.StudentID
-        WHERE tm.TeamID = NEW.Team1ID AND ss.BallotID = NEW.BallotID;
+        WHERE tm.TeamID = debate_record.Team1ID AND ss.BallotID = NEW.BallotID;
 
         UPDATE TeamScores
         SET Rank = avg_rank
-        WHERE TeamID = NEW.Team1ID AND DebateID = NEW.DebateID;
+        WHERE TeamID = debate_record.Team1ID AND DebateID = NEW.DebateID;
 
         -- Calculate average rank for Team 2
         SELECT AVG(ss.SpeakerRank)::FLOAT INTO avg_rank
         FROM SpeakerScores ss
         JOIN TeamMembers tm ON ss.SpeakerID = tm.StudentID
-        WHERE tm.TeamID = NEW.Team2ID AND ss.BallotID = NEW.BallotID;
+        WHERE tm.TeamID = debate_record.Team2ID AND ss.BallotID = NEW.BallotID;
 
         UPDATE TeamScores
         SET Rank = avg_rank
-        WHERE TeamID = NEW.Team2ID AND DebateID = NEW.DebateID;
+        WHERE TeamID = debate_record.Team2ID AND DebateID = NEW.DebateID;
     END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger for calculating team average rank
-CREATE TRIGGER calculate_team_average_rank_trigger
-AFTER UPDATE OF RecordingStatus ON Ballots
-FOR EACH ROW
-EXECUTE FUNCTION calculate_team_average_rank();
-
--- Trigger function for updating team stats
+-- Corrected trigger function for updating team stats
 CREATE OR REPLACE FUNCTION update_team_stats()
 RETURNS TRIGGER AS $$
+DECLARE
+    debate_record RECORD;
 BEGIN
     IF NEW.RecordingStatus = 'Recorded' THEN
+        -- Get the debate information
+        SELECT * INTO debate_record FROM Debates WHERE DebateID = NEW.DebateID;
+
         -- Update stats for Team 1
         WITH team_stats AS (
             SELECT
@@ -706,7 +709,7 @@ BEGIN
             JOIN
                 TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
             WHERE
-                t.TeamID = NEW.Team1ID AND t.TournamentID = (SELECT TournamentID FROM Debates WHERE DebateID = NEW.DebateID)
+                t.TeamID = debate_record.Team1ID AND t.TournamentID = debate_record.TournamentID
             GROUP BY
                 t.TeamID, t.TournamentID
         )
@@ -737,7 +740,7 @@ BEGIN
             JOIN
                 TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
             WHERE
-                t.TeamID = NEW.Team2ID AND t.TournamentID = (SELECT TournamentID FROM Debates WHERE DebateID = NEW.DebateID)
+                t.TeamID = debate_record.Team2ID AND t.TournamentID = debate_record.TournamentID
             GROUP BY
                 t.TeamID, t.TournamentID
         )
@@ -755,17 +758,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger for updating team stats
-CREATE TRIGGER update_team_stats_trigger
-AFTER UPDATE OF RecordingStatus ON Ballots
-FOR EACH ROW
-EXECUTE FUNCTION update_team_stats();
-
--- Additional trigger to handle the special case for "Public Speaking" teams
+-- Corrected trigger function to handle the special case for "Public Speaking" teams
 CREATE OR REPLACE FUNCTION handle_public_speaking_team()
 RETURNS TRIGGER AS $$
+DECLARE
+    debate_record RECORD;
 BEGIN
     IF NEW.RecordingStatus = 'Recorded' THEN
+        -- Get the debate information
+        SELECT * INTO debate_record FROM Debates WHERE DebateID = NEW.DebateID;
+
         -- Set rank to 99 for "Public Speaking" teams
         UPDATE TeamScores ts
         SET Rank = 99
@@ -773,7 +775,7 @@ BEGIN
           AND ts.TeamID IN (
               SELECT t.TeamID
               FROM Teams t
-              WHERE t.TeamID IN (NEW.Team1ID, NEW.Team2ID)
+              WHERE t.TeamID IN (debate_record.Team1ID, debate_record.Team2ID)
                 AND t.Name = 'Public Speaking'
           );
     END IF;
@@ -781,6 +783,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Recreate the triggers
+DROP TRIGGER IF EXISTS calculate_team_average_rank_trigger ON Ballots;
+CREATE TRIGGER calculate_team_average_rank_trigger
+AFTER UPDATE OF RecordingStatus ON Ballots
+FOR EACH ROW
+EXECUTE FUNCTION calculate_team_average_rank();
+
+DROP TRIGGER IF EXISTS update_team_stats_trigger ON Ballots;
+CREATE TRIGGER update_team_stats_trigger
+AFTER UPDATE OF RecordingStatus ON Ballots
+FOR EACH ROW
+EXECUTE FUNCTION update_team_stats();
+
+DROP TRIGGER IF EXISTS handle_public_speaking_team_trigger ON Ballots;
 CREATE TRIGGER handle_public_speaking_team_trigger
 AFTER UPDATE OF RecordingStatus ON Ballots
 FOR EACH ROW
