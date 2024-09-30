@@ -1022,12 +1022,34 @@ func (q *Queries) UpdateReminderSentAt(ctx context.Context, arg UpdateReminderSe
 }
 
 const updateTournamentDetails = `-- name: UpdateTournamentDetails :one
-UPDATE Tournaments
-SET Name = $2, StartDate = $3, EndDate = $4, Location = $5, FormatID = $6, LeagueID = $7,
-    NumberOfPreliminaryRounds = $8, NumberOfEliminationRounds = $9,
-    JudgesPerDebatePreliminary = $10, JudgesPerDebateElimination = $11, TournamentFee = $12, ImageUrl = $13
-WHERE TournamentID = $1
-RETURNING tournamentid, name, startdate, enddate, location, formatid, leagueid, coordinatorid, numberofpreliminaryrounds, numberofeliminationrounds, judgesperdebatepreliminary, judgesperdebateelimination, tournamentfee, imageurl, created_at, updated_at, deleted_at, yesterday_total_count, yesterday_upcoming_count
+WITH debate_check AS (
+    SELECT EXISTS (
+        SELECT 1
+        FROM Debates
+        WHERE TournamentID = $1
+    ) AS has_debates
+)
+UPDATE Tournaments t
+SET Name = $2,
+    StartDate = $3,
+    EndDate = $4,
+    Location = $5,
+    FormatID = $6,
+    LeagueID = $7,
+    NumberOfPreliminaryRounds = $8,
+    NumberOfEliminationRounds = $9,
+    JudgesPerDebatePreliminary = $10,
+    JudgesPerDebateElimination = $11,
+    TournamentFee = $12,
+    ImageUrl = $13
+FROM debate_check
+WHERE t.TournamentID = $1
+  AND NOT debate_check.has_debates
+RETURNING t.tournamentid, t.name, t.startdate, t.enddate, t.location, t.formatid, t.leagueid, t.coordinatorid, t.numberofpreliminaryrounds, t.numberofeliminationrounds, t.judgesperdebatepreliminary, t.judgesperdebateelimination, t.tournamentfee, t.imageurl, t.created_at, t.updated_at, t.deleted_at, t.yesterday_total_count, t.yesterday_upcoming_count,
+    CASE
+        WHEN debate_check.has_debates THEN 'Cannot update: Debates exist'::text
+        ELSE NULL
+    END AS error_message
 `
 
 type UpdateTournamentDetailsParams struct {
@@ -1046,7 +1068,30 @@ type UpdateTournamentDetailsParams struct {
 	Imageurl                   sql.NullString `json:"imageurl"`
 }
 
-func (q *Queries) UpdateTournamentDetails(ctx context.Context, arg UpdateTournamentDetailsParams) (Tournament, error) {
+type UpdateTournamentDetailsRow struct {
+	Tournamentid               int32          `json:"tournamentid"`
+	Name                       string         `json:"name"`
+	Startdate                  time.Time      `json:"startdate"`
+	Enddate                    time.Time      `json:"enddate"`
+	Location                   string         `json:"location"`
+	Formatid                   int32          `json:"formatid"`
+	Leagueid                   sql.NullInt32  `json:"leagueid"`
+	Coordinatorid              int32          `json:"coordinatorid"`
+	Numberofpreliminaryrounds  int32          `json:"numberofpreliminaryrounds"`
+	Numberofeliminationrounds  int32          `json:"numberofeliminationrounds"`
+	Judgesperdebatepreliminary int32          `json:"judgesperdebatepreliminary"`
+	Judgesperdebateelimination int32          `json:"judgesperdebateelimination"`
+	Tournamentfee              string         `json:"tournamentfee"`
+	Imageurl                   sql.NullString `json:"imageurl"`
+	CreatedAt                  sql.NullTime   `json:"created_at"`
+	UpdatedAt                  sql.NullTime   `json:"updated_at"`
+	DeletedAt                  sql.NullTime   `json:"deleted_at"`
+	YesterdayTotalCount        sql.NullInt32  `json:"yesterday_total_count"`
+	YesterdayUpcomingCount     sql.NullInt32  `json:"yesterday_upcoming_count"`
+	ErrorMessage               interface{}    `json:"error_message"`
+}
+
+func (q *Queries) UpdateTournamentDetails(ctx context.Context, arg UpdateTournamentDetailsParams) (UpdateTournamentDetailsRow, error) {
 	row := q.db.QueryRowContext(ctx, updateTournamentDetails,
 		arg.Tournamentid,
 		arg.Name,
@@ -1062,7 +1107,7 @@ func (q *Queries) UpdateTournamentDetails(ctx context.Context, arg UpdateTournam
 		arg.Tournamentfee,
 		arg.Imageurl,
 	)
-	var i Tournament
+	var i UpdateTournamentDetailsRow
 	err := row.Scan(
 		&i.Tournamentid,
 		&i.Name,
@@ -1083,6 +1128,7 @@ func (q *Queries) UpdateTournamentDetails(ctx context.Context, arg UpdateTournam
 		&i.DeletedAt,
 		&i.YesterdayTotalCount,
 		&i.YesterdayUpcomingCount,
+		&i.ErrorMessage,
 	)
 	return i, err
 }

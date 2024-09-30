@@ -296,10 +296,9 @@ func (s *TournamentService) UpdateTournament(ctx context.Context, req *tournamen
 
 	queries := models.New(s.db).WithTx(tx)
 
-	updatedTournament, err := queries.UpdateTournamentDetails(ctx, models.UpdateTournamentDetailsParams{
+	result, err := queries.UpdateTournamentDetails(ctx, models.UpdateTournamentDetailsParams{
 		Tournamentid:               req.GetTournamentId(),
 		Name:                       req.GetName(),
-		Imageurl:                   sql.NullString{String: req.GetImageUrl(), Valid: req.GetImageUrl() != ""},
 		Startdate:                  startDate,
 		Enddate:                    endDate,
 		Location:                   req.GetLocation(),
@@ -310,13 +309,37 @@ func (s *TournamentService) UpdateTournament(ctx context.Context, req *tournamen
 		Judgesperdebatepreliminary: int32(req.GetJudgesPerDebatePreliminary()),
 		Judgesperdebateelimination: int32(req.GetJudgesPerDebateElimination()),
 		Tournamentfee:              fmt.Sprintf("%.2f", req.GetTournamentFee()),
+		Imageurl:                   sql.NullString{String: req.GetImageUrl(), Valid: req.GetImageUrl() != ""},
 	})
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("pairings have already been made")
+		}
 		return nil, fmt.Errorf("failed to update tournament details: %v", err)
+	}
+
+	if result.ErrorMessage.(bool) && result.ErrorMessage.(string) != "" {
+		return nil, fmt.Errorf(result.ErrorMessage.(string))
 	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	updatedTournament := models.Tournament{
+		Tournamentid:               result.Tournamentid,
+		Name:                       result.Name,
+		Imageurl:                   result.Imageurl,
+		Startdate:                  result.Startdate,
+		Enddate:                    result.Enddate,
+		Location:                   result.Location,
+		Formatid:                   result.Formatid,
+		Leagueid:                   result.Leagueid,
+		Numberofpreliminaryrounds:  result.Numberofpreliminaryrounds,
+		Numberofeliminationrounds:  result.Numberofeliminationrounds,
+		Judgesperdebatepreliminary: result.Judgesperdebatepreliminary,
+		Judgesperdebateelimination: result.Judgesperdebateelimination,
+		Tournamentfee:              result.Tournamentfee,
 	}
 
 	return tournamentModelToProto(updatedTournament), nil

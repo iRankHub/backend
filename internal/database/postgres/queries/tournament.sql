@@ -104,12 +104,34 @@ ORDER BY
 LIMIT $1 OFFSET $2;
 
 -- name: UpdateTournamentDetails :one
-UPDATE Tournaments
-SET Name = $2, StartDate = $3, EndDate = $4, Location = $5, FormatID = $6, LeagueID = $7,
-    NumberOfPreliminaryRounds = $8, NumberOfEliminationRounds = $9,
-    JudgesPerDebatePreliminary = $10, JudgesPerDebateElimination = $11, TournamentFee = $12, ImageUrl = $13
-WHERE TournamentID = $1
-RETURNING *;
+WITH debate_check AS (
+    SELECT EXISTS (
+        SELECT 1
+        FROM Debates
+        WHERE TournamentID = $1
+    ) AS has_debates
+)
+UPDATE Tournaments t
+SET Name = $2,
+    StartDate = $3,
+    EndDate = $4,
+    Location = $5,
+    FormatID = $6,
+    LeagueID = $7,
+    NumberOfPreliminaryRounds = $8,
+    NumberOfEliminationRounds = $9,
+    JudgesPerDebatePreliminary = $10,
+    JudgesPerDebateElimination = $11,
+    TournamentFee = $12,
+    ImageUrl = $13
+FROM debate_check
+WHERE t.TournamentID = $1
+  AND NOT debate_check.has_debates
+RETURNING t.*,
+    CASE
+        WHEN debate_check.has_debates THEN 'Cannot update: Debates exist'::text
+        ELSE NULL
+    END AS error_message;
 
 -- name: DeleteTournamentByID :exec
 UPDATE Tournaments
