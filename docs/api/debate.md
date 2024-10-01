@@ -336,6 +336,18 @@ Request:
 }
 ```
 
+### GetStudentTournamentStats
+
+Endpoint: `DebateService.GetStudentTournamentStats`
+
+Request:
+```json
+{
+  "student_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
 ### GetTournamentTeamsRanking
 
 Endpoint: `DebateService.GetTournamentTeamsRanking`
