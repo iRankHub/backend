@@ -227,6 +227,14 @@ func (s *debateServer) GetStudentOverallPerformance(ctx context.Context, req *de
 	return response, nil
 }
 
+func (s *debateServer) GetStudentTournamentStats(ctx context.Context, req *debate_management.StudentTournamentStatsRequest) (*debate_management.StudentTournamentStatsResponse, error) {
+	response, err := s.rankingService.GetStudentTournamentStats(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get student tournament stats: %v", err)
+	}
+	return response, nil
+}
+
 func (s *debateServer) GetTournamentTeamsRanking(ctx context.Context, req *debate_management.TournamentTeamsRankingRequest) (*debate_management.TournamentTeamsRankingResponse, error) {
 	response, err := s.rankingService.GetTournamentTeamsRanking(ctx, req)
 	if err != nil {

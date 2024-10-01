@@ -41,6 +41,7 @@ const (
 	DebateService_GetTournamentStudentRanking_FullMethodName  = "/debate_management.DebateService/GetTournamentStudentRanking"
 	DebateService_GetOverallStudentRanking_FullMethodName     = "/debate_management.DebateService/GetOverallStudentRanking"
 	DebateService_GetStudentOverallPerformance_FullMethodName = "/debate_management.DebateService/GetStudentOverallPerformance"
+	DebateService_GetStudentTournamentStats_FullMethodName    = "/debate_management.DebateService/GetStudentTournamentStats"
 	DebateService_GetTournamentTeamsRanking_FullMethodName    = "/debate_management.DebateService/GetTournamentTeamsRanking"
 	DebateService_GetTournamentSchoolRanking_FullMethodName   = "/debate_management.DebateService/GetTournamentSchoolRanking"
 	DebateService_GetOverallSchoolRanking_FullMethodName      = "/debate_management.DebateService/GetOverallSchoolRanking"
@@ -80,6 +81,7 @@ type DebateServiceClient interface {
 	GetTournamentStudentRanking(ctx context.Context, in *TournamentRankingRequest, opts ...grpc.CallOption) (*TournamentRankingResponse, error)
 	GetOverallStudentRanking(ctx context.Context, in *OverallRankingRequest, opts ...grpc.CallOption) (*OverallRankingResponse, error)
 	GetStudentOverallPerformance(ctx context.Context, in *PerformanceRequest, opts ...grpc.CallOption) (*PerformanceResponse, error)
+	GetStudentTournamentStats(ctx context.Context, in *StudentTournamentStatsRequest, opts ...grpc.CallOption) (*StudentTournamentStatsResponse, error)
 	GetTournamentTeamsRanking(ctx context.Context, in *TournamentTeamsRankingRequest, opts ...grpc.CallOption) (*TournamentTeamsRankingResponse, error)
 	GetTournamentSchoolRanking(ctx context.Context, in *TournamentSchoolRankingRequest, opts ...grpc.CallOption) (*TournamentSchoolRankingResponse, error)
 	GetOverallSchoolRanking(ctx context.Context, in *OverallSchoolRankingRequest, opts ...grpc.CallOption) (*OverallSchoolRankingResponse, error)
@@ -314,6 +316,16 @@ func (c *debateServiceClient) GetStudentOverallPerformance(ctx context.Context, 
 	return out, nil
 }
 
+func (c *debateServiceClient) GetStudentTournamentStats(ctx context.Context, in *StudentTournamentStatsRequest, opts ...grpc.CallOption) (*StudentTournamentStatsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StudentTournamentStatsResponse)
+	err := c.cc.Invoke(ctx, DebateService_GetStudentTournamentStats_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *debateServiceClient) GetTournamentTeamsRanking(ctx context.Context, in *TournamentTeamsRankingRequest, opts ...grpc.CallOption) (*TournamentTeamsRankingResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(TournamentTeamsRankingResponse)
@@ -387,6 +399,7 @@ type DebateServiceServer interface {
 	GetTournamentStudentRanking(context.Context, *TournamentRankingRequest) (*TournamentRankingResponse, error)
 	GetOverallStudentRanking(context.Context, *OverallRankingRequest) (*OverallRankingResponse, error)
 	GetStudentOverallPerformance(context.Context, *PerformanceRequest) (*PerformanceResponse, error)
+	GetStudentTournamentStats(context.Context, *StudentTournamentStatsRequest) (*StudentTournamentStatsResponse, error)
 	GetTournamentTeamsRanking(context.Context, *TournamentTeamsRankingRequest) (*TournamentTeamsRankingResponse, error)
 	GetTournamentSchoolRanking(context.Context, *TournamentSchoolRankingRequest) (*TournamentSchoolRankingResponse, error)
 	GetOverallSchoolRanking(context.Context, *OverallSchoolRankingRequest) (*OverallSchoolRankingResponse, error)
@@ -466,6 +479,9 @@ func (UnimplementedDebateServiceServer) GetOverallStudentRanking(context.Context
 }
 func (UnimplementedDebateServiceServer) GetStudentOverallPerformance(context.Context, *PerformanceRequest) (*PerformanceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStudentOverallPerformance not implemented")
+}
+func (UnimplementedDebateServiceServer) GetStudentTournamentStats(context.Context, *StudentTournamentStatsRequest) (*StudentTournamentStatsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStudentTournamentStats not implemented")
 }
 func (UnimplementedDebateServiceServer) GetTournamentTeamsRanking(context.Context, *TournamentTeamsRankingRequest) (*TournamentTeamsRankingResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTournamentTeamsRanking not implemented")
@@ -896,6 +912,24 @@ func _DebateService_GetStudentOverallPerformance_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DebateService_GetStudentTournamentStats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StudentTournamentStatsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DebateServiceServer).GetStudentTournamentStats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DebateService_GetStudentTournamentStats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DebateServiceServer).GetStudentTournamentStats(ctx, req.(*StudentTournamentStatsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _DebateService_GetTournamentTeamsRanking_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TournamentTeamsRankingRequest)
 	if err := dec(in); err != nil {
@@ -1062,6 +1096,10 @@ var DebateService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetStudentOverallPerformance",
 			Handler:    _DebateService_GetStudentOverallPerformance_Handler,
+		},
+		{
+			MethodName: "GetStudentTournamentStats",
+			Handler:    _DebateService_GetStudentTournamentStats_Handler,
 		},
 		{
 			MethodName: "GetTournamentTeamsRanking",

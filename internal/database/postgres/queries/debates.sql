@@ -921,3 +921,36 @@ FROM
   tournament_performance
 ORDER BY
   StartDate;
+
+-- name: GetStudentTournamentStats :one
+WITH student_stats AS (
+    SELECT
+        COUNT(DISTINCT t.TournamentID) AS attended_tournaments,
+        (SELECT COUNT(*) FROM Tournaments WHERE StartDate >= CURRENT_DATE - INTERVAL '365 days') AS total_tournaments_last_year
+    FROM
+        Students s
+    JOIN TeamMembers tm ON s.StudentID = tm.StudentID
+    JOIN Teams te ON tm.TeamID = te.TeamID
+    JOIN Tournaments t ON te.TournamentID = t.TournamentID
+    WHERE
+        s.StudentID = $1 AND t.StartDate >= CURRENT_DATE - INTERVAL '365 days'
+),
+current_stats AS (
+    SELECT
+        (SELECT COUNT(*) FROM Tournaments WHERE deleted_at IS NULL) AS total_tournaments,
+        (SELECT COUNT(*) FROM Tournaments WHERE StartDate BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' AND deleted_at IS NULL) AS upcoming_tournaments
+),
+yesterday_stats AS (
+    SELECT yesterday_total_count, yesterday_upcoming_count
+    FROM Tournaments
+    WHERE TournamentID = (SELECT MIN(TournamentID) FROM Tournaments)
+)
+SELECT
+    cs.total_tournaments,
+    ys.yesterday_total_count,
+    cs.upcoming_tournaments,
+    ys.yesterday_upcoming_count,
+    ss.attended_tournaments,
+    ss.total_tournaments_last_year
+FROM
+    current_stats cs, yesterday_stats ys, student_stats ss;

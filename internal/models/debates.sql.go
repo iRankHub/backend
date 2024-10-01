@@ -1892,6 +1892,63 @@ func (q *Queries) GetStudentOverallPerformance(ctx context.Context, arg GetStude
 	return items, nil
 }
 
+const getStudentTournamentStats = `-- name: GetStudentTournamentStats :one
+WITH student_stats AS (
+    SELECT
+        COUNT(DISTINCT t.TournamentID) AS attended_tournaments,
+        (SELECT COUNT(*) FROM Tournaments WHERE StartDate >= CURRENT_DATE - INTERVAL '365 days') AS total_tournaments_last_year
+    FROM
+        Students s
+    JOIN TeamMembers tm ON s.StudentID = tm.StudentID
+    JOIN Teams te ON tm.TeamID = te.TeamID
+    JOIN Tournaments t ON te.TournamentID = t.TournamentID
+    WHERE
+        s.StudentID = $1 AND t.StartDate >= CURRENT_DATE - INTERVAL '365 days'
+),
+current_stats AS (
+    SELECT
+        (SELECT COUNT(*) FROM Tournaments WHERE deleted_at IS NULL) AS total_tournaments,
+        (SELECT COUNT(*) FROM Tournaments WHERE StartDate BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' AND deleted_at IS NULL) AS upcoming_tournaments
+),
+yesterday_stats AS (
+    SELECT yesterday_total_count, yesterday_upcoming_count
+    FROM Tournaments
+    WHERE TournamentID = (SELECT MIN(TournamentID) FROM Tournaments)
+)
+SELECT
+    cs.total_tournaments,
+    ys.yesterday_total_count,
+    cs.upcoming_tournaments,
+    ys.yesterday_upcoming_count,
+    ss.attended_tournaments,
+    ss.total_tournaments_last_year
+FROM
+    current_stats cs, yesterday_stats ys, student_stats ss
+`
+
+type GetStudentTournamentStatsRow struct {
+	TotalTournaments         int64         `json:"total_tournaments"`
+	YesterdayTotalCount      sql.NullInt32 `json:"yesterday_total_count"`
+	UpcomingTournaments      int64         `json:"upcoming_tournaments"`
+	YesterdayUpcomingCount   sql.NullInt32 `json:"yesterday_upcoming_count"`
+	AttendedTournaments      int64         `json:"attended_tournaments"`
+	TotalTournamentsLastYear int64         `json:"total_tournaments_last_year"`
+}
+
+func (q *Queries) GetStudentTournamentStats(ctx context.Context, studentid int32) (GetStudentTournamentStatsRow, error) {
+	row := q.db.QueryRowContext(ctx, getStudentTournamentStats, studentid)
+	var i GetStudentTournamentStatsRow
+	err := row.Scan(
+		&i.TotalTournaments,
+		&i.YesterdayTotalCount,
+		&i.UpcomingTournaments,
+		&i.YesterdayUpcomingCount,
+		&i.AttendedTournaments,
+		&i.TotalTournamentsLastYear,
+	)
+	return i, err
+}
+
 const getTeamAverageRank = `-- name: GetTeamAverageRank :one
 WITH speaker_ranks AS (
     SELECT ss.SpeakerRank

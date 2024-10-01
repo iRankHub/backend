@@ -41,7 +41,7 @@ service DebateService {
   rpc GetTournamentStudentRanking(TournamentRankingRequest) returns (TournamentRankingResponse);
   rpc GetOverallStudentRanking(OverallRankingRequest) returns (OverallRankingResponse);
   rpc GetStudentOverallPerformance(PerformanceRequest) returns (PerformanceResponse);
-
+   rpc GetStudentTournamentStats(StudentTournamentStatsRequest) returns (StudentTournamentStatsResponse);
   rpc GetTournamentTeamsRanking(TournamentTeamsRankingRequest) returns (TournamentTeamsRankingResponse);
   rpc GetTournamentSchoolRanking(TournamentSchoolRankingRequest) returns (TournamentSchoolRankingResponse);
   rpc GetOverallSchoolRanking(OverallSchoolRankingRequest) returns (OverallSchoolRankingResponse);
@@ -463,4 +463,18 @@ message SchoolPerformanceData {
   double school_total_points = 2;
   double school_average_points = 3;
   int32 tournament_rank = 4;
+}
+
+message StudentTournamentStatsRequest {
+  int32 student_id = 1;
+  string token = 2;
+}
+
+message StudentTournamentStatsResponse {
+  int32 total_tournaments = 1;
+  string total_tournaments_change = 2;
+  int32 attended_tournaments = 3;
+  string attended_tournaments_change = 4;
+  int32 upcoming_tournaments = 5;
+  string upcoming_tournaments_change = 6;
 }

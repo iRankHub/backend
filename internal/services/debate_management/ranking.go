@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -215,6 +216,74 @@ func (s *RankingService) GetStudentOverallPerformance(ctx context.Context, req *
 	return &debate_management.PerformanceResponse{
 		PerformanceData: performanceData,
 	}, nil
+}
+
+func (s *RankingService) GetStudentTournamentStats(ctx context.Context, req *debate_management.StudentTournamentStatsRequest) (*debate_management.StudentTournamentStatsResponse, error) {
+	claims, err := utils.ValidateToken(req.GetToken())
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
+	}
+
+	userID, ok := claims["user_id"].(float64)
+	if !ok {
+		return nil, status.Error(codes.Internal, "invalid user ID in token")
+	}
+
+	userRole, ok := claims["user_role"].(string)
+	if !ok {
+		return nil, status.Error(codes.Internal, "invalid user role in token")
+	}
+
+	if int32(userID) != req.GetStudentId() && userRole != "admin" {
+		return nil, status.Error(codes.PermissionDenied, "unauthorized access to student tournament stats")
+	}
+
+	queries := models.New(s.db)
+	stats, err := queries.GetStudentTournamentStats(ctx, req.GetStudentId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get student tournament stats: %v", err)
+	}
+
+	totalPercentageChange := calculatePercentageChange(int64(stats.YesterdayTotalCount.Int32), int64(stats.TotalTournaments))
+	upcomingPercentageChange := calculatePercentageChange(int64(stats.YesterdayUpcomingCount.Int32), int64(stats.UpcomingTournaments))
+
+	attendedPercentageChange := "0.00%"
+	if stats.TotalTournamentsLastYear > 0 {
+		previousAttended := float64(stats.TotalTournamentsLastYear) - float64(stats.AttendedTournaments)
+		if previousAttended > 0 {
+			change := (float64(stats.AttendedTournaments) - previousAttended) / previousAttended * 100
+			attendedPercentageChange = formatPercentageChange(change)
+		}
+	}
+
+	return &debate_management.StudentTournamentStatsResponse{
+		TotalTournaments:            int32(stats.TotalTournaments),
+		TotalTournamentsChange:      totalPercentageChange,
+		AttendedTournaments:         int32(stats.AttendedTournaments),
+		AttendedTournamentsChange:   attendedPercentageChange,
+		UpcomingTournaments:         int32(stats.UpcomingTournaments),
+		UpcomingTournamentsChange:   upcomingPercentageChange,
+	}, nil
+}
+
+func calculatePercentageChange(oldValue, newValue int64) string {
+	if oldValue == 0 && newValue == 0 {
+		return "0.00%"
+	}
+	if oldValue == 0 {
+		return "0.00%"
+	}
+	change := float64(newValue-oldValue) / float64(oldValue) * 100
+	return formatPercentageChange(change)
+}
+
+func formatPercentageChange(change float64) string {
+	sign := "+"
+	if change < 0 {
+		sign = "-"
+		change = math.Abs(change)
+	}
+	return fmt.Sprintf("%s%.2f%%", sign, change)
 }
 
 func (s *RankingService) GetTournamentTeamsRanking(ctx context.Context, req *debate_management.TournamentTeamsRankingRequest) (*debate_management.TournamentTeamsRankingResponse, error) {
