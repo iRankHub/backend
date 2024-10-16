@@ -274,6 +274,7 @@ message ListTournamentFormatsResponse {
 
 message UpdateTournamentFormatResponse {
   TournamentFormat format = 1;
+  string presigned_url = 2;
 }
 
 message DeleteTournamentFormatResponse {

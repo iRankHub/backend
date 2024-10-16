@@ -62,7 +62,7 @@ CREATE TABLE UserProfiles (
    Address VARCHAR(255),
    Phone VARCHAR(20),
    Bio TEXT,
-   ProfilePicture BYTEA,
+   ProfilePicture VARCHAR(2048),
    VerificationStatus BOOLEAN DEFAULT FALSE
 );
 
@@ -117,7 +117,7 @@ CREATE TABLE Tournaments (
     JudgesPerDebatePreliminary INTEGER NOT NULL,
     JudgesPerDebateElimination INTEGER NOT NULL,
     TournamentFee DECIMAL(10, 2) NOT NULL,
-    ImageUrl VARCHAR(255),
+    ImageUrl VARCHAR(2048),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP,
@@ -173,7 +173,7 @@ CREATE TABLE Volunteers (
    Role VARCHAR(50) NOT NULL,
    GraduateYear INTEGER CHECK (GraduateYear >= 2000 AND GraduateYear <= EXTRACT(YEAR FROM CURRENT_DATE)),
    Password VARCHAR(255) NOT NULL,
-   SafeGuardCertificate BYTEA,
+   SafeGuardCertificate VARCHAR(2048),
    HasInternship BOOLEAN DEFAULT FALSE,
    IsEnrolledInUniversity BOOLEAN DEFAULT FALSE,
    UserID INTEGER NOT NULL REFERENCES Users(UserID)

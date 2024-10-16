@@ -283,7 +283,7 @@ type Userprofile struct {
 	Address            sql.NullString `json:"address"`
 	Phone              sql.NullString `json:"phone"`
 	Bio                sql.NullString `json:"bio"`
-	Profilepicture     []byte         `json:"profilepicture"`
+	Profilepicture     sql.NullString `json:"profilepicture"`
 	Verificationstatus sql.NullBool   `json:"verificationstatus"`
 }
 
@@ -298,7 +298,7 @@ type Volunteer struct {
 	Role                   string         `json:"role"`
 	Graduateyear           sql.NullInt32  `json:"graduateyear"`
 	Password               string         `json:"password"`
-	Safeguardcertificate   []byte         `json:"safeguardcertificate"`
+	Safeguardcertificate   sql.NullString `json:"safeguardcertificate"`
 	Hasinternship          sql.NullBool   `json:"hasinternship"`
 	Isenrolledinuniversity sql.NullBool   `json:"isenrolledinuniversity"`
 	Userid                 int32          `json:"userid"`

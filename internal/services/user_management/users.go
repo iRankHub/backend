@@ -17,22 +17,31 @@ import (
 	notificationService "github.com/iRankHub/backend/internal/services/notification"
 	"github.com/iRankHub/backend/internal/utils"
 	notifications "github.com/iRankHub/backend/internal/utils/notifications"
+
 )
 
 type UserManagementService struct {
 	db                  *sql.DB
 	notificationService *notificationService.NotificationService
+	s3Client            *utils.S3Client
 }
 
 func NewUserManagementService(db *sql.DB) (*UserManagementService, error) {
-	ns, err := notificationService.NewNotificationService(db)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create notification service: %v", err)
-	}
-	return &UserManagementService{
-		db:                  db,
-		notificationService: ns,
-	}, nil
+    ns, err := notificationService.NewNotificationService(db)
+    if err != nil {
+        return nil, fmt.Errorf("failed to create notification service: %v", err)
+    }
+
+    s3Client, err := utils.NewS3Client()
+    if err != nil {
+        return nil, fmt.Errorf("failed to create S3 client: %v", err)
+    }
+
+    return &UserManagementService{
+        db:                  db,
+        notificationService: ns,
+        s3Client:            s3Client,
+    }, nil
 }
 
 func (s *UserManagementService) GetPendingUsers(ctx context.Context, token string) ([]models.User, error) {
@@ -181,7 +190,7 @@ func (s *UserManagementService) ApproveUser(ctx context.Context, token string, u
 		Address:            address,
 		Phone:              sql.NullString{},
 		Bio:                sql.NullString{},
-		Profilepicture:     nil,
+		Profilepicture:     sql.NullString{},
 		Gender:             user.Gender,
 	})
 	if err != nil {
@@ -304,7 +313,7 @@ func (s *UserManagementService) ApproveUsers(ctx context.Context, token string, 
 			Address:            address,
 			Phone:              sql.NullString{},
 			Bio:                sql.NullString{},
-			Profilepicture:     nil,
+			Profilepicture:     sql.NullString{},
 			Gender:             user.Gender,
 		})
 		if err != nil {
@@ -417,45 +426,54 @@ func (s *UserManagementService) DeleteUsers(ctx context.Context, token string, u
 	return failedUserIDs, nil
 }
 
-func (s *UserManagementService) GetUserProfile(ctx context.Context, token string, userID int32) (*models.GetUserProfileRow, error) {
-	claims, err := utils.ValidateToken(token)
-	if err != nil {
-		return nil, fmt.Errorf("invalid token: %v", err)
-	}
+func (s *UserManagementService) GetUserProfile(ctx context.Context, token string, userID int32) (*models.GetUserProfileRow, string, error) {
+    claims, err := utils.ValidateToken(token)
+    if err != nil {
+        return nil, "", fmt.Errorf("invalid token: %v", err)
+    }
 
-	tokenUserID := int32(claims["user_id"].(float64))
-	userRole := claims["user_role"].(string)
+    tokenUserID := int32(claims["user_id"].(float64))
+    userRole := claims["user_role"].(string)
 
-	if tokenUserID != userID && userRole != "admin" {
-		return nil, fmt.Errorf("you can only access your own profile unless you're an admin")
-	}
+    if tokenUserID != userID && userRole != "admin" {
+        return nil, "", fmt.Errorf("you can only access your own profile unless you're an admin")
+    }
 
-	queries := models.New(s.db)
-	profile, err := queries.GetUserProfile(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user profile: %v", err)
-	}
+    queries := models.New(s.db)
+    profile, err := queries.GetUserProfile(ctx, userID)
+    if err != nil {
+        return nil, "", fmt.Errorf("failed to get user profile: %v", err)
+    }
 
-	return &profile, nil
+    // Generate presigned URL for profile picture
+    var profilePicturePresignedURL string
+    if profile.Profilepicture.Valid && profile.Profilepicture.String != "" {
+        profilePicturePresignedURL, err = s.s3Client.GetSignedURL(ctx, profile.Profilepicture.String, time.Hour)
+        if err != nil {
+            return nil, "", fmt.Errorf("failed to generate presigned URL for profile picture: %v", err)
+        }
+    }
+
+    return &profile, profilePicturePresignedURL, nil
 }
 
-func (s *UserManagementService) UpdateAdminProfile(ctx context.Context, token string, req *user_management.UpdateAdminProfileRequest) error {
-	claims, err := utils.ValidateToken(token)
-	if err != nil {
-		return fmt.Errorf("invalid token: %v", err)
-	}
+func (s *UserManagementService) UpdateAdminProfile(ctx context.Context, token string, req *user_management.UpdateAdminProfileRequest) (string, error) {
+    claims, err := utils.ValidateToken(token)
+    if err != nil {
+        return "", fmt.Errorf("invalid token: %v", err)
+    }
 
-	tokenUserID := int32(claims["user_id"].(float64))
-	userRole := claims["user_role"].(string)
+    tokenUserID := int32(claims["user_id"].(float64))
+    userRole := claims["user_role"].(string)
 
-	if tokenUserID != req.UserID || userRole != "admin" {
-		return fmt.Errorf("unauthorized: only admins can update their own profile")
-	}
+    if tokenUserID != req.UserID || userRole != "admin" {
+        return "", fmt.Errorf("unauthorized: only admins can update their own profile")
+    }
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to start transaction: %v", err)
-	}
+    tx, err := s.db.BeginTx(ctx, nil)
+    if err != nil {
+        return "", fmt.Errorf("failed to start transaction: %v", err)
+    }
 	defer tx.Rollback()
 
 	queries := models.New(tx)
@@ -468,36 +486,45 @@ func (s *UserManagementService) UpdateAdminProfile(ctx context.Context, token st
 		Address:        sql.NullString{String: req.Address, Valid: req.Address != ""},
 		Bio:            sql.NullString{String: req.Bio, Valid: req.Bio != ""},
 		Phone:          sql.NullString{String: req.Phone, Valid: req.Phone != ""},
-		Profilepicture: req.ProfilePicture,
+		Profilepicture: sql.NullString{String: req.ProfilePictureUrl, Valid: req.ProfilePictureUrl != ""},
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update admin profile: %v", err)
+		return "",fmt.Errorf("failed to update admin profile: %v", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %v", err)
+		return "",fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	return nil
+    // Generate presigned URL for profile picture
+    var profilePicturePresignedURL string
+    if req.ProfilePictureUrl != "" {
+        profilePicturePresignedURL, err = s.s3Client.GetSignedURL(ctx, req.ProfilePictureUrl, time.Hour)
+        if err != nil {
+            return "", fmt.Errorf("failed to generate presigned URL for profile picture: %v", err)
+        }
+    }
+
+    return profilePicturePresignedURL, nil
 }
 
-func (s *UserManagementService) UpdateSchoolProfile(ctx context.Context, token string, req *user_management.UpdateSchoolProfileRequest) error {
-	claims, err := utils.ValidateToken(token)
-	if err != nil {
-		return fmt.Errorf("invalid token: %v", err)
-	}
+func (s *UserManagementService) UpdateSchoolProfile(ctx context.Context, token string, req *user_management.UpdateSchoolProfileRequest) (string, error) {
+    claims, err := utils.ValidateToken(token)
+    if err != nil {
+        return "", fmt.Errorf("invalid token: %v", err)
+    }
 
-	tokenUserID := int32(claims["user_id"].(float64))
-	userRole := claims["user_role"].(string)
+    tokenUserID := int32(claims["user_id"].(float64))
+    userRole := claims["user_role"].(string)
 
-	if tokenUserID != req.UserID || userRole != "school" {
-		return fmt.Errorf("unauthorized: only school contact persons can update their school profile")
-	}
+    if tokenUserID != req.UserID || userRole != "school" {
+        return "", fmt.Errorf("unauthorized: only school contact persons can update their school profile")
+    }
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to start transaction: %v", err)
-	}
+    tx, err := s.db.BeginTx(ctx, nil)
+    if err != nil {
+        return "", fmt.Errorf("failed to start transaction: %v", err)
+    }
 	defer tx.Rollback()
 
 	queries := models.New(tx)
@@ -510,7 +537,7 @@ func (s *UserManagementService) UpdateSchoolProfile(ctx context.Context, token s
 		Email:  req.ContactEmail,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update user: %v", err)
+		return "",fmt.Errorf("failed to update user: %v", err)
 	}
 
 	// Update UserProfiles table
@@ -522,10 +549,10 @@ func (s *UserManagementService) UpdateSchoolProfile(ctx context.Context, token s
 		Address:        sql.NullString{String: req.Address, Valid: req.Address != ""},
 		Phone:          sql.NullString{String: req.Phone, Valid: req.Phone != ""},
 		Bio:            sql.NullString{String: req.Bio, Valid: req.Bio != ""},
-		Profilepicture: req.ProfilePicture,
+		Profilepicture: sql.NullString{String: req.ProfilePictureUrl, Valid: req.ProfilePictureUrl != ""},
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update user profile: %v", err)
+		return "",fmt.Errorf("failed to update user profile: %v", err)
 	}
 
 	// Update Schools table
@@ -539,33 +566,41 @@ func (s *UserManagementService) UpdateSchoolProfile(ctx context.Context, token s
 		Contactemail:            req.ContactEmail,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update school details: %v", err)
+		return "",fmt.Errorf("failed to update school details: %v", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %v", err)
+		return "",fmt.Errorf("failed to commit transaction: %v", err)
 	}
+    // Generate presigned URL for profile picture
+    var profilePicturePresignedURL string
+    if req.ProfilePictureUrl != "" {
+        profilePicturePresignedURL, err = s.s3Client.GetSignedURL(ctx, req.ProfilePictureUrl, time.Hour)
+        if err != nil {
+            return "", fmt.Errorf("failed to generate presigned URL for profile picture: %v", err)
+        }
+    }
 
-	return nil
+    return profilePicturePresignedURL, nil
 }
 
-func (s *UserManagementService) UpdateStudentProfile(ctx context.Context, token string, req *user_management.UpdateStudentProfileRequest) error {
-	claims, err := utils.ValidateToken(token)
-	if err != nil {
-		return fmt.Errorf("invalid token: %v", err)
-	}
+func (s *UserManagementService) UpdateStudentProfile(ctx context.Context, token string, req *user_management.UpdateStudentProfileRequest) (string, error) {
+    claims, err := utils.ValidateToken(token)
+    if err != nil {
+        return "", fmt.Errorf("invalid token: %v", err)
+    }
 
-	tokenUserID := int32(claims["user_id"].(float64))
-	userRole := claims["user_role"].(string)
+    tokenUserID := int32(claims["user_id"].(float64))
+    userRole := claims["user_role"].(string)
 
-	if tokenUserID != req.UserID || userRole != "student" {
-		return fmt.Errorf("unauthorized: only students can update their own profile")
-	}
+    if tokenUserID != req.UserID || userRole != "student" {
+        return "", fmt.Errorf("unauthorized: only students can update their own profile")
+    }
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to start transaction: %v", err)
-	}
+    tx, err := s.db.BeginTx(ctx, nil)
+    if err != nil {
+        return "", fmt.Errorf("failed to start transaction: %v", err)
+    }
 	defer tx.Rollback()
 
 	queries := models.New(tx)
@@ -579,7 +614,7 @@ func (s *UserManagementService) UpdateStudentProfile(ctx context.Context, token 
 		Email:   req.Email,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update user: %v", err)
+		return "",fmt.Errorf("failed to update user: %v", err)
 	}
 
 	// Update UserProfiles table
@@ -591,17 +626,17 @@ func (s *UserManagementService) UpdateStudentProfile(ctx context.Context, token 
 		Email:          req.Email,
 		Address:        sql.NullString{String: req.Address, Valid: req.Address != ""},
 		Bio:            sql.NullString{String: req.Bio, Valid: req.Bio != ""},
-		Profilepicture: req.ProfilePicture,
+		Profilepicture: sql.NullString{String: req.ProfilePictureUrl, Valid: req.ProfilePictureUrl != ""},
 		Phone:          sql.NullString{String: req.Phone, Valid: req.Phone != ""},
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update user profile: %v", err)
+		return "",fmt.Errorf("failed to update user profile: %v", err)
 	}
 
 	// Update Students table
 	dateOfBirth, err := time.Parse("2006-01-02", req.DateOfBirth)
 	if err != nil {
-		return fmt.Errorf("invalid date format for date of birth: %v", err)
+		return "",fmt.Errorf("invalid date format for date of birth: %v", err)
 	}
 
 	err = queries.UpdateStudentDetails(ctx, models.UpdateStudentDetailsParams{
@@ -614,34 +649,43 @@ func (s *UserManagementService) UpdateStudentProfile(ctx context.Context, token 
 		Column7:   dateOfBirth,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update student details: %v", err)
+		return "",fmt.Errorf("failed to update student details: %v", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %v", err)
+		return "",fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	return nil
+    // Generate presigned URL for profile picture
+    var profilePicturePresignedURL string
+    if req.ProfilePictureUrl != "" {
+        profilePicturePresignedURL, err = s.s3Client.GetSignedURL(ctx, req.ProfilePictureUrl, time.Hour)
+        if err != nil {
+            return "", fmt.Errorf("failed to generate presigned URL for profile picture: %v", err)
+        }
+    }
+
+    return profilePicturePresignedURL, nil
 }
 
-func (s *UserManagementService) UpdateVolunteerProfile(ctx context.Context, token string, req *user_management.UpdateVolunteerProfileRequest) error {
-	claims, err := utils.ValidateToken(token)
-	if err != nil {
-		return fmt.Errorf("invalid token: %v", err)
-	}
+func (s *UserManagementService) UpdateVolunteerProfile(ctx context.Context, token string, req *user_management.UpdateVolunteerProfileRequest) (string, string, error) {
+    claims, err := utils.ValidateToken(token)
+    if err != nil {
+        return "", "", fmt.Errorf("invalid token: %v", err)
+    }
 
-	tokenUserID := int32(claims["user_id"].(float64))
-	userRole := claims["user_role"].(string)
+    tokenUserID := int32(claims["user_id"].(float64))
+    userRole := claims["user_role"].(string)
 
-	if tokenUserID != req.UserID || userRole != "volunteer" {
-		return fmt.Errorf("unauthorized: only volunteers can update their own profile")
-	}
+    if tokenUserID != req.UserID || userRole != "volunteer" {
+        return "", "", fmt.Errorf("unauthorized: only volunteers can update their own profile")
+    }
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to start transaction: %v", err)
-	}
-	defer tx.Rollback()
+    tx, err := s.db.BeginTx(ctx, nil)
+    if err != nil {
+        return "", "", fmt.Errorf("failed to start transaction: %v", err)
+    }
+    defer tx.Rollback()
 
 	queries := models.New(tx)
 
@@ -654,7 +698,7 @@ func (s *UserManagementService) UpdateVolunteerProfile(ctx context.Context, toke
 		Email:   req.Email,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update user: %v", err)
+		return "","",fmt.Errorf("failed to update user: %v", err)
 	}
 
 	// Update UserProfiles table
@@ -666,11 +710,11 @@ func (s *UserManagementService) UpdateVolunteerProfile(ctx context.Context, toke
 		Email:          req.Email,
 		Address:        sql.NullString{String: req.Address, Valid: req.Address != ""},
 		Bio:            sql.NullString{String: req.Bio, Valid: req.Bio != ""},
-		Profilepicture: req.ProfilePicture,
+		Profilepicture: sql.NullString{String: req.ProfilePictureUrl, Valid: req.ProfilePictureUrl != ""},
 		Phone:          sql.NullString{String: req.Phone, Valid: req.Phone != ""},
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update user profile: %v", err)
+		return "","",fmt.Errorf("failed to update user profile: %v", err)
 	}
 
 	// Update Volunteers table
@@ -686,14 +730,29 @@ func (s *UserManagementService) UpdateVolunteerProfile(ctx context.Context, toke
 		Role:                   req.Role,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update volunteer details: %v", err)
+		return "","",fmt.Errorf("failed to update volunteer details: %v", err)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %v", err)
+		return "","",fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	return nil
+    // Generate presigned URLs
+    var profilePicturePresignedURL, safeguardCertificatePresignedURL string
+    if req.ProfilePictureUrl != "" {
+        profilePicturePresignedURL, err = s.s3Client.GetSignedURL(ctx, req.ProfilePictureUrl, time.Hour)
+        if err != nil {
+            return "", "", fmt.Errorf("failed to generate presigned URL for profile picture: %v", err)
+        }
+    }
+    if req.SafeguardCertificateUrl != "" {
+        safeguardCertificatePresignedURL, err = s.s3Client.GetSignedURL(ctx, req.SafeguardCertificateUrl, time.Hour)
+        if err != nil {
+            return "", "", fmt.Errorf("failed to generate presigned URL for safeguard certificate: %v", err)
+        }
+    }
+
+    return profilePicturePresignedURL, safeguardCertificatePresignedURL, nil
 }
 
 func (s *UserManagementService) DeleteUserProfile(ctx context.Context, token string, userID int32) error {

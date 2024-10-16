@@ -92,7 +92,7 @@ message UserProfile {
   string address = 6;
   string phone = 7;
   string bio = 8;
-  bytes profilePicture = 9;
+  string profile_picture_url = 9;
   bool verificationStatus = 10;
   string signUpDate = 11;
   bool twoFactorEnabled = 12;
@@ -103,6 +103,7 @@ message UserProfile {
     SchoolDetails schoolDetails = 15;
     VolunteerDetails volunteerDetails = 16;
   }
+  string profile_picture_presigned_url = 17;
 }
 
 message StudentDetails {
@@ -123,7 +124,7 @@ message SchoolDetails {
 message VolunteerDetails {
   string role = 1;
   int32 graduateYear = 2;
-  bytes safeGuardCertificate = 3;
+  string safeguard_certificate_url = 3;
   bool hasInternship = 4;
   bool isEnrolledInUniversity = 5;
 }
@@ -198,13 +199,14 @@ message UpdateAdminProfileRequest {
   string address = 5;
   string bio = 6;
   string phone = 7;
-  bytes profilePicture = 8;
+  string profile_picture_url = 8;
   string email = 9;
 }
 
 message UpdateAdminProfileResponse {
   bool success = 1;
   string message = 2;
+  string profile_picture_presigned_url = 3;
 }
 
 message UpdateSchoolProfileRequest {
@@ -219,13 +221,14 @@ message UpdateSchoolProfileRequest {
   string contactEmail = 9;
   string contactPersonNationalId = 10;
   string phone = 11;
-  bytes profilePicture = 12;
+  string profile_picture_url = 12;
   string bio = 13;
 }
 
 message UpdateSchoolProfileResponse {
   bool success = 1;
   string message = 2;
+  string profile_picture_presigned_url = 3;
 }
 
 message UpdateStudentProfileRequest {
@@ -239,13 +242,14 @@ message UpdateStudentProfileRequest {
   string dateOfBirth = 8;
   string address = 9;
   string bio = 10;
-  bytes profilePicture = 11;
+  string profile_picture_url = 11;
   string phone = 12;
 }
 
 message UpdateStudentProfileResponse {
   bool success = 1;
   string message = 2;
+  string profile_picture_presigned_url = 3;
 }
 
 message UpdateVolunteerProfileRequest {
@@ -261,14 +265,17 @@ message UpdateVolunteerProfileRequest {
   bool hasInternship = 10;
   string address = 11;
   string bio = 12;
-  bytes profilePicture = 13;
-  string role = 14;
-  string phone = 15;
+  string profile_picture_url = 13;
+  string safeguard_certificate_url = 14;
+  string role = 15;
+  string phone = 16;
 }
 
 message UpdateVolunteerProfileResponse {
   bool success = 1;
   string message = 2;
+  string profile_picture_presigned_url = 3;
+  string safeguard_certificate_presigned_url = 4;
 }
 
 message DeleteUserProfileRequest {
@@ -393,7 +400,7 @@ message Volunteer {
   string dateOfBirth = 4;
   string role = 5;
   int32 graduateYear = 6;
-  bytes safeGuardCertificate = 7;
+  string safeguard_certificate_url = 7;
   string email = 8;
 }
 

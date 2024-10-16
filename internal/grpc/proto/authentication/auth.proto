@@ -45,7 +45,7 @@ message UserData {
   int32 graduationYear = 14;
   string roleInterestedIn = 15;
   string nationalID = 16;
-  bytes safeguardingCertificate = 17;
+  string safeguarding_certificate_url = 17;
   string grade = 18;
   bool hasInternship = 19;
   bool isEnrolledInUniversity = 20;
@@ -84,7 +84,7 @@ message SignUpRequest {
   bool hasInternship = 22;
   bool isEnrolledInUniversity = 23;
   string gender = 24;
-  bytes safeguardingCertificate = 25;
+  string safeguarding_certificate_url = 25;
 }
 
 message SignUpResponse {

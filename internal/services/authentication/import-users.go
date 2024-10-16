@@ -64,7 +64,7 @@ func (s *ImportUsersService) BatchImportUsers(ctx context.Context, users []*auth
 				userData.UserRole,
 				userData.Gender,
 				userData.NationalID,
-				userData.SafeguardingCertificate,
+				userData.SafeguardingCertificateUrl,
 				additionalInfo,
 			)
 

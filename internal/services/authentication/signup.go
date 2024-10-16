@@ -25,7 +25,7 @@ func NewSignUpService(db *sql.DB, ns *notificationService.NotificationService) *
 	}
 }
 
-func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, password, userRole, gender string, nationalID string, safeguardingCertificate []byte, additionalInfo map[string]interface{}) error {
+func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, password, userRole, gender string, nationalID string, safeguardingCertificateURL string, additionalInfo map[string]interface{}) error {
 	if firstName == "" || lastName == "" || email == "" || password == "" || userRole == "" {
 		return fmt.Errorf("missing required fields")
 	}
@@ -74,18 +74,18 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 		return fmt.Errorf("failed to create user: %v", err)
 	}
 
-	switch userRole {
-	case "student":
-		err = s.createStudentRecord(ctx, queries, user.Userid, firstName, lastName, email, gender, hashedPassword, additionalInfo)
-	case "school":
-		err = s.createSchoolRecord(ctx, queries, user.Userid, email, nationalID, additionalInfo)
-	case "volunteer":
-		err = s.createVolunteerRecord(ctx, queries, user.Userid, firstName, lastName, gender, hashedPassword, nationalID, safeguardingCertificate, additionalInfo)
-	case "admin":
-		err = s.createAdminProfile(ctx, queries, user)
-	default:
-		return fmt.Errorf("invalid user role")
-	}
+    switch userRole {
+    case "student":
+        err = s.createStudentRecord(ctx, queries, user.Userid, firstName, lastName, email, gender, hashedPassword, additionalInfo)
+    case "school":
+        err = s.createSchoolRecord(ctx, queries, user.Userid, email, nationalID, additionalInfo)
+    case "volunteer":
+        err = s.createVolunteerRecord(ctx, queries, user.Userid, firstName, lastName, gender, hashedPassword, nationalID, safeguardingCertificateURL, additionalInfo)
+    case "admin":
+        err = s.createAdminProfile(ctx, queries, user)
+    default:
+        return fmt.Errorf("invalid user role")
+    }
 
 	if err != nil {
 		return fmt.Errorf("failed to create user-specific record: %v", err)
@@ -214,7 +214,7 @@ func (s *SignUpService) createSchoolRecord(ctx context.Context, queries *models.
 	return err
 }
 
-func (s *SignUpService) createVolunteerRecord(ctx context.Context, queries *models.Queries, userID int32, firstName, lastName, gender, hashedPassword, nationalID string, safeguardingCertificate []byte, additionalInfo map[string]interface{}) error {
+func (s *SignUpService) createVolunteerRecord(ctx context.Context, queries *models.Queries, userID int32, firstName, lastName, gender, hashedPassword, nationalID string, safeguardingCertificateURL string, additionalInfo map[string]interface{}) error {
 	dateOfBirthStr, ok := additionalInfo["dateOfBirth"].(string)
 	if !ok || dateOfBirthStr == "" {
 		return fmt.Errorf("date of birth is missing or invalid")
@@ -244,21 +244,21 @@ func (s *SignUpService) createVolunteerRecord(ctx context.Context, queries *mode
 		return fmt.Errorf("university enrollment information is missing or invalid")
 	}
 
-	_, err = queries.CreateVolunteer(ctx, models.CreateVolunteerParams{
-		Firstname:              firstName,
-		Lastname:               lastName,
-		Dateofbirth:            sql.NullTime{Time: dateOfBirth, Valid: true},
-		Role:                   roleInterestedIn,
-		Graduateyear:           sql.NullInt32{Int32: graduationYear, Valid: true},
-		Password:               hashedPassword,
-		Safeguardcertificate:   safeguardingCertificate,
-		Hasinternship:          sql.NullBool{Bool: hasInternship, Valid: true},
-		Userid:                 userID,
-		Isenrolledinuniversity: sql.NullBool{Bool: isEnrolledInUniversity, Valid: true},
-		Gender:                 sql.NullString{String: gender, Valid: true},
-		Nationalid:             sql.NullString{String: nationalID, Valid: true},
-	})
-	return err
+    _, err = queries.CreateVolunteer(ctx, models.CreateVolunteerParams{
+        Firstname:              firstName,
+        Lastname:               lastName,
+        Dateofbirth:            sql.NullTime{Time: dateOfBirth, Valid: true},
+        Role:                   roleInterestedIn,
+        Graduateyear:           sql.NullInt32{Int32: graduationYear, Valid: true},
+        Password:               hashedPassword,
+        Safeguardcertificate:   sql.NullString{String: safeguardingCertificateURL, Valid: safeguardingCertificateURL != ""},
+        Hasinternship:          sql.NullBool{Bool: hasInternship, Valid: true},
+        Userid:                 userID,
+        Isenrolledinuniversity: sql.NullBool{Bool: isEnrolledInUniversity, Valid: true},
+        Gender:                 sql.NullString{String: gender, Valid: true},
+        Nationalid:             sql.NullString{String: nationalID, Valid: true},
+    })
+    return err
 }
 
 func (s *SignUpService) createAdminProfile(ctx context.Context, queries *models.Queries, user models.User) error {
@@ -272,7 +272,7 @@ func (s *SignUpService) createAdminProfile(ctx context.Context, queries *models.
 		Address:            sql.NullString{},
 		Phone:              sql.NullString{},
 		Bio:                sql.NullString{},
-		Profilepicture:     nil,
+		Profilepicture:     sql.NullString{},
 		Gender:             user.Gender,
 	})
 	if err != nil {

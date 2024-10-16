@@ -28,7 +28,7 @@ type CreateVolunteerParams struct {
 	Graduateyear           sql.NullInt32  `json:"graduateyear"`
 	Password               string         `json:"password"`
 	Gender                 sql.NullString `json:"gender"`
-	Safeguardcertificate   []byte         `json:"safeguardcertificate"`
+	Safeguardcertificate   sql.NullString `json:"safeguardcertificate"`
 	Hasinternship          sql.NullBool   `json:"hasinternship"`
 	Userid                 int32          `json:"userid"`
 	Isenrolledinuniversity sql.NullBool   `json:"isenrolledinuniversity"`
@@ -281,7 +281,7 @@ type UpdateVolunteerParams struct {
 	Role                   string         `json:"role"`
 	Graduateyear           sql.NullInt32  `json:"graduateyear"`
 	Password               string         `json:"password"`
-	Safeguardcertificate   []byte         `json:"safeguardcertificate"`
+	Safeguardcertificate   sql.NullString `json:"safeguardcertificate"`
 	Hasinternship          sql.NullBool   `json:"hasinternship"`
 	Isenrolledinuniversity sql.NullBool   `json:"isenrolledinuniversity"`
 	Nationalid             sql.NullString `json:"nationalid"`

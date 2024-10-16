@@ -27,7 +27,7 @@ type CreateUserProfileParams struct {
 	Address            sql.NullString `json:"address"`
 	Phone              sql.NullString `json:"phone"`
 	Bio                sql.NullString `json:"bio"`
-	Profilepicture     []byte         `json:"profilepicture"`
+	Profilepicture     sql.NullString `json:"profilepicture"`
 	Gender             sql.NullString `json:"gender"`
 }
 
@@ -95,7 +95,7 @@ type GetUserProfileRow struct {
 	Address                sql.NullString `json:"address"`
 	Phone                  sql.NullString `json:"phone"`
 	Bio                    sql.NullString `json:"bio"`
-	Profilepicture         []byte         `json:"profilepicture"`
+	Profilepicture         sql.NullString `json:"profilepicture"`
 	Grade                  sql.NullString `json:"grade"`
 	Dateofbirth            sql.NullTime   `json:"dateofbirth"`
 	Schoolid               sql.NullInt32  `json:"schoolid"`
@@ -107,7 +107,7 @@ type GetUserProfileRow struct {
 	Schooltype             sql.NullString `json:"schooltype"`
 	Volunteerrole          sql.NullString `json:"volunteerrole"`
 	Graduateyear           sql.NullInt32  `json:"graduateyear"`
-	Safeguardcertificate   []byte         `json:"safeguardcertificate"`
+	Safeguardcertificate   sql.NullString `json:"safeguardcertificate"`
 	Hasinternship          sql.NullBool   `json:"hasinternship"`
 	Isenrolledinuniversity sql.NullBool   `json:"isenrolledinuniversity"`
 	BiometricAuthEnabled   bool           `json:"biometric_auth_enabled"`
@@ -188,7 +188,7 @@ type UpdateAdminProfileParams struct {
 	Address        sql.NullString `json:"address"`
 	Bio            sql.NullString `json:"bio"`
 	Phone          sql.NullString `json:"phone"`
-	Profilepicture []byte         `json:"profilepicture"`
+	Profilepicture sql.NullString `json:"profilepicture"`
 }
 
 func (q *Queries) UpdateAdminProfile(ctx context.Context, arg UpdateAdminProfileParams) error {
@@ -284,7 +284,7 @@ type UpdateSchoolUserProfileParams struct {
 	Address        sql.NullString `json:"address"`
 	Phone          sql.NullString `json:"phone"`
 	Bio            sql.NullString `json:"bio"`
-	Profilepicture []byte         `json:"profilepicture"`
+	Profilepicture sql.NullString `json:"profilepicture"`
 }
 
 func (q *Queries) UpdateSchoolUserProfile(ctx context.Context, arg UpdateSchoolUserProfileParams) error {
@@ -382,7 +382,7 @@ type UpdateStudentUserProfileParams struct {
 	Email          string         `json:"email"`
 	Address        sql.NullString `json:"address"`
 	Bio            sql.NullString `json:"bio"`
-	Profilepicture []byte         `json:"profilepicture"`
+	Profilepicture sql.NullString `json:"profilepicture"`
 	Phone          sql.NullString `json:"phone"`
 }
 
@@ -515,7 +515,7 @@ type UpdateVolunteerUserProfileParams struct {
 	Email          string         `json:"email"`
 	Address        sql.NullString `json:"address"`
 	Bio            sql.NullString `json:"bio"`
-	Profilepicture []byte         `json:"profilepicture"`
+	Profilepicture sql.NullString `json:"profilepicture"`
 	Phone          sql.NullString `json:"phone"`
 }
 
