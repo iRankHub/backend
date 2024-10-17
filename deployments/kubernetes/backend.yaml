@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: josy-coder/irankhub:backend-latest
+        image: josycoder/irankhub:backend-latest
         resources:
           requests:
             memory: "1.5Gi"
