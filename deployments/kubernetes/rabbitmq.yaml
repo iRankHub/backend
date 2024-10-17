@@ -40,19 +40,18 @@ spec:
         volumeMounts:
         - name: rabbitmq-storage
           mountPath: /var/lib/rabbitmq
-        - name: rabbitmq-init
-          mountPath: /init-rabbitmq.sh
-          subPath: init-rabbitmq.sh
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d
       volumes:
-      - name: rabbitmq-init
+      - name: init-script
         configMap:
           name: rabbitmq-init-script
-          defaultMode: 0755
   volumeClaimTemplates:
   - metadata:
       name: rabbitmq-storage
     spec:
       accessModes: ["ReadWriteOnce"]
+      storageClassName: "linode-block-storage"
       resources:
         requests:
           storage: 40Gi

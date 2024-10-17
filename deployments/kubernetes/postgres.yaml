@@ -41,11 +41,18 @@ spec:
         volumeMounts:
         - name: postgres-storage
           mountPath: /var/lib/postgresql/data
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d
+      volumes:
+      - name: init-script
+        configMap:
+          name: postgres-init-script
   volumeClaimTemplates:
   - metadata:
       name: postgres-storage
     spec:
       accessModes: ["ReadWriteOnce"]
+      storageClassName: "linode-block-storage"
       resources:
         requests:
           storage: 100Gi
@@ -59,3 +66,4 @@ spec:
     app: postgres
   ports:
     - port: 5432
+      
