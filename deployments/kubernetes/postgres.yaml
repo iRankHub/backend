@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: postgres
-        image: josekecha/irankdb-postgres:latest
+        image: josy-coder/irankhub:postgres-latest
         resources:
           requests:
             memory: "4Gi"

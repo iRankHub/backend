@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: rabbitmq
-        image: josekecha/irankdb-rabbitmq:latest
+        image: josy-coder/irankhub:rabbitmq-latest
         resources:
           requests:
             memory: "2Gi"
