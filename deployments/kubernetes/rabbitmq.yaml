@@ -17,6 +17,11 @@ spec:
       containers:
       - name: rabbitmq
         image: rabbitmq:3.12-management-alpine
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            /docker-entrypoint-initdb.d/init-rabbitmq.sh &
+            docker-entrypoint.sh rabbitmq-server
         resources:
           requests:
             memory: "1Gi"

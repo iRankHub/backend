@@ -1,10 +1,13 @@
 package app
 
 import (
+	"bufio"
 	"database/sql"
 	"fmt"
 	"log"
 	"os"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -15,67 +18,123 @@ import (
 	"github.com/iRankHub/backend/internal/config"
 	"github.com/iRankHub/backend/internal/grpc/server"
 	"github.com/iRankHub/backend/internal/utils"
+	"github.com/iRankHub/backend/scripts"
+	"github.com/iRankHub/backend/envoy"
 )
 
+var envSetup sync.Once
+
 func StartBackend() {
-    // Load the database configuration from environment variables
-    dbConfig, err := config.LoadDatabaseConfig()
-    if err != nil {
-        log.Fatalf("Failed to load database configuration: %v", err)
-    }
+	// Check if we're in development mode
+	isDevMode, err := checkDevMode()
+	if err != nil {
+		log.Fatalf("Error checking development mode: %v", err)
+	}
 
-    // Connect to the database
-    connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
-        dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.Name, dbConfig.Ssl)
-    db, err := sql.Open("pgx", connString)
-    if err != nil {
-        log.Fatalf("Failed to connect to the database: %v", err)
-    }
-    log.Println("Successfully connected to the database")
-    defer db.Close()
+	if isDevMode {
+		// Use sync.Once to ensure this only runs once
+		envSetup.Do(func() {
+			err := script.SetEnvVars()
+			if err != nil {
+				log.Fatalf("Error setting environment variables: %v", err)
+			}
+			fmt.Println("Environment variables set for development")
+		})
 
-    // Set connection pool settings
-    db.SetMaxOpenConns(100)
-    db.SetMaxIdleConns(50)
-    db.SetConnMaxLifetime(time.Minute * 5)
+		// Start Envoy proxy in development mode
+		err = envoy.StartEnvoyProxy()
+		if err != nil {
+			log.Printf("Warning: Failed to start Envoy proxy: %v", err)
+			// Note: We're logging this as a warning instead of fatally exiting
+		} else {
+			fmt.Println("Envoy proxy started or was already running")
+		}
+	}
 
-    // Verify connection
-    if err = db.Ping(); err != nil {
-        log.Fatalf("Failed to ping database: %v", err)
-    }
+	// Load the database configuration from environment variables
+	dbConfig, err := config.LoadDatabaseConfig()
+	if err != nil {
+		log.Fatalf("Failed to load database configuration: %v", err)
+	}
 
-    // Run database migrations only in development
-    if os.Getenv("GO_ENV") != "production" {
-        migrationPath := "file://internal/database/postgres/migrations"
-        m, err := migrate.New(migrationPath, connString)
-        if err != nil {
-            log.Fatalf("Failed to create migrate instance: %v", err)
-        }
+	// Connect to the database
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.Name, dbConfig.Ssl)
+	db, err := sql.Open("pgx", connString)
+	if err != nil {
+		log.Fatalf("Failed to connect to the database: %v", err)
+	}
+	log.Println("Successfully connected to the database")
+	defer db.Close()
 
-        if err := m.Up(); err != nil {
-            if err == migrate.ErrNoChange {
-                log.Println("No new migrations to apply")
-            } else {
-                log.Fatalf("Failed to apply migrations: %v", err)
-            }
-        } else {
-            log.Println("Successfully applied database migrations")
-        }
-    } else {
-        log.Println("Skipping migrations in production environment")
-    }
+	// Set connection pool settings
+	db.SetMaxOpenConns(100)
+	db.SetMaxIdleConns(50)
+	db.SetConnMaxLifetime(time.Minute * 5)
 
-    // Initialize the token configuration
-    err = utils.InitializeTokenConfig()
-    if err != nil {
-        log.Fatalf("Failed to initialize token configuration: %v", err)
-    }
+	// Verify connection
+	if err = db.Ping(); err != nil {
+		log.Fatalf("Failed to ping database: %v", err)
+	}
 
-    // Start the token cleanup goroutine
-    utils.StartTokenCleanup()
+	// Run database migrations only in development
+	if isDevMode {
+		migrationPath := "file://internal/database/postgres/migrations"
+		m, err := migrate.New(migrationPath, connString)
+		if err != nil {
+			log.Fatalf("Failed to create migrate instance: %v", err)
+		}
 
-    // Start the gRPC server
-    if err := server.StartGRPCServer(db); err != nil {
-        log.Fatalf("Failed to start gRPC server: %v", err)
-    }
+		if err := m.Up(); err != nil {
+			if err == migrate.ErrNoChange {
+				log.Println("No new migrations to apply")
+			} else {
+				log.Fatalf("Failed to apply migrations: %v", err)
+			}
+		} else {
+			log.Println("Successfully applied database migrations")
+		}
+	} else {
+		log.Println("Skipping migrations in production environment")
+	}
+
+	// Initialize the token configuration
+	err = utils.InitializeTokenConfig()
+	if err != nil {
+		log.Fatalf("Failed to initialize token configuration: %v", err)
+	}
+
+	// Start the token cleanup goroutine
+	utils.StartTokenCleanup()
+
+	// Start the gRPC server
+	if err := server.StartGRPCServer(db); err != nil {
+		log.Fatalf("Failed to start gRPC server: %v", err)
+	}
+}
+
+func checkDevMode() (bool, error) {
+	file, err := os.Open(".env")
+	if err != nil {
+		return false, fmt.Errorf("error opening .env file: %w", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "GO_ENV=") {
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 && strings.TrimSpace(parts[1]) == "development" {
+				return true, nil
+			}
+			break
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return false, fmt.Errorf("error reading .env file: %w", err)
+	}
+
+	return false, nil
 }
