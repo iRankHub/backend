@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"sync"
 
 	amqp "github.com/rabbitmq/amqp091-go"
-	"github.com/spf13/viper"
 
 	pb "github.com/iRankHub/backend/internal/grpc/proto/notification"
 	"github.com/iRankHub/backend/internal/models"
@@ -44,7 +44,7 @@ type NotificationService struct {
 
 func NewNotificationService(db *sql.DB) (*NotificationService, error) {
 	queries := models.New(db)
-	url := viper.GetString("RABBITMQ_URL")
+	url := os.Getenv("RABBITMQ_URL")
 	conn, err := amqp.Dial(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to RabbitMQ: %v", err)

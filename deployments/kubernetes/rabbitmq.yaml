@@ -13,39 +13,39 @@ spec:
       labels:
         app: rabbitmq
     spec:
+      initContainers:
+      - name: wait-for-envoy
+        image: busybox
+        command: ['sh', '-c', 'until nc -z envoy 10000; do echo waiting for envoy; sleep 2; done;']
       containers:
       - name: rabbitmq
-        image: josycoder/irankhub:rabbitmq-latest
+        image: rabbitmq:3-management-alpine
         resources:
           requests:
-            memory: "2Gi"
-            cpu: "1"
+            memory: "1Gi"
+            cpu: "500m"
           limits:
             memory: "2Gi"
             cpu: "1"
+        envFrom:
+        - configMapRef:
+            name: app-config
+        - secretRef:
+            name: app-secrets
         ports:
         - containerPort: 5672
         - containerPort: 15672
-        env:
-        - name: RABBITMQ_DEFAULT_USER
-          valueFrom:
-            secretKeyRef:
-              name: rabbitmq-secrets
-              key: username
-        - name: RABBITMQ_DEFAULT_PASS
-          valueFrom:
-            secretKeyRef:
-              name: rabbitmq-secrets
-              key: password
         volumeMounts:
         - name: rabbitmq-storage
           mountPath: /var/lib/rabbitmq
         - name: init-script
-          mountPath: /docker-entrypoint-initdb.d
+          mountPath: /docker-entrypoint-initdb.d/init-rabbitmq.sh
+          subPath: init-rabbitmq.sh
       volumes:
       - name: init-script
         configMap:
           name: rabbitmq-init-script
+          defaultMode: 0755
   volumeClaimTemplates:
   - metadata:
       name: rabbitmq-storage
@@ -54,7 +54,7 @@ spec:
       storageClassName: "linode-block-storage"
       resources:
         requests:
-          storage: 40Gi
+          storage: 30Gi
 ---
 apiVersion: v1
 kind: Service

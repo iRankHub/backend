@@ -3,8 +3,7 @@ package notification
 import (
 	"fmt"
 	"net/smtp"
-
-	"github.com/spf13/viper"
+	"os"
 )
 
 type EmailSender interface {
@@ -18,10 +17,10 @@ func NewSMTPEmailSender() *SMTPEmailSender {
 }
 
 func (s *SMTPEmailSender) SendEmail(to, subject, body string) error {
-	from := viper.GetString("EMAIL_FROM")
-	password := viper.GetString("EMAIL_PASSWORD")
-	smtpHost := viper.GetString("SMTP_HOST")
-	smtpPort := viper.GetString("SMTP_PORT")
+	from := os.Getenv("EMAIL_FROM")
+	password := os.Getenv("EMAIL_PASSWORD")
+	smtpHost := os.Getenv("SMTP_HOST")
+	smtpPort := os.Getenv("SMTP_PORT")
 
 	auth := smtp.PlainAuth("", from, password, smtpHost)
 

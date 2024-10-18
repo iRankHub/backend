@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: backend
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: backend
@@ -12,50 +12,32 @@ spec:
       labels:
         app: backend
     spec:
+      initContainers:
+      - name: wait-for-envoy
+        image: busybox
+        command: ['sh', '-c', 'until nc -z envoy 10000; do echo waiting for envoy; sleep 2; done;']
+      - name: wait-for-rabbitmq
+        image: busybox
+        command: ['sh', '-c', 'until nc -z rabbitmq 5672; do echo waiting for rabbitmq; sleep 2; done;']
+      - name: wait-for-postgres
+        image: busybox
+        command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for postgres; sleep 2; done;']
       containers:
       - name: backend
         image: josycoder/irankhub:backend-latest
+        imagePullPolicy: Always
         resources:
           requests:
-            memory: "1.5Gi"
-            cpu: "0.4"
+            memory: "512Mi"
+            cpu: "200m"
           limits:
-            memory: "1.5Gi"
-            cpu: "0.4"
+            memory: "1Gi"
+            cpu: "400m"
         envFrom:
         - configMapRef:
             name: app-config
         - secretRef:
             name: app-secrets
-        env:
-        - name: DB_HOST
-          value: postgres
-        - name: DB_PORT
-          value: "5432"
-        - name: DB_USER
-          valueFrom:
-            secretKeyRef:
-              name: db-secrets
-              key: username
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: db-secrets
-              key: password
-        - name: DB_NAME
-          value: irankdb
-        - name: RABBITMQ_URL
-          value: "amqp://$(RABBITMQ_USER):$(RABBITMQ_PASSWORD)@rabbitmq:5672/"
-        - name: RABBITMQ_USER
-          valueFrom:
-            secretKeyRef:
-              name: rabbitmq-secrets
-              key: username
-        - name: RABBITMQ_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: rabbitmq-secrets
-              key: password
         ports:
         - containerPort: 8080
       imagePullSecrets:
@@ -70,3 +52,4 @@ spec:
     app: backend
   ports:
     - port: 8080
+      targetPort: 8080

@@ -3,20 +3,12 @@ package envoy
 import (
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
-
-	"github.com/spf13/viper"
 )
 
 func StartEnvoyProxy() error {
-	// Load configuration from .env file
-	viper.SetConfigFile(".env")
-	err := viper.ReadInConfig()
-	if err != nil {
-		return fmt.Errorf("failed to read configuration file: %v", err)
-	}
-
 	// Run the Envoy config generator
 	log.Println("Generating Envoy configuration...")
 	genCmd := exec.Command("go", "run", "./cmd/envoy/envoy.go")
@@ -24,10 +16,10 @@ func StartEnvoyProxy() error {
 		return fmt.Errorf("failed to generate Envoy config: %v\nOutput: %s", err, output)
 	}
 
-	// Get Envoy Proxy configuration from Viper
-	envoyContainerName := viper.GetString("ENVOY_CONTAINER_NAME")
-	envoyListenerPort := viper.GetString("ENVOY_LISTENER_PORT")
-	envoyAdminPort := viper.GetString("ENVOY_ADMIN_PORT")
+	// Get Envoy Proxy configuration from environment variables
+	envoyContainerName := os.Getenv("ENVOY_CONTAINER_NAME")
+	envoyListenerPort := os.Getenv("ENVOY_LISTENER_PORT")
+	envoyAdminPort := os.Getenv("ENVOY_ADMIN_PORT")
 
 	// Check if the Envoy Proxy container is already running
 	checkCmd := exec.Command("docker", "ps", "-q", "-f", fmt.Sprintf("name=%s", envoyContainerName))
@@ -55,7 +47,7 @@ func StartEnvoyProxy() error {
 		"-v", fmt.Sprintf("%s:/etc/envoy/envoy.yaml", configPath),
 		envoyContainerName)
 
-	output, err = runCmd.CombinedOutput()
+	output, err := runCmd.CombinedOutput()
 	if err != nil {
 		log.Printf("Docker run command: %s", runCmd.String())
 		log.Printf("Docker run output: %s", string(output))

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 
-	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
@@ -57,8 +57,10 @@ func StartGRPCServer(db *sql.DB) error {
 	notification.RegisterNotificationServiceServer(grpcServer, notificationServer)
 
 	// Read the gRPC server port from the environment
-	viper.SetDefault("GRPC_PORT", "8080")
-	grpcPort := viper.GetString("GRPC_PORT")
+	grpcPort := os.Getenv("GRPC_PORT")
+	if grpcPort == "" {
+		grpcPort = "8080" // Default port if not set
+	}
 
 	// Start the gRPC server on the specified port
 	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%s", grpcPort))

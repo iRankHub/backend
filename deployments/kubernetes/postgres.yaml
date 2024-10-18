@@ -13,29 +13,28 @@ spec:
       labels:
         app: postgres
     spec:
+      initContainers:
+      - name: wait-for-envoy
+        image: busybox
+        command: ['sh', '-c', 'until nc -z envoy 10000; do echo waiting for envoy; sleep 2; done;']
+      - name: wait-for-rabbitmq
+        image: busybox
+        command: ['sh', '-c', 'until nc -z rabbitmq 5672; do echo waiting for rabbitmq; sleep 2; done;']
       containers:
       - name: postgres
-        image: josycoder/irankhub:postgres-latest
+        image: postgres:13-alpine
         resources:
           requests:
-            memory: "4Gi"
-            cpu: "1"
+            memory: "1Gi"
+            cpu: "500m"
           limits:
-            memory: "4Gi"
+            memory: "2Gi"
             cpu: "1"
-        env:
-        - name: POSTGRES_DB
-          value: irankdb
-        - name: POSTGRES_USER
-          valueFrom:
-            secretKeyRef:
-              name: db-secrets
-              key: username
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: db-secrets
-              key: password
+        envFrom:
+        - configMapRef:
+            name: app-config
+        - secretRef:
+            name: app-secrets
         ports:
         - containerPort: 5432
         volumeMounts:
@@ -55,7 +54,7 @@ spec:
       storageClassName: "linode-block-storage"
       resources:
         requests:
-          storage: 100Gi
+          storage: 30Gi
 ---
 apiVersion: v1
 kind: Service
@@ -66,4 +65,4 @@ spec:
     app: postgres
   ports:
     - port: 5432
-      
+      targetPort: 5432

@@ -3,21 +3,13 @@ package utils
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
-
-	"github.com/spf13/viper"
 
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/services/notification"
 )
 
-func init() {
-	viper.SetConfigFile(".env")
-	if err := viper.ReadInConfig(); err != nil {
-		fmt.Printf("Error reading config file: %s\n", err)
-	}
-	viper.AutomaticEnv()
-}
 
 func SendReminderEmails(ctx context.Context, notificationService *notification.NotificationService, invitations []models.GetPendingInvitationsRow, queries *models.Queries) error {
 	var errors []error
@@ -85,7 +77,7 @@ func sendSingleReminderEmail(ctx context.Context, notificationService *notificat
 }
 
 func prepareReminderEmailContent(recipientType, tournamentName string, timeUntilTournament time.Duration, invitationID int32, reminderType string) string {
-	actionURL := fmt.Sprintf("%s/invitation/%d", viper.GetString("FRONTEND_URL"), invitationID)
+	actionURL := fmt.Sprintf("%s/invitation/%d", os.Getenv("FRONTEND_URL"), invitationID)
 	tournamentStart := time.Now().Add(timeUntilTournament)
 
 	var content string

@@ -5,11 +5,11 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/o1egl/paseto"
-	"github.com/spf13/viper"
 )
 
 var (
@@ -19,12 +19,8 @@ var (
 )
 
 func InitializeTokenConfig() error {
-	viper.SetDefault("TOKEN_PUBLIC_KEY", "")
-	viper.SetDefault("TOKEN_PRIVATE_KEY", "")
-	viper.AutomaticEnv()
-
-	publicKeyStr := viper.GetString("TOKEN_PUBLIC_KEY")
-	privateKeyStr := viper.GetString("TOKEN_PRIVATE_KEY")
+	publicKeyStr := os.Getenv("TOKEN_PUBLIC_KEY")
+	privateKeyStr := os.Getenv("TOKEN_PRIVATE_KEY")
 
 	if publicKeyStr == "" || privateKeyStr == "" {
 		pub, priv, err := GeneratePasetoKeyPair()
@@ -35,9 +31,8 @@ func InitializeTokenConfig() error {
 		publicKey = pub
 		privateKey = priv
 
-		viper.Set("TOKEN_PUBLIC_KEY", base64.StdEncoding.EncodeToString(pub))
-		viper.Set("TOKEN_PRIVATE_KEY", base64.StdEncoding.EncodeToString(priv))
-		viper.WriteConfig()
+		os.Setenv("TOKEN_PUBLIC_KEY", base64.StdEncoding.EncodeToString(pub))
+		os.Setenv("TOKEN_PRIVATE_KEY", base64.StdEncoding.EncodeToString(priv))
 	} else {
 		pub, err := base64.StdEncoding.DecodeString(publicKeyStr)
 		if err != nil {

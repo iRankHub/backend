@@ -5,13 +5,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/spf13/viper"
+
 )
 
 type S3Client struct {
@@ -20,10 +21,10 @@ type S3Client struct {
 }
 
 func NewS3Client() (*S3Client, error) {
-	endpoint := viper.GetString("S3_ENDPOINT")
-	accessKey := viper.GetString("S3_ACCESS_KEY")
-	secretKey := viper.GetString("S3_SECRET_KEY")
-	bucket := viper.GetString("S3_BUCKET")
+	endpoint := os.Getenv("S3_ENDPOINT")
+	accessKey := os.Getenv("S3_ACCESS_KEY")
+	secretKey := os.Getenv("S3_SECRET_KEY")
+	bucket := os.Getenv("S3_BUCKET")
 
 	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		return aws.Endpoint{
@@ -58,7 +59,7 @@ func (s *S3Client) UploadFile(ctx context.Context, key string, data []byte, cont
 		return "", fmt.Errorf("failed to upload file: %v", err)
 	}
 
-	return fmt.Sprintf("https://%s.%s/%s", s.bucket, viper.GetString("S3_ENDPOINT"), key), nil
+	return fmt.Sprintf("https://%s.%s/%s", s.bucket, os.Getenv("S3_ENDPOINT"), key), nil
 }
 
 func (s *S3Client) GetSignedURL(ctx context.Context, key string, expires time.Duration) (string, error) {

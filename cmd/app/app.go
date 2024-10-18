@@ -10,7 +10,6 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/spf13/viper"
 
 	"github.com/iRankHub/backend/internal/config"
 	"github.com/iRankHub/backend/internal/grpc/server"
@@ -19,18 +18,14 @@ import (
 
 func StartBackend() {
     // Load the database configuration from environment variables
-	dbConfig := &config.DatabaseConfig{
-		Host:     viper.GetString("DB_HOST"),
-		Port:     viper.GetInt("DB_PORT"),
-		User:     viper.GetString("DB_USER"),
-		Password: viper.GetString("DB_PASSWORD"),
-		Name:     viper.GetString("DB_NAME"),
-		Ssl:      viper.GetString("DB_SSL"),
-	}
+    dbConfig, err := config.LoadDatabaseConfig()
+    if err != nil {
+        log.Fatalf("Failed to load database configuration: %v", err)
+    }
 
     // Connect to the database
-	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
-		dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.Name, dbConfig.Ssl)
+    connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+        dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.Name, dbConfig.Ssl)
     db, err := sql.Open("pgx", connString)
     if err != nil {
         log.Fatalf("Failed to connect to the database: %v", err)
@@ -38,15 +33,15 @@ func StartBackend() {
     log.Println("Successfully connected to the database")
     defer db.Close()
 
-	// Set connection pool settings
-	db.SetMaxOpenConns(100)  // Potential number of concurrent users
-	db.SetMaxIdleConns(50)   // Half of max open connections
-	db.SetConnMaxLifetime(time.Minute * 5)  // Recycle connections after 5 minutes
+    // Set connection pool settings
+    db.SetMaxOpenConns(100)  // Potential number of concurrent users
+    db.SetMaxIdleConns(50)   // Half of max open connections
+    db.SetConnMaxLifetime(time.Minute * 5)  // Recycle connections after 5 minutes
 
-	// Verify connection
-	if err = db.Ping(); err != nil {
-		log.Fatalf("Failed to ping database: %v", err)
-	}
+    // Verify connection
+    if err = db.Ping(); err != nil {
+        log.Fatalf("Failed to ping database: %v", err)
+    }
 
     // Run database migrations
     migrationPath := "file://internal/database/postgres/migrations"

@@ -5,8 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-
-	"github.com/spf13/viper"
+	"strconv"
 )
 
 type EnvoyConfig struct {
@@ -20,20 +19,18 @@ type EnvoyConfig struct {
 }
 
 func main() {
-	viper.SetConfigFile(".env")
-	err := viper.ReadInConfig()
-	if err != nil {
-		log.Fatalf("Error reading config file: %s", err)
-	}
+	listenerPort, _ := strconv.Atoi(os.Getenv("ENVOY_LISTENER_PORT"))
+	backendPort, _ := strconv.Atoi(os.Getenv("BACKEND_SERVICE_PORT"))
+	adminPort, _ := strconv.Atoi(os.Getenv("ENVOY_ADMIN_PORT"))
 
 	config := EnvoyConfig{
-		ENVOY_LISTENER_PORT:           viper.GetInt("ENVOY_LISTENER_PORT"),
-		ENVOY_ROUTE_TIMEOUT:           viper.GetString("ENVOY_ROUTE_TIMEOUT"),
-		ENVOY_CORS_MAX_AGE:            viper.GetString("ENVOY_CORS_MAX_AGE"),
-		ENVOY_BACKEND_CONNECT_TIMEOUT: viper.GetString("ENVOY_BACKEND_CONNECT_TIMEOUT"),
-		BACKEND_SERVICE_HOST:          viper.GetString("BACKEND_SERVICE_HOST"),
-		BACKEND_SERVICE_PORT:          viper.GetInt("BACKEND_SERVICE_PORT"),
-		ENVOY_ADMIN_PORT:              viper.GetInt("ENVOY_ADMIN_PORT"),
+		ENVOY_LISTENER_PORT:           listenerPort,
+		ENVOY_ROUTE_TIMEOUT:           os.Getenv("ENVOY_ROUTE_TIMEOUT"),
+		ENVOY_CORS_MAX_AGE:            os.Getenv("ENVOY_CORS_MAX_AGE"),
+		ENVOY_BACKEND_CONNECT_TIMEOUT: os.Getenv("ENVOY_BACKEND_CONNECT_TIMEOUT"),
+		BACKEND_SERVICE_HOST:          os.Getenv("BACKEND_SERVICE_HOST"),
+		BACKEND_SERVICE_PORT:          backendPort,
+		ENVOY_ADMIN_PORT:              adminPort,
 	}
 
 	templatePath, _ := filepath.Abs("./envoy/envoy.yaml.template")

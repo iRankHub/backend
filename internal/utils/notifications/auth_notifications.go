@@ -2,22 +2,13 @@ package utils
 
 import (
 	"fmt"
-
-	"github.com/spf13/viper"
+	"os"
 
 	"github.com/iRankHub/backend/internal/services/notification"
 )
 
-func init() {
-	viper.SetConfigFile(".env")
-	if err := viper.ReadInConfig(); err != nil {
-		fmt.Printf("Error reading config file: %s\n", err)
-	}
-	viper.AutomaticEnv()
-}
-
 func getAuthEmailTemplate(content string) string {
-	logoURL := viper.GetString("LOGO_URL")
+	logoURL := os.Getenv("LOGO_URL")
 	if logoURL == "" {
 		logoURL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSy1c8yfmVvRgCThDUvkJTmpTrV92ANV7iSRQ&s"
 	}
@@ -98,12 +89,12 @@ func SendPasswordResetEmail(notificationService *notification.NotificationServic
 	content := fmt.Sprintf(`
         <p>We received a request to reset your password. If you didn't make this request, you can ignore this email.</p>
         <p>To reset your password, click the button below:</p>
-        <p><a href="https://irankhub.com/reset-password?token=%s" style="background-color: #4CAF50; color: white; padding: 14px 20px; text-align: center; text-decoration: none; display: inline-block;">Reset Password</a></p>
+        <p><a href="%s/reset-password?token=%s" style="background-color: #4CAF50; color: white; padding: 14px 20px; text-align: center; text-decoration: none; display: inline-block;">Reset Password</a></p>
         <p>This link will expire in 15 minutes.</p>
         <p>If you're having trouble, copy and paste the following URL into your web browser:</p>
-        <p>https://irankhub.com/reset-password?token=%s</p>
+        <p>%s/reset-password?token=%s</p>
         <p>Best regards,<br>The iRankHub Team</p>
-    `, resetToken, resetToken)
+    `, os.Getenv("FRONTEND_URL"), resetToken, os.Getenv("FRONTEND_URL"), resetToken)
 	body := getAuthEmailTemplate(content)
 	return SendNotification(notificationService, notification.EmailNotification, to, subject, body)
 }
@@ -113,13 +104,13 @@ func SendForcedPasswordResetEmail(notificationService *notification.Notification
 	content := fmt.Sprintf(`
         <p>We've detected multiple failed login attempts on your account. As a security measure, we've temporarily locked your account and are requiring a password reset.</p>
         <p>To reset your password and regain access to your account, click the button below:</p>
-        <p><a href="https://irankhub.com/forced-reset-password?token=%s" style="background-color: #f44336; color: white; padding: 14px 20px; text-align: center; text-decoration: none; display: inline-block;">Reset Password Now</a></p>
+        <p><a href="%s/forced-reset-password?token=%s" style="background-color: #f44336; color: white; padding: 14px 20px; text-align: center; text-decoration: none; display: inline-block;">Reset Password Now</a></p>
         <p>This link will expire in 15 minutes.</p>
         <p>If you're having trouble, copy and paste the following URL into your web browser:</p>
-        <p>https://irankhub.com/forced-reset-password?token=%s</p>
+        <p>%s/forced-reset-password?token=%s</p>
         <p>If you didn't attempt to log in recently, please contact our support team immediately as your account may be at risk.</p>
         <p>Best regards,<br>The iRankHub Security Team</p>
-    `, resetToken, resetToken)
+    `, os.Getenv("FRONTEND_URL"), resetToken, os.Getenv("FRONTEND_URL"), resetToken)
 	body := getAuthEmailTemplate(content)
 	return SendNotification(notificationService, notification.EmailNotification, to, subject, body)
 }
