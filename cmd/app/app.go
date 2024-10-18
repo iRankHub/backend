@@ -3,6 +3,7 @@ package app
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"log"
 	"time"
 
@@ -47,12 +48,31 @@ func StartBackend() {
     migrationPath := "file:///app/internal/database/postgres/migrations"
     m, err := migrate.New(migrationPath, connString)
     if err != nil {
-        log.Fatalf("Failed to create migrate instance: %v", err)
+        log.Printf("Failed to create migrate instance: %v", err)
+        // List the contents of the directory
+        files, err := os.ReadDir("/app/internal/database/postgres/migrations")
+        if err != nil {
+            log.Printf("Error reading migration directory: %v", err)
+        } else {
+            log.Println("Contents of migration directory:")
+            for _, file := range files {
+                log.Println(file.Name())
+            }
+        }
+        log.Fatalf("Migration setup failed")
     }
-    if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-        log.Fatalf("Failed to run database migrations: %v", err)
+
+    log.Println("Migration instance created successfully")
+
+    if err := m.Up(); err != nil {
+        if err == migrate.ErrNoChange {
+            log.Println("No new migrations to apply")
+        } else {
+            log.Fatalf("Failed to apply migrations: %v", err)
+        }
+    } else {
+        log.Println("Successfully applied database migrations")
     }
-    log.Println("Successfully ran database migrations")
 
     // Initialize the token configuration
     err = utils.InitializeTokenConfig()
