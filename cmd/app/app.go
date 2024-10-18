@@ -3,8 +3,8 @@ package app
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"log"
+	"os"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -35,43 +35,34 @@ func StartBackend() {
     defer db.Close()
 
     // Set connection pool settings
-    db.SetMaxOpenConns(100)  // Potential number of concurrent users
-    db.SetMaxIdleConns(50)   // Half of max open connections
-    db.SetConnMaxLifetime(time.Minute * 5)  // Recycle connections after 5 minutes
+    db.SetMaxOpenConns(100)
+    db.SetMaxIdleConns(50)
+    db.SetConnMaxLifetime(time.Minute * 5)
 
     // Verify connection
     if err = db.Ping(); err != nil {
         log.Fatalf("Failed to ping database: %v", err)
     }
 
-    // Run database migrations
-    migrationPath := "file:///app/internal/database/postgres/migrations"
-    m, err := migrate.New(migrationPath, connString)
-    if err != nil {
-        log.Printf("Failed to create migrate instance: %v", err)
-        // List the contents of the directory
-        files, err := os.ReadDir("/app/internal/database/postgres/migrations")
+    // Run database migrations only in development
+    if os.Getenv("GO_ENV") != "production" {
+        migrationPath := "file://internal/database/postgres/migrations"
+        m, err := migrate.New(migrationPath, connString)
         if err != nil {
-            log.Printf("Error reading migration directory: %v", err)
-        } else {
-            log.Println("Contents of migration directory:")
-            for _, file := range files {
-                log.Println(file.Name())
-            }
+            log.Fatalf("Failed to create migrate instance: %v", err)
         }
-        log.Fatalf("Migration setup failed")
-    }
 
-    log.Println("Migration instance created successfully")
-
-    if err := m.Up(); err != nil {
-        if err == migrate.ErrNoChange {
-            log.Println("No new migrations to apply")
+        if err := m.Up(); err != nil {
+            if err == migrate.ErrNoChange {
+                log.Println("No new migrations to apply")
+            } else {
+                log.Fatalf("Failed to apply migrations: %v", err)
+            }
         } else {
-            log.Fatalf("Failed to apply migrations: %v", err)
+            log.Println("Successfully applied database migrations")
         }
     } else {
-        log.Println("Successfully applied database migrations")
+        log.Println("Skipping migrations in production environment")
     }
 
     // Initialize the token configuration
