@@ -44,3 +44,10 @@ spec:
   ports:
     - port: 80
       targetPort: 10000
+      name: http-80
+    - port: 10000
+      targetPort: 10000
+      name: http-10000
+    - port: 9901
+      targetPort: 9901
+      name: admin

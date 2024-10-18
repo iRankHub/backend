@@ -44,7 +44,7 @@ func StartBackend() {
     }
 
     // Run database migrations
-    migrationPath := "file://internal/database/postgres/migrations"
+    migrationPath := "file:///app/internal/database/postgres/migrations"
     m, err := migrate.New(migrationPath, connString)
     if err != nil {
         log.Fatalf("Failed to create migrate instance: %v", err)

@@ -13,13 +13,7 @@ spec:
       labels:
         app: postgres
     spec:
-      initContainers:
-      - name: wait-for-envoy
-        image: busybox
-        command: ['sh', '-c', 'until nc -z envoy 10000; do echo waiting for envoy; sleep 2; done;']
-      - name: wait-for-rabbitmq
-        image: busybox
-        command: ['sh', '-c', 'until nc -z rabbitmq 5672; do echo waiting for rabbitmq; sleep 2; done;']
+      terminationGracePeriodSeconds: 10
       containers:
       - name: postgres
         image: postgres:13-alpine
@@ -30,16 +24,28 @@ spec:
           limits:
             memory: "2Gi"
             cpu: "1"
-        envFrom:
-        - configMapRef:
-            name: app-config
-        - secretRef:
-            name: app-secrets
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: DB_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: DB_PASSWORD
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: DB_NAME
         ports:
         - containerPort: 5432
         volumeMounts:
         - name: postgres-storage
           mountPath: /var/lib/postgresql/data
+          subPath: postgres
         - name: init-script
           mountPath: /docker-entrypoint-initdb.d
       volumes:
