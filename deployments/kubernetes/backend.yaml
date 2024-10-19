@@ -12,6 +12,9 @@ spec:
       labels:
         app: backend
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: lke246307-390837-0a15051f0000
+      terminationGracePeriodSeconds: 10
       initContainers:
       - name: wait-for-envoy
         image: busybox

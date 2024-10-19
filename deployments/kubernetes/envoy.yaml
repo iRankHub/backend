@@ -12,6 +12,8 @@ spec:
       labels:
         app: envoy
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: lke246307-390838-5911832b0000
       containers:
       - name: envoy
         image: envoyproxy/envoy:v1.30-latest

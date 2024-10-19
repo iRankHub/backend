@@ -13,6 +13,8 @@ spec:
       labels:
         app: rabbitmq
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: lke246307-390838-5911832b0000
       terminationGracePeriodSeconds: 10
       containers:
       - name: rabbitmq

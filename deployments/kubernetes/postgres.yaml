@@ -13,6 +13,8 @@ spec:
       labels:
         app: postgres
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: lke246307-390837-0a15051f0000
       terminationGracePeriodSeconds: 10
       containers:
       - name: postgres
