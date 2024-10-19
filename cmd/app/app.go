@@ -28,7 +28,12 @@ func StartBackend() {
 	// Check if we're in development mode
 	isDevMode, err := checkDevMode()
 	if err != nil {
-		log.Fatalf("Error checking development mode: %v", err)
+		if os.IsNotExist(err) {
+			log.Println("No .env file found. Assuming production mode.")
+			isDevMode = false
+		} else {
+			log.Fatalf("Error checking development mode: %v", err)
+		}
 	}
 
 	if isDevMode {
@@ -42,13 +47,15 @@ func StartBackend() {
 		})
 
 		// Start Envoy proxy in development mode
-		err = envoy.StartEnvoyProxy()
+		err := envoy.StartEnvoyProxy()
 		if err != nil {
 			log.Printf("Warning: Failed to start Envoy proxy: %v", err)
 			// Note: We're logging this as a warning instead of fatally exiting
 		} else {
 			fmt.Println("Envoy proxy started or was already running")
 		}
+	} else {
+		log.Println("Running in production mode")
 	}
 
 	// Load the database configuration from environment variables
@@ -116,7 +123,7 @@ func StartBackend() {
 func checkDevMode() (bool, error) {
 	file, err := os.Open(".env")
 	if err != nil {
-		return false, fmt.Errorf("error opening .env file: %w", err)
+		return false, err
 	}
 	defer file.Close()
 

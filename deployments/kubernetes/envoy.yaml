@@ -24,7 +24,9 @@ spec:
             cpu: "500m"
         ports:
         - containerPort: 10000
+          hostPort: 10000
         - containerPort: 9901
+          hostPort: 9901
         volumeMounts:
         - name: envoy-config
           mountPath: /etc/envoy
@@ -38,16 +40,13 @@ kind: Service
 metadata:
   name: envoy
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: envoy
   ports:
-    - port: 80
-      targetPort: 10000
-      name: http-80
     - port: 10000
       targetPort: 10000
-      name: http-10000
+      name: http
     - port: 9901
       targetPort: 9901
       name: admin
