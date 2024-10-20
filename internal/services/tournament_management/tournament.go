@@ -166,7 +166,8 @@ func (s *TournamentService) GetTournament(ctx context.Context, req *tournament_m
         if err != nil {
             return nil, fmt.Errorf("failed to create S3 client: %v", err)
         }
-        presignedURL, err := s3Client.GetSignedURL(ctx, tournament.Imageurl.String, time.Hour)
+        key := utils.ExtractKeyFromURL(tournament.Imageurl.String)
+        presignedURL, err := s3Client.GetSignedURL(ctx, key, time.Hour)
         if err != nil {
             return nil, fmt.Errorf("failed to generate presigned URL: %v", err)
         }
@@ -199,7 +200,8 @@ func (s *TournamentService) ListTournaments(ctx context.Context, req *tournament
     for i, tournament := range tournaments {
         tournamentResponses[i] = tournamentPaginatedRowToProto(tournament)
         if tournament.Imageurl.Valid && tournament.Imageurl.String != "" {
-            presignedURL, err := s3Client.GetSignedURL(ctx, tournament.Imageurl.String, time.Hour)
+            key := utils.ExtractKeyFromURL(tournament.Imageurl.String)
+            presignedURL, err := s3Client.GetSignedURL(ctx, key, time.Hour)
             if err != nil {
                 return nil, fmt.Errorf("failed to generate presigned URL: %v", err)
             }
@@ -377,7 +379,8 @@ func (s *TournamentService) UpdateTournament(ctx context.Context, req *tournamen
         if err != nil {
             return nil, fmt.Errorf("failed to create S3 client: %v", err)
         }
-        presignedURL, err := s3Client.GetSignedURL(ctx, result.Imageurl.String, time.Hour)
+        key := utils.ExtractKeyFromURL(result.Imageurl.String)
+        presignedURL, err := s3Client.GetSignedURL(ctx, key, time.Hour)
         if err != nil {
             return nil, fmt.Errorf("failed to generate presigned URL: %v", err)
         }
