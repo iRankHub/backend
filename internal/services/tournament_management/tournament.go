@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -342,16 +343,17 @@ func (s *TournamentService) UpdateTournament(ctx context.Context, req *tournamen
 		Tournamentfee:              fmt.Sprintf("%.2f", req.GetTournamentFee()),
 		Imageurl:                   sql.NullString{String: req.GetImageUrl(), Valid: req.GetImageUrl() != ""},
 	})
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("pairings have already been made")
-		}
-		return nil, fmt.Errorf("failed to update tournament details: %v", err)
-	}
+    if err != nil {
+        if err == sql.ErrNoRows {
+            return nil, fmt.Errorf("pairings have already been made")
+        }
+        return nil, fmt.Errorf("failed to update tournament details: %v", err)
+    }
 
-	if result.ErrorMessage.(bool) && result.ErrorMessage.(string) != "" {
-		return nil, fmt.Errorf(result.ErrorMessage.(string))
-	}
+    // Check if ErrorMessage is not nil and is a string
+    if errMsg, ok := result.ErrorMessage.(string); ok && errMsg != "" {
+		return nil, errors.New(errMsg)
+    }
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %v", err)
