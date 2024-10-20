@@ -448,7 +448,8 @@ func (s *UserManagementService) GetUserProfile(ctx context.Context, token string
     // Generate presigned URL for profile picture
     var profilePicturePresignedURL string
     if profile.Profilepicture.Valid && profile.Profilepicture.String != "" {
-        profilePicturePresignedURL, err = s.s3Client.GetSignedURL(ctx, profile.Profilepicture.String, time.Hour)
+        key := utils.ExtractKeyFromURL(profile.Profilepicture.String)
+        profilePicturePresignedURL, err = s.s3Client.GetSignedURL(ctx, key, time.Hour)
         if err != nil {
             return nil, "", fmt.Errorf("failed to generate presigned URL for profile picture: %v", err)
         }
@@ -499,7 +500,8 @@ func (s *UserManagementService) UpdateAdminProfile(ctx context.Context, token st
     // Generate presigned URL for profile picture
     var profilePicturePresignedURL string
     if req.ProfilePictureUrl != "" {
-        profilePicturePresignedURL, err = s.s3Client.GetSignedURL(ctx, req.ProfilePictureUrl, time.Hour)
+        key := utils.ExtractKeyFromURL(req.ProfilePictureUrl)
+        profilePicturePresignedURL, err = s.s3Client.GetSignedURL(ctx, key, time.Hour)
         if err != nil {
             return "", fmt.Errorf("failed to generate presigned URL for profile picture: %v", err)
         }
@@ -572,10 +574,12 @@ func (s *UserManagementService) UpdateSchoolProfile(ctx context.Context, token s
 	if err := tx.Commit(); err != nil {
 		return "",fmt.Errorf("failed to commit transaction: %v", err)
 	}
+	
     // Generate presigned URL for profile picture
     var profilePicturePresignedURL string
     if req.ProfilePictureUrl != "" {
-        profilePicturePresignedURL, err = s.s3Client.GetSignedURL(ctx, req.ProfilePictureUrl, time.Hour)
+        key := utils.ExtractKeyFromURL(req.ProfilePictureUrl)
+        profilePicturePresignedURL, err = s.s3Client.GetSignedURL(ctx, key, time.Hour)
         if err != nil {
             return "", fmt.Errorf("failed to generate presigned URL for profile picture: %v", err)
         }
@@ -659,7 +663,8 @@ func (s *UserManagementService) UpdateStudentProfile(ctx context.Context, token 
     // Generate presigned URL for profile picture
     var profilePicturePresignedURL string
     if req.ProfilePictureUrl != "" {
-        profilePicturePresignedURL, err = s.s3Client.GetSignedURL(ctx, req.ProfilePictureUrl, time.Hour)
+        key := utils.ExtractKeyFromURL(req.ProfilePictureUrl)
+        profilePicturePresignedURL, err = s.s3Client.GetSignedURL(ctx, key, time.Hour)
         if err != nil {
             return "", fmt.Errorf("failed to generate presigned URL for profile picture: %v", err)
         }
@@ -740,13 +745,15 @@ func (s *UserManagementService) UpdateVolunteerProfile(ctx context.Context, toke
     // Generate presigned URLs
     var profilePicturePresignedURL, safeguardCertificatePresignedURL string
     if req.ProfilePictureUrl != "" {
-        profilePicturePresignedURL, err = s.s3Client.GetSignedURL(ctx, req.ProfilePictureUrl, time.Hour)
+        key := utils.ExtractKeyFromURL(req.ProfilePictureUrl)
+        profilePicturePresignedURL, err = s.s3Client.GetSignedURL(ctx, key, time.Hour)
         if err != nil {
             return "", "", fmt.Errorf("failed to generate presigned URL for profile picture: %v", err)
         }
     }
     if req.SafeguardCertificateUrl != "" {
-        safeguardCertificatePresignedURL, err = s.s3Client.GetSignedURL(ctx, req.SafeguardCertificateUrl, time.Hour)
+        key := utils.ExtractKeyFromURL(req.SafeguardCertificateUrl)
+        safeguardCertificatePresignedURL, err = s.s3Client.GetSignedURL(ctx, key, time.Hour)
         if err != nil {
             return "", "", fmt.Errorf("failed to generate presigned URL for safeguard certificate: %v", err)
         }

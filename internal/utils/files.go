@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -21,6 +22,7 @@ type S3Client struct {
 }
 
 func NewS3Client() (*S3Client, error) {
+	region := os.Getenv("S3_REGION")
 	endpoint := os.Getenv("S3_ENDPOINT")
 	accessKey := os.Getenv("S3_ACCESS_KEY")
 	secretKey := os.Getenv("S3_SECRET_KEY")
@@ -28,19 +30,24 @@ func NewS3Client() (*S3Client, error) {
 
 	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		return aws.Endpoint{
-			URL: endpoint,
+			URL:               fmt.Sprintf("https://%s", endpoint),
+			HostnameImmutable: true,
+			SigningRegion:     region,
 		}, nil
 	})
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithEndpointResolverWithOptions(customResolver),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
+		config.WithRegion(region),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load S3 config: %v", err)
 	}
 
-	client := s3.NewFromConfig(cfg)
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.UsePathStyle = true // Force path-style addressing
+	})
 
 	return &S3Client{
 		client: client,
@@ -99,4 +106,10 @@ func (s *S3Client) DeleteFile(ctx context.Context, key string) error {
 	}
 
 	return nil
+}
+
+// Helper function to extract the key from a full URL
+func ExtractKeyFromURL(url string) string {
+	parts := strings.Split(url, "/")
+	return strings.Join(parts[4:], "/")
 }
