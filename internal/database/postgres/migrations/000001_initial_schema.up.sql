@@ -122,7 +122,8 @@ CREATE TABLE Tournaments (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP,
     yesterday_total_count INT DEFAULT 0,
-    yesterday_upcoming_count INT DEFAULT 0
+    yesterday_upcoming_count INT DEFAULT 0,
+    yesterday_active_debaters_count INT DEFAULT 0
 );
 
 CREATE TABLE Rooms (
@@ -641,7 +642,15 @@ BEGIN
   UPDATE Tournaments
   SET
     yesterday_total_count = (SELECT COUNT(*) FROM Tournaments WHERE deleted_at IS NULL),
-    yesterday_upcoming_count = (SELECT COUNT(*) FROM Tournaments WHERE deleted_at IS NULL AND StartDate BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days')
+    yesterday_upcoming_count = (SELECT COUNT(*) FROM Tournaments WHERE deleted_at IS NULL AND StartDate BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'),
+    yesterday_active_debaters_count = (
+      SELECT COUNT(DISTINCT tm.StudentID)
+      FROM TeamMembers tm
+      JOIN Teams t ON tm.TeamID = t.TeamID
+      JOIN Students s ON tm.StudentID = s.StudentID
+      JOIN Tournaments tour ON t.TournamentID = tour.TournamentID
+      WHERE tour.deleted_at IS NULL
+    )
   WHERE TournamentID = (SELECT MIN(TournamentID) FROM Tournaments);
 END;
 $$ LANGUAGE plpgsql;

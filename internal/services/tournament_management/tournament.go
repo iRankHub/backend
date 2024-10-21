@@ -216,25 +216,38 @@ func (s *TournamentService) ListTournaments(ctx context.Context, req *tournament
 }
 
 func (s *TournamentService) GetTournamentStats(ctx context.Context, req *tournament_management.GetTournamentStatsRequest) (*tournament_management.GetTournamentStatsResponse, error) {
-	_, err := s.validateAdminRole(req.GetToken())
+	claims, err := utils.ValidateToken(req.GetToken())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("authentication failed: %v", err)
 	}
 
+	// Extract school ID from token
+	schoolIDFloat, ok := claims["school_id"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("school_id not found in token")
+	}
+	schoolID := int32(schoolIDFloat)
+
 	queries := models.New(s.db)
-	stats, err := queries.GetTournamentStats(ctx)
+	stats, err := queries.GetTournamentStats(ctx, schoolID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tournament stats: %v", err)
 	}
 
 	totalPercentageChange := calculatePercentageChange(int64(stats.YesterdayTotalCount.Int32), stats.TotalTournaments)
 	upcomingPercentageChange := calculatePercentageChange(int64(stats.YesterdayUpcomingCount.Int32), stats.UpcomingTournaments)
+	activeDebatersPercentageChange := calculatePercentageChange(
+		int64(stats.YesterdayActiveDebatersCount.Int32),
+		stats.ActiveDebaterCount,
+	)
 
 	return &tournament_management.GetTournamentStatsResponse{
-		TotalTournaments:         int32(stats.TotalTournaments),
-		UpcomingTournaments:      int32(stats.UpcomingTournaments),
-		TotalPercentageChange:    totalPercentageChange,
-		UpcomingPercentageChange: upcomingPercentageChange,
+		TotalTournaments:               int32(stats.TotalTournaments),
+		UpcomingTournaments:            int32(stats.UpcomingTournaments),
+		TotalPercentageChange:          totalPercentageChange,
+		UpcomingPercentageChange:       upcomingPercentageChange,
+		ActiveDebaters:                 int32(stats.ActiveDebaterCount),
+		ActiveDebatersPercentageChange: activeDebatersPercentageChange,
 	}, nil
 }
 

@@ -268,14 +268,28 @@ WITH CurrentStats AS (
     WHERE deleted_at IS NULL
 ),
 HistoricalStats AS (
-    SELECT yesterday_total_count, yesterday_upcoming_count
+    SELECT
+        yesterday_total_count,
+        yesterday_upcoming_count,
+        yesterday_active_debaters_count
     FROM Tournaments
     WHERE TournamentID = (SELECT MIN(TournamentID) FROM Tournaments)
+),
+ActiveDebaters AS (
+    SELECT COUNT(DISTINCT tm.StudentID) as active_debater_count
+    FROM TeamMembers tm
+    JOIN Teams t ON tm.TeamID = t.TeamID
+    JOIN Students s ON tm.StudentID = s.StudentID
+    JOIN Tournaments tour ON t.TournamentID = tour.TournamentID
+    WHERE s.SchoolID = $1
+      AND tour.deleted_at IS NULL
 )
 SELECT
     cs.total_tournaments,
     cs.upcoming_tournaments,
     hs.yesterday_total_count,
-    hs.yesterday_upcoming_count
-FROM CurrentStats cs, HistoricalStats hs;
+    hs.yesterday_upcoming_count,
+    COALESCE(ad.active_debater_count, 0) as active_debater_count,
+    hs.yesterday_active_debaters_count
+FROM CurrentStats cs, HistoricalStats hs, ActiveDebaters ad;
 

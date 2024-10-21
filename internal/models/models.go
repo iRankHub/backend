@@ -208,25 +208,26 @@ type Teamscore struct {
 }
 
 type Tournament struct {
-	Tournamentid               int32          `json:"tournamentid"`
-	Name                       string         `json:"name"`
-	Startdate                  time.Time      `json:"startdate"`
-	Enddate                    time.Time      `json:"enddate"`
-	Location                   string         `json:"location"`
-	Formatid                   int32          `json:"formatid"`
-	Leagueid                   sql.NullInt32  `json:"leagueid"`
-	Coordinatorid              int32          `json:"coordinatorid"`
-	Numberofpreliminaryrounds  int32          `json:"numberofpreliminaryrounds"`
-	Numberofeliminationrounds  int32          `json:"numberofeliminationrounds"`
-	Judgesperdebatepreliminary int32          `json:"judgesperdebatepreliminary"`
-	Judgesperdebateelimination int32          `json:"judgesperdebateelimination"`
-	Tournamentfee              string         `json:"tournamentfee"`
-	Imageurl                   sql.NullString `json:"imageurl"`
-	CreatedAt                  sql.NullTime   `json:"created_at"`
-	UpdatedAt                  sql.NullTime   `json:"updated_at"`
-	DeletedAt                  sql.NullTime   `json:"deleted_at"`
-	YesterdayTotalCount        sql.NullInt32  `json:"yesterday_total_count"`
-	YesterdayUpcomingCount     sql.NullInt32  `json:"yesterday_upcoming_count"`
+	Tournamentid                 int32          `json:"tournamentid"`
+	Name                         string         `json:"name"`
+	Startdate                    time.Time      `json:"startdate"`
+	Enddate                      time.Time      `json:"enddate"`
+	Location                     string         `json:"location"`
+	Formatid                     int32          `json:"formatid"`
+	Leagueid                     sql.NullInt32  `json:"leagueid"`
+	Coordinatorid                int32          `json:"coordinatorid"`
+	Numberofpreliminaryrounds    int32          `json:"numberofpreliminaryrounds"`
+	Numberofeliminationrounds    int32          `json:"numberofeliminationrounds"`
+	Judgesperdebatepreliminary   int32          `json:"judgesperdebatepreliminary"`
+	Judgesperdebateelimination   int32          `json:"judgesperdebateelimination"`
+	Tournamentfee                string         `json:"tournamentfee"`
+	Imageurl                     sql.NullString `json:"imageurl"`
+	CreatedAt                    sql.NullTime   `json:"created_at"`
+	UpdatedAt                    sql.NullTime   `json:"updated_at"`
+	DeletedAt                    sql.NullTime   `json:"deleted_at"`
+	YesterdayTotalCount          sql.NullInt32  `json:"yesterday_total_count"`
+	YesterdayUpcomingCount       sql.NullInt32  `json:"yesterday_upcoming_count"`
+	YesterdayActiveDebatersCount sql.NullInt32  `json:"yesterday_active_debaters_count"`
 }
 
 type Tournamentformat struct {

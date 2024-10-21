@@ -101,6 +101,8 @@ message GetTournamentStatsResponse {
   int32 upcoming_tournaments = 2;
   string total_percentage_change = 3;
   string upcoming_percentage_change = 4;
+  int32 active_debaters = 5;
+  string active_debaters_percentage_change = 6;
 }
 
 message GetTournamentRegistrationsRequest {
