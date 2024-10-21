@@ -221,15 +221,20 @@ func (s *TournamentService) GetTournamentStats(ctx context.Context, req *tournam
 		return nil, fmt.Errorf("authentication failed: %v", err)
 	}
 
-	// Extract school ID from token
-	schoolIDFloat, ok := claims["school_id"].(float64)
+	// Extract user ID from token
+	userIDFloat, ok := claims["user_id"].(float64)
 	if !ok {
-		return nil, fmt.Errorf("school_id not found in token")
+		return nil, fmt.Errorf("user_id not found in token")
 	}
-	schoolID := int32(schoolIDFloat)
 
 	queries := models.New(s.db)
-	stats, err := queries.GetTournamentStats(ctx, schoolID)
+	schoolInfo, err := queries.GetSchoolByUserID(ctx, int32(userIDFloat))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get school ID by user ID: %v", err)
+	}
+
+	// Fetch tournament stats for the current user's school ID
+	stats, err := queries.GetTournamentStats(ctx, schoolInfo.Schoolid)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tournament stats: %v", err)
 	}
