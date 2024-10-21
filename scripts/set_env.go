@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
-
 )
 
 func SetEnvVars() error {
 	file, err := os.Open(".env")
 	if err != nil {
-		return fmt.Errorf("error opening .env file: %w", err)
+		return fmt.Errorf("failed to open .env file: %w", err)
 	}
 	defer file.Close()
 
@@ -23,13 +22,13 @@ func SetEnvVars() error {
 		}
 		parts := strings.SplitN(line, "=", 2)
 		if len(parts) != 2 {
-			fmt.Printf("Invalid line in .env file: %s\n", line)
-			continue
+			return fmt.Errorf("invalid line in .env file: %s", line)
 		}
 		key := strings.TrimSpace(parts[0])
 		value := strings.TrimSpace(parts[1])
-		os.Setenv(key, value)
-		fmt.Printf("Set environment variable: %s\n", key)
+		if err := os.Setenv(key, value); err != nil {
+			return fmt.Errorf("failed to set environment variable %s: %w", key, err)
+		}
 	}
 
 	if err := scanner.Err(); err != nil {

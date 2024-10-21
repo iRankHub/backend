@@ -257,12 +257,12 @@ func (s *RankingService) GetStudentTournamentStats(ctx context.Context, req *deb
 	}
 
 	return &debate_management.StudentTournamentStatsResponse{
-		TotalTournaments:            int32(stats.TotalTournaments),
-		TotalTournamentsChange:      totalPercentageChange,
-		AttendedTournaments:         int32(stats.AttendedTournaments),
-		AttendedTournamentsChange:   attendedPercentageChange,
-		UpcomingTournaments:         int32(stats.UpcomingTournaments),
-		UpcomingTournamentsChange:   upcomingPercentageChange,
+		TotalTournaments:          int32(stats.TotalTournaments),
+		TotalTournamentsChange:    totalPercentageChange,
+		AttendedTournaments:       int32(stats.AttendedTournaments),
+		AttendedTournamentsChange: attendedPercentageChange,
+		UpcomingTournaments:       int32(stats.UpcomingTournaments),
+		UpcomingTournamentsChange: upcomingPercentageChange,
 	}, nil
 }
 

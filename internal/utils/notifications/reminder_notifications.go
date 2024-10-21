@@ -10,7 +10,6 @@ import (
 	"github.com/iRankHub/backend/internal/services/notification"
 )
 
-
 func SendReminderEmails(ctx context.Context, notificationService *notification.NotificationService, invitations []models.GetPendingInvitationsRow, queries *models.Queries) error {
 	var errors []error
 	batchSize := 50

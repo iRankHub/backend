@@ -146,7 +146,7 @@ func getUserEmailTemplate(title, content string) string {
 }
 
 func getLogoURL() string {
-	logoURL :=os.Getenv("LOGO_URL")
+	logoURL := os.Getenv("LOGO_URL")
 	if logoURL == "" {
 		logoURL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSy1c8yfmVvRgCThDUvkJTmpTrV92ANV7iSRQ&s"
 	}

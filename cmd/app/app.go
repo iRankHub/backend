@@ -15,11 +15,11 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
+	"github.com/iRankHub/backend/envoy"
 	"github.com/iRankHub/backend/internal/config"
 	"github.com/iRankHub/backend/internal/grpc/server"
 	"github.com/iRankHub/backend/internal/utils"
 	"github.com/iRankHub/backend/scripts"
-	"github.com/iRankHub/backend/envoy"
 )
 
 var envSetup sync.Once
@@ -41,9 +41,19 @@ func StartBackend() {
 		envSetup.Do(func() {
 			err := script.SetEnvVars()
 			if err != nil {
-				log.Fatalf("Error setting environment variables: %v", err)
+				log.Fatalf("Failed to set environment variables: %v", err)
+			} else {
+				fmt.Println("Environment variables set successfully")
 			}
-			fmt.Println("Environment variables set for development")
+
+			// Format Go code
+			fmt.Println("Formatting Go code...")
+			err = script.FormatGoCode()
+			if err != nil {
+				log.Printf("Failed to format Go code: %v", err)
+			} else {
+				fmt.Println("Go code formatted successfully")
+			}
 		})
 
 		// Start Envoy proxy in development mode

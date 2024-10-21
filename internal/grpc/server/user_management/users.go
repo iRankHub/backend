@@ -214,70 +214,70 @@ func (s *userManagementServer) GetUserStatistics(ctx context.Context, req *user_
 }
 
 func (s *userManagementServer) GetUserProfile(ctx context.Context, req *user_management.GetUserProfileRequest) (*user_management.GetUserProfileResponse, error) {
-    profile, profilePicturePresignedURL, err := s.userManagementService.GetUserProfile(ctx, req.Token, req.UserID)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to get user profile: %v", err)
-    }
+	profile, profilePicturePresignedURL, err := s.userManagementService.GetUserProfile(ctx, req.Token, req.UserID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get user profile: %v", err)
+	}
 
-    protoProfile := convertModelProfileToProto(profile)
-    protoProfile.ProfilePicturePresignedUrl = profilePicturePresignedURL
+	protoProfile := convertModelProfileToProto(profile)
+	protoProfile.ProfilePicturePresignedUrl = profilePicturePresignedURL
 
-    return &user_management.GetUserProfileResponse{
-        Profile: protoProfile,
-    }, nil
+	return &user_management.GetUserProfileResponse{
+		Profile: protoProfile,
+	}, nil
 }
 
 func (s *userManagementServer) UpdateAdminProfile(ctx context.Context, req *user_management.UpdateAdminProfileRequest) (*user_management.UpdateAdminProfileResponse, error) {
-    profilePicturePresignedURL, err := s.userManagementService.UpdateAdminProfile(ctx, req.Token, req)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to update admin profile: %v", err)
-    }
+	profilePicturePresignedURL, err := s.userManagementService.UpdateAdminProfile(ctx, req.Token, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to update admin profile: %v", err)
+	}
 
-    return &user_management.UpdateAdminProfileResponse{
-        Success: true,
-        Message: "Admin profile updated successfully",
-        ProfilePicturePresignedUrl: profilePicturePresignedURL,
-    }, nil
+	return &user_management.UpdateAdminProfileResponse{
+		Success:                    true,
+		Message:                    "Admin profile updated successfully",
+		ProfilePicturePresignedUrl: profilePicturePresignedURL,
+	}, nil
 }
 
 func (s *userManagementServer) UpdateSchoolProfile(ctx context.Context, req *user_management.UpdateSchoolProfileRequest) (*user_management.UpdateSchoolProfileResponse, error) {
-    profilePicturePresignedURL, err := s.userManagementService.UpdateSchoolProfile(ctx, req.Token, req)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to update school profile: %v", err)
-    }
+	profilePicturePresignedURL, err := s.userManagementService.UpdateSchoolProfile(ctx, req.Token, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to update school profile: %v", err)
+	}
 
-    return &user_management.UpdateSchoolProfileResponse{
-        Success: true,
-        Message: "School profile updated successfully",
-        ProfilePicturePresignedUrl: profilePicturePresignedURL,
-    }, nil
+	return &user_management.UpdateSchoolProfileResponse{
+		Success:                    true,
+		Message:                    "School profile updated successfully",
+		ProfilePicturePresignedUrl: profilePicturePresignedURL,
+	}, nil
 }
 
 func (s *userManagementServer) UpdateStudentProfile(ctx context.Context, req *user_management.UpdateStudentProfileRequest) (*user_management.UpdateStudentProfileResponse, error) {
-    profilePicturePresignedURL, err := s.userManagementService.UpdateStudentProfile(ctx, req.Token, req)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to update student profile: %v", err)
-    }
+	profilePicturePresignedURL, err := s.userManagementService.UpdateStudentProfile(ctx, req.Token, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to update student profile: %v", err)
+	}
 
-    return &user_management.UpdateStudentProfileResponse{
-        Success: true,
-        Message: "Student profile updated successfully",
-        ProfilePicturePresignedUrl: profilePicturePresignedURL,
-    }, nil
+	return &user_management.UpdateStudentProfileResponse{
+		Success:                    true,
+		Message:                    "Student profile updated successfully",
+		ProfilePicturePresignedUrl: profilePicturePresignedURL,
+	}, nil
 }
 
 func (s *userManagementServer) UpdateVolunteerProfile(ctx context.Context, req *user_management.UpdateVolunteerProfileRequest) (*user_management.UpdateVolunteerProfileResponse, error) {
-    profilePicturePresignedURL, safeguardCertificatePresignedURL, err := s.userManagementService.UpdateVolunteerProfile(ctx, req.Token, req)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to update volunteer profile: %v", err)
-    }
+	profilePicturePresignedURL, safeguardCertificatePresignedURL, err := s.userManagementService.UpdateVolunteerProfile(ctx, req.Token, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to update volunteer profile: %v", err)
+	}
 
-    return &user_management.UpdateVolunteerProfileResponse{
-        Success: true,
-        Message: "Volunteer profile updated successfully",
-        ProfilePicturePresignedUrl: profilePicturePresignedURL,
-        SafeguardCertificatePresignedUrl: safeguardCertificatePresignedURL,
-    }, nil
+	return &user_management.UpdateVolunteerProfileResponse{
+		Success:                          true,
+		Message:                          "Volunteer profile updated successfully",
+		ProfilePicturePresignedUrl:       profilePicturePresignedURL,
+		SafeguardCertificatePresignedUrl: safeguardCertificatePresignedURL,
+	}, nil
 }
 
 func (s *userManagementServer) DeleteUserProfile(ctx context.Context, req *user_management.DeleteUserProfileRequest) (*user_management.DeleteUserProfileResponse, error) {
@@ -376,12 +376,12 @@ func (s *userManagementServer) GetVolunteers(ctx context.Context, req *user_mana
 			graduateYear = volunteer.Graduateyear.Int32
 		}
 		protoVolunteers = append(protoVolunteers, &user_management.Volunteer{
-			VolunteerID:          volunteer.Volunteerid,
-			FirstName:            volunteer.Firstname,
-			LastName:             volunteer.Lastname,
-			DateOfBirth:          dateOfBirth,
-			Role:                 volunteer.Role,
-			GraduateYear:         graduateYear,
+			VolunteerID:             volunteer.Volunteerid,
+			FirstName:               volunteer.Firstname,
+			LastName:                volunteer.Lastname,
+			DateOfBirth:             dateOfBirth,
+			Role:                    volunteer.Role,
+			GraduateYear:            graduateYear,
 			SafeguardCertificateUrl: volunteer.Safeguardcertificate.String,
 		})
 	}
@@ -578,53 +578,53 @@ func (s *userManagementServer) GetStudentsBySchoolContact(ctx context.Context, r
 }
 
 func convertModelProfileToProto(profile *models.GetUserProfileRow) *user_management.UserProfile {
-    protoProfile := &user_management.UserProfile{
-        UserID:               profile.Userid,
-        Name:                 profile.Name,
-        Email:                profile.Email,
-        UserRole:             profile.Userrole,
-        Gender:               profile.Gender.String,
-        Address:              profile.Address.String,
-        Phone:                profile.Phone.String,
-        Bio:                  profile.Bio.String,
-        ProfilePictureUrl:    profile.Profilepicture.String,
-        VerificationStatus:   profile.Verificationstatus.Bool,
-        SignUpDate:           profile.Signupdate.Time.Format("2006-01-02 15:04:05"),
-        TwoFactorEnabled:     profile.TwoFactorEnabled.Bool,
-        BiometricAuthEnabled: profile.BiometricAuthEnabled,
-    }
+	protoProfile := &user_management.UserProfile{
+		UserID:               profile.Userid,
+		Name:                 profile.Name,
+		Email:                profile.Email,
+		UserRole:             profile.Userrole,
+		Gender:               profile.Gender.String,
+		Address:              profile.Address.String,
+		Phone:                profile.Phone.String,
+		Bio:                  profile.Bio.String,
+		ProfilePictureUrl:    profile.Profilepicture.String,
+		VerificationStatus:   profile.Verificationstatus.Bool,
+		SignUpDate:           profile.Signupdate.Time.Format("2006-01-02 15:04:05"),
+		TwoFactorEnabled:     profile.TwoFactorEnabled.Bool,
+		BiometricAuthEnabled: profile.BiometricAuthEnabled,
+	}
 
-    switch profile.Userrole {
-    case "student":
-        protoProfile.RoleSpecificDetails = &user_management.UserProfile_StudentDetails{
-            StudentDetails: &user_management.StudentDetails{
-                Grade:       profile.Grade.String,
-                DateOfBirth: profile.Dateofbirth.Time.Format("2006-01-02"),
-                SchoolID:    profile.Schoolid.Int32,
-            },
-        }
-    case "school":
-        protoProfile.RoleSpecificDetails = &user_management.UserProfile_SchoolDetails{
-            SchoolDetails: &user_management.SchoolDetails{
-                SchoolName: profile.Schoolname.String,
-                Address:    profile.Schooladdress.String,
-                Country:    profile.Country.String,
-                Province:   profile.Province.String,
-                District:   profile.District.String,
-                SchoolType: profile.Schooltype.String,
-            },
-        }
-    case "volunteer":
-        protoProfile.RoleSpecificDetails = &user_management.UserProfile_VolunteerDetails{
-            VolunteerDetails: &user_management.VolunteerDetails{
-                Role:                   profile.Volunteerrole.String,
-                GraduateYear:           profile.Graduateyear.Int32,
-                SafeguardCertificateUrl: profile.Safeguardcertificate.String,
-                HasInternship:          profile.Hasinternship.Bool,
-                IsEnrolledInUniversity: profile.Isenrolledinuniversity.Bool,
-            },
-        }
-    }
+	switch profile.Userrole {
+	case "student":
+		protoProfile.RoleSpecificDetails = &user_management.UserProfile_StudentDetails{
+			StudentDetails: &user_management.StudentDetails{
+				Grade:       profile.Grade.String,
+				DateOfBirth: profile.Dateofbirth.Time.Format("2006-01-02"),
+				SchoolID:    profile.Schoolid.Int32,
+			},
+		}
+	case "school":
+		protoProfile.RoleSpecificDetails = &user_management.UserProfile_SchoolDetails{
+			SchoolDetails: &user_management.SchoolDetails{
+				SchoolName: profile.Schoolname.String,
+				Address:    profile.Schooladdress.String,
+				Country:    profile.Country.String,
+				Province:   profile.Province.String,
+				District:   profile.District.String,
+				SchoolType: profile.Schooltype.String,
+			},
+		}
+	case "volunteer":
+		protoProfile.RoleSpecificDetails = &user_management.UserProfile_VolunteerDetails{
+			VolunteerDetails: &user_management.VolunteerDetails{
+				Role:                    profile.Volunteerrole.String,
+				GraduateYear:            profile.Graduateyear.Int32,
+				SafeguardCertificateUrl: profile.Safeguardcertificate.String,
+				HasInternship:           profile.Hasinternship.Bool,
+				IsEnrolledInUniversity:  profile.Isenrolledinuniversity.Bool,
+			},
+		}
+	}
 
-    return protoProfile
+	return protoProfile
 }

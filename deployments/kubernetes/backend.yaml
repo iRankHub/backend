@@ -12,6 +12,7 @@ spec:
       labels:
         app: backend
     spec:
+      serviceAccountName: backend-sa
       nodeSelector:
         kubernetes.io/hostname: lke246307-390837-0a15051f0000
       terminationGracePeriodSeconds: 10

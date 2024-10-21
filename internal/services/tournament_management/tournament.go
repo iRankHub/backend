@@ -150,34 +150,33 @@ func (s *TournamentService) CreateTournament(ctx context.Context, req *tournamen
 }
 
 func (s *TournamentService) GetTournament(ctx context.Context, req *tournament_management.GetTournamentRequest) (*tournament_management.Tournament, error) {
-    if err := s.validateAuthentication(req.GetToken()); err != nil {
-        return nil, err
-    }
-    queries := models.New(s.db)
-    tournament, err := queries.GetTournamentByID(ctx, req.GetTournamentId())
-    if err != nil {
-        return nil, fmt.Errorf("failed to get tournament: %v", err)
-    }
+	if err := s.validateAuthentication(req.GetToken()); err != nil {
+		return nil, err
+	}
+	queries := models.New(s.db)
+	tournament, err := queries.GetTournamentByID(ctx, req.GetTournamentId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tournament: %v", err)
+	}
 
-    protoTournament := tournamentRowToProto(tournament)
+	protoTournament := tournamentRowToProto(tournament)
 
-    // Generate presigned URL for the image
-    if tournament.Imageurl.Valid && tournament.Imageurl.String != "" {
-        s3Client, err := utils.NewS3Client()
-        if err != nil {
-            return nil, fmt.Errorf("failed to create S3 client: %v", err)
-        }
-        key := utils.ExtractKeyFromURL(tournament.Imageurl.String)
-        presignedURL, err := s3Client.GetSignedURL(ctx, key, time.Hour)
-        if err != nil {
-            return nil, fmt.Errorf("failed to generate presigned URL: %v", err)
-        }
-        protoTournament.ImageUrl = presignedURL
-    }
+	// Generate presigned URL for the image
+	if tournament.Imageurl.Valid && tournament.Imageurl.String != "" {
+		s3Client, err := utils.NewS3Client()
+		if err != nil {
+			return nil, fmt.Errorf("failed to create S3 client: %v", err)
+		}
+		key := utils.ExtractKeyFromURL(tournament.Imageurl.String)
+		presignedURL, err := s3Client.GetSignedURL(ctx, key, time.Hour)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate presigned URL: %v", err)
+		}
+		protoTournament.ImageUrl = presignedURL
+	}
 
-    return protoTournament, nil
+	return protoTournament, nil
 }
-
 
 func (s *TournamentService) ListTournaments(ctx context.Context, req *tournament_management.ListTournamentsRequest) (*tournament_management.ListTournamentsResponse, error) {
 	if err := s.validateAuthentication(req.GetToken()); err != nil {
@@ -192,24 +191,23 @@ func (s *TournamentService) ListTournaments(ctx context.Context, req *tournament
 		return nil, fmt.Errorf("failed to list tournaments: %v", err)
 	}
 
-    tournamentResponses := make([]*tournament_management.Tournament, len(tournaments))
-    s3Client, err := utils.NewS3Client()
-    if err != nil {
-        return nil, fmt.Errorf("failed to create S3 client: %v", err)
-    }
+	tournamentResponses := make([]*tournament_management.Tournament, len(tournaments))
+	s3Client, err := utils.NewS3Client()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create S3 client: %v", err)
+	}
 
-    for i, tournament := range tournaments {
-        tournamentResponses[i] = tournamentPaginatedRowToProto(tournament)
-        if tournament.Imageurl.Valid && tournament.Imageurl.String != "" {
-            key := utils.ExtractKeyFromURL(tournament.Imageurl.String)
-            presignedURL, err := s3Client.GetSignedURL(ctx, key, time.Hour)
-            if err != nil {
-                return nil, fmt.Errorf("failed to generate presigned URL: %v", err)
-            }
-            tournamentResponses[i].ImageUrl = presignedURL
-        }
-    }
-
+	for i, tournament := range tournaments {
+		tournamentResponses[i] = tournamentPaginatedRowToProto(tournament)
+		if tournament.Imageurl.Valid && tournament.Imageurl.String != "" {
+			key := utils.ExtractKeyFromURL(tournament.Imageurl.String)
+			presignedURL, err := s3Client.GetSignedURL(ctx, key, time.Hour)
+			if err != nil {
+				return nil, fmt.Errorf("failed to generate presigned URL: %v", err)
+			}
+			tournamentResponses[i].ImageUrl = presignedURL
+		}
+	}
 
 	return &tournament_management.ListTournamentsResponse{
 		Tournaments:   tournamentResponses,
@@ -343,17 +341,17 @@ func (s *TournamentService) UpdateTournament(ctx context.Context, req *tournamen
 		Tournamentfee:              fmt.Sprintf("%.2f", req.GetTournamentFee()),
 		Imageurl:                   sql.NullString{String: req.GetImageUrl(), Valid: req.GetImageUrl() != ""},
 	})
-    if err != nil {
-        if err == sql.ErrNoRows {
-            return nil, fmt.Errorf("pairings have already been made")
-        }
-        return nil, fmt.Errorf("failed to update tournament details: %v", err)
-    }
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("pairings have already been made")
+		}
+		return nil, fmt.Errorf("failed to update tournament details: %v", err)
+	}
 
-    // Check if ErrorMessage is not nil and is a string
-    if errMsg, ok := result.ErrorMessage.(string); ok && errMsg != "" {
+	// Check if ErrorMessage is not nil and is a string
+	if errMsg, ok := result.ErrorMessage.(string); ok && errMsg != "" {
 		return nil, errors.New(errMsg)
-    }
+	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %v", err)
@@ -375,21 +373,21 @@ func (s *TournamentService) UpdateTournament(ctx context.Context, req *tournamen
 		Tournamentfee:              result.Tournamentfee,
 	})
 
-    // Generate presigned URL for the updated image
-    if result.Imageurl.Valid && result.Imageurl.String != "" {
-        s3Client, err := utils.NewS3Client()
-        if err != nil {
-            return nil, fmt.Errorf("failed to create S3 client: %v", err)
-        }
-        key := utils.ExtractKeyFromURL(result.Imageurl.String)
-        presignedURL, err := s3Client.GetSignedURL(ctx, key, time.Hour)
-        if err != nil {
-            return nil, fmt.Errorf("failed to generate presigned URL: %v", err)
-        }
-        updatedTournament.ImageUrl = presignedURL
-    }
+	// Generate presigned URL for the updated image
+	if result.Imageurl.Valid && result.Imageurl.String != "" {
+		s3Client, err := utils.NewS3Client()
+		if err != nil {
+			return nil, fmt.Errorf("failed to create S3 client: %v", err)
+		}
+		key := utils.ExtractKeyFromURL(result.Imageurl.String)
+		presignedURL, err := s3Client.GetSignedURL(ctx, key, time.Hour)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate presigned URL: %v", err)
+		}
+		updatedTournament.ImageUrl = presignedURL
+	}
 
-    return updatedTournament, nil
+	return updatedTournament, nil
 }
 
 func (s *TournamentService) DeleteTournament(ctx context.Context, req *tournament_management.DeleteTournamentRequest) (*tournament_management.DeleteTournamentResponse, error) {

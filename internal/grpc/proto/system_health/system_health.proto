@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package system_health;
+
+option go_package = "github.com/iRankHub/backend/internal/grpc/proto/system_health";
+
+service SystemHealthService {
+  rpc GetSystemHealth(GetSystemHealthRequest) returns (GetSystemHealthResponse) {}
+}
+
+message GetSystemHealthRequest {
+  string token = 1;
+}
+
+message GetSystemHealthResponse {
+  double cpu_usage_percentage = 1;
+  double memory_usage_percentage = 2;
+  double ephemeral_storage_percentage = 3;
+  double pvc_storage_percentage = 4;
+  int32 node_count = 5;
+  int32 pod_count = 6;
+  int32 pvc_count = 7;
+}
