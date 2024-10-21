@@ -35,26 +35,36 @@ func NewSystemHealthService() (*SystemHealthService, error) {
 	var config *rest.Config
 	var err error
 
-	// Check for KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT
-	host := os.Getenv("KUBERNETES_SERVICE_HOST")
-	port := os.Getenv("KUBERNETES_SERVICE_PORT")
-
-	if host != "" && port != "" {
-		// Use the provided host and port
-		config = &rest.Config{
-			Host: fmt.Sprintf("https://%s:%s", host, port),
+	// Check for in-cluster configuration first
+	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/token"); err == nil {
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get in-cluster config: %v", err)
 		}
 	} else {
-		// Use kubeconfig file
-		kubeconfigPath := os.Getenv("KUBECONFIG")
-		if kubeconfigPath == "" {
-			kubeconfigPath = filepath.Join(os.Getenv("HOME"), ".kube", "config")
-		}
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get Kubernetes config: %v", err)
+		// Use out-of-cluster configuration
+		host := os.Getenv("KUBERNETES_SERVICE_HOST")
+		port := os.Getenv("KUBERNETES_SERVICE_PORT")
+
+		if host != "" && port != "" {
+			config = &rest.Config{
+				Host: fmt.Sprintf("https://%s:%s", host, port),
+			}
+		} else {
+			kubeconfigPath := os.Getenv("KUBECONFIG")
+			if kubeconfigPath == "" {
+				kubeconfigPath = filepath.Join(os.Getenv("HOME"), ".kube", "config")
+			}
+			config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get Kubernetes config: %v", err)
+			}
 		}
 	}
+
+	// Skip TLS verification
+	config.Insecure = true
+	config.TLSClientConfig = rest.TLSClientConfig{Insecure: true}
 
 	// Create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
