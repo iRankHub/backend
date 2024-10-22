@@ -46,6 +46,14 @@ service DebateService {
   rpc GetTournamentSchoolRanking(TournamentSchoolRankingRequest) returns (TournamentSchoolRankingResponse);
   rpc GetOverallSchoolRanking(OverallSchoolRankingRequest) returns (OverallSchoolRankingResponse);
   rpc GetSchoolOverallPerformance(SchoolPerformanceRequest) returns (SchoolPerformanceResponse);
+  rpc GetVolunteerTournamentStats(VolunteerTournamentStatsRequest) returns (VolunteerTournamentStatsResponse);
+  rpc GetStudentFeedback(GetStudentFeedbackRequest) returns (GetStudentFeedbackResponse);
+  rpc SubmitJudgeFeedback(SubmitJudgeFeedbackRequest) returns (SubmitJudgeFeedbackResponse);
+  rpc GetJudgeFeedback(GetJudgeFeedbackRequest) returns (GetJudgeFeedbackResponse);
+  rpc GetVolunteerRanking(GetVolunteerRankingRequest) returns (GetVolunteerRankingResponse);
+  rpc GetVolunteerPerformance(GetVolunteerPerformanceRequest) returns (GetVolunteerPerformanceResponse);
+  rpc MarkStudentFeedbackAsRead(MarkFeedbackAsReadRequest) returns (MarkFeedbackAsReadResponse);
+  rpc MarkJudgeFeedbackAsRead(MarkFeedbackAsReadRequest) returns (MarkFeedbackAsReadResponse);
 
 }
 
@@ -477,4 +485,134 @@ message StudentTournamentStatsResponse {
   string attended_tournaments_change = 4;
   int32 upcoming_tournaments = 5;
   string upcoming_tournaments_change = 6;
+}
+
+message VolunteerTournamentStatsRequest {
+  string token = 1;
+}
+
+message VolunteerTournamentStatsResponse {
+  int32 total_rounds_judged = 1;
+  string rounds_judged_change = 2;
+  int32 tournaments_attended = 3;
+  string tournaments_attended_change = 4;
+  int32 upcoming_tournaments = 5;
+  string upcoming_tournaments_change = 6;
+}
+
+message GetStudentFeedbackRequest {
+  int32 tournament_id = 1;
+  string token = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message StudentFeedbackEntry {
+  int32 round_number = 1;
+  bool is_elimination_round = 2;
+  double speaker_points = 3;
+  string feedback = 4;
+  bool is_read = 5;
+  string head_judge_name = 6;
+  string room_name = 7;
+  string opponent_team_name = 8;
+  string student_team_name = 9;
+}
+
+message GetStudentFeedbackResponse {
+  repeated StudentFeedbackEntry feedback_entries = 1;
+  int32 total_count = 2;
+}
+
+message SubmitJudgeFeedbackRequest {
+  int32 judge_id = 1;
+  int32 debate_id = 2;
+  double clarity_rating = 3;
+  double constructiveness_rating = 4;
+  double timeliness_rating = 5;
+  double fairness_rating = 6;
+  double engagement_rating = 7;
+  string text_feedback = 8;
+  string token = 9;
+}
+
+message SubmitJudgeFeedbackResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetJudgeFeedbackRequest {
+  string token = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message JudgeFeedbackEntry {
+  string student_alias = 1;
+  string tournament_date = 2;
+  bool is_read = 3;
+  double clarity_rating = 4;
+  double constructiveness_rating = 5;
+  double timeliness_rating = 6;
+  double fairness_rating = 7;
+  double engagement_rating = 8;
+  string text_feedback = 9;
+  int32 round_number = 10;
+  bool is_elimination_round = 11;
+}
+
+message GetJudgeFeedbackResponse {
+  repeated JudgeFeedbackEntry feedback_entries = 1;
+  int32 total_count = 2;
+}
+
+message GetVolunteerRankingRequest {
+  string token = 1;
+}
+
+message TopVolunteer {
+  int32 rank = 1;
+  string name = 2;
+  double average_rating = 3;
+  int32 rank_change = 4;
+}
+
+message VolunteerInfo {
+  string name = 1;
+  double average_rating = 2;
+}
+
+message GetVolunteerRankingResponse {
+  int32 volunteer_rank = 1;
+  int32 total_volunteers = 2;
+  int32 rank_change = 3;
+  repeated TopVolunteer top_volunteers = 4;
+  VolunteerInfo volunteer_info = 5;
+}
+
+message GetVolunteerPerformanceRequest {
+  string start_date = 1;
+  string end_date = 2;
+  string token = 3;
+}
+
+message VolunteerPerformanceData {
+  string tournament_date = 1;
+  double volunteer_average_rating = 2;
+  double overall_average_rating = 3;
+  int32 tournament_rank = 4;
+}
+
+message GetVolunteerPerformanceResponse {
+  repeated VolunteerPerformanceData performance_data = 1;
+}
+
+message MarkFeedbackAsReadRequest {
+    int32 feedback_id = 1;
+    string token = 2;
+}
+
+message MarkFeedbackAsReadResponse {
+    bool success = 1;
+    string message = 2;
 }

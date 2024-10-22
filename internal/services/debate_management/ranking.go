@@ -563,6 +563,162 @@ func (s *RankingService) GetSchoolOverallPerformance(ctx context.Context, req *d
 	}, nil
 }
 
+func (s *RankingService) GetVolunteerTournamentStats(ctx context.Context, req *debate_management.VolunteerTournamentStatsRequest) (*debate_management.VolunteerTournamentStatsResponse, error) {
+	claims, err := utils.ValidateToken(req.GetToken())
+	if err != nil {
+		return nil, fmt.Errorf("authentication failed: %v", err)
+	}
+
+	userID, ok := claims["user_id"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("invalid user ID in token")
+	}
+
+	queries := models.New(s.db)
+	stats, err := queries.GetVolunteerTournamentStats(ctx, int32(userID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get volunteer tournament stats: %v", err)
+	}
+
+	roundsJudgedChange := calculatePercentageChange(
+		int64(stats.YesterdayRoundsJudged.Int32),
+		int64(stats.TotalRoundsJudged),
+	)
+	tournamentsAttendedChange := calculatePercentageChange(
+		int64(stats.YesterdayTournamentsAttended.Int32),
+		int64(stats.AttendedTournaments),
+	)
+	upcomingTournamentsChange := calculatePercentageChange(
+		int64(stats.YesterdayUpcomingTournaments.Int32),
+		int64(stats.UpcomingTournaments),
+	)
+
+	return &debate_management.VolunteerTournamentStatsResponse{
+		TotalRoundsJudged:         int32(stats.TotalRoundsJudged),
+		RoundsJudgedChange:        roundsJudgedChange,
+		TournamentsAttended:       int32(stats.AttendedTournaments),
+		TournamentsAttendedChange: tournamentsAttendedChange,
+		UpcomingTournaments:       int32(stats.UpcomingTournaments),
+		UpcomingTournamentsChange: upcomingTournamentsChange,
+	}, nil
+}
+
+func (s *RankingService) GetVolunteerRanking(ctx context.Context, req *debate_management.GetVolunteerRankingRequest) (*debate_management.GetVolunteerRankingResponse, error) {
+	claims, err := utils.ValidateToken(req.GetToken())
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
+	}
+
+	userID, ok := claims["user_id"].(float64)
+	if !ok {
+		return nil, status.Error(codes.Internal, "invalid user ID in token")
+	}
+
+	queries := models.New(s.db)
+
+	// First get volunteer ID from user ID
+	volunteer, err := queries.GetVolunteerByUserID(ctx, int32(userID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get volunteer: %v", err)
+	}
+
+	dbRankings, err := queries.GetOverallVolunteerRanking(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get volunteer ranking: %v", err)
+	}
+
+	var volunteerRanking *models.GetOverallVolunteerRankingRow
+	var topVolunteers []*debate_management.TopVolunteer
+	rankChanges := make(map[int32]int32)
+
+	// Process rankings
+	for i, ranking := range dbRankings {
+		if ranking.Volunteerid == volunteer.Volunteerid {
+			volunteerRanking = &dbRankings[i]
+		}
+
+		// Add top 3 volunteers
+		if ranking.Currentrank <= 3 {
+			topVolunteers = append(topVolunteers, &debate_management.TopVolunteer{
+				Rank:          int32(ranking.Currentrank),
+				Name:          ranking.Volunteername.(string),
+				AverageRating: float64(ranking.Averagerating),
+			})
+		}
+
+		// Calculate rank changes
+		if i > 0 {
+			currentDate, ok := ranking.Lasttournamentdate.(time.Time)
+			previousDate, prevOk := dbRankings[i-1].Lasttournamentdate.(time.Time)
+
+			if ok && prevOk && currentDate.Before(previousDate) {
+				rankChanges[ranking.Volunteerid] = int32(dbRankings[i-1].Currentrank - ranking.Currentrank)
+			}
+		}
+	}
+
+	if volunteerRanking == nil {
+		return nil, fmt.Errorf("volunteer not found in rankings")
+	}
+
+	return &debate_management.GetVolunteerRankingResponse{
+		VolunteerRank:   int32(volunteerRanking.Currentrank),
+		TotalVolunteers: int32(volunteerRanking.Totalvolunteers),
+		RankChange:      rankChanges[volunteer.Volunteerid],
+		TopVolunteers:   topVolunteers,
+		VolunteerInfo: &debate_management.VolunteerInfo{
+			Name:          volunteerRanking.Volunteername.(string),
+			AverageRating: float64(volunteerRanking.Averagerating),
+		},
+	}, nil
+}
+
+func (s *RankingService) GetVolunteerPerformance(ctx context.Context, req *debate_management.GetVolunteerPerformanceRequest) (*debate_management.GetVolunteerPerformanceResponse, error) {
+	claims, err := utils.ValidateToken(req.GetToken())
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
+	}
+
+	userID, ok := claims["user_id"].(float64)
+	if !ok {
+		return nil, status.Error(codes.Internal, "invalid user ID in token")
+	}
+
+	startDate, err := time.Parse("2006-01-02", req.GetStartDate())
+	if err != nil {
+		return nil, fmt.Errorf("invalid start date format: %v", err)
+	}
+
+	endDate, err := time.Parse("2006-01-02", req.GetEndDate())
+	if err != nil {
+		return nil, fmt.Errorf("invalid end date format: %v", err)
+	}
+
+	queries := models.New(s.db)
+	dbPerformance, err := queries.GetVolunteerPerformance(ctx, models.GetVolunteerPerformanceParams{
+		Userid:      int32(userID),
+		Startdate:   startDate,
+		Startdate_2: endDate,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get volunteer performance: %v", err)
+	}
+
+	performanceData := make([]*debate_management.VolunteerPerformanceData, len(dbPerformance))
+	for i, data := range dbPerformance {
+		performanceData[i] = &debate_management.VolunteerPerformanceData{
+			TournamentDate:         data.Startdate.Format("2006-01-02"),
+			VolunteerAverageRating: float64(data.Volunteeraveragerating),
+			OverallAverageRating:   float64(data.Overallaveragerating),
+			TournamentRank:         int32(data.Tournamentrank),
+		}
+	}
+
+	return &debate_management.GetVolunteerPerformanceResponse{
+		PerformanceData: performanceData,
+	}, nil
+}
+
 func (s *RankingService) validateAuthentication(token string) error {
 	_, err := utils.ValidateToken(token)
 	if err != nil {

@@ -14,22 +14,24 @@ import (
 
 type debateServer struct {
 	debate_management.UnimplementedDebateServiceServer
-	roomService    *services.RoomService
-	judgeService   *services.JudgeService
-	pairingService *services.PairingService
-	ballotService  *services.BallotService
-	teamService    *services.TeamService
-	rankingService *services.RankingService
+	roomService     *services.RoomService
+	judgeService    *services.JudgeService
+	pairingService  *services.PairingService
+	ballotService   *services.BallotService
+	teamService     *services.TeamService
+	rankingService  *services.RankingService
+	feedbackService *services.FeedbackService
 }
 
 func NewDebateServer(db *sql.DB) (debate_management.DebateServiceServer, error) {
 	return &debateServer{
-		roomService:    services.NewRoomService(db),
-		judgeService:   services.NewJudgeService(db),
-		pairingService: services.NewPairingService(db),
-		ballotService:  services.NewBallotService(db),
-		teamService:    services.NewTeamService(db),
-		rankingService: services.NewRankingService(db),
+		roomService:     services.NewRoomService(db),
+		judgeService:    services.NewJudgeService(db),
+		pairingService:  services.NewPairingService(db),
+		ballotService:   services.NewBallotService(db),
+		teamService:     services.NewTeamService(db),
+		rankingService:  services.NewRankingService(db),
+		feedbackService: services.NewFeedbackService(db),
 	}, nil
 }
 
@@ -263,6 +265,54 @@ func (s *debateServer) GetSchoolOverallPerformance(ctx context.Context, req *deb
 	response, err := s.rankingService.GetSchoolOverallPerformance(ctx, req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to get school overall performance: %v", err)
+	}
+	return response, nil
+}
+
+func (s *debateServer) GetVolunteerTournamentStats(ctx context.Context, req *debate_management.VolunteerTournamentStatsRequest) (*debate_management.VolunteerTournamentStatsResponse, error) {
+	response, err := s.rankingService.GetVolunteerTournamentStats(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get volunteer tournament stats: %v", err)
+	}
+	return response, nil
+}
+
+func (s *debateServer) GetStudentFeedback(ctx context.Context, req *debate_management.GetStudentFeedbackRequest) (*debate_management.GetStudentFeedbackResponse, error) {
+	response, err := s.feedbackService.GetStudentFeedback(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get student feedback: %v", err)
+	}
+	return response, nil
+}
+
+func (s *debateServer) SubmitJudgeFeedback(ctx context.Context, req *debate_management.SubmitJudgeFeedbackRequest) (*debate_management.SubmitJudgeFeedbackResponse, error) {
+	response, err := s.feedbackService.SubmitJudgeFeedback(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to submit judge feedback: %v", err)
+	}
+	return response, nil
+}
+
+func (s *debateServer) GetJudgeFeedback(ctx context.Context, req *debate_management.GetJudgeFeedbackRequest) (*debate_management.GetJudgeFeedbackResponse, error) {
+	response, err := s.feedbackService.GetJudgeFeedback(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get judge feedback: %v", err)
+	}
+	return response, nil
+}
+
+func (s *debateServer) GetVolunteerRanking(ctx context.Context, req *debate_management.GetVolunteerRankingRequest) (*debate_management.GetVolunteerRankingResponse, error) {
+	response, err := s.rankingService.GetVolunteerRanking(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get volunteer ranking: %v", err)
+	}
+	return response, nil
+}
+
+func (s *debateServer) GetVolunteerPerformance(ctx context.Context, req *debate_management.GetVolunteerPerformanceRequest) (*debate_management.GetVolunteerPerformanceResponse, error) {
+	response, err := s.rankingService.GetVolunteerPerformance(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get volunteer performance: %v", err)
 	}
 	return response, nil
 }

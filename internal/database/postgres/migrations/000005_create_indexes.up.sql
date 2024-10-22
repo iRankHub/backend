@@ -1,0 +1,22 @@
+-- Create Indexes
+CREATE INDEX IF NOT EXISTS idx_users_email ON Users(Email);
+CREATE INDEX IF NOT EXISTS idx_users_status ON Users(Status);
+CREATE INDEX IF NOT EXISTS idx_users_email_password ON Users(Email, Password);
+CREATE INDEX IF NOT EXISTS idx_users_reset_token ON Users(reset_token);
+CREATE INDEX IF NOT EXISTS idx_schools_contactpersonid ON Schools(ContactPersonID);
+CREATE INDEX IF NOT EXISTS idx_schools_contactemail ON Schools(ContactEmail);
+CREATE INDEX IF NOT EXISTS idx_students_email ON Students(Email);
+CREATE INDEX IF NOT EXISTS idx_students_schoolid ON Students(SchoolID);
+CREATE INDEX IF NOT EXISTS idx_students_userid ON Students(UserID);
+CREATE INDEX IF NOT EXISTS idx_volunteers_userid ON Volunteers(UserID);
+CREATE INDEX IF NOT EXISTS idx_notifications_userid ON Notifications(UserID);
+CREATE INDEX idx_tournaments_coordinator_id ON Tournaments(CoordinatorID);
+CREATE INDEX IF NOT EXISTS idx_tournaments_startdate ON Tournaments(StartDate);
+CREATE INDEX IF NOT EXISTS idx_tournament_invitations_status ON TournamentInvitations(Status);
+CREATE INDEX IF NOT EXISTS idx_tournament_invitations_tournament_id ON TournamentInvitations(TournamentID);
+CREATE INDEX IF NOT EXISTS idx_team_members_teamid ON TeamMembers(TeamID);
+CREATE INDEX IF NOT EXISTS idx_debates_roundid ON Debates(RoundID);
+CREATE INDEX IF NOT EXISTS idx_debates_tournamentid ON Debates(TournamentID);
+CREATE INDEX IF NOT EXISTS idx_debates_roomid ON Debates(RoomID);
+CREATE INDEX IF NOT EXISTS idx_debatejudges_debateid ON DebateJudges(DebateID);
+CREATE INDEX IF NOT EXISTS idx_debatejudges_judgeid ON DebateJudges(JudgeID);

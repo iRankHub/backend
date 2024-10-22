@@ -68,12 +68,20 @@ type Judgeassignment struct {
 	Isheadjudge   bool  `json:"isheadjudge"`
 }
 
-type Judgereview struct {
-	Reviewid  int32          `json:"reviewid"`
-	Studentid int32          `json:"studentid"`
-	Judgeid   int32          `json:"judgeid"`
-	Rating    string         `json:"rating"`
-	Comments  sql.NullString `json:"comments"`
+type Judgefeedback struct {
+	Feedbackid             int32          `json:"feedbackid"`
+	Judgeid                sql.NullInt32  `json:"judgeid"`
+	Studentid              sql.NullInt32  `json:"studentid"`
+	Debateid               sql.NullInt32  `json:"debateid"`
+	Clarityrating          sql.NullString `json:"clarityrating"`
+	Constructivenessrating sql.NullString `json:"constructivenessrating"`
+	Timelinessrating       sql.NullString `json:"timelinessrating"`
+	Fairnessrating         sql.NullString `json:"fairnessrating"`
+	Engagementrating       sql.NullString `json:"engagementrating"`
+	Averagerating          sql.NullString `json:"averagerating"`
+	Textfeedback           sql.NullString `json:"textfeedback"`
+	Isread                 sql.NullBool   `json:"isread"`
+	Createdat              sql.NullTime   `json:"createdat"`
 }
 
 type League struct {
@@ -159,6 +167,7 @@ type Speakerscore struct {
 	Speakerrank   int32          `json:"speakerrank"`
 	Speakerpoints string         `json:"speakerpoints"`
 	Feedback      sql.NullString `json:"feedback"`
+	Isread        sql.NullBool   `json:"isread"`
 }
 
 type Student struct {
@@ -289,20 +298,23 @@ type Userprofile struct {
 }
 
 type Volunteer struct {
-	Volunteerid            int32          `json:"volunteerid"`
-	Idebatevolunteerid     sql.NullString `json:"idebatevolunteerid"`
-	Firstname              string         `json:"firstname"`
-	Lastname               string         `json:"lastname"`
-	Gender                 sql.NullString `json:"gender"`
-	Dateofbirth            sql.NullTime   `json:"dateofbirth"`
-	Nationalid             sql.NullString `json:"nationalid"`
-	Role                   string         `json:"role"`
-	Graduateyear           sql.NullInt32  `json:"graduateyear"`
-	Password               string         `json:"password"`
-	Safeguardcertificate   sql.NullString `json:"safeguardcertificate"`
-	Hasinternship          sql.NullBool   `json:"hasinternship"`
-	Isenrolledinuniversity sql.NullBool   `json:"isenrolledinuniversity"`
-	Userid                 int32          `json:"userid"`
+	Volunteerid                  int32          `json:"volunteerid"`
+	Idebatevolunteerid           sql.NullString `json:"idebatevolunteerid"`
+	Firstname                    string         `json:"firstname"`
+	Lastname                     string         `json:"lastname"`
+	Gender                       sql.NullString `json:"gender"`
+	Dateofbirth                  sql.NullTime   `json:"dateofbirth"`
+	Nationalid                   sql.NullString `json:"nationalid"`
+	Role                         string         `json:"role"`
+	Graduateyear                 sql.NullInt32  `json:"graduateyear"`
+	Password                     string         `json:"password"`
+	Safeguardcertificate         sql.NullString `json:"safeguardcertificate"`
+	Hasinternship                sql.NullBool   `json:"hasinternship"`
+	Isenrolledinuniversity       sql.NullBool   `json:"isenrolledinuniversity"`
+	Userid                       int32          `json:"userid"`
+	YesterdayRoundsJudged        sql.NullInt32  `json:"yesterday_rounds_judged"`
+	YesterdayTournamentsAttended sql.NullInt32  `json:"yesterday_tournaments_attended"`
+	YesterdayUpcomingTournaments sql.NullInt32  `json:"yesterday_upcoming_tournaments"`
 }
 
 type Volunteerrating struct {
@@ -315,8 +327,8 @@ type Volunteerrating struct {
 }
 
 type Volunteerratingtype struct {
-	Ratingtypeid   int32  `json:"ratingtypeid"`
-	Ratingtypename string `json:"ratingtypename"`
+	Ratingtypeid int32          `json:"ratingtypeid"`
+	Category     sql.NullString `json:"category"`
 }
 
 type Webauthncredential struct {

@@ -954,3 +954,148 @@ SELECT
     ss.total_tournaments_last_year
 FROM
     current_stats cs, yesterday_stats ys, student_stats ss;
+
+-- name: GetVolunteerTournamentStats :one
+WITH volunteer_stats AS (
+    SELECT
+        COUNT(DISTINCT d.DebateID) AS total_rounds_judged,
+        COUNT(DISTINCT t.TournamentID) AS attended_tournaments,
+        (
+            SELECT COUNT(*)
+            FROM TournamentInvitations ti
+            JOIN Tournaments t ON ti.TournamentID = t.TournamentID
+            WHERE ti.InviteeID = v.iDebateVolunteerID
+            AND ti.Status = 'accepted'
+            AND t.StartDate > CURRENT_DATE
+        ) AS upcoming_tournaments
+    FROM
+        Volunteers v
+        LEFT JOIN JudgeAssignments ja ON v.UserID = ja.JudgeID
+        LEFT JOIN Debates d ON ja.DebateID = d.DebateID
+        LEFT JOIN Tournaments t ON d.TournamentID = t.TournamentID
+    WHERE
+        v.UserID = $1
+)
+SELECT
+    vs.*,
+    v.yesterday_rounds_judged,
+    v.yesterday_tournaments_attended,
+    v.yesterday_upcoming_tournaments
+FROM volunteer_stats vs, Volunteers v
+WHERE v.UserID = $1;
+
+-- name: GetStudentFeedback :many
+SELECT
+    d.RoundNumber,
+    d.IsEliminationRound,
+    ss.SpeakerPoints,
+    ss.Feedback,
+    ss.IsRead,
+    u.Name as HeadJudgeName,
+    r.RoomName,
+    t1.Name as OpponentTeamName,
+    t2.Name as StudentTeamName
+FROM SpeakerScores ss
+JOIN Ballots b ON ss.BallotID = b.BallotID
+JOIN Debates d ON b.DebateID = d.DebateID
+JOIN JudgeAssignments ja ON d.DebateID = ja.DebateID AND ja.IsHeadJudge = true
+JOIN Users u ON ja.JudgeID = u.UserID
+JOIN Rooms r ON d.RoomID = r.RoomID
+JOIN Teams t1 ON (d.Team1ID = t1.TeamID)
+JOIN Teams t2 ON (d.Team2ID = t2.TeamID AND t2.TeamID IN (
+    SELECT TeamID FROM TeamMembers WHERE StudentID = $1
+))
+WHERE ss.SpeakerID = $1
+  AND d.TournamentID = $2
+ORDER BY d.RoundNumber
+LIMIT $3 OFFSET $4;
+
+-- name: GetStudentFeedbackCount :one
+SELECT COUNT(*)
+FROM SpeakerScores ss
+JOIN Ballots b ON ss.BallotID = b.BallotID
+JOIN Debates d ON b.DebateID = d.DebateID
+WHERE ss.SpeakerID = $1 AND d.TournamentID = $2;
+
+-- name: CreateJudgeFeedback :one
+INSERT INTO JudgeFeedback (
+    JudgeID, StudentID, DebateID,
+    ClarityRating, ConstructivenessRating, TimelinessRating,
+    FairnessRating, EngagementRating, TextFeedback
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING *;
+
+-- name: GetJudgeFeedbackList :many
+SELECT
+    f.*,
+    d.RoundNumber,
+    d.IsEliminationRound,
+    t.StartDate as TournamentDate
+FROM JudgeFeedback f
+JOIN Debates d ON f.DebateID = d.DebateID
+JOIN Tournaments t ON d.TournamentID = t.TournamentID
+WHERE f.JudgeID = $1
+ORDER BY f.CreatedAt DESC
+LIMIT $2 OFFSET $3;
+
+-- name: GetJudgeFeedbackCount :one
+SELECT COUNT(*)
+FROM JudgeFeedback
+WHERE JudgeID = $1;
+
+-- name: GetOverallVolunteerRanking :many
+WITH volunteer_ranking AS (
+    SELECT
+        v.VolunteerID,
+        v.FirstName || ' ' || v.LastName AS VolunteerName,
+        AVG(jf.AverageRating) as AverageRating,
+        COUNT(DISTINCT d.TournamentID) as TournamentsJudged,
+        RANK() OVER (ORDER BY AVG(jf.AverageRating) DESC) as CurrentRank,
+        COUNT(*) OVER () as TotalVolunteers,
+        MAX(t.StartDate) as LastTournamentDate
+    FROM
+        Volunteers v
+        LEFT JOIN JudgeAssignments ja ON v.UserID = ja.JudgeID
+        LEFT JOIN Debates d ON ja.DebateID = d.DebateID
+        LEFT JOIN JudgeFeedback jf ON v.UserID = jf.JudgeID
+        LEFT JOIN Tournaments t ON d.TournamentID = t.TournamentID
+    GROUP BY
+        v.VolunteerID, v.FirstName, v.LastName
+)
+SELECT *
+FROM volunteer_ranking
+ORDER BY CurrentRank;
+
+-- name: GetVolunteerPerformance :many
+WITH tournament_performance AS (
+    SELECT
+        t.StartDate,
+        v.UserID,
+        AVG(jf.AverageRating) as VolunteerAverageRating,
+        AVG(AVG(jf.AverageRating)) OVER (PARTITION BY d.TournamentID) as OverallAverageRating,
+        RANK() OVER (PARTITION BY d.TournamentID ORDER BY AVG(jf.AverageRating) DESC) as TournamentRank
+    FROM
+        Volunteers v
+        JOIN JudgeAssignments ja ON v.UserID = ja.JudgeID
+        JOIN Debates d ON ja.DebateID = d.DebateID
+        JOIN JudgeFeedback jf ON v.UserID = jf.JudgeID
+        JOIN Tournaments t ON d.TournamentID = t.TournamentID
+    WHERE
+        v.UserID = $1 AND t.StartDate BETWEEN $2 AND $3
+    GROUP BY
+        t.StartDate, d.TournamentID, v.UserID
+)
+SELECT *
+FROM tournament_performance
+ORDER BY StartDate;
+
+-- name: MarkStudentFeedbackAsRead :exec
+UPDATE SpeakerScores
+SET IsRead = true
+WHERE SpeakerID = $1 AND BallotID = $2;
+
+-- name: MarkJudgeFeedbackAsRead :exec
+UPDATE JudgeFeedback
+SET IsRead = true
+WHERE FeedbackID = $1 AND JudgeID = $2;

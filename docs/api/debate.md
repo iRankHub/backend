@@ -406,6 +406,139 @@ Notes for Ranking Endpoints:
 - For `GetOverallStudentRanking`, the response includes the top 3 students' information along with the requested student's ranking.
 - `GetStudentOverallPerformance` allows for querying performance data within a specific date range.
 
+
+## Feedback Management
+
+### GetStudentFeedback
+
+Endpoint: `DebateService.GetStudentFeedback`
+
+Request:
+```json
+{
+  "tournament_id": 1,
+  "token": "your_auth_token_here",
+  "page": 1,
+  "page_size": 10
+}
+```
+
+### SubmitJudgeFeedback
+
+Endpoint: `DebateService.SubmitJudgeFeedback`
+
+Request:
+```json
+{
+  "judge_id": 1,
+  "debate_id": 1,
+  "clarity_rating": 85.5,
+  "constructiveness_rating": 90.0,
+  "timeliness_rating": 88.5,
+  "fairness_rating": 92.0,
+  "engagement_rating": 87.5,
+  "text_feedback": "Excellent judging with clear explanations...",
+  "token": "your_auth_token_here"
+}
+```
+
+Notes:
+- All ratings are on a scale of 0 to 100
+- Average rating is automatically calculated
+- Only students who participated in the debate can submit feedback
+
+### GetJudgeFeedback
+
+Endpoint: `DebateService.GetJudgeFeedback`
+
+Request:
+```json
+{
+  "token": "your_auth_token_here",
+  "page": 1,
+  "page_size": 10
+}
+```
+
+### MarkStudentFeedbackAsRead
+
+Endpoint: `DebateService.MarkStudentFeedbackAsRead`
+
+Request:
+```json
+{
+  "feedback_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+Marks a specific piece of feedback (identified by ballot_id) as read for the student. Only the student who received the feedback can mark it as read.
+
+### MarkJudgeFeedbackAsRead
+
+Endpoint: `DebateService.MarkJudgeFeedbackAsRead`
+
+Request:
+```json
+{
+  "feedback_id": 1,
+  "token": "your_auth_token_here"
+}
+```
+
+Marks a specific piece of feedback as read for the judge. Only the judge who received the feedback can mark it as read.
+
+Notes for Read Status:
+- The read status is automatically returned when getting feedback
+- Once marked as read, the status cannot be changed back to unread
+- Both students and judges can only mark their own feedback as read
+- The feedback_id for students corresponds to the ballot_id
+- The feedback_id for judges corresponds to the JudgeFeedback table's feedback_id
+
+## Volunteer Rankings and Stats
+
+### GetVolunteerTournamentStats
+
+Endpoint: `DebateService.GetVolunteerTournamentStats`
+
+Request:
+```json
+{
+  "token": "your_auth_token_here"
+}
+```
+
+### GetVolunteerRanking
+
+Endpoint: `DebateService.GetVolunteerRanking`
+
+Request:
+```json
+{
+  "token": "your_auth_token_here"
+}
+```
+
+### GetVolunteerPerformance
+
+Endpoint: `DebateService.GetVolunteerPerformance`
+
+Request:
+```json
+{
+  "start_date": "2024-01-01",
+  "end_date": "2024-12-31",
+  "token": "your_auth_token_here"
+}
+```
+
+Notes for Volunteer Rankings:
+- Rankings are based on feedback received from students
+- Percentage changes compare current numbers with previous day's values
+- Performance data can be queried for specific date ranges
+- All ratings are on a scale of 0 to 100
+- The average rating is automatically calculated from the five individual ratings
+
 ## Team Management
 
 ### CreateTeam
