@@ -25,7 +25,6 @@ CREATE INDEX IF NOT EXISTS idx_users_pending_verification ON Users(Status, Verif
 -- User Profile Management
 CREATE INDEX IF NOT EXISTS idx_user_profiles_composite ON UserProfiles(UserID, UserRole);
 CREATE INDEX IF NOT EXISTS idx_user_profiles_verification ON UserProfiles(UserID, VerificationStatus);
-CREATE INDEX IF NOT EXISTS idx_user_profiles_search ON UserProfiles USING gin(to_tsvector('english', Name || ' ' || COALESCE(Bio, '')));
 
 -- WebAuthn and Security
 CREATE INDEX IF NOT EXISTS idx_webauthn_credentials_lookup ON WebAuthnCredentials(UserID, CredentialID);
@@ -42,11 +41,10 @@ CREATE INDEX IF NOT EXISTS idx_tournaments_startdate ON Tournaments(StartDate) W
 CREATE INDEX IF NOT EXISTS idx_tournaments_dates ON Tournaments(StartDate, EndDate) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_tournaments_coordinator ON Tournaments(CoordinatorID, deleted_at);
 CREATE INDEX IF NOT EXISTS idx_tournaments_league_format ON Tournaments(LeagueID, FormatID);
-CREATE INDEX IF NOT EXISTS idx_tournaments_active ON Tournaments(StartDate) WHERE deleted_at IS NULL AND StartDate > CURRENT_TIMESTAMP;
+CREATE INDEX IF NOT EXISTS idx_tournaments_active ON Tournaments(StartDate, deleted_at);
+CREATE INDEX IF NOT EXISTS idx_tournaments_upcoming ON Tournaments(StartDate, deleted_at);
 CREATE INDEX IF NOT EXISTS idx_tournaments_stats ON Tournaments(TournamentID, StartDate, deleted_at);
 CREATE INDEX IF NOT EXISTS idx_tournaments_timestamps ON Tournaments(created_at, updated_at);
-CREATE INDEX IF NOT EXISTS idx_tournaments_upcoming ON Tournaments(StartDate) WHERE deleted_at IS NULL AND StartDate > CURRENT_TIMESTAMP;
-CREATE INDEX IF NOT EXISTS idx_tournaments_search ON Tournaments USING gin(to_tsvector('english', Name || ' ' || Location));
 
 -- Tournament Format and League
 CREATE INDEX IF NOT EXISTS idx_tournament_formats_active ON TournamentFormats(FormatID) WHERE deleted_at IS NULL;
@@ -120,7 +118,6 @@ CREATE INDEX IF NOT EXISTS idx_volunteers_stats ON Volunteers(UserID, Role, HasI
 CREATE INDEX IF NOT EXISTS idx_schools_contactpersonid ON Schools(ContactPersonID);
 CREATE INDEX IF NOT EXISTS idx_schools_contactemail ON Schools(ContactEmail);
 CREATE INDEX IF NOT EXISTS idx_schools_composite ON Schools(ContactPersonID, iDebateSchoolID, SchoolType);
-CREATE INDEX IF NOT EXISTS idx_schools_search ON Schools USING gin(to_tsvector('english', SchoolName || ' ' || Address));
 
 -- ==========================================
 -- Invitation and Notification Indexes
