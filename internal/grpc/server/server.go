@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 
 	"google.golang.org/grpc"
 
@@ -22,6 +23,10 @@ import (
 	tournamentserver "github.com/iRankHub/backend/internal/grpc/server/tournament_management"
 	userserver "github.com/iRankHub/backend/internal/grpc/server/user_management"
 )
+
+func isDevMode() bool {
+	return strings.ToLower(os.Getenv("GO_ENV")) == "development"
+}
 
 func StartGRPCServer(db *sql.DB) error {
 	// Create a new gRPC server
@@ -58,11 +63,17 @@ func StartGRPCServer(db *sql.DB) error {
 	}
 	notification.RegisterNotificationServiceServer(grpcServer, notificationServer)
 
-	systemHealthServer, err := systemhealthserver.NewSystemHealthServer()
-	if err != nil {
-		return fmt.Errorf("failed to create SystemHealthServer: %v", err)
+	// Only register SystemHealth server if not in development mode
+	if !isDevMode() {
+		systemHealthServer, err := systemhealthserver.NewSystemHealthServer()
+		if err != nil {
+			return fmt.Errorf("failed to create SystemHealthServer: %v", err)
+		}
+		system_health.RegisterSystemHealthServiceServer(grpcServer, systemHealthServer)
+		log.Println("SystemHealth server registered in production mode")
+	} else {
+		log.Println("Skipping SystemHealth server in development mode")
 	}
-	system_health.RegisterSystemHealthServiceServer(grpcServer, systemHealthServer)
 
 	// Read the gRPC server port from the environment
 	grpcPort := os.Getenv("GRPC_PORT")

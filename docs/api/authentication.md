@@ -68,7 +68,6 @@ Demo Data:
   "graduationYear": 2012,
   "hasInternship": true,
   "isEnrolledInUniversity": true,
-  "safeguardingCertificate": "base64encodedupload"
 }
 ```
 
@@ -118,8 +117,7 @@ Demo Data:
       "roleInterestedIn": "Mentor",
       "graduationYear": 2012,
       "hasInternship": true,
-      "isEnrolledInUniversity": true,
-      "safeguardingCertificate": true
+      "isEnrolledInUniversity": true
     }
   ]
 }

@@ -209,7 +209,7 @@ CREATE TABLE Ballots (
    Team2TotalScore NUMERIC,
    Team2Feedback TEXT,
    RecordingStatus VARCHAR(20) NOT NULL DEFAULT 'pending',
-   Verdict VARCHAR(10) NOT NULL DEFAULT 'pending',
+   Verdict VARCHAR(255) NOT NULL DEFAULT 'pending',
    last_updated_by INT REFERENCES Users(UserID),
    last_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
    head_judge_submitted BOOLEAN DEFAULT FALSE

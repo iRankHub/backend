@@ -14,11 +14,14 @@ INSERT INTO JudgeAssignments (TournamentID, JudgeID, DebateID, RoundNumber, IsEl
 VALUES ($1, $2, $3, $4, $5, $6);
 
 -- name: GetAvailableJudges :many
-SELECT u.UserID, u.Name, u.Email
+SELECT DISTINCT u.UserID, u.Name, u.Email, v.iDebateVolunteerID
 FROM Users u
 JOIN Volunteers v ON u.UserID = v.UserID
-LEFT JOIN JudgeAssignments ja ON u.UserID = ja.JudgeID AND ja.TournamentID = $1
-WHERE v.Role = 'Judge' AND ja.JudgeID IS NULL;
+JOIN TournamentInvitations ti ON ti.InviteeID = v.iDebateVolunteerID
+WHERE v.Role = 'Judge'
+  AND ti.TournamentID = $1
+  AND ti.Status = 'accepted'
+  AND ti.InviteeRole = 'volunteer';
 
 -- name: DeletePairingsForTournament :exec
 DELETE FROM Debates
@@ -519,25 +522,30 @@ ORDER BY
     d.RoundNumber;
 
 -- name: UpdateJudgeRoom :exec
-UPDATE JudgeAssignments ja
-SET DebateID = (
+WITH new_debate AS (
     SELECT d.DebateID
     FROM Debates d
     WHERE d.TournamentID = $2
     AND d.RoundNumber = $3
     AND d.RoomID = $4
     AND d.IsEliminationRound = $5
-)
-WHERE ja.JudgeID = $1
-  AND ja.TournamentID = $2
-  AND EXISTS (
-    SELECT 1
-    FROM Debates d
-    WHERE d.TournamentID = $2
+),
+old_assignment AS (
+    SELECT ja.DebateID, ja.IsHeadJudge
+    FROM JudgeAssignments ja
+    JOIN Debates d ON ja.DebateID = d.DebateID
+    WHERE ja.JudgeID = $1
+    AND d.TournamentID = $2
     AND d.RoundNumber = $3
     AND d.IsEliminationRound = $5
-    AND d.DebateID = ja.DebateID
-  );
+)
+UPDATE JudgeAssignments ja
+SET DebateID = nd.DebateID
+FROM new_debate nd, old_assignment oa
+WHERE ja.JudgeID = $1
+AND ja.TournamentID = $2
+AND ja.DebateID = oa.DebateID
+AND nd.DebateID IS NOT NULL;
 
 -- name: GetEliminationRoundTeams :many
 SELECT
