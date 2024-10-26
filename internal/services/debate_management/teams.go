@@ -22,10 +22,23 @@ func NewTeamService(db *sql.DB) *TeamService {
 func (s *TeamService) CreateTeam(ctx context.Context, req *debate_management.CreateTeamRequest) (*debate_management.Team, error) {
 	log.Printf("CreateTeam called with name: %s, tournamentId: %d, speakers: %v", req.GetName(), req.GetTournamentId(), req.GetSpeakers())
 
-	_, err := s.validateAdminRole(req.GetToken())
+	// Validate token and get claims
+	claims, err := utils.ValidateToken(req.GetToken())
 	if err != nil {
-		log.Printf("Admin role validation failed: %v", err)
-		return nil, err
+		log.Printf("Token validation failed: %v", err)
+		return nil, fmt.Errorf("authentication failed: %v", err)
+	}
+
+	// Extract user role and ID from claims
+	userRole, ok := claims["user_role"].(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid token: user_role not found")
+	}
+
+	// Check if user has permission (admin or school)
+	if userRole != "admin" && userRole != "school" {
+		log.Printf("Unauthorized: user role %s cannot create teams", userRole)
+		return nil, fmt.Errorf("unauthorized: only admins and schools can create teams")
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -106,8 +119,22 @@ func (s *TeamService) CreateTeam(ctx context.Context, req *debate_management.Cre
 }
 
 func (s *TeamService) GetTeam(ctx context.Context, req *debate_management.GetTeamRequest) (*debate_management.Team, error) {
-	if err := s.validateAuthentication(req.GetToken()); err != nil {
-		return nil, err
+	// Validate token and get claims
+	claims, err := utils.ValidateToken(req.GetToken())
+	if err != nil {
+		log.Printf("Token validation failed: %v", err)
+		return nil, fmt.Errorf("authentication failed: %v", err)
+	}
+
+	userRole, ok := claims["user_role"].(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid token: user_role not found")
+	}
+
+	// Check if user has permission (admin or school)
+	if userRole != "admin" && userRole != "school" {
+		log.Printf("Unauthorized: user role %s cannot view teams", userRole)
+		return nil, fmt.Errorf("unauthorized: only admins and schools can view teams")
 	}
 
 	queries := models.New(s.db)
@@ -125,9 +152,20 @@ func (s *TeamService) GetTeam(ctx context.Context, req *debate_management.GetTea
 }
 
 func (s *TeamService) UpdateTeam(ctx context.Context, req *debate_management.UpdateTeamRequest) (*debate_management.Team, error) {
-	_, err := s.validateAdminRole(req.GetToken())
+	// Validate token and get claims
+	claims, err := utils.ValidateToken(req.GetToken())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("authentication failed: %v", err)
+	}
+
+	userRole, ok := claims["user_role"].(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid token: user_role not found")
+	}
+
+	// Check if user has permission (admin or school)
+	if userRole != "admin" && userRole != "school" {
+		return nil, fmt.Errorf("unauthorized: only admins and schools can update teams")
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -195,9 +233,20 @@ func (s *TeamService) GetTeamsByTournament(ctx context.Context, req *debate_mana
 }
 
 func (s *TeamService) DeleteTeam(ctx context.Context, req *debate_management.DeleteTeamRequest) (bool, string, error) {
-	_, err := s.validateAdminRole(req.GetToken())
+	// Validate token and get claims
+	claims, err := utils.ValidateToken(req.GetToken())
 	if err != nil {
-		return false, "", err
+		return false, "", fmt.Errorf("authentication failed: %v", err)
+	}
+
+	userRole, ok := claims["user_role"].(string)
+	if !ok {
+		return false, "", fmt.Errorf("invalid token: user_role not found")
+	}
+
+	// Check if user has permission (admin or school)
+	if userRole != "admin" && userRole != "school" {
+		return false, "", fmt.Errorf("unauthorized: only admins and schools can delete teams")
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -270,18 +319,4 @@ func (s *TeamService) validateAuthentication(token string) error {
 		return fmt.Errorf("authentication failed: %v", err)
 	}
 	return nil
-}
-
-func (s *TeamService) validateAdminRole(token string) (map[string]interface{}, error) {
-	claims, err := utils.ValidateToken(token)
-	if err != nil {
-		return nil, fmt.Errorf("authentication failed: %v", err)
-	}
-
-	userRole, ok := claims["user_role"].(string)
-	if !ok || userRole != "admin" {
-		return nil, fmt.Errorf("unauthorized: only admins can perform this action")
-	}
-
-	return claims, nil
 }
