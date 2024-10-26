@@ -581,15 +581,15 @@ func (s *RankingService) GetVolunteerTournamentStats(ctx context.Context, req *d
 	}
 
 	roundsJudgedChange := calculatePercentageChange(
-		int64(stats.YesterdayRoundsJudged.Int32),
+		int64(stats.YesterdayRoundsJudged),
 		int64(stats.TotalRoundsJudged),
 	)
 	tournamentsAttendedChange := calculatePercentageChange(
-		int64(stats.YesterdayTournamentsAttended.Int32),
+		int64(stats.YesterdayTournamentsAttended),
 		int64(stats.AttendedTournaments),
 	)
 	upcomingTournamentsChange := calculatePercentageChange(
-		int64(stats.YesterdayUpcomingTournaments.Int32),
+		int64(stats.YesterdayUpcomingTournaments),
 		int64(stats.UpcomingTournaments),
 	)
 

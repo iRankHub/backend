@@ -2869,13 +2869,14 @@ func (q *Queries) GetVolunteerPerformance(ctx context.Context, arg GetVolunteerP
 const getVolunteerTournamentStats = `-- name: GetVolunteerTournamentStats :one
 WITH volunteer_stats AS (
     SELECT
-        COUNT(DISTINCT d.DebateID) AS total_rounds_judged,
-        COUNT(DISTINCT t.TournamentID) AS attended_tournaments,
+        COUNT(DISTINCT CASE WHEN d.DebateID IS NOT NULL THEN d.DebateID END) AS total_rounds_judged,
+        COUNT(DISTINCT CASE WHEN t.TournamentID IS NOT NULL THEN t.TournamentID END) AS attended_tournaments,
         (
             SELECT COUNT(*)
             FROM TournamentInvitations ti
             JOIN Tournaments t ON ti.TournamentID = t.TournamentID
-            WHERE ti.InviteeID = v.iDebateVolunteerID
+            JOIN Volunteers v2 ON ti.InviteeID = v2.iDebateVolunteerID
+            WHERE v2.UserID = $1
             AND ti.Status = 'accepted'
             AND t.StartDate > CURRENT_DATE
         ) AS upcoming_tournaments
@@ -2886,23 +2887,24 @@ WITH volunteer_stats AS (
         LEFT JOIN Tournaments t ON d.TournamentID = t.TournamentID
     WHERE
         v.UserID = $1
+    GROUP BY v.UserID
 )
 SELECT
     vs.total_rounds_judged, vs.attended_tournaments, vs.upcoming_tournaments,
-    v.yesterday_rounds_judged,
-    v.yesterday_tournaments_attended,
-    v.yesterday_upcoming_tournaments
-FROM volunteer_stats vs, Volunteers v
-WHERE v.UserID = $1
+    COALESCE(v.yesterday_rounds_judged, 0) as yesterday_rounds_judged,
+    COALESCE(v.yesterday_tournaments_attended, 0) as yesterday_tournaments_attended,
+    COALESCE(v.yesterday_upcoming_tournaments, 0) as yesterday_upcoming_tournaments
+FROM volunteer_stats vs
+JOIN Volunteers v ON v.UserID = $1
 `
 
 type GetVolunteerTournamentStatsRow struct {
-	TotalRoundsJudged            int64         `json:"total_rounds_judged"`
-	AttendedTournaments          int64         `json:"attended_tournaments"`
-	UpcomingTournaments          int64         `json:"upcoming_tournaments"`
-	YesterdayRoundsJudged        sql.NullInt32 `json:"yesterday_rounds_judged"`
-	YesterdayTournamentsAttended sql.NullInt32 `json:"yesterday_tournaments_attended"`
-	YesterdayUpcomingTournaments sql.NullInt32 `json:"yesterday_upcoming_tournaments"`
+	TotalRoundsJudged            int64 `json:"total_rounds_judged"`
+	AttendedTournaments          int64 `json:"attended_tournaments"`
+	UpcomingTournaments          int64 `json:"upcoming_tournaments"`
+	YesterdayRoundsJudged        int32 `json:"yesterday_rounds_judged"`
+	YesterdayTournamentsAttended int32 `json:"yesterday_tournaments_attended"`
+	YesterdayUpcomingTournaments int32 `json:"yesterday_upcoming_tournaments"`
 }
 
 func (q *Queries) GetVolunteerTournamentStats(ctx context.Context, userid int32) (GetVolunteerTournamentStatsRow, error) {

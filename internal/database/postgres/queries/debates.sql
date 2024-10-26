@@ -966,13 +966,14 @@ FROM
 -- name: GetVolunteerTournamentStats :one
 WITH volunteer_stats AS (
     SELECT
-        COUNT(DISTINCT d.DebateID) AS total_rounds_judged,
-        COUNT(DISTINCT t.TournamentID) AS attended_tournaments,
+        COUNT(DISTINCT CASE WHEN d.DebateID IS NOT NULL THEN d.DebateID END) AS total_rounds_judged,
+        COUNT(DISTINCT CASE WHEN t.TournamentID IS NOT NULL THEN t.TournamentID END) AS attended_tournaments,
         (
             SELECT COUNT(*)
             FROM TournamentInvitations ti
             JOIN Tournaments t ON ti.TournamentID = t.TournamentID
-            WHERE ti.InviteeID = v.iDebateVolunteerID
+            JOIN Volunteers v2 ON ti.InviteeID = v2.iDebateVolunteerID
+            WHERE v2.UserID = $1
             AND ti.Status = 'accepted'
             AND t.StartDate > CURRENT_DATE
         ) AS upcoming_tournaments
@@ -983,14 +984,15 @@ WITH volunteer_stats AS (
         LEFT JOIN Tournaments t ON d.TournamentID = t.TournamentID
     WHERE
         v.UserID = $1
+    GROUP BY v.UserID
 )
 SELECT
     vs.*,
-    v.yesterday_rounds_judged,
-    v.yesterday_tournaments_attended,
-    v.yesterday_upcoming_tournaments
-FROM volunteer_stats vs, Volunteers v
-WHERE v.UserID = $1;
+    COALESCE(v.yesterday_rounds_judged, 0) as yesterday_rounds_judged,
+    COALESCE(v.yesterday_tournaments_attended, 0) as yesterday_tournaments_attended,
+    COALESCE(v.yesterday_upcoming_tournaments, 0) as yesterday_upcoming_tournaments
+FROM volunteer_stats vs
+JOIN Volunteers v ON v.UserID = $1;
 
 -- name: GetStudentFeedback :many
 SELECT
