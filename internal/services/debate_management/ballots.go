@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/debate_management"
 	"github.com/iRankHub/backend/internal/models"
@@ -43,33 +45,71 @@ func (s *BallotService) GetBallot(ctx context.Context, req *debate_management.Ge
 		return nil, err
 	}
 
-	queries := models.New(s.db)
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, fmt.Errorf("failed to start transaction: %v", err)
+	}
+	defer tx.Rollback()
+
+	queries := models.New(s.db).WithTx(tx)
+
+	// Get the ballot
 	ballot, err := queries.GetBallotByID(ctx, req.GetBallotId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ballot: %v", err)
 	}
 
+	// Convert the ballot to proto format
 	convertedBallot := convertBallot(ballot)
 
-	// Fetch speaker scores
+	// Get all speaker scores in a single query
 	speakerScores, err := queries.GetSpeakerScoresByBallot(ctx, req.GetBallotId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get speaker scores: %v", err)
 	}
 
-	// Assign speaker scores to teams
+	// Create maps to store speakers for each team
+	team1Speakers := make([]*debate_management.Speaker, 0)
+	team2Speakers := make([]*debate_management.Speaker, 0)
+	team1Names := make([]string, 0)
+	team2Names := make([]string, 0)
+
+	// Sort speakers into their respective teams
 	for _, score := range speakerScores {
 		speaker := convertSpeakerScore(score)
 		if score.Teamid == convertedBallot.Team1.TeamId {
-			convertedBallot.Team1.Speakers = append(convertedBallot.Team1.Speakers, speaker)
-			convertedBallot.Team1.SpeakerNames = append(convertedBallot.Team1.SpeakerNames, speaker.Name)
+			team1Speakers = append(team1Speakers, speaker)
+			team1Names = append(team1Names, speaker.Name)
 		} else if score.Teamid == convertedBallot.Team2.TeamId {
-			convertedBallot.Team2.Speakers = append(convertedBallot.Team2.Speakers, speaker)
-			convertedBallot.Team2.SpeakerNames = append(convertedBallot.Team2.SpeakerNames, speaker.Name)
+			team2Speakers = append(team2Speakers, speaker)
+			team2Names = append(team2Names, speaker.Name)
+		} else {
+			log.Printf("Warning: Speaker %d doesn't match either team (Team1: %d, Team2: %d)",
+				speaker.SpeakerId, convertedBallot.Team1.TeamId, convertedBallot.Team2.TeamId)
 		}
 	}
 
+	// Sort speakers by rank within each team
+	sortSpeakersByRank(team1Speakers)
+	sortSpeakersByRank(team2Speakers)
+
+	// Assign sorted speakers to teams
+	convertedBallot.Team1.Speakers = team1Speakers
+	convertedBallot.Team1.SpeakerNames = team1Names
+	convertedBallot.Team2.Speakers = team2Speakers
+	convertedBallot.Team2.SpeakerNames = team2Names
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
 	return convertedBallot, nil
+}
+
+func sortSpeakersByRank(speakers []*debate_management.Speaker) {
+	sort.Slice(speakers, func(i, j int) bool {
+		return speakers[i].Rank < speakers[j].Rank
+	})
 }
 
 func (s *BallotService) GetBallotByJudgeID(ctx context.Context, req *debate_management.GetBallotByJudgeIDRequest) (*debate_management.Ballot, error) {
@@ -292,10 +332,15 @@ func updateTeamScore(ctx context.Context, queries *models.Queries, teamID int32,
 }
 
 func convertSpeakerScore(score models.GetSpeakerScoresByBallotRow) *debate_management.Speaker {
-	points, _ := strconv.ParseFloat(score.Speakerpoints, 64)
+	points, err := strconv.ParseFloat(score.Speakerpoints, 64)
+	if err != nil {
+		log.Printf("Warning: Failed to parse speaker points '%s': %v", score.Speakerpoints, err)
+		points = 0
+	}
+
 	return &debate_management.Speaker{
 		SpeakerId: score.Speakerid,
-		Name:      score.Firstname + " " + score.Lastname,
+		Name:      strings.TrimSpace(score.Firstname + " " + score.Lastname),
 		ScoreId:   score.Scoreid,
 		Rank:      int32(score.Speakerrank),
 		Points:    points,
@@ -362,7 +407,39 @@ func convertBallot(dbBallot models.GetBallotByIDRow) *debate_management.Ballot {
 }
 
 func convertJudgeBallot(dbBallot models.GetBallotByJudgeIDRow) *debate_management.Ballot {
-	return convertBallot(models.GetBallotByIDRow(dbBallot))
+	team1TotalPoints, _ := strconv.ParseFloat(dbBallot.Team1totalscore.String, 64)
+	team2TotalPoints, _ := strconv.ParseFloat(dbBallot.Team2totalscore.String, 64)
+
+	return &debate_management.Ballot{
+		BallotId:      dbBallot.Ballotid,
+		RoundNumber:   dbBallot.Roundnumber,
+		IsElimination: dbBallot.Iseliminationround,
+		RoomId:        dbBallot.Roomid,
+		RoomName:      dbBallot.Roomname.String,
+		Judges: []*debate_management.Judge{
+			{
+				JudgeId: dbBallot.Judgeid,
+				Name:    dbBallot.Judgename,
+			},
+		},
+		Team1: &debate_management.Team{
+			TeamId:      dbBallot.Team1id,
+			Name:        dbBallot.Team1name,
+			TotalPoints: team1TotalPoints,
+			Feedback:    dbBallot.Team1feedback.String,
+		},
+		Team2: &debate_management.Team{
+			TeamId:      dbBallot.Team2id,
+			Name:        dbBallot.Team2name,
+			TotalPoints: team2TotalPoints,
+			Feedback:    dbBallot.Team2feedback.String,
+		},
+		RecordingStatus:    dbBallot.Recordingstatus,
+		Verdict:            dbBallot.Verdict,
+		LastUpdatedBy:      dbBallot.LastUpdatedBy.Int32,
+		LastUpdatedAt:      dbBallot.LastUpdatedAt.Time.String(),
+		HeadJudgeSubmitted: dbBallot.HeadJudgeSubmitted.Bool,
+	}
 }
 
 func (s *BallotService) GetSpeakerScores(ctx context.Context, ballotID int32) ([]*debate_management.Speaker, error) {
