@@ -945,10 +945,12 @@ SELECT
     f.feedbackid, f.judgeid, f.studentid, f.debateid, f.clarityrating, f.constructivenessrating, f.timelinessrating, f.fairnessrating, f.engagementrating, f.averagerating, f.textfeedback, f.isread, f.createdat,
     d.RoundNumber,
     d.IsEliminationRound,
-    t.StartDate as TournamentDate
+    t.StartDate as TournamentDate,
+    b.BallotID as BallotID
 FROM JudgeFeedback f
 JOIN Debates d ON f.DebateID = d.DebateID
 JOIN Tournaments t ON d.TournamentID = t.TournamentID
+JOIN Ballots b ON d.DebateID = b.DebateID
 WHERE f.JudgeID = $1
 ORDER BY f.CreatedAt DESC
 LIMIT $2 OFFSET $3
@@ -977,6 +979,7 @@ type GetJudgeFeedbackListRow struct {
 	Roundnumber            int32          `json:"roundnumber"`
 	Iseliminationround     bool           `json:"iseliminationround"`
 	Tournamentdate         time.Time      `json:"tournamentdate"`
+	Ballotid               int32          `json:"ballotid"`
 }
 
 func (q *Queries) GetJudgeFeedbackList(ctx context.Context, arg GetJudgeFeedbackListParams) ([]GetJudgeFeedbackListRow, error) {
@@ -1005,6 +1008,7 @@ func (q *Queries) GetJudgeFeedbackList(ctx context.Context, arg GetJudgeFeedback
 			&i.Roundnumber,
 			&i.Iseliminationround,
 			&i.Tournamentdate,
+			&i.Ballotid,
 		); err != nil {
 			return nil, err
 		}

@@ -293,3 +293,92 @@ SELECT
     hs.yesterday_active_debaters_count
 FROM CurrentStats cs, HistoricalStats hs, ActiveDebaters ad;
 
+-- name: CreateTournamentExpenses :one
+INSERT INTO TournamentExpenses (
+    TournamentID, FoodExpense, TransportExpense, PerDiemExpense,
+    AwardingExpense, StationaryExpense, OtherExpenses, Currency,
+    Notes, CreatedBy
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING *;
+
+-- name: GetTournamentExpenses :one
+SELECT * FROM TournamentExpenses
+WHERE TournamentID = $1;
+
+-- name: UpdateTournamentExpenses :one
+UPDATE TournamentExpenses
+SET
+    FoodExpense = $2,
+    TransportExpense = $3,
+    PerDiemExpense = $4,
+    AwardingExpense = $5,
+    StationaryExpense = $6,
+    OtherExpenses = $7,
+    Currency = $8,
+    Notes = $9,
+    UpdatedBy = $10
+WHERE TournamentID = $1
+RETURNING *;
+
+-- name: CreateSchoolRegistration :one
+INSERT INTO SchoolTournamentRegistrations (
+    SchoolID, TournamentID, PlannedTeamsCount,
+    AmountPerTeam, Currency, CreatedBy
+)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING *;
+
+-- name: UpdateSchoolRegistration :one
+UPDATE SchoolTournamentRegistrations
+SET
+    ActualTeamsCount = $3,
+    DiscountAmount = $4,
+    ActualPaidAmount = $5,
+    PaymentStatus = $6,
+    PaymentDate = CASE
+        WHEN $6 = 'paid' THEN CURRENT_TIMESTAMP
+        ELSE PaymentDate
+    END,
+    UpdatedBy = $7
+WHERE SchoolID = $1 AND TournamentID = $2
+RETURNING *;
+
+-- name: GetSchoolRegistration :one
+SELECT
+    str.*,
+    s.SchoolName,
+    s.SchoolEmail,
+    s.SchoolType,
+    s.ContactEmail,
+    u.Name as ContactPersonName,
+    s.Country,
+    s.Province,
+    s.District,
+    s.Address
+FROM SchoolTournamentRegistrations str
+JOIN Schools s ON str.SchoolID = s.SchoolID
+JOIN Users u ON s.ContactPersonID = u.UserID
+WHERE str.SchoolID = $1 AND str.TournamentID = $2;
+
+-- name: ListTournamentRegistrations :many
+SELECT
+    str.*,
+    s.iDebateSchoolID,
+    s.SchoolName,
+    s.SchoolEmail
+FROM SchoolTournamentRegistrations str
+JOIN Schools s ON str.SchoolID = s.SchoolID
+WHERE str.TournamentID = $1
+ORDER BY str.CreatedAt DESC
+LIMIT $2 OFFSET $3;
+
+-- name: GetRegistrationCurrency :one
+SELECT
+    CASE
+        WHEN l.LeagueType = 'international' THEN 'USD'
+        ELSE 'RWF'
+    END as Currency
+FROM Tournaments t
+JOIN Leagues l ON t.LeagueID = l.LeagueID
+WHERE t.TournamentID = $1;

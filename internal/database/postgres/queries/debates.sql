@@ -1059,10 +1059,12 @@ SELECT
     f.*,
     d.RoundNumber,
     d.IsEliminationRound,
-    t.StartDate as TournamentDate
+    t.StartDate as TournamentDate,
+    b.BallotID as BallotID
 FROM JudgeFeedback f
 JOIN Debates d ON f.DebateID = d.DebateID
 JOIN Tournaments t ON d.TournamentID = t.TournamentID
+JOIN Ballots b ON d.DebateID = b.DebateID
 WHERE f.JudgeID = $1
 ORDER BY f.CreatedAt DESC
 LIMIT $2 OFFSET $3;

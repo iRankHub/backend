@@ -570,6 +570,7 @@ message JudgeFeedbackEntry {
   string text_feedback = 9;
   int32 round_number = 10;
   bool is_elimination_round = 11;
+  int32 ballot_id = 12; 
 }
 
 message GetJudgeFeedbackResponse {
