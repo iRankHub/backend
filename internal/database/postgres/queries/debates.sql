@@ -995,16 +995,33 @@ FROM volunteer_stats vs
 JOIN Volunteers v ON v.UserID = $1;
 
 -- name: GetStudentFeedback :many
+WITH debate_judges AS (
+    SELECT
+        ja.DebateID,
+        json_agg(
+            json_build_object(
+                'judge_id', ja.JudgeID,
+                'judge_name', u.Name,
+                'is_head_judge', ja.IsHeadJudge
+            )
+        ) as judges
+    FROM JudgeAssignments ja
+    JOIN Users u ON ja.JudgeID = u.UserID
+    GROUP BY ja.DebateID
+)
 SELECT
     d.RoundNumber,
     d.IsEliminationRound,
+    d.DebateID,
+    b.BallotID,
     ss.SpeakerPoints,
     ss.Feedback,
     ss.IsRead,
     u.Name as HeadJudgeName,
     r.RoomName,
     t1.Name as OpponentTeamName,
-    t2.Name as StudentTeamName
+    t2.Name as StudentTeamName,
+    dj.judges::text as JudgesInfo
 FROM SpeakerScores ss
 JOIN Ballots b ON ss.BallotID = b.BallotID
 JOIN Debates d ON b.DebateID = d.DebateID
@@ -1015,6 +1032,7 @@ JOIN Teams t1 ON (d.Team1ID = t1.TeamID)
 JOIN Teams t2 ON (d.Team2ID = t2.TeamID AND t2.TeamID IN (
     SELECT TeamID FROM TeamMembers WHERE StudentID = $1
 ))
+LEFT JOIN debate_judges dj ON d.DebateID = dj.DebateID
 WHERE ss.SpeakerID = $1
   AND d.TournamentID = $2
 ORDER BY d.RoundNumber

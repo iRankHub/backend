@@ -2030,16 +2030,33 @@ func (q *Queries) GetSpeakerScoresByBallot(ctx context.Context, ballotid int32) 
 }
 
 const getStudentFeedback = `-- name: GetStudentFeedback :many
+WITH debate_judges AS (
+    SELECT
+        ja.DebateID,
+        json_agg(
+            json_build_object(
+                'judge_id', ja.JudgeID,
+                'judge_name', u.Name,
+                'is_head_judge', ja.IsHeadJudge
+            )
+        ) as judges
+    FROM JudgeAssignments ja
+    JOIN Users u ON ja.JudgeID = u.UserID
+    GROUP BY ja.DebateID
+)
 SELECT
     d.RoundNumber,
     d.IsEliminationRound,
+    d.DebateID,
+    b.BallotID,
     ss.SpeakerPoints,
     ss.Feedback,
     ss.IsRead,
     u.Name as HeadJudgeName,
     r.RoomName,
     t1.Name as OpponentTeamName,
-    t2.Name as StudentTeamName
+    t2.Name as StudentTeamName,
+    dj.judges::text as JudgesInfo
 FROM SpeakerScores ss
 JOIN Ballots b ON ss.BallotID = b.BallotID
 JOIN Debates d ON b.DebateID = d.DebateID
@@ -2050,6 +2067,7 @@ JOIN Teams t1 ON (d.Team1ID = t1.TeamID)
 JOIN Teams t2 ON (d.Team2ID = t2.TeamID AND t2.TeamID IN (
     SELECT TeamID FROM TeamMembers WHERE StudentID = $1
 ))
+LEFT JOIN debate_judges dj ON d.DebateID = dj.DebateID
 WHERE ss.SpeakerID = $1
   AND d.TournamentID = $2
 ORDER BY d.RoundNumber
@@ -2066,6 +2084,8 @@ type GetStudentFeedbackParams struct {
 type GetStudentFeedbackRow struct {
 	Roundnumber        int32          `json:"roundnumber"`
 	Iseliminationround bool           `json:"iseliminationround"`
+	Debateid           int32          `json:"debateid"`
+	Ballotid           int32          `json:"ballotid"`
 	Speakerpoints      string         `json:"speakerpoints"`
 	Feedback           sql.NullString `json:"feedback"`
 	Isread             sql.NullBool   `json:"isread"`
@@ -2073,6 +2093,7 @@ type GetStudentFeedbackRow struct {
 	Roomname           string         `json:"roomname"`
 	Opponentteamname   string         `json:"opponentteamname"`
 	Studentteamname    string         `json:"studentteamname"`
+	Judgesinfo         string         `json:"judgesinfo"`
 }
 
 func (q *Queries) GetStudentFeedback(ctx context.Context, arg GetStudentFeedbackParams) ([]GetStudentFeedbackRow, error) {
@@ -2092,6 +2113,8 @@ func (q *Queries) GetStudentFeedback(ctx context.Context, arg GetStudentFeedback
 		if err := rows.Scan(
 			&i.Roundnumber,
 			&i.Iseliminationround,
+			&i.Debateid,
+			&i.Ballotid,
 			&i.Speakerpoints,
 			&i.Feedback,
 			&i.Isread,
@@ -2099,6 +2122,7 @@ func (q *Queries) GetStudentFeedback(ctx context.Context, arg GetStudentFeedback
 			&i.Roomname,
 			&i.Opponentteamname,
 			&i.Studentteamname,
+			&i.Judgesinfo,
 		); err != nil {
 			return nil, err
 		}

@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -65,9 +66,27 @@ func (s *FeedbackService) GetStudentFeedback(ctx context.Context, req *debate_ma
 			return nil, fmt.Errorf("failed to parse speaker points: %v", err)
 		}
 
+		// Parse judges info from JSON string
+		var judgesData []map[string]interface{}
+		err = json.Unmarshal([]byte(f.Judgesinfo), &judgesData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse judges info: %v", err)
+		}
+
+		judges := make([]*debate_management.JudgeInfo, len(judgesData))
+		for j, judge := range judgesData {
+			judges[j] = &debate_management.JudgeInfo{
+				JudgeId:     int32(judge["judge_id"].(float64)),
+				JudgeName:   judge["judge_name"].(string),
+				IsHeadJudge: judge["is_head_judge"].(bool),
+			}
+		}
+
 		entries[i] = &debate_management.StudentFeedbackEntry{
 			RoundNumber:        f.Roundnumber,
 			IsEliminationRound: f.Iseliminationround,
+			DebateId:           f.Debateid,
+			BallotId:           f.Ballotid,
 			SpeakerPoints:      speakerPoints,
 			Feedback:           f.Feedback.String,
 			IsRead:             f.Isread.Bool,
@@ -75,6 +94,7 @@ func (s *FeedbackService) GetStudentFeedback(ctx context.Context, req *debate_ma
 			RoomName:           f.Roomname,
 			OpponentTeamName:   f.Opponentteamname,
 			StudentTeamName:    f.Studentteamname,
+			Judges:             judges,
 		}
 	}
 
