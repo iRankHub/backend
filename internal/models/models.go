@@ -160,6 +160,25 @@ type School struct {
 	Schooltype              string         `json:"schooltype"`
 }
 
+type Schooltournamentregistration struct {
+	Registrationid    int32          `json:"registrationid"`
+	Schoolid          int32          `json:"schoolid"`
+	Tournamentid      int32          `json:"tournamentid"`
+	Plannedteamscount int32          `json:"plannedteamscount"`
+	Actualteamscount  sql.NullInt32  `json:"actualteamscount"`
+	Amountperteam     string         `json:"amountperteam"`
+	Totalamount       sql.NullString `json:"totalamount"`
+	Discountamount    sql.NullString `json:"discountamount"`
+	Actualpaidamount  sql.NullString `json:"actualpaidamount"`
+	Paymentstatus     string         `json:"paymentstatus"`
+	Paymentdate       sql.NullTime   `json:"paymentdate"`
+	Currency          string         `json:"currency"`
+	Createdat         sql.NullTime   `json:"createdat"`
+	Updatedat         sql.NullTime   `json:"updatedat"`
+	Createdby         sql.NullInt32  `json:"createdby"`
+	Updatedby         sql.NullInt32  `json:"updatedby"`
+}
+
 type Speakerscore struct {
 	Scoreid       int32          `json:"scoreid"`
 	Ballotid      int32          `json:"ballotid"`
@@ -237,6 +256,24 @@ type Tournament struct {
 	YesterdayTotalCount          sql.NullInt32  `json:"yesterday_total_count"`
 	YesterdayUpcomingCount       sql.NullInt32  `json:"yesterday_upcoming_count"`
 	YesterdayActiveDebatersCount sql.NullInt32  `json:"yesterday_active_debaters_count"`
+}
+
+type Tournamentexpense struct {
+	Expenseid         int32          `json:"expenseid"`
+	Tournamentid      int32          `json:"tournamentid"`
+	Foodexpense       string         `json:"foodexpense"`
+	Transportexpense  string         `json:"transportexpense"`
+	Perdiemexpense    string         `json:"perdiemexpense"`
+	Awardingexpense   string         `json:"awardingexpense"`
+	Stationaryexpense string         `json:"stationaryexpense"`
+	Otherexpenses     string         `json:"otherexpenses"`
+	Totalexpense      sql.NullString `json:"totalexpense"`
+	Currency          string         `json:"currency"`
+	Notes             sql.NullString `json:"notes"`
+	Createdat         sql.NullTime   `json:"createdat"`
+	Updatedat         sql.NullTime   `json:"updatedat"`
+	Createdby         sql.NullInt32  `json:"createdby"`
+	Updatedby         sql.NullInt32  `json:"updatedby"`
 }
 
 type Tournamentformat struct {

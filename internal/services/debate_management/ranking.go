@@ -728,57 +728,57 @@ func (s *RankingService) validateAuthentication(token string) error {
 }
 
 func (s *RankingService) GetTournamentVolunteerRanking(ctx context.Context, req *debate_management.TournamentVolunteerRankingRequest) (*debate_management.TournamentVolunteerRankingResponse, error) {
-    if err := s.validateAuthentication(req.GetToken()); err != nil {
-        return nil, err
-    }
+	if err := s.validateAuthentication(req.GetToken()); err != nil {
+		return nil, err
+	}
 
-    queries := models.New(s.db)
+	queries := models.New(s.db)
 
-    // Get the rankings
-    dbRankings, err := queries.GetTournamentVolunteerRanking(ctx, models.GetTournamentVolunteerRankingParams{
-        Tournamentid: req.GetTournamentId(),
-        Limit:        int32(req.GetPageSize()),
-        Offset:       int32((req.GetPage() - 1) * req.GetPageSize()),
-    })
-    if err != nil {
-        return nil, fmt.Errorf("failed to get tournament volunteer ranking: %v", err)
-    }
+	// Get the rankings
+	dbRankings, err := queries.GetTournamentVolunteerRanking(ctx, models.GetTournamentVolunteerRankingParams{
+		Tournamentid: req.GetTournamentId(),
+		Limit:        int32(req.GetPageSize()),
+		Offset:       int32((req.GetPage() - 1) * req.GetPageSize()),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tournament volunteer ranking: %v", err)
+	}
 
-    // Get total count
-    totalCount, err := queries.GetTournamentVolunteerRankingCount(ctx, req.GetTournamentId())
-    if err != nil {
-        return nil, fmt.Errorf("failed to get total count: %v", err)
-    }
+	// Get total count
+	totalCount, err := queries.GetTournamentVolunteerRankingCount(ctx, req.GetTournamentId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total count: %v", err)
+	}
 
-    // Convert database results to response format
-    rankings := make([]*debate_management.VolunteerTournamentRank, len(dbRankings))
-    for i, dbRanking := range dbRankings {
-        // Convert average rating to float64
-        averageRating, err := convertToFloat64(dbRanking.Averagerating)
-        if err != nil {
-            return nil, fmt.Errorf("failed to convert average rating for volunteer %v: %v", dbRanking.Volunteerid, err)
-        }
+	// Convert database results to response format
+	rankings := make([]*debate_management.VolunteerTournamentRank, len(dbRankings))
+	for i, dbRanking := range dbRankings {
+		// Convert average rating to float64
+		averageRating, err := convertToFloat64(dbRanking.Averagerating)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert average rating for volunteer %v: %v", dbRanking.Volunteerid, err)
+		}
 
-        // Convert volunteer name to string
-        volunteerName, ok := dbRanking.Volunteername.(string)
-        if !ok {
-            return nil, fmt.Errorf("failed to convert volunteer name for volunteer %v", dbRanking.Volunteerid)
-        }
+		// Convert volunteer name to string
+		volunteerName, ok := dbRanking.Volunteername.(string)
+		if !ok {
+			return nil, fmt.Errorf("failed to convert volunteer name for volunteer %v", dbRanking.Volunteerid)
+		}
 
-        rankings[i] = &debate_management.VolunteerTournamentRank{
-            VolunteerId:       dbRanking.Volunteerid,
-            VolunteerName:     volunteerName,
-            AverageRating:     averageRating,
-            PreliminaryRounds: int32(dbRanking.Preliminaryrounds),
-            EliminationRounds: int32(dbRanking.Eliminationrounds),
-            Rank:              int32(dbRanking.Rankposition),
-        }
-    }
+		rankings[i] = &debate_management.VolunteerTournamentRank{
+			VolunteerId:       dbRanking.Volunteerid,
+			VolunteerName:     volunteerName,
+			AverageRating:     averageRating,
+			PreliminaryRounds: int32(dbRanking.Preliminaryrounds),
+			EliminationRounds: int32(dbRanking.Eliminationrounds),
+			Rank:              int32(dbRanking.Rankposition),
+		}
+	}
 
-    return &debate_management.TournamentVolunteerRankingResponse{
-        Rankings:   rankings,
-        TotalCount: int32(totalCount),
-    }, nil
+	return &debate_management.TournamentVolunteerRankingResponse{
+		Rankings:   rankings,
+		TotalCount: int32(totalCount),
+	}, nil
 }
 
 func (s *RankingService) getUserStudentID(ctx context.Context, userID int32) (int32, error) {

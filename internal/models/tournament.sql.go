@@ -118,6 +118,55 @@ func (q *Queries) CreateLeague(ctx context.Context, arg CreateLeagueParams) (Lea
 	return i, err
 }
 
+const createSchoolRegistration = `-- name: CreateSchoolRegistration :one
+INSERT INTO SchoolTournamentRegistrations (
+    SchoolID, TournamentID, PlannedTeamsCount,
+    AmountPerTeam, Currency, CreatedBy
+)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING registrationid, schoolid, tournamentid, plannedteamscount, actualteamscount, amountperteam, totalamount, discountamount, actualpaidamount, paymentstatus, paymentdate, currency, createdat, updatedat, createdby, updatedby
+`
+
+type CreateSchoolRegistrationParams struct {
+	Schoolid          int32         `json:"schoolid"`
+	Tournamentid      int32         `json:"tournamentid"`
+	Plannedteamscount int32         `json:"plannedteamscount"`
+	Amountperteam     string        `json:"amountperteam"`
+	Currency          string        `json:"currency"`
+	Createdby         sql.NullInt32 `json:"createdby"`
+}
+
+func (q *Queries) CreateSchoolRegistration(ctx context.Context, arg CreateSchoolRegistrationParams) (Schooltournamentregistration, error) {
+	row := q.db.QueryRowContext(ctx, createSchoolRegistration,
+		arg.Schoolid,
+		arg.Tournamentid,
+		arg.Plannedteamscount,
+		arg.Amountperteam,
+		arg.Currency,
+		arg.Createdby,
+	)
+	var i Schooltournamentregistration
+	err := row.Scan(
+		&i.Registrationid,
+		&i.Schoolid,
+		&i.Tournamentid,
+		&i.Plannedteamscount,
+		&i.Actualteamscount,
+		&i.Amountperteam,
+		&i.Totalamount,
+		&i.Discountamount,
+		&i.Actualpaidamount,
+		&i.Paymentstatus,
+		&i.Paymentdate,
+		&i.Currency,
+		&i.Createdat,
+		&i.Updatedat,
+		&i.Createdby,
+		&i.Updatedby,
+	)
+	return i, err
+}
+
 const createTournamentEntry = `-- name: CreateTournamentEntry :one
 INSERT INTO Tournaments (Name, StartDate, EndDate, Location, FormatID, LeagueID, CoordinatorID, NumberOfPreliminaryRounds, NumberOfEliminationRounds, JudgesPerDebatePreliminary, JudgesPerDebateElimination, TournamentFee, ImageUrl)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
@@ -179,6 +228,63 @@ func (q *Queries) CreateTournamentEntry(ctx context.Context, arg CreateTournamen
 		&i.YesterdayTotalCount,
 		&i.YesterdayUpcomingCount,
 		&i.YesterdayActiveDebatersCount,
+	)
+	return i, err
+}
+
+const createTournamentExpenses = `-- name: CreateTournamentExpenses :one
+INSERT INTO TournamentExpenses (
+    TournamentID, FoodExpense, TransportExpense, PerDiemExpense,
+    AwardingExpense, StationaryExpense, OtherExpenses, Currency,
+    Notes, CreatedBy
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING expenseid, tournamentid, foodexpense, transportexpense, perdiemexpense, awardingexpense, stationaryexpense, otherexpenses, totalexpense, currency, notes, createdat, updatedat, createdby, updatedby
+`
+
+type CreateTournamentExpensesParams struct {
+	Tournamentid      int32          `json:"tournamentid"`
+	Foodexpense       string         `json:"foodexpense"`
+	Transportexpense  string         `json:"transportexpense"`
+	Perdiemexpense    string         `json:"perdiemexpense"`
+	Awardingexpense   string         `json:"awardingexpense"`
+	Stationaryexpense string         `json:"stationaryexpense"`
+	Otherexpenses     string         `json:"otherexpenses"`
+	Currency          string         `json:"currency"`
+	Notes             sql.NullString `json:"notes"`
+	Createdby         sql.NullInt32  `json:"createdby"`
+}
+
+func (q *Queries) CreateTournamentExpenses(ctx context.Context, arg CreateTournamentExpensesParams) (Tournamentexpense, error) {
+	row := q.db.QueryRowContext(ctx, createTournamentExpenses,
+		arg.Tournamentid,
+		arg.Foodexpense,
+		arg.Transportexpense,
+		arg.Perdiemexpense,
+		arg.Awardingexpense,
+		arg.Stationaryexpense,
+		arg.Otherexpenses,
+		arg.Currency,
+		arg.Notes,
+		arg.Createdby,
+	)
+	var i Tournamentexpense
+	err := row.Scan(
+		&i.Expenseid,
+		&i.Tournamentid,
+		&i.Foodexpense,
+		&i.Transportexpense,
+		&i.Perdiemexpense,
+		&i.Awardingexpense,
+		&i.Stationaryexpense,
+		&i.Otherexpenses,
+		&i.Totalexpense,
+		&i.Currency,
+		&i.Notes,
+		&i.Createdat,
+		&i.Updatedat,
+		&i.Createdby,
+		&i.Updatedby,
 	)
 	return i, err
 }
@@ -562,6 +668,108 @@ func (q *Queries) GetPendingInvitations(ctx context.Context, tournamentid int32)
 	return items, nil
 }
 
+const getRegistrationCurrency = `-- name: GetRegistrationCurrency :one
+SELECT
+    CASE
+        WHEN l.LeagueType = 'international' THEN 'USD'
+        ELSE 'RWF'
+    END as Currency
+FROM Tournaments t
+JOIN Leagues l ON t.LeagueID = l.LeagueID
+WHERE t.TournamentID = $1
+`
+
+func (q *Queries) GetRegistrationCurrency(ctx context.Context, tournamentid int32) (string, error) {
+	row := q.db.QueryRowContext(ctx, getRegistrationCurrency, tournamentid)
+	var currency string
+	err := row.Scan(&currency)
+	return currency, err
+}
+
+const getSchoolRegistration = `-- name: GetSchoolRegistration :one
+SELECT
+    str.registrationid, str.schoolid, str.tournamentid, str.plannedteamscount, str.actualteamscount, str.amountperteam, str.totalamount, str.discountamount, str.actualpaidamount, str.paymentstatus, str.paymentdate, str.currency, str.createdat, str.updatedat, str.createdby, str.updatedby,
+    s.SchoolName,
+    s.SchoolEmail,
+    s.SchoolType,
+    s.ContactEmail,
+    u.Name as ContactPersonName,
+    s.Country,
+    s.Province,
+    s.District,
+    s.Address
+FROM SchoolTournamentRegistrations str
+JOIN Schools s ON str.SchoolID = s.SchoolID
+JOIN Users u ON s.ContactPersonID = u.UserID
+WHERE str.SchoolID = $1 AND str.TournamentID = $2
+`
+
+type GetSchoolRegistrationParams struct {
+	Schoolid     int32 `json:"schoolid"`
+	Tournamentid int32 `json:"tournamentid"`
+}
+
+type GetSchoolRegistrationRow struct {
+	Registrationid    int32          `json:"registrationid"`
+	Schoolid          int32          `json:"schoolid"`
+	Tournamentid      int32          `json:"tournamentid"`
+	Plannedteamscount int32          `json:"plannedteamscount"`
+	Actualteamscount  sql.NullInt32  `json:"actualteamscount"`
+	Amountperteam     string         `json:"amountperteam"`
+	Totalamount       sql.NullString `json:"totalamount"`
+	Discountamount    sql.NullString `json:"discountamount"`
+	Actualpaidamount  sql.NullString `json:"actualpaidamount"`
+	Paymentstatus     string         `json:"paymentstatus"`
+	Paymentdate       sql.NullTime   `json:"paymentdate"`
+	Currency          string         `json:"currency"`
+	Createdat         sql.NullTime   `json:"createdat"`
+	Updatedat         sql.NullTime   `json:"updatedat"`
+	Createdby         sql.NullInt32  `json:"createdby"`
+	Updatedby         sql.NullInt32  `json:"updatedby"`
+	Schoolname        string         `json:"schoolname"`
+	Schoolemail       string         `json:"schoolemail"`
+	Schooltype        string         `json:"schooltype"`
+	Contactemail      string         `json:"contactemail"`
+	Contactpersonname string         `json:"contactpersonname"`
+	Country           sql.NullString `json:"country"`
+	Province          sql.NullString `json:"province"`
+	District          sql.NullString `json:"district"`
+	Address           string         `json:"address"`
+}
+
+func (q *Queries) GetSchoolRegistration(ctx context.Context, arg GetSchoolRegistrationParams) (GetSchoolRegistrationRow, error) {
+	row := q.db.QueryRowContext(ctx, getSchoolRegistration, arg.Schoolid, arg.Tournamentid)
+	var i GetSchoolRegistrationRow
+	err := row.Scan(
+		&i.Registrationid,
+		&i.Schoolid,
+		&i.Tournamentid,
+		&i.Plannedteamscount,
+		&i.Actualteamscount,
+		&i.Amountperteam,
+		&i.Totalamount,
+		&i.Discountamount,
+		&i.Actualpaidamount,
+		&i.Paymentstatus,
+		&i.Paymentdate,
+		&i.Currency,
+		&i.Createdat,
+		&i.Updatedat,
+		&i.Createdby,
+		&i.Updatedby,
+		&i.Schoolname,
+		&i.Schoolemail,
+		&i.Schooltype,
+		&i.Contactemail,
+		&i.Contactpersonname,
+		&i.Country,
+		&i.Province,
+		&i.District,
+		&i.Address,
+	)
+	return i, err
+}
+
 const getTournamentByID = `-- name: GetTournamentByID :one
 SELECT t.tournamentid, t.name, t.startdate, t.enddate, t.location, t.formatid, t.leagueid, t.coordinatorid, t.numberofpreliminaryrounds, t.numberofeliminationrounds, t.judgesperdebatepreliminary, t.judgesperdebateelimination, t.tournamentfee, t.imageurl, t.created_at, t.updated_at, t.deleted_at, t.yesterday_total_count, t.yesterday_upcoming_count, t.yesterday_active_debaters_count, tf.FormatName, tf.Description AS FormatDescription, tf.SpeakersPerTeam,
        l.Name AS LeagueName, l.LeagueType, l.Details AS LeagueDetails,
@@ -636,6 +844,34 @@ func (q *Queries) GetTournamentByID(ctx context.Context, tournamentid int32) (Ge
 		&i.Leaguedetails,
 		&i.Coordinatorname,
 		&i.Coordinatorid_2,
+	)
+	return i, err
+}
+
+const getTournamentExpenses = `-- name: GetTournamentExpenses :one
+SELECT expenseid, tournamentid, foodexpense, transportexpense, perdiemexpense, awardingexpense, stationaryexpense, otherexpenses, totalexpense, currency, notes, createdat, updatedat, createdby, updatedby FROM TournamentExpenses
+WHERE TournamentID = $1
+`
+
+func (q *Queries) GetTournamentExpenses(ctx context.Context, tournamentid int32) (Tournamentexpense, error) {
+	row := q.db.QueryRowContext(ctx, getTournamentExpenses, tournamentid)
+	var i Tournamentexpense
+	err := row.Scan(
+		&i.Expenseid,
+		&i.Tournamentid,
+		&i.Foodexpense,
+		&i.Transportexpense,
+		&i.Perdiemexpense,
+		&i.Awardingexpense,
+		&i.Stationaryexpense,
+		&i.Otherexpenses,
+		&i.Totalexpense,
+		&i.Currency,
+		&i.Notes,
+		&i.Createdat,
+		&i.Updatedat,
+		&i.Createdby,
+		&i.Updatedby,
 	)
 	return i, err
 }
@@ -829,6 +1065,90 @@ func (q *Queries) ListTournamentFormatsPaginated(ctx context.Context, arg ListTo
 			&i.Description,
 			&i.Speakersperteam,
 			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTournamentRegistrations = `-- name: ListTournamentRegistrations :many
+SELECT
+    str.registrationid, str.schoolid, str.tournamentid, str.plannedteamscount, str.actualteamscount, str.amountperteam, str.totalamount, str.discountamount, str.actualpaidamount, str.paymentstatus, str.paymentdate, str.currency, str.createdat, str.updatedat, str.createdby, str.updatedby,
+    s.iDebateSchoolID,
+    s.SchoolName,
+    s.SchoolEmail
+FROM SchoolTournamentRegistrations str
+JOIN Schools s ON str.SchoolID = s.SchoolID
+WHERE str.TournamentID = $1
+ORDER BY str.CreatedAt DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListTournamentRegistrationsParams struct {
+	Tournamentid int32 `json:"tournamentid"`
+	Limit        int32 `json:"limit"`
+	Offset       int32 `json:"offset"`
+}
+
+type ListTournamentRegistrationsRow struct {
+	Registrationid    int32          `json:"registrationid"`
+	Schoolid          int32          `json:"schoolid"`
+	Tournamentid      int32          `json:"tournamentid"`
+	Plannedteamscount int32          `json:"plannedteamscount"`
+	Actualteamscount  sql.NullInt32  `json:"actualteamscount"`
+	Amountperteam     string         `json:"amountperteam"`
+	Totalamount       sql.NullString `json:"totalamount"`
+	Discountamount    sql.NullString `json:"discountamount"`
+	Actualpaidamount  sql.NullString `json:"actualpaidamount"`
+	Paymentstatus     string         `json:"paymentstatus"`
+	Paymentdate       sql.NullTime   `json:"paymentdate"`
+	Currency          string         `json:"currency"`
+	Createdat         sql.NullTime   `json:"createdat"`
+	Updatedat         sql.NullTime   `json:"updatedat"`
+	Createdby         sql.NullInt32  `json:"createdby"`
+	Updatedby         sql.NullInt32  `json:"updatedby"`
+	Idebateschoolid   sql.NullString `json:"idebateschoolid"`
+	Schoolname        string         `json:"schoolname"`
+	Schoolemail       string         `json:"schoolemail"`
+}
+
+func (q *Queries) ListTournamentRegistrations(ctx context.Context, arg ListTournamentRegistrationsParams) ([]ListTournamentRegistrationsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTournamentRegistrations, arg.Tournamentid, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTournamentRegistrationsRow{}
+	for rows.Next() {
+		var i ListTournamentRegistrationsRow
+		if err := rows.Scan(
+			&i.Registrationid,
+			&i.Schoolid,
+			&i.Tournamentid,
+			&i.Plannedteamscount,
+			&i.Actualteamscount,
+			&i.Amountperteam,
+			&i.Totalamount,
+			&i.Discountamount,
+			&i.Actualpaidamount,
+			&i.Paymentstatus,
+			&i.Paymentdate,
+			&i.Currency,
+			&i.Createdat,
+			&i.Updatedat,
+			&i.Createdby,
+			&i.Updatedby,
+			&i.Idebateschoolid,
+			&i.Schoolname,
+			&i.Schoolemail,
 		); err != nil {
 			return nil, err
 		}
@@ -1045,6 +1365,64 @@ func (q *Queries) UpdateReminderSentAt(ctx context.Context, arg UpdateReminderSe
 	return i, err
 }
 
+const updateSchoolRegistration = `-- name: UpdateSchoolRegistration :one
+UPDATE SchoolTournamentRegistrations
+SET
+    ActualTeamsCount = $3,
+    DiscountAmount = $4,
+    ActualPaidAmount = $5,
+    PaymentStatus = $6,
+    PaymentDate = CASE
+        WHEN $6 = 'paid' THEN CURRENT_TIMESTAMP
+        ELSE PaymentDate
+    END,
+    UpdatedBy = $7
+WHERE SchoolID = $1 AND TournamentID = $2
+RETURNING registrationid, schoolid, tournamentid, plannedteamscount, actualteamscount, amountperteam, totalamount, discountamount, actualpaidamount, paymentstatus, paymentdate, currency, createdat, updatedat, createdby, updatedby
+`
+
+type UpdateSchoolRegistrationParams struct {
+	Schoolid         int32          `json:"schoolid"`
+	Tournamentid     int32          `json:"tournamentid"`
+	Actualteamscount sql.NullInt32  `json:"actualteamscount"`
+	Discountamount   sql.NullString `json:"discountamount"`
+	Actualpaidamount sql.NullString `json:"actualpaidamount"`
+	Paymentstatus    string         `json:"paymentstatus"`
+	Updatedby        sql.NullInt32  `json:"updatedby"`
+}
+
+func (q *Queries) UpdateSchoolRegistration(ctx context.Context, arg UpdateSchoolRegistrationParams) (Schooltournamentregistration, error) {
+	row := q.db.QueryRowContext(ctx, updateSchoolRegistration,
+		arg.Schoolid,
+		arg.Tournamentid,
+		arg.Actualteamscount,
+		arg.Discountamount,
+		arg.Actualpaidamount,
+		arg.Paymentstatus,
+		arg.Updatedby,
+	)
+	var i Schooltournamentregistration
+	err := row.Scan(
+		&i.Registrationid,
+		&i.Schoolid,
+		&i.Tournamentid,
+		&i.Plannedteamscount,
+		&i.Actualteamscount,
+		&i.Amountperteam,
+		&i.Totalamount,
+		&i.Discountamount,
+		&i.Actualpaidamount,
+		&i.Paymentstatus,
+		&i.Paymentdate,
+		&i.Currency,
+		&i.Createdat,
+		&i.Updatedat,
+		&i.Createdby,
+		&i.Updatedby,
+	)
+	return i, err
+}
+
 const updateTournamentDetails = `-- name: UpdateTournamentDetails :one
 WITH debate_check AS (
     SELECT EXISTS (
@@ -1155,6 +1533,69 @@ func (q *Queries) UpdateTournamentDetails(ctx context.Context, arg UpdateTournam
 		&i.YesterdayUpcomingCount,
 		&i.YesterdayActiveDebatersCount,
 		&i.ErrorMessage,
+	)
+	return i, err
+}
+
+const updateTournamentExpenses = `-- name: UpdateTournamentExpenses :one
+UPDATE TournamentExpenses
+SET
+    FoodExpense = $2,
+    TransportExpense = $3,
+    PerDiemExpense = $4,
+    AwardingExpense = $5,
+    StationaryExpense = $6,
+    OtherExpenses = $7,
+    Currency = $8,
+    Notes = $9,
+    UpdatedBy = $10
+WHERE TournamentID = $1
+RETURNING expenseid, tournamentid, foodexpense, transportexpense, perdiemexpense, awardingexpense, stationaryexpense, otherexpenses, totalexpense, currency, notes, createdat, updatedat, createdby, updatedby
+`
+
+type UpdateTournamentExpensesParams struct {
+	Tournamentid      int32          `json:"tournamentid"`
+	Foodexpense       string         `json:"foodexpense"`
+	Transportexpense  string         `json:"transportexpense"`
+	Perdiemexpense    string         `json:"perdiemexpense"`
+	Awardingexpense   string         `json:"awardingexpense"`
+	Stationaryexpense string         `json:"stationaryexpense"`
+	Otherexpenses     string         `json:"otherexpenses"`
+	Currency          string         `json:"currency"`
+	Notes             sql.NullString `json:"notes"`
+	Updatedby         sql.NullInt32  `json:"updatedby"`
+}
+
+func (q *Queries) UpdateTournamentExpenses(ctx context.Context, arg UpdateTournamentExpensesParams) (Tournamentexpense, error) {
+	row := q.db.QueryRowContext(ctx, updateTournamentExpenses,
+		arg.Tournamentid,
+		arg.Foodexpense,
+		arg.Transportexpense,
+		arg.Perdiemexpense,
+		arg.Awardingexpense,
+		arg.Stationaryexpense,
+		arg.Otherexpenses,
+		arg.Currency,
+		arg.Notes,
+		arg.Updatedby,
+	)
+	var i Tournamentexpense
+	err := row.Scan(
+		&i.Expenseid,
+		&i.Tournamentid,
+		&i.Foodexpense,
+		&i.Transportexpense,
+		&i.Perdiemexpense,
+		&i.Awardingexpense,
+		&i.Stationaryexpense,
+		&i.Otherexpenses,
+		&i.Totalexpense,
+		&i.Currency,
+		&i.Notes,
+		&i.Createdat,
+		&i.Updatedat,
+		&i.Createdby,
+		&i.Updatedby,
 	)
 	return i, err
 }

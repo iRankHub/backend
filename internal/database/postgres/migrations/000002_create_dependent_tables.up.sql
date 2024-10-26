@@ -65,48 +65,6 @@ CREATE TABLE Tournaments (
     yesterday_active_debaters_count INT DEFAULT 0
 );
 
-CREATE TABLE TournamentExpenses (
-    ExpenseID SERIAL PRIMARY KEY,
-    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
-    FoodExpense DECIMAL(10, 2) NOT NULL DEFAULT 0,
-    TransportExpense DECIMAL(10, 2) NOT NULL DEFAULT 0,
-    PerDiemExpense DECIMAL(10, 2) NOT NULL DEFAULT 0,
-    AwardingExpense DECIMAL(10, 2) NOT NULL DEFAULT 0,
-    StationaryExpense DECIMAL(10, 2) NOT NULL DEFAULT 0,
-    OtherExpenses DECIMAL(10, 2) NOT NULL DEFAULT 0,
-    TotalExpense DECIMAL(10, 2) GENERATED ALWAYS AS (
-        FoodExpense + TransportExpense + PerDiemExpense +
-        AwardingExpense + StationaryExpense + OtherExpenses
-    ) STORED,
-    Currency VARCHAR(3) NOT NULL DEFAULT 'RWF',
-    Notes TEXT,
-    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CreatedBy INTEGER REFERENCES Users(UserID),
-    UpdatedBy INTEGER REFERENCES Users(UserID)
-);
-
-CREATE TABLE SchoolTournamentRegistrations (
-    RegistrationID SERIAL PRIMARY KEY,
-    SchoolID INTEGER NOT NULL REFERENCES Schools(SchoolID),
-    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
-    PlannedTeamsCount INTEGER NOT NULL,
-    ActualTeamsCount INTEGER,
-    AmountPerTeam DECIMAL(10, 2) NOT NULL,
-    TotalAmount DECIMAL(10, 2) GENERATED ALWAYS AS (PlannedTeamsCount * AmountPerTeam) STORED,
-    DiscountAmount DECIMAL(10, 2) DEFAULT 0,
-    ActualPaidAmount DECIMAL(10, 2),
-    PaymentStatus VARCHAR(20) NOT NULL DEFAULT 'pending'
-        CHECK (PaymentStatus IN ('pending', 'partial', 'paid', 'cancelled')),
-    PaymentDate TIMESTAMP,
-    Currency VARCHAR(3) NOT NULL DEFAULT 'RWF',
-    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CreatedBy INTEGER REFERENCES Users(UserID),
-    UpdatedBy INTEGER REFERENCES Users(UserID),
-    UNIQUE(SchoolID, TournamentID)
-);
-
 CREATE TABLE Rooms (
    RoomID SERIAL PRIMARY KEY,
    RoomName VARCHAR(255) NOT NULL,
@@ -330,4 +288,46 @@ CREATE TABLE StudentTransfers (
    ToSchoolID INTEGER NOT NULL REFERENCES Schools(SchoolID),
    TransferDate DATE NOT NULL,
    Reason VARCHAR(255)
+);
+
+CREATE TABLE TournamentExpenses (
+    ExpenseID SERIAL PRIMARY KEY,
+    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
+    FoodExpense DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    TransportExpense DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    PerDiemExpense DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    AwardingExpense DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    StationaryExpense DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    OtherExpenses DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    TotalExpense DECIMAL(10, 2) GENERATED ALWAYS AS (
+        FoodExpense + TransportExpense + PerDiemExpense +
+        AwardingExpense + StationaryExpense + OtherExpenses
+    ) STORED,
+    Currency VARCHAR(3) NOT NULL DEFAULT 'RWF',
+    Notes TEXT,
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CreatedBy INTEGER REFERENCES Users(UserID),
+    UpdatedBy INTEGER REFERENCES Users(UserID)
+);
+
+CREATE TABLE SchoolTournamentRegistrations (
+    RegistrationID SERIAL PRIMARY KEY,
+    SchoolID INTEGER NOT NULL REFERENCES Schools(SchoolID),
+    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
+    PlannedTeamsCount INTEGER NOT NULL,
+    ActualTeamsCount INTEGER,
+    AmountPerTeam DECIMAL(10, 2) NOT NULL,
+    TotalAmount DECIMAL(10, 2) GENERATED ALWAYS AS (PlannedTeamsCount * AmountPerTeam) STORED,
+    DiscountAmount DECIMAL(10, 2) DEFAULT 0,
+    ActualPaidAmount DECIMAL(10, 2),
+    PaymentStatus VARCHAR(20) NOT NULL DEFAULT 'pending'
+        CHECK (PaymentStatus IN ('pending', 'partial', 'paid', 'cancelled')),
+    PaymentDate TIMESTAMP,
+    Currency VARCHAR(3) NOT NULL DEFAULT 'RWF',
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CreatedBy INTEGER REFERENCES Users(UserID),
+    UpdatedBy INTEGER REFERENCES Users(UserID),
+    UNIQUE(SchoolID, TournamentID)
 );

@@ -19,6 +19,7 @@ type tournamentServer struct {
 	formatService                 *services.FormatService
 	tournamentService             *services.TournamentService
 	invitationService             *services.InvitationService
+	billingService                *services.BillingService // Add this line
 	reminderService               *cronservices.ReminderService
 	tournamentCountsUpdateService *cronservices.TournamentCountsUpdateService
 }
@@ -28,6 +29,7 @@ func NewTournamentServer(db *sql.DB) (tournament_management.TournamentServiceSer
 	formatService := services.NewFormatService(db)
 	tournamentService := services.NewTournamentService(db)
 	invitationService := services.NewInvitationService(db)
+	billingService := services.NewBillingService(db) // Add this line
 
 	reminderService, err := cronservices.NewReminderService(db)
 	if err != nil {
@@ -44,6 +46,7 @@ func NewTournamentServer(db *sql.DB) (tournament_management.TournamentServiceSer
 		formatService:                 formatService,
 		tournamentService:             tournamentService,
 		invitationService:             invitationService,
+		billingService:                billingService, // Add this line
 		reminderService:               reminderService,
 		tournamentCountsUpdateService: tournamentCountsUpdateService,
 	}
@@ -273,6 +276,54 @@ func (s *tournamentServer) BulkResendInvitations(ctx context.Context, req *tourn
 	response, err := s.invitationService.BulkResendInvitations(ctx, req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to bulk resend invitations: %v", err)
+	}
+	return response, nil
+}
+
+func (s *tournamentServer) CreateTournamentExpenses(ctx context.Context, req *tournament_management.CreateExpensesRequest) (*tournament_management.ExpensesResponse, error) {
+	response, err := s.billingService.CreateTournamentExpenses(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to create tournament expenses: %v", err)
+	}
+	return response, nil
+}
+
+func (s *tournamentServer) UpdateTournamentExpenses(ctx context.Context, req *tournament_management.UpdateExpensesRequest) (*tournament_management.ExpensesResponse, error) {
+	response, err := s.billingService.UpdateTournamentExpenses(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to update tournament expenses: %v", err)
+	}
+	return response, nil
+}
+
+func (s *tournamentServer) CreateSchoolRegistration(ctx context.Context, req *tournament_management.CreateRegistrationRequest) (*tournament_management.RegistrationResponse, error) {
+	response, err := s.billingService.CreateSchoolRegistration(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to create school registration: %v", err)
+	}
+	return response, nil
+}
+
+func (s *tournamentServer) UpdateSchoolRegistration(ctx context.Context, req *tournament_management.UpdateRegistrationRequest) (*tournament_management.RegistrationResponse, error) {
+	response, err := s.billingService.UpdateSchoolRegistration(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to update school registration: %v", err)
+	}
+	return response, nil
+}
+
+func (s *tournamentServer) GetSchoolRegistration(ctx context.Context, req *tournament_management.GetRegistrationRequest) (*tournament_management.DetailedRegistrationResponse, error) {
+	response, err := s.billingService.GetSchoolRegistration(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get school registration: %v", err)
+	}
+	return response, nil
+}
+
+func (s *tournamentServer) ListTournamentRegistrations(ctx context.Context, req *tournament_management.ListRegistrationsRequest) (*tournament_management.ListRegistrationsResponse, error) {
+	response, err := s.billingService.ListTournamentRegistrations(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to list tournament registrations: %v", err)
 	}
 	return response, nil
 }

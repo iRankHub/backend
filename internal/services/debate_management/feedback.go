@@ -156,60 +156,60 @@ func (s *FeedbackService) SubmitJudgeFeedback(ctx context.Context, req *debate_m
 }
 
 func (s *FeedbackService) GetJudgeFeedback(ctx context.Context, req *debate_management.GetJudgeFeedbackRequest) (*debate_management.GetJudgeFeedbackResponse, error) {
-    claims, err := utils.ValidateToken(req.GetToken())
-    if err != nil {
-        return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
-    }
+	claims, err := utils.ValidateToken(req.GetToken())
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
+	}
 
-    userID, ok := claims["user_id"].(float64)
-    if !ok {
-        return nil, status.Error(codes.Internal, "invalid user ID in token")
-    }
+	userID, ok := claims["user_id"].(float64)
+	if !ok {
+		return nil, status.Error(codes.Internal, "invalid user ID in token")
+	}
 
-    queries := models.New(s.db)
+	queries := models.New(s.db)
 
-    // First get volunteer ID from user ID
-    volunteer, err := queries.GetVolunteerByUserID(ctx, int32(userID))
-    if err != nil {
-        return nil, fmt.Errorf("failed to get volunteer: %v", err)
-    }
+	// First get volunteer ID from user ID
+	volunteer, err := queries.GetVolunteerByUserID(ctx, int32(userID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get volunteer: %v", err)
+	}
 
-    feedbacks, err := queries.GetJudgeFeedbackList(ctx, models.GetJudgeFeedbackListParams{
-        Judgeid: sql.NullInt32{Int32: volunteer.Volunteerid, Valid: true},
-        Limit:   int32(req.GetPageSize()),
-        Offset:  int32((req.GetPage() - 1) * req.GetPageSize()),
-    })
-    if err != nil {
-        return nil, fmt.Errorf("failed to get judge feedback: %v", err)
-    }
+	feedbacks, err := queries.GetJudgeFeedbackList(ctx, models.GetJudgeFeedbackListParams{
+		Judgeid: sql.NullInt32{Int32: volunteer.Volunteerid, Valid: true},
+		Limit:   int32(req.GetPageSize()),
+		Offset:  int32((req.GetPage() - 1) * req.GetPageSize()),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get judge feedback: %v", err)
+	}
 
-    totalCount, err := queries.GetJudgeFeedbackCount(ctx, sql.NullInt32{Int32: volunteer.Volunteerid, Valid: true})
-    if err != nil {
-        return nil, fmt.Errorf("failed to get total count: %v", err)
-    }
+	totalCount, err := queries.GetJudgeFeedbackCount(ctx, sql.NullInt32{Int32: volunteer.Volunteerid, Valid: true})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total count: %v", err)
+	}
 
-    entries := make([]*debate_management.JudgeFeedbackEntry, len(feedbacks))
-    for i, f := range feedbacks {
-        entries[i] = &debate_management.JudgeFeedbackEntry{
-            StudentAlias:           generateAlias(f.Studentid.Int32),
-            TournamentDate:         f.Tournamentdate.Format("2006-01-02"),
-            IsRead:                 f.Isread.Bool,
-            ClarityRating:          f.Clarityrating.Float64,
-            ConstructivenessRating: f.Constructivenessrating.Float64,
-            TimelinessRating:       f.Timelinessrating.Float64,
-            FairnessRating:         f.Fairnessrating.Float64,
-            EngagementRating:       f.Engagementrating.Float64,
-            TextFeedback:           f.Textfeedback.String,
-            RoundNumber:            f.Roundnumber,
-            IsEliminationRound:     f.Iseliminationround,
-            FeedbackId:            f.Feedbackid,  // Changed to use feedback_id
-        }
-    }
+	entries := make([]*debate_management.JudgeFeedbackEntry, len(feedbacks))
+	for i, f := range feedbacks {
+		entries[i] = &debate_management.JudgeFeedbackEntry{
+			StudentAlias:           generateAlias(f.Studentid.Int32),
+			TournamentDate:         f.Tournamentdate.Format("2006-01-02"),
+			IsRead:                 f.Isread.Bool,
+			ClarityRating:          f.Clarityrating.Float64,
+			ConstructivenessRating: f.Constructivenessrating.Float64,
+			TimelinessRating:       f.Timelinessrating.Float64,
+			FairnessRating:         f.Fairnessrating.Float64,
+			EngagementRating:       f.Engagementrating.Float64,
+			TextFeedback:           f.Textfeedback.String,
+			RoundNumber:            f.Roundnumber,
+			IsEliminationRound:     f.Iseliminationround,
+			FeedbackId:             f.Feedbackid, // Changed to use feedback_id
+		}
+	}
 
-    return &debate_management.GetJudgeFeedbackResponse{
-        FeedbackEntries: entries,
-        TotalCount:      int32(totalCount),
-    }, nil
+	return &debate_management.GetJudgeFeedbackResponse{
+		FeedbackEntries: entries,
+		TotalCount:      int32(totalCount),
+	}, nil
 }
 
 func (s *FeedbackService) MarkStudentFeedbackAsRead(ctx context.Context, req *debate_management.MarkFeedbackAsReadRequest) (*debate_management.MarkFeedbackAsReadResponse, error) {

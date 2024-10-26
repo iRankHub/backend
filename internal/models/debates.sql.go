@@ -236,15 +236,15 @@ RETURNING feedbackid, judgeid, studentid, debateid, clarityrating, constructiven
 `
 
 type CreateJudgeFeedbackParams struct {
-	Judgeid                sql.NullInt32  `json:"judgeid"`
-	Studentid              sql.NullInt32  `json:"studentid"`
-	Debateid               sql.NullInt32  `json:"debateid"`
+	Judgeid                sql.NullInt32   `json:"judgeid"`
+	Studentid              sql.NullInt32   `json:"studentid"`
+	Debateid               sql.NullInt32   `json:"debateid"`
 	Clarityrating          sql.NullFloat64 `json:"clarityrating"`
 	Constructivenessrating sql.NullFloat64 `json:"constructivenessrating"`
 	Timelinessrating       sql.NullFloat64 `json:"timelinessrating"`
 	Fairnessrating         sql.NullFloat64 `json:"fairnessrating"`
 	Engagementrating       sql.NullFloat64 `json:"engagementrating"`
-	Textfeedback           sql.NullString `json:"textfeedback"`
+	Textfeedback           sql.NullString  `json:"textfeedback"`
 }
 
 func (q *Queries) CreateJudgeFeedback(ctx context.Context, arg CreateJudgeFeedbackParams) (Judgefeedback, error) {
@@ -963,23 +963,23 @@ type GetJudgeFeedbackListParams struct {
 }
 
 type GetJudgeFeedbackListRow struct {
-	Feedbackid             int32          `json:"feedbackid"`
-	Judgeid                sql.NullInt32  `json:"judgeid"`
-	Studentid              sql.NullInt32  `json:"studentid"`
-	Debateid               sql.NullInt32  `json:"debateid"`
+	Feedbackid             int32           `json:"feedbackid"`
+	Judgeid                sql.NullInt32   `json:"judgeid"`
+	Studentid              sql.NullInt32   `json:"studentid"`
+	Debateid               sql.NullInt32   `json:"debateid"`
 	Clarityrating          sql.NullFloat64 `json:"clarityrating"`
 	Constructivenessrating sql.NullFloat64 `json:"constructivenessrating"`
 	Timelinessrating       sql.NullFloat64 `json:"timelinessrating"`
 	Fairnessrating         sql.NullFloat64 `json:"fairnessrating"`
 	Engagementrating       sql.NullFloat64 `json:"engagementrating"`
 	Averagerating          sql.NullFloat64 `json:"averagerating"`
-	Textfeedback           sql.NullString `json:"textfeedback"`
-	Isread                 sql.NullBool   `json:"isread"`
-	Createdat              sql.NullTime   `json:"createdat"`
-	Roundnumber            int32          `json:"roundnumber"`
-	Iseliminationround     bool           `json:"iseliminationround"`
-	Tournamentdate         time.Time      `json:"tournamentdate"`
-	Ballotid               int32          `json:"ballotid"`
+	Textfeedback           sql.NullString  `json:"textfeedback"`
+	Isread                 sql.NullBool    `json:"isread"`
+	Createdat              sql.NullTime    `json:"createdat"`
+	Roundnumber            int32           `json:"roundnumber"`
+	Iseliminationround     bool            `json:"iseliminationround"`
+	Tournamentdate         time.Time       `json:"tournamentdate"`
+	Ballotid               int32           `json:"ballotid"`
 }
 
 func (q *Queries) GetJudgeFeedbackList(ctx context.Context, arg GetJudgeFeedbackListParams) ([]GetJudgeFeedbackListRow, error) {
