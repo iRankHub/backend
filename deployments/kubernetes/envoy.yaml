@@ -13,7 +13,7 @@ spec:
         app: envoy
     spec:
       nodeSelector:
-        kubernetes.io/hostname: lke246307-390838-5911832b0000
+        kubernetes.io/hostname: lke252359-403034-55c1a49e0000
       containers:
       - name: envoy
         image: envoyproxy/envoy:v1.30-latest
@@ -26,12 +26,24 @@ spec:
             cpu: "500m"
         ports:
         - containerPort: 10000
-          hostPort: 10000
+          protocol: TCP
         - containerPort: 9901
-          hostPort: 9901
+          protocol: TCP
         volumeMounts:
         - name: envoy-config
-          mountPath: /etc/envoy
+          mountPath: /etc/envoy/envoy.yaml
+          subPath: envoy.yaml
+        command:
+        - /usr/local/bin/envoy
+        args:
+        - -c
+        - /etc/envoy/envoy.yaml
+        - --service-cluster
+        - envoy
+        - --service-node
+        - envoy
+        - -l
+        - info
       volumes:
       - name: envoy-config
         configMap:
@@ -46,9 +58,11 @@ spec:
   selector:
     app: envoy
   ports:
-    - port: 10000
+    - name: http
+      port: 80
       targetPort: 10000
-      name: http
-    - port: 9901
+      protocol: TCP
+    - name: admin
+      port: 9901
       targetPort: 9901
-      name: admin
+      protocol: TCP

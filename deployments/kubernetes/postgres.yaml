@@ -14,7 +14,7 @@ spec:
         app: postgres
     spec:
       nodeSelector:
-        kubernetes.io/hostname: lke246307-390837-0a15051f0000
+        kubernetes.io/hostname: lke252359-403035-18d2c9e90000
       terminationGracePeriodSeconds: 10
       containers:
       - name: postgres

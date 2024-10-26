@@ -19,7 +19,7 @@ import (
 	"github.com/iRankHub/backend/internal/config"
 	"github.com/iRankHub/backend/internal/grpc/server"
 	"github.com/iRankHub/backend/internal/utils"
-	"github.com/iRankHub/backend/scripts"
+	script "github.com/iRankHub/backend/scripts"
 )
 
 var envSetup sync.Once
@@ -96,18 +96,23 @@ func StartBackend() {
 
 	// Run database migrations only in development
 	if isDevMode {
-	    migrationPath := "file://internal/database/postgres/migrations"
-	    m, err := migrate.New(migrationPath, connString)
-	    if err != nil {
-	        log.Fatalf("Failed to create migrate instance: %v", err)
-	    }
-	
-	    // Force the migrations to run
-	    if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-	        log.Fatalf("Failed to apply migrations: %v", err)
-	    } else {
-	        log.Println("Database migrations completed")
-	    }
+		migrationPath := "file://internal/database/postgres/migrations"
+		m, err := migrate.New(migrationPath, connString)
+		if err != nil {
+			log.Fatalf("Failed to create migrate instance: %v", err)
+		}
+
+		if err := m.Up(); err != nil {
+			if err == migrate.ErrNoChange {
+				log.Println("No new migrations to apply")
+			} else {
+				log.Fatalf("Failed to apply migrations: %v", err)
+			}
+		} else {
+			log.Println("Successfully applied database migrations")
+		}
+	} else {
+		log.Println("Skipping migrations in production environment")
 	}
 
 	// Initialize the token configuration
