@@ -19,41 +19,42 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	DebateService_GetRooms_FullMethodName                     = "/debate_management.DebateService/GetRooms"
-	DebateService_GetRoom_FullMethodName                      = "/debate_management.DebateService/GetRoom"
-	DebateService_UpdateRoom_FullMethodName                   = "/debate_management.DebateService/UpdateRoom"
-	DebateService_GetJudges_FullMethodName                    = "/debate_management.DebateService/GetJudges"
-	DebateService_GetJudge_FullMethodName                     = "/debate_management.DebateService/GetJudge"
-	DebateService_UpdateJudge_FullMethodName                  = "/debate_management.DebateService/UpdateJudge"
-	DebateService_GetPairings_FullMethodName                  = "/debate_management.DebateService/GetPairings"
-	DebateService_UpdatePairings_FullMethodName               = "/debate_management.DebateService/UpdatePairings"
-	DebateService_GetBallots_FullMethodName                   = "/debate_management.DebateService/GetBallots"
-	DebateService_GetBallot_FullMethodName                    = "/debate_management.DebateService/GetBallot"
-	DebateService_UpdateBallot_FullMethodName                 = "/debate_management.DebateService/UpdateBallot"
-	DebateService_GetBallotByJudgeID_FullMethodName           = "/debate_management.DebateService/GetBallotByJudgeID"
-	DebateService_GeneratePreliminaryPairings_FullMethodName  = "/debate_management.DebateService/GeneratePreliminaryPairings"
-	DebateService_GenerateEliminationPairings_FullMethodName  = "/debate_management.DebateService/GenerateEliminationPairings"
-	DebateService_CreateTeam_FullMethodName                   = "/debate_management.DebateService/CreateTeam"
-	DebateService_GetTeam_FullMethodName                      = "/debate_management.DebateService/GetTeam"
-	DebateService_UpdateTeam_FullMethodName                   = "/debate_management.DebateService/UpdateTeam"
-	DebateService_GetTeamsByTournament_FullMethodName         = "/debate_management.DebateService/GetTeamsByTournament"
-	DebateService_DeleteTeam_FullMethodName                   = "/debate_management.DebateService/DeleteTeam"
-	DebateService_GetTournamentStudentRanking_FullMethodName  = "/debate_management.DebateService/GetTournamentStudentRanking"
-	DebateService_GetOverallStudentRanking_FullMethodName     = "/debate_management.DebateService/GetOverallStudentRanking"
-	DebateService_GetStudentOverallPerformance_FullMethodName = "/debate_management.DebateService/GetStudentOverallPerformance"
-	DebateService_GetStudentTournamentStats_FullMethodName    = "/debate_management.DebateService/GetStudentTournamentStats"
-	DebateService_GetTournamentTeamsRanking_FullMethodName    = "/debate_management.DebateService/GetTournamentTeamsRanking"
-	DebateService_GetTournamentSchoolRanking_FullMethodName   = "/debate_management.DebateService/GetTournamentSchoolRanking"
-	DebateService_GetOverallSchoolRanking_FullMethodName      = "/debate_management.DebateService/GetOverallSchoolRanking"
-	DebateService_GetSchoolOverallPerformance_FullMethodName  = "/debate_management.DebateService/GetSchoolOverallPerformance"
-	DebateService_GetVolunteerTournamentStats_FullMethodName  = "/debate_management.DebateService/GetVolunteerTournamentStats"
-	DebateService_GetStudentFeedback_FullMethodName           = "/debate_management.DebateService/GetStudentFeedback"
-	DebateService_SubmitJudgeFeedback_FullMethodName          = "/debate_management.DebateService/SubmitJudgeFeedback"
-	DebateService_GetJudgeFeedback_FullMethodName             = "/debate_management.DebateService/GetJudgeFeedback"
-	DebateService_GetVolunteerRanking_FullMethodName          = "/debate_management.DebateService/GetVolunteerRanking"
-	DebateService_GetVolunteerPerformance_FullMethodName      = "/debate_management.DebateService/GetVolunteerPerformance"
-	DebateService_MarkStudentFeedbackAsRead_FullMethodName    = "/debate_management.DebateService/MarkStudentFeedbackAsRead"
-	DebateService_MarkJudgeFeedbackAsRead_FullMethodName      = "/debate_management.DebateService/MarkJudgeFeedbackAsRead"
+	DebateService_GetRooms_FullMethodName                      = "/debate_management.DebateService/GetRooms"
+	DebateService_GetRoom_FullMethodName                       = "/debate_management.DebateService/GetRoom"
+	DebateService_UpdateRoom_FullMethodName                    = "/debate_management.DebateService/UpdateRoom"
+	DebateService_GetJudges_FullMethodName                     = "/debate_management.DebateService/GetJudges"
+	DebateService_GetJudge_FullMethodName                      = "/debate_management.DebateService/GetJudge"
+	DebateService_UpdateJudge_FullMethodName                   = "/debate_management.DebateService/UpdateJudge"
+	DebateService_GetPairings_FullMethodName                   = "/debate_management.DebateService/GetPairings"
+	DebateService_UpdatePairings_FullMethodName                = "/debate_management.DebateService/UpdatePairings"
+	DebateService_GetBallots_FullMethodName                    = "/debate_management.DebateService/GetBallots"
+	DebateService_GetBallot_FullMethodName                     = "/debate_management.DebateService/GetBallot"
+	DebateService_UpdateBallot_FullMethodName                  = "/debate_management.DebateService/UpdateBallot"
+	DebateService_GetBallotByJudgeID_FullMethodName            = "/debate_management.DebateService/GetBallotByJudgeID"
+	DebateService_GeneratePreliminaryPairings_FullMethodName   = "/debate_management.DebateService/GeneratePreliminaryPairings"
+	DebateService_GenerateEliminationPairings_FullMethodName   = "/debate_management.DebateService/GenerateEliminationPairings"
+	DebateService_CreateTeam_FullMethodName                    = "/debate_management.DebateService/CreateTeam"
+	DebateService_GetTeam_FullMethodName                       = "/debate_management.DebateService/GetTeam"
+	DebateService_UpdateTeam_FullMethodName                    = "/debate_management.DebateService/UpdateTeam"
+	DebateService_GetTeamsByTournament_FullMethodName          = "/debate_management.DebateService/GetTeamsByTournament"
+	DebateService_DeleteTeam_FullMethodName                    = "/debate_management.DebateService/DeleteTeam"
+	DebateService_GetTournamentStudentRanking_FullMethodName   = "/debate_management.DebateService/GetTournamentStudentRanking"
+	DebateService_GetOverallStudentRanking_FullMethodName      = "/debate_management.DebateService/GetOverallStudentRanking"
+	DebateService_GetStudentOverallPerformance_FullMethodName  = "/debate_management.DebateService/GetStudentOverallPerformance"
+	DebateService_GetStudentTournamentStats_FullMethodName     = "/debate_management.DebateService/GetStudentTournamentStats"
+	DebateService_GetTournamentTeamsRanking_FullMethodName     = "/debate_management.DebateService/GetTournamentTeamsRanking"
+	DebateService_GetTournamentSchoolRanking_FullMethodName    = "/debate_management.DebateService/GetTournamentSchoolRanking"
+	DebateService_GetOverallSchoolRanking_FullMethodName       = "/debate_management.DebateService/GetOverallSchoolRanking"
+	DebateService_GetSchoolOverallPerformance_FullMethodName   = "/debate_management.DebateService/GetSchoolOverallPerformance"
+	DebateService_GetVolunteerTournamentStats_FullMethodName   = "/debate_management.DebateService/GetVolunteerTournamentStats"
+	DebateService_GetTournamentVolunteerRanking_FullMethodName = "/debate_management.DebateService/GetTournamentVolunteerRanking"
+	DebateService_GetStudentFeedback_FullMethodName            = "/debate_management.DebateService/GetStudentFeedback"
+	DebateService_SubmitJudgeFeedback_FullMethodName           = "/debate_management.DebateService/SubmitJudgeFeedback"
+	DebateService_GetJudgeFeedback_FullMethodName              = "/debate_management.DebateService/GetJudgeFeedback"
+	DebateService_GetVolunteerRanking_FullMethodName           = "/debate_management.DebateService/GetVolunteerRanking"
+	DebateService_GetVolunteerPerformance_FullMethodName       = "/debate_management.DebateService/GetVolunteerPerformance"
+	DebateService_MarkStudentFeedbackAsRead_FullMethodName     = "/debate_management.DebateService/MarkStudentFeedbackAsRead"
+	DebateService_MarkJudgeFeedbackAsRead_FullMethodName       = "/debate_management.DebateService/MarkJudgeFeedbackAsRead"
 )
 
 // DebateServiceClient is the client API for DebateService service.
@@ -95,6 +96,7 @@ type DebateServiceClient interface {
 	GetOverallSchoolRanking(ctx context.Context, in *OverallSchoolRankingRequest, opts ...grpc.CallOption) (*OverallSchoolRankingResponse, error)
 	GetSchoolOverallPerformance(ctx context.Context, in *SchoolPerformanceRequest, opts ...grpc.CallOption) (*SchoolPerformanceResponse, error)
 	GetVolunteerTournamentStats(ctx context.Context, in *VolunteerTournamentStatsRequest, opts ...grpc.CallOption) (*VolunteerTournamentStatsResponse, error)
+	GetTournamentVolunteerRanking(ctx context.Context, in *TournamentVolunteerRankingRequest, opts ...grpc.CallOption) (*TournamentVolunteerRankingResponse, error)
 	GetStudentFeedback(ctx context.Context, in *GetStudentFeedbackRequest, opts ...grpc.CallOption) (*GetStudentFeedbackResponse, error)
 	SubmitJudgeFeedback(ctx context.Context, in *SubmitJudgeFeedbackRequest, opts ...grpc.CallOption) (*SubmitJudgeFeedbackResponse, error)
 	GetJudgeFeedback(ctx context.Context, in *GetJudgeFeedbackRequest, opts ...grpc.CallOption) (*GetJudgeFeedbackResponse, error)
@@ -392,6 +394,16 @@ func (c *debateServiceClient) GetVolunteerTournamentStats(ctx context.Context, i
 	return out, nil
 }
 
+func (c *debateServiceClient) GetTournamentVolunteerRanking(ctx context.Context, in *TournamentVolunteerRankingRequest, opts ...grpc.CallOption) (*TournamentVolunteerRankingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TournamentVolunteerRankingResponse)
+	err := c.cc.Invoke(ctx, DebateService_GetTournamentVolunteerRanking_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *debateServiceClient) GetStudentFeedback(ctx context.Context, in *GetStudentFeedbackRequest, opts ...grpc.CallOption) (*GetStudentFeedbackResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetStudentFeedbackResponse)
@@ -501,6 +513,7 @@ type DebateServiceServer interface {
 	GetOverallSchoolRanking(context.Context, *OverallSchoolRankingRequest) (*OverallSchoolRankingResponse, error)
 	GetSchoolOverallPerformance(context.Context, *SchoolPerformanceRequest) (*SchoolPerformanceResponse, error)
 	GetVolunteerTournamentStats(context.Context, *VolunteerTournamentStatsRequest) (*VolunteerTournamentStatsResponse, error)
+	GetTournamentVolunteerRanking(context.Context, *TournamentVolunteerRankingRequest) (*TournamentVolunteerRankingResponse, error)
 	GetStudentFeedback(context.Context, *GetStudentFeedbackRequest) (*GetStudentFeedbackResponse, error)
 	SubmitJudgeFeedback(context.Context, *SubmitJudgeFeedbackRequest) (*SubmitJudgeFeedbackResponse, error)
 	GetJudgeFeedback(context.Context, *GetJudgeFeedbackRequest) (*GetJudgeFeedbackResponse, error)
@@ -601,6 +614,9 @@ func (UnimplementedDebateServiceServer) GetSchoolOverallPerformance(context.Cont
 }
 func (UnimplementedDebateServiceServer) GetVolunteerTournamentStats(context.Context, *VolunteerTournamentStatsRequest) (*VolunteerTournamentStatsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetVolunteerTournamentStats not implemented")
+}
+func (UnimplementedDebateServiceServer) GetTournamentVolunteerRanking(context.Context, *TournamentVolunteerRankingRequest) (*TournamentVolunteerRankingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTournamentVolunteerRanking not implemented")
 }
 func (UnimplementedDebateServiceServer) GetStudentFeedback(context.Context, *GetStudentFeedbackRequest) (*GetStudentFeedbackResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStudentFeedback not implemented")
@@ -1148,6 +1164,24 @@ func _DebateService_GetVolunteerTournamentStats_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DebateService_GetTournamentVolunteerRanking_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TournamentVolunteerRankingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DebateServiceServer).GetTournamentVolunteerRanking(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DebateService_GetTournamentVolunteerRanking_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DebateServiceServer).GetTournamentVolunteerRanking(ctx, req.(*TournamentVolunteerRankingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _DebateService_GetStudentFeedback_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetStudentFeedbackRequest)
 	if err := dec(in); err != nil {
@@ -1392,6 +1426,10 @@ var DebateService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetVolunteerTournamentStats",
 			Handler:    _DebateService_GetVolunteerTournamentStats_Handler,
+		},
+		{
+			MethodName: "GetTournamentVolunteerRanking",
+			Handler:    _DebateService_GetTournamentVolunteerRanking_Handler,
 		},
 		{
 			MethodName: "GetStudentFeedback",

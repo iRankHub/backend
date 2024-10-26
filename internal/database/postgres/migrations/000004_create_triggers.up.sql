@@ -6,8 +6,21 @@ DROP TRIGGER IF EXISTS set_idebate_student_id ON Students;
 DROP TRIGGER IF EXISTS calculate_team_average_rank_trigger ON Ballots;
 DROP TRIGGER IF EXISTS update_team_stats_trigger ON Ballots;
 DROP TRIGGER IF EXISTS handle_public_speaking_team_trigger ON Ballots;
+DROP TRIGGER IF EXISTS update_tournament_expenses_modtime ON TournamentExpenses;
+DROP TRIGGER IF EXISTS update_school_tournament_registrations_modtime ON SchoolTournamentRegistrations;
 
 -- Create triggers
+
+CREATE TRIGGER update_tournament_expenses_modtime
+    BEFORE UPDATE ON TournamentExpenses
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_school_tournament_registrations_modtime
+    BEFORE UPDATE ON SchoolTournamentRegistrations
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON Users
     FOR EACH ROW

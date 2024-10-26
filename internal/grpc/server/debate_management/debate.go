@@ -318,17 +318,33 @@ func (s *debateServer) GetVolunteerPerformance(ctx context.Context, req *debate_
 }
 
 func (s *debateServer) MarkStudentFeedbackAsRead(ctx context.Context, req *debate_management.MarkFeedbackAsReadRequest) (*debate_management.MarkFeedbackAsReadResponse, error) {
-    response, err := s.feedbackService.MarkStudentFeedbackAsRead(ctx, req)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to mark student feedback as read: %v", err)
-    }
-    return response, nil
+	response, err := s.feedbackService.MarkStudentFeedbackAsRead(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to mark student feedback as read: %v", err)
+	}
+	return response, nil
 }
 
 func (s *debateServer) MarkJudgeFeedbackAsRead(ctx context.Context, req *debate_management.MarkFeedbackAsReadRequest) (*debate_management.MarkFeedbackAsReadResponse, error) {
-    response, err := s.feedbackService.MarkJudgeFeedbackAsRead(ctx, req)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to mark judge feedback as read: %v", err)
-    }
-    return response, nil
+	response, err := s.feedbackService.MarkJudgeFeedbackAsRead(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to mark judge feedback as read: %v", err)
+	}
+	return response, nil
+}
+
+func (s *debateServer) GetTournamentVolunteerRanking(ctx context.Context, req *debate_management.TournamentVolunteerRankingRequest) (*debate_management.TournamentVolunteerRankingResponse, error) {
+	response, err := s.rankingService.GetTournamentVolunteerRanking(ctx, req)
+	if err != nil {
+		// Check for specific error types
+		switch {
+		case strings.Contains(err.Error(), "invalid token"):
+			return nil, status.Errorf(codes.Unauthenticated, "Authentication failed: %v", err)
+		case strings.Contains(err.Error(), "tournament not found"):
+			return nil, status.Errorf(codes.NotFound, "Tournament not found: %v", err)
+		default:
+			return nil, status.Errorf(codes.Internal, "Failed to get tournament volunteer ranking: %v", err)
+		}
+	}
+	return response, nil
 }

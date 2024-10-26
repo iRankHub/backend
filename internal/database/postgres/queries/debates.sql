@@ -1127,3 +1127,44 @@ WHERE SpeakerID = $1 AND BallotID = $2;
 UPDATE JudgeFeedback
 SET IsRead = true
 WHERE FeedbackID = $1 AND JudgeID = $2;
+
+-- name: GetTournamentVolunteerRanking :many
+WITH volunteer_stats AS (
+    SELECT
+        v.VolunteerID,
+        v.FirstName || ' ' || v.LastName AS VolunteerName,
+        COUNT(DISTINCT CASE WHEN d.IsEliminationRound = false THEN d.DebateID END) as PreliminaryRounds,
+        COUNT(DISTINCT CASE WHEN d.IsEliminationRound = true THEN d.DebateID END) as EliminationRounds,
+        COALESCE(AVG(jf.AverageRating), 0) as AverageRating
+    FROM
+        Volunteers v
+        JOIN JudgeAssignments ja ON v.UserID = ja.JudgeID
+        JOIN Debates d ON ja.DebateID = d.DebateID
+        LEFT JOIN JudgeFeedback jf ON v.UserID = jf.JudgeID AND jf.DebateID = d.DebateID
+    WHERE
+        d.TournamentID = $1
+    GROUP BY
+        v.VolunteerID, v.FirstName, v.LastName
+),
+ranked_volunteers AS (
+    SELECT
+        *,
+        RANK() OVER (
+            ORDER BY
+                AverageRating DESC,
+                EliminationRounds DESC,
+                PreliminaryRounds DESC
+        ) as RankPosition
+    FROM volunteer_stats
+)
+SELECT *
+FROM ranked_volunteers
+ORDER BY RankPosition
+LIMIT $2 OFFSET $3;
+
+-- name: GetTournamentVolunteerRankingCount :one
+SELECT COUNT(DISTINCT v.VolunteerID)
+FROM Volunteers v
+JOIN JudgeAssignments ja ON v.UserID = ja.JudgeID
+JOIN Debates d ON ja.DebateID = d.DebateID
+WHERE d.TournamentID = $1;

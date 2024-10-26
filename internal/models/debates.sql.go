@@ -236,15 +236,15 @@ RETURNING feedbackid, judgeid, studentid, debateid, clarityrating, constructiven
 `
 
 type CreateJudgeFeedbackParams struct {
-	Judgeid                sql.NullInt32   `json:"judgeid"`
-	Studentid              sql.NullInt32   `json:"studentid"`
-	Debateid               sql.NullInt32   `json:"debateid"`
+	Judgeid                sql.NullInt32  `json:"judgeid"`
+	Studentid              sql.NullInt32  `json:"studentid"`
+	Debateid               sql.NullInt32  `json:"debateid"`
 	Clarityrating          sql.NullFloat64 `json:"clarityrating"`
 	Constructivenessrating sql.NullFloat64 `json:"constructivenessrating"`
 	Timelinessrating       sql.NullFloat64 `json:"timelinessrating"`
 	Fairnessrating         sql.NullFloat64 `json:"fairnessrating"`
 	Engagementrating       sql.NullFloat64 `json:"engagementrating"`
-	Textfeedback           sql.NullString  `json:"textfeedback"`
+	Textfeedback           sql.NullString `json:"textfeedback"`
 }
 
 func (q *Queries) CreateJudgeFeedback(ctx context.Context, arg CreateJudgeFeedbackParams) (Judgefeedback, error) {
@@ -961,22 +961,22 @@ type GetJudgeFeedbackListParams struct {
 }
 
 type GetJudgeFeedbackListRow struct {
-	Feedbackid             int32           `json:"feedbackid"`
-	Judgeid                sql.NullInt32   `json:"judgeid"`
-	Studentid              sql.NullInt32   `json:"studentid"`
-	Debateid               sql.NullInt32   `json:"debateid"`
+	Feedbackid             int32          `json:"feedbackid"`
+	Judgeid                sql.NullInt32  `json:"judgeid"`
+	Studentid              sql.NullInt32  `json:"studentid"`
+	Debateid               sql.NullInt32  `json:"debateid"`
 	Clarityrating          sql.NullFloat64 `json:"clarityrating"`
 	Constructivenessrating sql.NullFloat64 `json:"constructivenessrating"`
 	Timelinessrating       sql.NullFloat64 `json:"timelinessrating"`
 	Fairnessrating         sql.NullFloat64 `json:"fairnessrating"`
 	Engagementrating       sql.NullFloat64 `json:"engagementrating"`
 	Averagerating          sql.NullFloat64 `json:"averagerating"`
-	Textfeedback           sql.NullString  `json:"textfeedback"`
-	Isread                 sql.NullBool    `json:"isread"`
-	Createdat              sql.NullTime    `json:"createdat"`
-	Roundnumber            int32           `json:"roundnumber"`
-	Iseliminationround     bool            `json:"iseliminationround"`
-	Tournamentdate         time.Time       `json:"tournamentdate"`
+	Textfeedback           sql.NullString `json:"textfeedback"`
+	Isread                 sql.NullBool   `json:"isread"`
+	Createdat              sql.NullTime   `json:"createdat"`
+	Roundnumber            int32          `json:"roundnumber"`
+	Iseliminationround     bool           `json:"iseliminationround"`
+	Tournamentdate         time.Time      `json:"tournamentdate"`
 }
 
 func (q *Queries) GetJudgeFeedbackList(ctx context.Context, arg GetJudgeFeedbackListParams) ([]GetJudgeFeedbackListRow, error) {
@@ -2818,6 +2818,101 @@ WHERE t.TournamentID = $1
 
 func (q *Queries) GetTournamentTeamsRankingCount(ctx context.Context, tournamentid int32) (int64, error) {
 	row := q.db.QueryRowContext(ctx, getTournamentTeamsRankingCount, tournamentid)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const getTournamentVolunteerRanking = `-- name: GetTournamentVolunteerRanking :many
+WITH volunteer_stats AS (
+    SELECT
+        v.VolunteerID,
+        v.FirstName || ' ' || v.LastName AS VolunteerName,
+        COUNT(DISTINCT CASE WHEN d.IsEliminationRound = false THEN d.DebateID END) as PreliminaryRounds,
+        COUNT(DISTINCT CASE WHEN d.IsEliminationRound = true THEN d.DebateID END) as EliminationRounds,
+        COALESCE(AVG(jf.AverageRating), 0) as AverageRating
+    FROM
+        Volunteers v
+        JOIN JudgeAssignments ja ON v.UserID = ja.JudgeID
+        JOIN Debates d ON ja.DebateID = d.DebateID
+        LEFT JOIN JudgeFeedback jf ON v.UserID = jf.JudgeID AND jf.DebateID = d.DebateID
+    WHERE
+        d.TournamentID = $1
+    GROUP BY
+        v.VolunteerID, v.FirstName, v.LastName
+),
+ranked_volunteers AS (
+    SELECT
+        volunteerid, volunteername, preliminaryrounds, eliminationrounds, averagerating,
+        RANK() OVER (
+            ORDER BY
+                AverageRating DESC,
+                EliminationRounds DESC,
+                PreliminaryRounds DESC
+        ) as RankPosition
+    FROM volunteer_stats
+)
+SELECT volunteerid, volunteername, preliminaryrounds, eliminationrounds, averagerating, rankposition
+FROM ranked_volunteers
+ORDER BY RankPosition
+LIMIT $2 OFFSET $3
+`
+
+type GetTournamentVolunteerRankingParams struct {
+	Tournamentid int32 `json:"tournamentid"`
+	Limit        int32 `json:"limit"`
+	Offset       int32 `json:"offset"`
+}
+
+type GetTournamentVolunteerRankingRow struct {
+	Volunteerid       int32       `json:"volunteerid"`
+	Volunteername     interface{} `json:"volunteername"`
+	Preliminaryrounds int64       `json:"preliminaryrounds"`
+	Eliminationrounds int64       `json:"eliminationrounds"`
+	Averagerating     interface{} `json:"averagerating"`
+	Rankposition      int64       `json:"rankposition"`
+}
+
+func (q *Queries) GetTournamentVolunteerRanking(ctx context.Context, arg GetTournamentVolunteerRankingParams) ([]GetTournamentVolunteerRankingRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTournamentVolunteerRanking, arg.Tournamentid, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetTournamentVolunteerRankingRow{}
+	for rows.Next() {
+		var i GetTournamentVolunteerRankingRow
+		if err := rows.Scan(
+			&i.Volunteerid,
+			&i.Volunteername,
+			&i.Preliminaryrounds,
+			&i.Eliminationrounds,
+			&i.Averagerating,
+			&i.Rankposition,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTournamentVolunteerRankingCount = `-- name: GetTournamentVolunteerRankingCount :one
+SELECT COUNT(DISTINCT v.VolunteerID)
+FROM Volunteers v
+JOIN JudgeAssignments ja ON v.UserID = ja.JudgeID
+JOIN Debates d ON ja.DebateID = d.DebateID
+WHERE d.TournamentID = $1
+`
+
+func (q *Queries) GetTournamentVolunteerRankingCount(ctx context.Context, tournamentid int32) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getTournamentVolunteerRankingCount, tournamentid)
 	var count int64
 	err := row.Scan(&count)
 	return count, err

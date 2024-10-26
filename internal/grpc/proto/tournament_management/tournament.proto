@@ -38,6 +38,17 @@ service TournamentService {
   rpc ResendInvitation(ResendInvitationRequest) returns (ResendInvitationResponse);
   rpc BulkResendInvitations(BulkResendInvitationsRequest) returns (BulkResendInvitationsResponse);
 
+   // Tournament Expenses operations
+  rpc CreateTournamentExpenses(CreateExpensesRequest) returns (ExpensesResponse);
+  rpc UpdateTournamentExpenses(UpdateExpensesRequest) returns (ExpensesResponse);
+  rpc GetTournamentExpenses(GetExpensesRequest) returns (ExpensesResponse);
+
+  // School Registration operations
+  rpc CreateSchoolRegistration(CreateRegistrationRequest) returns (RegistrationResponse);
+  rpc UpdateSchoolRegistration(UpdateRegistrationRequest) returns (RegistrationResponse);
+  rpc GetSchoolRegistration(GetRegistrationRequest) returns (DetailedRegistrationResponse);
+  rpc ListTournamentRegistrations(ListRegistrationsRequest) returns (ListRegistrationsResponse);
+
 }
 
 // Enum definitions
@@ -375,4 +386,138 @@ message BulkResendInvitationsRequest {
 message BulkResendInvitationsResponse {
   bool success = 1;
   string message = 2;
+}
+
+// Tournament Expenses messages
+message CreateExpensesRequest {
+  int32 tournament_id = 1;
+  double food_expense = 2;
+  double transport_expense = 3;
+  double per_diem_expense = 4;
+  double awarding_expense = 5;
+  double stationary_expense = 6;
+  double other_expenses = 7;
+  string notes = 8;
+  string token = 9;
+}
+
+message UpdateExpensesRequest {
+  int32 tournament_id = 1;
+  double food_expense = 2;
+  double transport_expense = 3;
+  double per_diem_expense = 4;
+  double awarding_expense = 5;
+  double stationary_expense = 6;
+  double other_expenses = 7;
+  string currency = 8;
+  string notes = 9;
+  string token = 10;
+}
+
+message GetExpensesRequest {
+  int32 tournament_id = 1;
+  string token = 2;
+}
+
+message ExpensesResponse {
+  int32 expense_id = 1;
+  int32 tournament_id = 2;
+  double food_expense = 3;
+  double transport_expense = 4;
+  double per_diem_expense = 5;
+  double awarding_expense = 6;
+  double stationary_expense = 7;
+  double other_expenses = 8;
+  double total_expense = 9;
+  string currency = 10;
+  string notes = 11;
+  string created_at = 12;
+  string updated_at = 13;
+}
+
+// School Registration messages
+message CreateRegistrationRequest {
+  int32 school_id = 1;
+  int32 tournament_id = 2;
+  int32 planned_teams_count = 3;
+  string token = 4;
+}
+
+message UpdateRegistrationRequest {
+  int32 school_id = 1;
+  int32 tournament_id = 2;
+  int32 actual_teams_count = 3;
+  double discount_amount = 4;
+  double actual_paid_amount = 5;
+  string payment_status = 6;
+  string token = 7;
+}
+
+message GetRegistrationRequest {
+  int32 school_id = 1;
+  int32 tournament_id = 2;
+  string token = 3;
+}
+
+message ListRegistrationsRequest {
+  int32 tournament_id = 1;
+  int32 page_size = 2;
+  int32 page_token = 3;
+  string token = 4;
+}
+
+message RegistrationResponse {
+  int32 registration_id = 1;
+  int32 school_id = 2;
+  int32 tournament_id = 3;
+  int32 planned_teams_count = 4;
+  int32 actual_teams_count = 5;
+  double amount_per_team = 6;
+  double total_amount = 7;
+  double discount_amount = 8;
+  double actual_paid_amount = 9;
+  string payment_status = 10;
+  string currency = 11;
+  string created_at = 12;
+  string updated_at = 13;
+}
+
+message DetailedRegistrationResponse {
+  int32 registration_id = 1;
+  int32 school_id = 2;
+  int32 tournament_id = 3;
+  string school_name = 4;
+  string school_email = 5;
+  string school_type = 6;
+  string contact_email = 7;
+  string contact_person_name = 8;
+  string country = 9;
+  string province = 10;
+  string district = 11;
+  string address = 12;
+  int32 planned_teams_count = 13;
+  int32 actual_teams_count = 14;
+  double amount_per_team = 15;
+  double total_amount = 16;
+  double discount_amount = 17;
+  double actual_paid_amount = 18;
+  string payment_status = 19;
+  string currency = 20;
+}
+
+message ListRegistrationItem {
+  int32 registration_id = 1;
+  string i_debate_school_id = 2;
+  string school_name = 3;
+  string school_email = 4;
+  int32 planned_teams_count = 5;
+  int32 actual_teams_count = 6;
+  double total_amount = 7;
+  string payment_status = 8;
+  string currency = 9;
+}
+
+message ListRegistrationsResponse {
+  repeated ListRegistrationItem registrations = 1;
+  int32 next_page_token = 2;
 }

@@ -41,12 +41,13 @@ service DebateService {
   rpc GetTournamentStudentRanking(TournamentRankingRequest) returns (TournamentRankingResponse);
   rpc GetOverallStudentRanking(OverallRankingRequest) returns (OverallRankingResponse);
   rpc GetStudentOverallPerformance(PerformanceRequest) returns (PerformanceResponse);
-   rpc GetStudentTournamentStats(StudentTournamentStatsRequest) returns (StudentTournamentStatsResponse);
+  rpc GetStudentTournamentStats(StudentTournamentStatsRequest) returns (StudentTournamentStatsResponse);
   rpc GetTournamentTeamsRanking(TournamentTeamsRankingRequest) returns (TournamentTeamsRankingResponse);
   rpc GetTournamentSchoolRanking(TournamentSchoolRankingRequest) returns (TournamentSchoolRankingResponse);
   rpc GetOverallSchoolRanking(OverallSchoolRankingRequest) returns (OverallSchoolRankingResponse);
   rpc GetSchoolOverallPerformance(SchoolPerformanceRequest) returns (SchoolPerformanceResponse);
   rpc GetVolunteerTournamentStats(VolunteerTournamentStatsRequest) returns (VolunteerTournamentStatsResponse);
+  rpc GetTournamentVolunteerRanking(TournamentVolunteerRankingRequest) returns (TournamentVolunteerRankingResponse);
   rpc GetStudentFeedback(GetStudentFeedbackRequest) returns (GetStudentFeedbackResponse);
   rpc SubmitJudgeFeedback(SubmitJudgeFeedbackRequest) returns (SubmitJudgeFeedbackResponse);
   rpc GetJudgeFeedback(GetJudgeFeedbackRequest) returns (GetJudgeFeedbackResponse);
@@ -625,4 +626,25 @@ message MarkFeedbackAsReadRequest {
 message MarkFeedbackAsReadResponse {
     bool success = 1;
     string message = 2;
+}
+
+message TournamentVolunteerRankingRequest {
+  int32 tournament_id = 1;
+  string token = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message VolunteerTournamentRank {
+  int32 volunteer_id = 1;
+  string volunteer_name = 2;
+  double average_rating = 3;
+  int32 preliminary_rounds = 4;
+  int32 elimination_rounds = 5;
+  int32 rank = 6;
+}
+
+message TournamentVolunteerRankingResponse {
+  repeated VolunteerTournamentRank rankings = 1;
+  int32 total_count = 2;
 }
