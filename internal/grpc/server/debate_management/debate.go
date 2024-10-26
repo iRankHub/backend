@@ -316,3 +316,19 @@ func (s *debateServer) GetVolunteerPerformance(ctx context.Context, req *debate_
 	}
 	return response, nil
 }
+
+func (s *debateServer) MarkStudentFeedbackAsRead(ctx context.Context, req *debate_management.MarkFeedbackAsReadRequest) (*debate_management.MarkFeedbackAsReadResponse, error) {
+    response, err := s.feedbackService.MarkStudentFeedbackAsRead(ctx, req)
+    if err != nil {
+        return nil, status.Errorf(codes.Internal, "Failed to mark student feedback as read: %v", err)
+    }
+    return response, nil
+}
+
+func (s *debateServer) MarkJudgeFeedbackAsRead(ctx context.Context, req *debate_management.MarkFeedbackAsReadRequest) (*debate_management.MarkFeedbackAsReadResponse, error) {
+    response, err := s.feedbackService.MarkJudgeFeedbackAsRead(ctx, req)
+    if err != nil {
+        return nil, status.Errorf(codes.Internal, "Failed to mark judge feedback as read: %v", err)
+    }
+    return response, nil
+}
