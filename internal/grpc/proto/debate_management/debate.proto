@@ -129,6 +129,7 @@ message GetJudgesResponse {
 message RoomInfo {
   int32 room_id = 1;
   string room_name = 2;
+  bool is_head_judge = 3; 
 }
 
 message RoundInfo {

@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/debate_management"
@@ -121,50 +122,82 @@ func (s *JudgeService) UpdateJudge(ctx context.Context, req *debate_management.U
 		return nil, err
 	}
 
+	assignmentService := NewJudgeAssignmentService(s.db)
 	queries := models.New(s.db)
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start transaction: %v", err)
-	}
-	defer tx.Rollback()
 
-	qtx := queries.WithTx(tx)
-
-	// Update preliminary round assignments
+	// Process preliminary rounds
 	for roundNumber, roomInfo := range req.GetPreliminary() {
-		err := qtx.UpdateJudgeRoom(ctx, models.UpdateJudgeRoomParams{
-			Judgeid:            int32(req.GetJudgeId()),
-			Tournamentid:       req.GetTournamentId(),
-			Roundnumber:        int32(roundNumber),
-			Roomid:             int32(roomInfo.GetRoomId()),
-			Iseliminationround: false,
+		// Get current assignment to know the old room
+		currentAssignment, err := queries.GetJudgeAssignment(ctx, models.GetJudgeAssignmentParams{
+			Tournamentid:  req.GetTournamentId(),
+			Judgeid:       int32(req.GetJudgeId()),
+			Roundnumber:   int32(roundNumber),
+			Iselimination: false,
+		})
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("failed to get current assignment for round %d: %v", roundNumber, err)
+		}
+
+		var oldRoomID int32
+		var wasHeadJudge bool
+		if err == nil { // Assignment exists
+			oldRoomID = currentAssignment.Roomid
+			wasHeadJudge = currentAssignment.Isheadjudge
+		}
+
+		err = assignmentService.UpdateJudgeAssignment(ctx, JudgeUpdateOperation{
+			TournamentID:   req.GetTournamentId(),
+			JudgeID:        int32(req.GetJudgeId()),
+			RoundNumber:    int32(roundNumber),
+			IsElimination:  false,
+			OldRoomID:      oldRoomID,
+			NewRoomID:      int32(roomInfo.GetRoomId()),
+			WasHeadJudge:   wasHeadJudge,
+			NewIsHeadJudge: roomInfo.GetIsHeadJudge(),
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to update judge room for preliminary round %d: %v", roundNumber, err)
+			return nil, fmt.Errorf("failed to update preliminary round %d: %v", roundNumber, err)
 		}
 	}
 
-	// Update elimination round assignments
+	// Process elimination rounds
 	for roundNumber, roomInfo := range req.GetElimination() {
-		err := qtx.UpdateJudgeRoom(ctx, models.UpdateJudgeRoomParams{
-			Judgeid:            int32(req.GetJudgeId()),
-			Tournamentid:       req.GetTournamentId(),
-			Roundnumber:        int32(roundNumber),
-			Roomid:             int32(roomInfo.GetRoomId()),
-			Iseliminationround: true,
+		// Get current assignment to know the old room
+		currentAssignment, err := queries.GetJudgeAssignment(ctx, models.GetJudgeAssignmentParams{
+			Tournamentid:  req.GetTournamentId(),
+			Judgeid:       int32(req.GetJudgeId()),
+			Roundnumber:   int32(roundNumber),
+			Iselimination: true,
+		})
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("failed to get current assignment for round %d: %v", roundNumber, err)
+		}
+
+		var oldRoomID int32
+		var wasHeadJudge bool
+		if err == nil { // Assignment exists
+			oldRoomID = currentAssignment.Roomid
+			wasHeadJudge = currentAssignment.Isheadjudge
+		}
+
+		err = assignmentService.UpdateJudgeAssignment(ctx, JudgeUpdateOperation{
+			TournamentID:   req.GetTournamentId(),
+			JudgeID:        int32(req.GetJudgeId()),
+			RoundNumber:    int32(roundNumber),
+			IsElimination:  true,
+			OldRoomID:      oldRoomID,
+			NewRoomID:      int32(roomInfo.GetRoomId()),
+			WasHeadJudge:   wasHeadJudge,
+			NewIsHeadJudge: roomInfo.GetIsHeadJudge(),
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to update judge room for elimination round %d: %v", roundNumber, err)
+			return nil, fmt.Errorf("failed to update elimination round %d: %v", roundNumber, err)
 		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
 	return &debate_management.UpdateJudgeResponse{
 		Success: true,
-		Message: "Judge rooms updated successfully",
+		Message: "Judge assignments updated successfully",
 	}, nil
 }
 
