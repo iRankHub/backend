@@ -202,7 +202,7 @@ func (s *FeedbackService) GetJudgeFeedback(ctx context.Context, req *debate_mana
             TextFeedback:           f.Textfeedback.String,
             RoundNumber:            f.Roundnumber,
             IsEliminationRound:     f.Iseliminationround,
-            BallotId:              int32(f.Ballotid),  // Added field
+            FeedbackId:            f.Feedbackid,  // Changed to use feedback_id
         }
     }
 
