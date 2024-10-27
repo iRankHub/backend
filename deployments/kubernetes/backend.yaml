@@ -19,7 +19,7 @@ spec:
       initContainers:
       - name: wait-for-envoy
         image: busybox
-        command: ['sh', '-c', 'until nc -z envoy 10000; do echo waiting for envoy; sleep 2; done;']
+        command: ['sh', '-c', 'until nc -z envoy 80; do echo waiting for envoy; sleep 2; done;']
       - name: wait-for-rabbitmq
         image: busybox
         command: ['sh', '-c', 'until nc -z rabbitmq 5672; do echo waiting for rabbitmq; sleep 2; done;']
@@ -44,16 +44,6 @@ spec:
             name: app-secrets
         ports:
         - containerPort: 8080
+          name: grpc
       imagePullSecrets:
       - name: regcred
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: backend
-spec:
-  selector:
-    app: backend
-  ports:
-    - port: 8080
-      targetPort: 8080

@@ -25,7 +25,7 @@ spec:
             memory: "1Gi"
             cpu: "500m"
         ports:
-        - containerPort: 10000
+        - containerPort: 80
           protocol: TCP
         - containerPort: 9901
           protocol: TCP
@@ -60,7 +60,7 @@ spec:
   ports:
     - name: http
       port: 80
-      targetPort: 10000
+      targetPort: 80
       protocol: TCP
     - name: admin
       port: 9901

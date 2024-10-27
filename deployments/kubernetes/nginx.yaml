@@ -37,16 +37,13 @@ spec:
           subPath: default.conf
         - name: certbot-webroot
           mountPath: /var/www/certbot
-        - name: nginx-ssl
-          mountPath: /etc/nginx/ssl
+        - name: ssl-certs
+          mountPath: /etc/letsencrypt/live/backend.debaterwanda.org/
+          readOnly: true
         - name: nginx-temp
           mountPath: /var/cache/nginx
         - name: nginx-run
           mountPath: /var/run
-        command:
-        - nginx
-        - -g
-        - "daemon off;"
         lifecycle:
           preStop:
             exec:
@@ -66,12 +63,19 @@ spec:
       volumes:
       - name: nginx-config
         configMap:
-          name: nginx-config-ssl
+          name: nginx-config
       - name: certbot-webroot
         emptyDir: {}
-      - name: nginx-ssl
+      - name: ssl-certs
         secret:
-          secretName: nginx-tls
+          secretName: ssl-cert-secret
+          items:
+          - key: tls.crt
+            path: fullchain.pem
+          - key: tls.key
+            path: privkey.pem
+          - key: chain.pem
+            path: chain.pem
       - name: nginx-temp
         emptyDir: {}
       - name: nginx-run
