@@ -102,6 +102,24 @@ func (s *BillingService) UpdateTournamentExpenses(ctx context.Context, req *tour
 	return expensesToProto(expenses), nil
 }
 
+func (s *BillingService) GetTournamentExpenses(ctx context.Context, req *tournament_management.GetExpensesRequest) (*tournament_management.ExpensesResponse, error) {
+    if err := validateAuthentication(req.GetToken()); err != nil {
+        return nil, err
+    }
+
+    queries := models.New(s.db)
+
+    expenses, err := queries.GetTournamentExpenses(ctx, req.GetTournamentId())
+    if err != nil {
+        if err == sql.ErrNoRows {
+            return nil, fmt.Errorf("no expenses found for tournament ID %d", req.GetTournamentId())
+        }
+        return nil, fmt.Errorf("failed to get tournament expenses: %v", err)
+    }
+
+    return expensesToProto(expenses), nil
+}
+
 // School Registration Methods
 
 func (s *BillingService) CreateSchoolRegistration(ctx context.Context, req *tournament_management.CreateRegistrationRequest) (*tournament_management.RegistrationResponse, error) {
