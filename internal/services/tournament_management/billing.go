@@ -103,21 +103,21 @@ func (s *BillingService) UpdateTournamentExpenses(ctx context.Context, req *tour
 }
 
 func (s *BillingService) GetTournamentExpenses(ctx context.Context, req *tournament_management.GetExpensesRequest) (*tournament_management.ExpensesResponse, error) {
-    if err := validateAuthentication(req.GetToken()); err != nil {
-        return nil, err
-    }
+	if err := validateAuthentication(req.GetToken()); err != nil {
+		return nil, err
+	}
 
-    queries := models.New(s.db)
+	queries := models.New(s.db)
 
-    expenses, err := queries.GetTournamentExpenses(ctx, req.GetTournamentId())
-    if err != nil {
-        if err == sql.ErrNoRows {
-            return nil, fmt.Errorf("no expenses found for tournament ID %d", req.GetTournamentId())
-        }
-        return nil, fmt.Errorf("failed to get tournament expenses: %v", err)
-    }
+	expenses, err := queries.GetTournamentExpenses(ctx, req.GetTournamentId())
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("no expenses found for tournament ID %d", req.GetTournamentId())
+		}
+		return nil, fmt.Errorf("failed to get tournament expenses: %v", err)
+	}
 
-    return expensesToProto(expenses), nil
+	return expensesToProto(expenses), nil
 }
 
 // School Registration Methods
@@ -245,19 +245,25 @@ func (s *BillingService) ListTournamentRegistrations(ctx context.Context, req *t
 	registrations, err := queries.ListTournamentRegistrations(ctx, models.ListTournamentRegistrationsParams{
 		Tournamentid: req.GetTournamentId(),
 		Limit:        req.GetPageSize(),
-		Offset:       req.GetPageSize() * req.GetPageToken(),
+		Offset:       req.GetPageToken(),
 	})
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return &tournament_management.ListRegistrationsResponse{
+				Registrations: []*tournament_management.ListRegistrationItem{},
+				NextPageToken: req.GetPageToken(),
+			}, nil
+		}
 		return nil, fmt.Errorf("failed to list registrations: %v", err)
 	}
 
 	response := &tournament_management.ListRegistrationsResponse{
-		Registrations: make([]*tournament_management.ListRegistrationItem, len(registrations)),
-		NextPageToken: req.GetPageToken() + 1,
+		Registrations: make([]*tournament_management.ListRegistrationItem, 0, len(registrations)),
+		NextPageToken: req.GetPageToken() + req.GetPageSize(),
 	}
 
-	for i, reg := range registrations {
-		response.Registrations[i] = &tournament_management.ListRegistrationItem{
+	for _, reg := range registrations {
+		item := &tournament_management.ListRegistrationItem{
 			RegistrationId:    reg.Registrationid,
 			IDebateSchoolId:   reg.Idebateschoolid.String,
 			SchoolName:        reg.Schoolname,
@@ -268,6 +274,7 @@ func (s *BillingService) ListTournamentRegistrations(ctx context.Context, req *t
 			PaymentStatus:     reg.Paymentstatus,
 			Currency:          reg.Currency,
 		}
+		response.Registrations = append(response.Registrations, item)
 	}
 
 	return response, nil

@@ -297,11 +297,11 @@ func (s *tournamentServer) UpdateTournamentExpenses(ctx context.Context, req *to
 }
 
 func (s *tournamentServer) GetTournamentExpenses(ctx context.Context, req *tournament_management.GetExpensesRequest) (*tournament_management.ExpensesResponse, error) {
-    response, err := s.billingService.GetTournamentExpenses(ctx, req)
-    if err != nil {
-        return nil, status.Errorf(codes.Internal, "Failed to get tournament expenses: %v", err)
-    }
-    return response, nil
+	response, err := s.billingService.GetTournamentExpenses(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get tournament expenses: %v", err)
+	}
+	return response, nil
 }
 
 func (s *tournamentServer) CreateSchoolRegistration(ctx context.Context, req *tournament_management.CreateRegistrationRequest) (*tournament_management.RegistrationResponse, error) {
