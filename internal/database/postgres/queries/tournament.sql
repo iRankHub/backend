@@ -367,7 +367,8 @@ SELECT
     str.*,
     s.iDebateSchoolID,
     s.SchoolName,
-    s.SchoolEmail
+    s.SchoolEmail,
+    s.SchoolID
 FROM SchoolTournamentRegistrations str
 JOIN Schools s ON str.SchoolID = s.SchoolID
 WHERE str.TournamentID = $1

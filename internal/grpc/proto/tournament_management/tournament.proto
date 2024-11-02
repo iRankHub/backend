@@ -515,6 +515,7 @@ message ListRegistrationItem {
   double total_amount = 7;
   string payment_status = 8;
   string currency = 9;
+  int32 school_id = 10;
 }
 
 message ListRegistrationsResponse {

@@ -274,6 +274,7 @@ func (s *BillingService) ListTournamentRegistrations(ctx context.Context, req *t
 			TotalAmount:       nullStringToFloat64(reg.Totalamount),
 			PaymentStatus:     reg.Paymentstatus,
 			Currency:          reg.Currency,
+			SchoolId:          reg.Schoolid_2,
 		}
 		response.Registrations = append(response.Registrations, item)
 	}

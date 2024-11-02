@@ -1084,7 +1084,8 @@ SELECT
     str.registrationid, str.schoolid, str.tournamentid, str.plannedteamscount, str.actualteamscount, str.amountperteam, str.totalamount, str.discountamount, str.actualpaidamount, str.paymentstatus, str.paymentdate, str.currency, str.createdat, str.updatedat, str.createdby, str.updatedby,
     s.iDebateSchoolID,
     s.SchoolName,
-    s.SchoolEmail
+    s.SchoolEmail,
+    s.SchoolID
 FROM SchoolTournamentRegistrations str
 JOIN Schools s ON str.SchoolID = s.SchoolID
 WHERE str.TournamentID = $1
@@ -1118,6 +1119,7 @@ type ListTournamentRegistrationsRow struct {
 	Idebateschoolid   sql.NullString `json:"idebateschoolid"`
 	Schoolname        string         `json:"schoolname"`
 	Schoolemail       string         `json:"schoolemail"`
+	Schoolid_2        int32          `json:"schoolid_2"`
 }
 
 func (q *Queries) ListTournamentRegistrations(ctx context.Context, arg ListTournamentRegistrationsParams) ([]ListTournamentRegistrationsRow, error) {
@@ -1149,6 +1151,7 @@ func (q *Queries) ListTournamentRegistrations(ctx context.Context, arg ListTourn
 			&i.Idebateschoolid,
 			&i.Schoolname,
 			&i.Schoolemail,
+			&i.Schoolid_2,
 		); err != nil {
 			return nil, err
 		}
