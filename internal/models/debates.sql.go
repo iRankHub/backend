@@ -636,11 +636,15 @@ func (q *Queries) GetBallotByJudgeID(ctx context.Context, arg GetBallotByJudgeID
 
 const getBallotsByTournamentAndRound = `-- name: GetBallotsByTournamentAndRound :many
 SELECT b.BallotID, d.RoundNumber, d.IsEliminationRound, r.RoomName,
-       u.Name AS HeadJudgeName, b.RecordingStatus, b.Verdict
+       u.Name AS HeadJudgeName, b.RecordingStatus, b.Verdict,
+       t1.TeamID as Team1ID, t1.Name as Team1Name,
+       t2.TeamID as Team2ID, t2.Name as Team2Name
 FROM Ballots b
 JOIN Debates d ON b.DebateID = d.DebateID
 JOIN Rooms r ON d.RoomID = r.RoomID
 JOIN Users u ON b.JudgeID = u.UserID
+JOIN Teams t1 ON d.Team1ID = t1.TeamID
+JOIN Teams t2 ON d.Team2ID = t2.TeamID
 WHERE d.TournamentID = $1 AND d.RoundNumber = $2 AND d.IsEliminationRound = $3
 `
 
@@ -658,6 +662,10 @@ type GetBallotsByTournamentAndRoundRow struct {
 	Headjudgename      string `json:"headjudgename"`
 	Recordingstatus    string `json:"recordingstatus"`
 	Verdict            string `json:"verdict"`
+	Team1id            int32  `json:"team1id"`
+	Team1name          string `json:"team1name"`
+	Team2id            int32  `json:"team2id"`
+	Team2name          string `json:"team2name"`
 }
 
 func (q *Queries) GetBallotsByTournamentAndRound(ctx context.Context, arg GetBallotsByTournamentAndRoundParams) ([]GetBallotsByTournamentAndRoundRow, error) {
@@ -677,6 +685,10 @@ func (q *Queries) GetBallotsByTournamentAndRound(ctx context.Context, arg GetBal
 			&i.Headjudgename,
 			&i.Recordingstatus,
 			&i.Verdict,
+			&i.Team1id,
+			&i.Team1name,
+			&i.Team2id,
+			&i.Team2name,
 		); err != nil {
 			return nil, err
 		}

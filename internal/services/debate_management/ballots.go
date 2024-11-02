@@ -363,6 +363,14 @@ func convertBallots(dbBallots []models.GetBallotsByTournamentAndRoundRow) []*deb
 					Name: dbBallot.Headjudgename,
 				},
 			},
+			Team1: &debate_management.Team{
+				TeamId: dbBallot.Team1id,
+				Name:   dbBallot.Team1name,
+			},
+			Team2: &debate_management.Team{
+				TeamId: dbBallot.Team2id,
+				Name:   dbBallot.Team2name,
+			},
 			RecordingStatus: dbBallot.Recordingstatus,
 			Verdict:         dbBallot.Verdict,
 		}
