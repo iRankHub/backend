@@ -188,6 +188,7 @@ func (s *BillingService) UpdateSchoolRegistration(ctx context.Context, req *tour
 		Actualpaidamount: sql.NullString{String: float64ToString(req.GetActualPaidAmount()), Valid: true},
 		Paymentstatus:    req.GetPaymentStatus(),
 		Updatedby:        sql.NullInt32{Int32: int32(userID), Valid: true},
+		Column8:          req.GetPaymentStatus(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to update registration: %v", err)

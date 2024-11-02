@@ -41,6 +41,11 @@ CREATE TRIGGER set_idebate_student_id
     FOR EACH ROW
     EXECUTE FUNCTION generate_idebate_student_id();
 
+CREATE TRIGGER initialize_team_scores_trigger
+    AFTER INSERT ON Ballots
+    FOR EACH ROW
+    EXECUTE FUNCTION initialize_team_scores();
+
 CREATE TRIGGER calculate_team_average_rank_trigger
     AFTER UPDATE OF RecordingStatus ON Ballots
     FOR EACH ROW

@@ -1373,10 +1373,11 @@ SET
     ActualPaidAmount = $5,
     PaymentStatus = $6,
     PaymentDate = CASE
-        WHEN $6 = 'paid' THEN CURRENT_TIMESTAMP
+        WHEN $8::text = 'paid' THEN CURRENT_TIMESTAMP
         ELSE PaymentDate
     END,
-    UpdatedBy = $7
+    UpdatedBy = $7,
+    UpdatedAt = CURRENT_TIMESTAMP
 WHERE SchoolID = $1 AND TournamentID = $2
 RETURNING registrationid, schoolid, tournamentid, plannedteamscount, actualteamscount, amountperteam, totalamount, discountamount, actualpaidamount, paymentstatus, paymentdate, currency, createdat, updatedat, createdby, updatedby
 `
@@ -1389,6 +1390,7 @@ type UpdateSchoolRegistrationParams struct {
 	Actualpaidamount sql.NullString `json:"actualpaidamount"`
 	Paymentstatus    string         `json:"paymentstatus"`
 	Updatedby        sql.NullInt32  `json:"updatedby"`
+	Column8          string         `json:"column_8"`
 }
 
 func (q *Queries) UpdateSchoolRegistration(ctx context.Context, arg UpdateSchoolRegistrationParams) (Schooltournamentregistration, error) {
@@ -1400,6 +1402,7 @@ func (q *Queries) UpdateSchoolRegistration(ctx context.Context, arg UpdateSchool
 		arg.Actualpaidamount,
 		arg.Paymentstatus,
 		arg.Updatedby,
+		arg.Column8,
 	)
 	var i Schooltournamentregistration
 	err := row.Scan(

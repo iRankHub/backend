@@ -258,9 +258,10 @@ CREATE TABLE TeamScores (
     ScoreID SERIAL PRIMARY KEY,
     TeamID INTEGER REFERENCES Teams(TeamID),
     DebateID INTEGER REFERENCES Debates(DebateID),
-    TotalScore NUMERIC(5,2),
-    Rank INTEGER,
-    IsElimination BOOLEAN
+    TotalScore NUMERIC(5,2) DEFAULT 0,
+    Rank INTEGER DEFAULT 0,
+    IsElimination BOOLEAN DEFAULT FALSE,
+    CONSTRAINT unique_team_debate UNIQUE (TeamID, DebateID)
 );
 
 CREATE TABLE Communications (

@@ -337,10 +337,11 @@ SET
     ActualPaidAmount = $5,
     PaymentStatus = $6,
     PaymentDate = CASE
-        WHEN $6 = 'paid' THEN CURRENT_TIMESTAMP
+        WHEN $8::text = 'paid' THEN CURRENT_TIMESTAMP
         ELSE PaymentDate
     END,
-    UpdatedBy = $7
+    UpdatedBy = $7,
+    UpdatedAt = CURRENT_TIMESTAMP
 WHERE SchoolID = $1 AND TournamentID = $2
 RETURNING *;
 

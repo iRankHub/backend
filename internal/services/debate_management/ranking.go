@@ -432,7 +432,7 @@ func (s *RankingService) GetOverallSchoolRanking(ctx context.Context, req *debat
 		return nil, fmt.Errorf("failed to get school ID: %v", err)
 	}
 
-	dbRankings, err := queries.GetOverallSchoolRanking(ctx)
+	dbRankings, err := queries.GetOverallSchoolRanking(ctx, schoolID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get overall school ranking: %v", err)
 	}

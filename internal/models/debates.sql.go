@@ -1208,29 +1208,39 @@ func (q *Queries) GetJudgesForTournament(ctx context.Context, tournamentid int32
 
 const getOverallSchoolRanking = `-- name: GetOverallSchoolRanking :many
 WITH school_ranking AS (
-  SELECT
-    s.SchoolID,
-    s.SchoolName,
-    CAST(SUM(ts.TotalScore) AS DECIMAL(10,2)) AS TotalPoints,
-    AVG(ts.Rank) AS AverageRank,
-    COUNT(DISTINCT tour.TournamentID) AS TournamentsParticipated,
-    RANK() OVER (ORDER BY SUM(ts.TotalScore) DESC, AVG(ts.Rank) ASC) AS CurrentRank,
-    COUNT(*) OVER () AS TotalSchools,
-    MAX(tour.StartDate) AS LastTournamentDate
-  FROM
-    Schools s
-    JOIN Students stu ON s.SchoolID = stu.SchoolID
-    JOIN TeamMembers tm ON stu.StudentID = tm.StudentID
-    JOIN Teams te ON tm.TeamID = te.TeamID
-    JOIN Debates d ON (te.TeamID = d.Team1ID OR te.TeamID = d.Team2ID)
-    JOIN Ballots b ON d.DebateID = b.DebateID
-    JOIN TeamScores ts ON te.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
-    JOIN Tournaments tour ON d.TournamentID = tour.TournamentID
-    LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
-  WHERE
-    l.Name != 'DAC' OR l.Name IS NULL
-  GROUP BY
-    s.SchoolID, s.SchoolName
+    SELECT
+        s.SchoolID,
+        s.SchoolName,
+        CAST(COALESCE(SUM(ts.TotalScore), 0) AS DECIMAL(10,2)) AS TotalPoints,
+        COALESCE(AVG(ts.Rank), 0) AS AverageRank,
+        COUNT(DISTINCT tour.TournamentID) as TournamentsParticipated,
+        RANK() OVER (ORDER BY COALESCE(SUM(ts.TotalScore), 0) DESC, COALESCE(AVG(ts.Rank), 0) ASC) as CurrentRank,
+        COUNT(*) OVER () as TotalSchools,
+        MAX(tour.StartDate) as LastTournamentDate
+    FROM
+        Schools s
+        LEFT JOIN Students stu ON s.SchoolID = stu.SchoolID
+        LEFT JOIN TeamMembers tm ON stu.StudentID = tm.StudentID
+        LEFT JOIN Teams te ON tm.TeamID = te.TeamID
+        LEFT JOIN Debates d ON (te.TeamID = d.Team1ID OR te.TeamID = d.Team2ID)
+        LEFT JOIN TeamScores ts ON te.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+        LEFT JOIN Tournaments tour ON d.TournamentID = tour.TournamentID
+        LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
+    WHERE
+        s.SchoolID = $1 OR s.SchoolID IN (
+            SELECT s2.SchoolID
+            FROM Schools s2
+            LEFT JOIN Students stu2 ON s2.SchoolID = stu2.SchoolID
+            LEFT JOIN TeamMembers tm2 ON stu2.StudentID = tm2.StudentID
+            LEFT JOIN Teams te2 ON tm2.TeamID = te2.TeamID
+            LEFT JOIN Debates d2 ON (te2.TeamID = d2.Team1ID OR te2.TeamID = d2.Team2ID)
+            LEFT JOIN TeamScores ts2 ON te2.TeamID = ts2.TeamID AND d2.DebateID = ts2.DebateID
+            GROUP BY s2.SchoolID
+            ORDER BY COALESCE(SUM(ts2.TotalScore), 0) DESC
+            LIMIT 3
+        )
+    GROUP BY
+        s.SchoolID, s.SchoolName
 )
 SELECT schoolid, schoolname, totalpoints, averagerank, tournamentsparticipated, currentrank, totalschools, lasttournamentdate
 FROM school_ranking
@@ -1241,15 +1251,15 @@ type GetOverallSchoolRankingRow struct {
 	Schoolid                int32       `json:"schoolid"`
 	Schoolname              string      `json:"schoolname"`
 	Totalpoints             string      `json:"totalpoints"`
-	Averagerank             float64     `json:"averagerank"`
+	Averagerank             interface{} `json:"averagerank"`
 	Tournamentsparticipated int64       `json:"tournamentsparticipated"`
 	Currentrank             int64       `json:"currentrank"`
 	Totalschools            int64       `json:"totalschools"`
 	Lasttournamentdate      interface{} `json:"lasttournamentdate"`
 }
 
-func (q *Queries) GetOverallSchoolRanking(ctx context.Context) ([]GetOverallSchoolRankingRow, error) {
-	rows, err := q.db.QueryContext(ctx, getOverallSchoolRanking)
+func (q *Queries) GetOverallSchoolRanking(ctx context.Context, schoolid int32) ([]GetOverallSchoolRankingRow, error) {
+	rows, err := q.db.QueryContext(ctx, getOverallSchoolRanking, schoolid)
 	if err != nil {
 		return nil, err
 	}

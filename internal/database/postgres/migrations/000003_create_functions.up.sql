@@ -68,6 +68,26 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION initialize_team_scores()
+RETURNS TRIGGER AS $$
+DECLARE
+    debate_record RECORD;
+BEGIN
+    -- Get the debate information
+    SELECT * INTO debate_record FROM Debates WHERE DebateID = NEW.DebateID;
+
+    -- Create initial records with zero scores
+    INSERT INTO TeamScores (TeamID, DebateID, TotalScore, Rank, IsElimination)
+    VALUES
+        (debate_record.Team1ID, NEW.DebateID, 0, 0, debate_record.IsEliminationRound),
+        (debate_record.Team2ID, NEW.DebateID, 0, 0, debate_record.IsEliminationRound)
+    ON CONFLICT (TeamID, DebateID) DO NOTHING;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
 
 -- Corrected trigger function for calculating team average rank
 CREATE OR REPLACE FUNCTION calculate_team_average_rank()
@@ -80,25 +100,44 @@ BEGIN
         -- Get the debate information
         SELECT * INTO debate_record FROM Debates WHERE DebateID = NEW.DebateID;
 
-        -- Calculate average rank for Team 1
+        -- Calculate and insert/update Team 1 scores
         SELECT AVG(ss.SpeakerRank)::FLOAT INTO avg_rank
         FROM SpeakerScores ss
         JOIN TeamMembers tm ON ss.SpeakerID = tm.StudentID
         WHERE tm.TeamID = debate_record.Team1ID AND ss.BallotID = NEW.BallotID;
 
-        UPDATE TeamScores
-        SET Rank = avg_rank
-        WHERE TeamID = debate_record.Team1ID AND DebateID = NEW.DebateID;
+        -- Insert if not exists, update if exists
+        INSERT INTO TeamScores (TeamID, DebateID, TotalScore, Rank, IsElimination)
+        VALUES (
+            debate_record.Team1ID,
+            NEW.DebateID,
+            NEW.Team1TotalScore,
+            avg_rank,
+            debate_record.IsEliminationRound
+        )
+        ON CONFLICT (TeamID, DebateID)
+        DO UPDATE SET
+            TotalScore = NEW.Team1TotalScore,
+            Rank = avg_rank;
 
-        -- Calculate average rank for Team 2
+        -- Calculate and insert/update Team 2 scores
         SELECT AVG(ss.SpeakerRank)::FLOAT INTO avg_rank
         FROM SpeakerScores ss
         JOIN TeamMembers tm ON ss.SpeakerID = tm.StudentID
         WHERE tm.TeamID = debate_record.Team2ID AND ss.BallotID = NEW.BallotID;
 
-        UPDATE TeamScores
-        SET Rank = avg_rank
-        WHERE TeamID = debate_record.Team2ID AND DebateID = NEW.DebateID;
+        INSERT INTO TeamScores (TeamID, DebateID, TotalScore, Rank, IsElimination)
+        VALUES (
+            debate_record.Team2ID,
+            NEW.DebateID,
+            NEW.Team2TotalScore,
+            avg_rank,
+            debate_record.IsEliminationRound
+        )
+        ON CONFLICT (TeamID, DebateID)
+        DO UPDATE SET
+            TotalScore = NEW.Team2TotalScore,
+            Rank = avg_rank;
     END IF;
     RETURN NEW;
 END;
