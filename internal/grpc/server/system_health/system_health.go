@@ -1,4 +1,4 @@
-package sserver
+package server
 
 import (
 	"context"
@@ -29,7 +29,11 @@ func (s *SystemHealthServer) GetSystemHealth(ctx context.Context, req *system_he
 	return &system_health.GetSystemHealthResponse{
 		CpuUsagePercentage:         metrics.CPUUsagePercentage,
 		MemoryUsagePercentage:      metrics.MemoryUsagePercentage,
+		EphemeralStorageUsed:       metrics.EphemeralStorageUsed,
+		EphemeralStorageTotal:      metrics.EphemeralStorageTotal,
 		EphemeralStoragePercentage: metrics.EphemeralStoragePercentage,
+		PvcStorageUsed:             metrics.PVCStorageUsed,
+		PvcStorageTotal:            metrics.PVCStorageTotal,
 		PvcStoragePercentage:       metrics.PVCStoragePercentage,
 		NodeCount:                  int32(metrics.NodeCount),
 		PodCount:                   int32(metrics.PodCount),

@@ -24,7 +24,11 @@ type SystemHealthService struct {
 type SystemMetrics struct {
 	CPUUsagePercentage         float64
 	MemoryUsagePercentage      float64
+	EphemeralStorageUsed       int64
+	EphemeralStorageTotal      int64
 	EphemeralStoragePercentage float64
+	PVCStorageUsed             int64
+	PVCStorageTotal            int64
 	PVCStoragePercentage       float64
 	NodeCount                  int
 	PodCount                   int
@@ -61,10 +65,6 @@ func NewSystemHealthService() (*SystemHealthService, error) {
 			}
 		}
 	}
-
-	// Skip TLS verification
-	config.Insecure = true
-	config.TLSClientConfig = rest.TLSClientConfig{Insecure: true}
 
 	// Create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
@@ -110,11 +110,11 @@ func (s *SystemHealthService) GetSystemHealth(ctx context.Context, token string)
 
 	metrics.NodeCount = len(nodes.Items)
 
-	var totalCPUCapacity, totalMemoryCapacity, totalEphemeralStorageCapacity int64
+	var totalCPUCapacity, totalMemoryCapacity int64
 	for _, node := range nodes.Items {
 		totalCPUCapacity += node.Status.Capacity.Cpu().MilliValue()
 		totalMemoryCapacity += node.Status.Capacity.Memory().Value()
-		totalEphemeralStorageCapacity += node.Status.Capacity.StorageEphemeral().Value()
+		metrics.EphemeralStorageTotal += node.Status.Capacity.StorageEphemeral().Value()
 	}
 
 	metrics.CPUUsagePercentage = float64(totalCPUUsage) / float64(totalCPUCapacity) * 100
@@ -128,16 +128,18 @@ func (s *SystemHealthService) GetSystemHealth(ctx context.Context, token string)
 
 	metrics.PodCount = len(pods.Items)
 
-	var totalEphemeralStorageUsage int64
+	// Calculate ephemeral storage usage
 	for _, pod := range pods.Items {
 		for _, container := range pod.Spec.Containers {
 			if container.Resources.Requests != nil {
-				totalEphemeralStorageUsage += container.Resources.Requests.StorageEphemeral().Value()
+				metrics.EphemeralStorageUsed += container.Resources.Requests.StorageEphemeral().Value()
 			}
 		}
 	}
 
-	metrics.EphemeralStoragePercentage = float64(totalEphemeralStorageUsage) / float64(totalEphemeralStorageCapacity) * 100
+	if metrics.EphemeralStorageTotal > 0 {
+		metrics.EphemeralStoragePercentage = float64(metrics.EphemeralStorageUsed) / float64(metrics.EphemeralStorageTotal) * 100
+	}
 
 	// Fetch PVCs
 	pvcs, err := s.clientset.CoreV1().PersistentVolumeClaims("").List(ctx, metav1.ListOptions{})
@@ -147,16 +149,15 @@ func (s *SystemHealthService) GetSystemHealth(ctx context.Context, token string)
 
 	metrics.PVCCount = len(pvcs.Items)
 
-	var totalPVCCapacity, totalPVCUsage int64
 	for _, pvc := range pvcs.Items {
-		totalPVCCapacity += pvc.Spec.Resources.Requests.Storage().Value()
+		metrics.PVCStorageTotal += pvc.Spec.Resources.Requests.Storage().Value()
 		if pvc.Status.Phase == corev1.ClaimBound {
-			totalPVCUsage += pvc.Status.Capacity.Storage().Value()
+			metrics.PVCStorageUsed += pvc.Status.Capacity.Storage().Value()
 		}
 	}
 
-	if totalPVCCapacity > 0 {
-		metrics.PVCStoragePercentage = float64(totalPVCUsage) / float64(totalPVCCapacity) * 100
+	if metrics.PVCStorageTotal > 0 {
+		metrics.PVCStoragePercentage = float64(metrics.PVCStorageUsed) / float64(metrics.PVCStorageTotal) * 100
 	}
 
 	return metrics, nil

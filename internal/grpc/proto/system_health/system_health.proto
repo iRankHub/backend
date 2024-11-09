@@ -15,9 +15,13 @@ message GetSystemHealthRequest {
 message GetSystemHealthResponse {
   double cpu_usage_percentage = 1;
   double memory_usage_percentage = 2;
-  double ephemeral_storage_percentage = 3;
-  double pvc_storage_percentage = 4;
-  int32 node_count = 5;
-  int32 pod_count = 6;
-  int32 pvc_count = 7;
+  int64 ephemeral_storage_used = 3;
+  int64 ephemeral_storage_total = 4;
+  double ephemeral_storage_percentage = 5;
+  int64 pvc_storage_used = 6;
+  int64 pvc_storage_total = 7;
+  double pvc_storage_percentage = 8;
+  int32 node_count = 9;
+  int32 pod_count = 10;
+  int32 pvc_count = 11;
 }
