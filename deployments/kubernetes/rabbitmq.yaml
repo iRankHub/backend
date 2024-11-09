@@ -28,9 +28,11 @@ spec:
           requests:
             memory: "1Gi"
             cpu: "500m"
+            ephemeral-storage: "20Gi"
           limits:
             memory: "2Gi"
             cpu: "1"
+            ephemeral-storage: "24Gi"
         ports:
         - containerPort: 5672
           name: amqp
@@ -57,11 +59,30 @@ spec:
             port: 5672
           initialDelaySeconds: 30
           periodSeconds: 20
+      - name: storage-metrics
+        image: busybox:latest
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          while true; do
+            USED=$(df -B1 /data | tail -1 | awk '{print $3}')
+            TOTAL=$(df -B1 /data | tail -1 | awk '{print $2}')
+            echo "{\"timestamp\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\", \"used_bytes\": $USED, \"total_bytes\": $TOTAL}" >> /metrics/storage.log
+            tail -n 1000 /metrics/storage.log > /metrics/storage.log.tmp && mv /metrics/storage.log.tmp /metrics/storage.log
+            sleep 60
+          done
+        volumeMounts:
+        - name: rabbitmq-storage
+          mountPath: /data
+        - name: metrics
+          mountPath: /metrics
       volumes:
       - name: init-script
         configMap:
           name: rabbitmq-init-script
           defaultMode: 0755
+      - name: metrics
+        emptyDir: {}
   volumeClaimTemplates:
   - metadata:
       name: rabbitmq-storage

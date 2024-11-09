@@ -34,9 +34,11 @@ spec:
           requests:
             memory: "512Mi"
             cpu: "200m"
+            ephemeral-storage: "16Gi"
           limits:
             memory: "1Gi"
             cpu: "400m"
+            ephemeral-storage: "24Gi"
         envFrom:
         - configMapRef:
             name: app-config

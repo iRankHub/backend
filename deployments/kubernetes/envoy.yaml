@@ -21,9 +21,11 @@ spec:
           requests:
             memory: "512Mi"
             cpu: "300m"
+            ephemeral-storage: "6Gi"
           limits:
             memory: "1Gi"
             cpu: "500m"
+            ephemeral-storage: "8Gi"
         ports:
         - containerPort: 80
           protocol: TCP
