@@ -22,12 +22,6 @@ type SystemHealthService struct {
 	metricsClient *versioned.Clientset
 }
 
-type StorageMetric struct {
-	Timestamp  string `json:"timestamp"`
-	UsedBytes  int64  `json:"used_bytes"`
-	TotalBytes int64  `json:"total_bytes"`
-}
-
 type SystemMetrics struct {
 	CPUUsagePercentage         float64
 	MemoryUsagePercentage      float64
@@ -57,6 +51,11 @@ type NodeStats struct {
 			Name      string `json:"name"`
 			Namespace string `json:"namespace"`
 		} `json:"podRef"`
+		Volume []struct {
+			Name          string `json:"name"`
+			UsedBytes     int64  `json:"usedBytes"`
+			CapacityBytes int64  `json:"capacityBytes"`
+		} `json:"volume,omitempty"`
 		EphemeralStorage struct {
 			Time           string `json:"time"`
 			UsedBytes      int64  `json:"usedBytes"`
@@ -70,14 +69,12 @@ func NewSystemHealthService() (*SystemHealthService, error) {
 	var config *rest.Config
 	var err error
 
-	// Check for in-cluster configuration first
 	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/token"); err == nil {
 		config, err = rest.InClusterConfig()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get in-cluster config: %v", err)
 		}
 	} else {
-		// Use out-of-cluster configuration
 		host := os.Getenv("KUBERNETES_SERVICE_HOST")
 		port := os.Getenv("KUBERNETES_SERVICE_PORT")
 
@@ -97,7 +94,6 @@ func NewSystemHealthService() (*SystemHealthService, error) {
 		}
 	}
 
-	// Create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Kubernetes clientset: %v", err)
@@ -112,22 +108,6 @@ func NewSystemHealthService() (*SystemHealthService, error) {
 		clientset:     clientset,
 		metricsClient: metricsClient,
 	}, nil
-}
-
-func (s *SystemHealthService) getPodMetrics(ctx context.Context, pod *corev1.Pod) (*StorageMetric, error) {
-	// Execute command in the storage-metrics container to read the last line of metrics
-	cmd := []string{"/bin/sh", "-c", "tail -n 1 /metrics/storage.log"}
-	stdout, stderr, err := utils.ExecInPod(ctx, s.clientset, pod.Namespace, pod.Name, "storage-metrics", cmd)
-	if err != nil {
-		return nil, fmt.Errorf("failed to exec in pod: %v, stderr: %s", err, stderr)
-	}
-
-	var metric StorageMetric
-	if err := json.Unmarshal([]byte(stdout), &metric); err != nil {
-		return nil, fmt.Errorf("failed to parse metrics json: %v", err)
-	}
-
-	return &metric, nil
 }
 
 func (s *SystemHealthService) GetSystemHealth(ctx context.Context, token string) (*SystemMetrics, error) {
@@ -167,71 +147,79 @@ func (s *SystemHealthService) GetSystemHealth(ctx context.Context, token string)
 	metrics.CPUUsagePercentage = float64(totalCPUUsage) / float64(totalCPUCapacity) * 100
 	metrics.MemoryUsagePercentage = float64(totalMemoryUsage) / float64(totalMemoryCapacity) * 100
 
-	// Get node stats for ephemeral storage
+	// Get node stats for storage metrics
 	metrics.EphemeralStorageUsed = 0
 	metrics.EphemeralStorageTotal = 0
+	metrics.PVCStorageUsed = 0
+	metrics.PVCStorageTotal = 0
 
-	for _, node := range nodes.Items {
-		path := fmt.Sprintf("/api/v1/nodes/%s/proxy/stats/summary", node.Name)
-		result, err := s.clientset.CoreV1().RESTClient().Get().AbsPath(path).DoRaw(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get node stats: %v", err)
-		}
-
-		var nodeStats NodeStats
-		if err := json.Unmarshal(result, &nodeStats); err != nil {
-			return nil, fmt.Errorf("failed to parse node stats: %v", err)
-		}
-
-		// Add node's total capacity
-		metrics.EphemeralStorageTotal += nodeStats.Node.Fs.CapacityBytes
-
-		// Sum up used storage across all pods
-		for _, pod := range nodeStats.Pods {
-			metrics.EphemeralStorageUsed += pod.EphemeralStorage.UsedBytes
-		}
-	}
-
-	if metrics.EphemeralStorageTotal > 0 {
-		metrics.EphemeralStoragePercentage = float64(metrics.EphemeralStorageUsed) / float64(metrics.EphemeralStorageTotal) * 100
-	}
-
-	// Fetch pods
-	pods, err := s.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch pods: %v", err)
-	}
-
-	metrics.PodCount = len(pods.Items)
-
-	// Fetch PVCs and their actual usage from sidecar metrics
+	// Get all PVCs first
 	pvcs, err := s.clientset.CoreV1().PersistentVolumeClaims("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch PVCs: %v", err)
 	}
-
 	metrics.PVCCount = len(pvcs.Items)
-	metrics.PVCStorageUsed = 0
-	metrics.PVCStorageTotal = 0
 
-	// Create a map of PVC name to pod for easy lookup
+	// Get all pods for PVC mapping
+	pods, err := s.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch pods: %v", err)
+	}
+	metrics.PodCount = len(pods.Items)
+
+	// Create maps for PVC lookups
 	pvcToPod := make(map[string]*corev1.Pod)
+	volumeToPVC := make(map[string]string) // reverse lookup
 	for _, pod := range pods.Items {
 		for _, volume := range pod.Spec.Volumes {
 			if volume.PersistentVolumeClaim != nil {
-				pvcToPod[volume.PersistentVolumeClaim.ClaimName] = pod.DeepCopy()
+				pvcName := volume.PersistentVolumeClaim.ClaimName
+				pvcToPod[pvcName] = pod.DeepCopy()
+				volumeToPVC[volume.Name] = pvcName
 			}
 		}
 	}
 
-	for _, pvc := range pvcs.Items {
-		metrics.PVCStorageTotal += pvc.Spec.Resources.Requests.Storage().Value()
+	// Get storage stats from each node
+	for _, node := range nodes.Items {
+		path := fmt.Sprintf("/api/v1/nodes/%s/proxy/stats/summary", node.Name)
+		result, err := s.clientset.CoreV1().RESTClient().Get().AbsPath(path).DoRaw(ctx)
+		if err != nil {
+			continue
+		}
 
-		if pod, exists := pvcToPod[pvc.Name]; exists {
-			if storageMetric, err := s.getPodMetrics(ctx, pod); err == nil {
-				metrics.PVCStorageUsed += storageMetric.UsedBytes
+		var nodeStats NodeStats
+		if err := json.Unmarshal(result, &nodeStats); err != nil {
+			continue
+		}
+
+		// Add node's total capacity for ephemeral storage
+		metrics.EphemeralStorageTotal += nodeStats.Node.Fs.CapacityBytes
+
+		// Process each pod's stats
+		for _, podStat := range nodeStats.Pods {
+			// Add ephemeral storage usage
+			metrics.EphemeralStorageUsed += podStat.EphemeralStorage.UsedBytes
+
+			// Process volume stats for PVCs
+			for _, volumeStat := range podStat.Volume {
+				if pvcName, exists := volumeToPVC[volumeStat.Name]; exists {
+					metrics.PVCStorageUsed += volumeStat.UsedBytes
+					fmt.Printf("Found volume %s for PVC %s with usage %d bytes\n",
+						volumeStat.Name, pvcName, volumeStat.UsedBytes)
+				}
 			}
 		}
+	}
+
+	// Calculate total PVC storage capacity from PVC specs
+	for _, pvc := range pvcs.Items {
+		metrics.PVCStorageTotal += pvc.Spec.Resources.Requests.Storage().Value()
+	}
+
+	// Calculate percentages
+	if metrics.EphemeralStorageTotal > 0 {
+		metrics.EphemeralStoragePercentage = float64(metrics.EphemeralStorageUsed) / float64(metrics.EphemeralStorageTotal) * 100
 	}
 
 	if metrics.PVCStorageTotal > 0 {
