@@ -21,7 +21,18 @@
 go.work
 
 #other files
-
+*k8s*
+*k8s*/
+*k8s*.yaml
+*k8s*.yml
+*k8s*.json
+*k8s*.backup
+*k8s*.zip
+*k8s*.tar
+*k8s*.gz
+*k8s*.tar.gz
+*k8s*.tgz
+*k8s*.sh
 
 # Ignore .env files
 .env
