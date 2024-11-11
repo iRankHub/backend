@@ -392,3 +392,11 @@ SELECT
 FROM Tournaments t
 JOIN Leagues l ON t.LeagueID = l.LeagueID
 WHERE t.TournamentID = $1;
+
+-- name: SearchTournaments :many
+SELECT TournamentID, Name
+FROM Tournaments
+WHERE LOWER(Name) LIKE LOWER($1)
+  AND deleted_at IS NULL
+ORDER BY Name
+LIMIT 10;

@@ -5,6 +5,7 @@ option go_package = "github.com/iRankHub/backend/internal/grpc/proto/analytics";
 
 service AnalyticsService {
   rpc GetFinancialReports(FinancialReportRequest) returns (FinancialReportResponse) {}
+  rpc GetAttendanceReports(AttendanceReportRequest) returns (AttendanceReportResponse) {}
 }
 
 message DateRange {
@@ -54,4 +55,33 @@ message FinancialReportResponse {
   repeated SchoolPerformanceData school_performance = 2;
   repeated ExpenseCategory expense_categories = 3;
   string report_type = 4;
+}
+
+message AttendanceReportRequest {
+    string token = 1;
+    DateRange date_range = 2;
+    optional string tournament_id = 3;
+    string report_type = 4;  // "category" or "location"
+    repeated string countries = 5;  // For location-based report
+}
+
+message CategoryAttendance {
+    string category = 1;
+    int32 school_count = 2;
+    double percentage_change = 3;  // Can be positive or negative
+}
+
+message LocationAttendance {
+    string location = 1;  // Country or province name
+    string location_type = 2;  // "country" or "province"
+    int32 school_count = 3;
+    double percentage_change = 4;
+}
+
+message AttendanceReportResponse {
+    string report_type = 1;
+    repeated CategoryAttendance category_attendance = 2;
+    repeated LocationAttendance location_attendance = 3;
+    int32 total_schools = 4;
+    double total_percentage_change = 5;
 }

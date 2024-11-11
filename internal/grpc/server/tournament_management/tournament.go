@@ -335,3 +335,11 @@ func (s *tournamentServer) ListTournamentRegistrations(ctx context.Context, req 
 	}
 	return response, nil
 }
+
+func (s *tournamentServer) SearchTournaments(ctx context.Context, req *tournament_management.SearchTournamentsRequest) (*tournament_management.SearchTournamentsResponse, error) {
+	response, err := s.tournamentService.SearchTournaments(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to search tournaments: %v", err)
+	}
+	return response, nil
+}

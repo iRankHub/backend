@@ -49,6 +49,9 @@ service TournamentService {
   rpc GetSchoolRegistration(GetRegistrationRequest) returns (DetailedRegistrationResponse);
   rpc ListTournamentRegistrations(ListRegistrationsRequest) returns (ListRegistrationsResponse);
 
+  // Real-time tournament search
+  rpc SearchTournaments(SearchTournamentsRequest) returns (SearchTournamentsResponse);
+
 }
 
 // Enum definitions
@@ -521,4 +524,18 @@ message ListRegistrationItem {
 message ListRegistrationsResponse {
   repeated ListRegistrationItem registrations = 1;
   int32 next_page_token = 2;
+}
+
+message SearchTournamentsRequest {
+  string query = 1;
+  string token = 2;
+}
+
+message TournamentSearchResult {
+  int32 tournament_id = 1;
+  string name = 2;
+}
+
+message SearchTournamentsResponse {
+  repeated TournamentSearchResult tournaments = 1;
 }

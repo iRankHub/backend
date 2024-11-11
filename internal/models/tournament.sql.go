@@ -1293,6 +1293,43 @@ func (q *Queries) ListTournamentsPaginated(ctx context.Context, arg ListTourname
 	return items, nil
 }
 
+const searchTournaments = `-- name: SearchTournaments :many
+SELECT TournamentID, Name
+FROM Tournaments
+WHERE LOWER(Name) LIKE LOWER($1)
+  AND deleted_at IS NULL
+ORDER BY Name
+LIMIT 10
+`
+
+type SearchTournamentsRow struct {
+	Tournamentid int32  `json:"tournamentid"`
+	Name         string `json:"name"`
+}
+
+func (q *Queries) SearchTournaments(ctx context.Context, lower string) ([]SearchTournamentsRow, error) {
+	rows, err := q.db.QueryContext(ctx, searchTournaments, lower)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchTournamentsRow{}
+	for rows.Next() {
+		var i SearchTournamentsRow
+		if err := rows.Scan(&i.Tournamentid, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateInvitationStatus = `-- name: UpdateInvitationStatus :one
 UPDATE TournamentInvitations
 SET Status = $2, updated_at = CURRENT_TIMESTAMP

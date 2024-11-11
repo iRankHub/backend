@@ -49,6 +49,7 @@ const (
 	TournamentService_UpdateSchoolRegistration_FullMethodName    = "/tournament_management.TournamentService/UpdateSchoolRegistration"
 	TournamentService_GetSchoolRegistration_FullMethodName       = "/tournament_management.TournamentService/GetSchoolRegistration"
 	TournamentService_ListTournamentRegistrations_FullMethodName = "/tournament_management.TournamentService/ListTournamentRegistrations"
+	TournamentService_SearchTournaments_FullMethodName           = "/tournament_management.TournamentService/SearchTournaments"
 )
 
 // TournamentServiceClient is the client API for TournamentService service.
@@ -91,6 +92,8 @@ type TournamentServiceClient interface {
 	UpdateSchoolRegistration(ctx context.Context, in *UpdateRegistrationRequest, opts ...grpc.CallOption) (*RegistrationResponse, error)
 	GetSchoolRegistration(ctx context.Context, in *GetRegistrationRequest, opts ...grpc.CallOption) (*DetailedRegistrationResponse, error)
 	ListTournamentRegistrations(ctx context.Context, in *ListRegistrationsRequest, opts ...grpc.CallOption) (*ListRegistrationsResponse, error)
+	// Real-time tournament search
+	SearchTournaments(ctx context.Context, in *SearchTournamentsRequest, opts ...grpc.CallOption) (*SearchTournamentsResponse, error)
 }
 
 type tournamentServiceClient struct {
@@ -401,6 +404,16 @@ func (c *tournamentServiceClient) ListTournamentRegistrations(ctx context.Contex
 	return out, nil
 }
 
+func (c *tournamentServiceClient) SearchTournaments(ctx context.Context, in *SearchTournamentsRequest, opts ...grpc.CallOption) (*SearchTournamentsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SearchTournamentsResponse)
+	err := c.cc.Invoke(ctx, TournamentService_SearchTournaments_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TournamentServiceServer is the server API for TournamentService service.
 // All implementations must embed UnimplementedTournamentServiceServer
 // for forward compatibility.
@@ -441,6 +454,8 @@ type TournamentServiceServer interface {
 	UpdateSchoolRegistration(context.Context, *UpdateRegistrationRequest) (*RegistrationResponse, error)
 	GetSchoolRegistration(context.Context, *GetRegistrationRequest) (*DetailedRegistrationResponse, error)
 	ListTournamentRegistrations(context.Context, *ListRegistrationsRequest) (*ListRegistrationsResponse, error)
+	// Real-time tournament search
+	SearchTournaments(context.Context, *SearchTournamentsRequest) (*SearchTournamentsResponse, error)
 	mustEmbedUnimplementedTournamentServiceServer()
 }
 
@@ -540,6 +555,9 @@ func (UnimplementedTournamentServiceServer) GetSchoolRegistration(context.Contex
 }
 func (UnimplementedTournamentServiceServer) ListTournamentRegistrations(context.Context, *ListRegistrationsRequest) (*ListRegistrationsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListTournamentRegistrations not implemented")
+}
+func (UnimplementedTournamentServiceServer) SearchTournaments(context.Context, *SearchTournamentsRequest) (*SearchTournamentsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SearchTournaments not implemented")
 }
 func (UnimplementedTournamentServiceServer) mustEmbedUnimplementedTournamentServiceServer() {}
 func (UnimplementedTournamentServiceServer) testEmbeddedByValue()                           {}
@@ -1102,6 +1120,24 @@ func _TournamentService_ListTournamentRegistrations_Handler(srv interface{}, ctx
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TournamentService_SearchTournaments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchTournamentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TournamentServiceServer).SearchTournaments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TournamentService_SearchTournaments_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TournamentServiceServer).SearchTournaments(ctx, req.(*SearchTournamentsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TournamentService_ServiceDesc is the grpc.ServiceDesc for TournamentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1228,6 +1264,10 @@ var TournamentService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListTournamentRegistrations",
 			Handler:    _TournamentService_ListTournamentRegistrations_Handler,
+		},
+		{
+			MethodName: "SearchTournaments",
+			Handler:    _TournamentService_SearchTournaments_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

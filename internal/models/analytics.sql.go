@@ -9,6 +9,8 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 const getExpensesByTournament = `-- name: GetExpensesByTournament :many
@@ -124,6 +126,199 @@ func (q *Queries) GetExpensesSummary(ctx context.Context, arg GetExpensesSummary
 		&i.TotalExpense,
 	)
 	return i, err
+}
+
+const getSchoolAttendanceByCategory = `-- name: GetSchoolAttendanceByCategory :many
+WITH CurrentPeriod AS (
+    SELECT
+        s.schooltype as category,
+        COUNT(DISTINCT s.schoolid) as current_count
+    FROM schools s
+    JOIN schooltournamentregistrations str ON s.schoolid = str.schoolid
+    JOIN tournaments t ON str.tournamentid = t.tournamentid
+    WHERE t.startdate BETWEEN $1 AND $2
+    AND ($3::INTEGER IS NULL OR t.tournamentid = $3)
+    GROUP BY s.schooltype
+),
+PreviousPeriod AS (
+    SELECT
+        s.schooltype as category,
+        COUNT(DISTINCT s.schoolid) as previous_count
+    FROM schools s
+    JOIN schooltournamentregistrations str ON s.schoolid = str.schoolid
+    JOIN tournaments t ON str.tournamentid = t.tournamentid
+    WHERE t.startdate BETWEEN
+        $1 - ($2 - $1) AND -- Start of previous period
+        $1 - INTERVAL '1 day' -- End of previous period
+    AND ($3::INTEGER IS NULL OR t.tournamentid = $3)
+    GROUP BY s.schooltype
+)
+SELECT
+    c.category,
+    c.current_count as school_count,
+    CASE
+        WHEN p.previous_count IS NULL OR p.previous_count = 0 THEN 100.0
+        ELSE ((c.current_count::float - p.previous_count::float) / p.previous_count::float * 100)
+    END as percentage_change
+FROM CurrentPeriod c
+LEFT JOIN PreviousPeriod p ON c.category = p.category
+ORDER BY c.category
+`
+
+type GetSchoolAttendanceByCategoryParams struct {
+	Startdate   time.Time `json:"startdate"`
+	Startdate_2 time.Time `json:"startdate_2"`
+	Column3     int32     `json:"column_3"`
+}
+
+type GetSchoolAttendanceByCategoryRow struct {
+	Category         string      `json:"category"`
+	SchoolCount      int64       `json:"school_count"`
+	PercentageChange interface{} `json:"percentage_change"`
+}
+
+func (q *Queries) GetSchoolAttendanceByCategory(ctx context.Context, arg GetSchoolAttendanceByCategoryParams) ([]GetSchoolAttendanceByCategoryRow, error) {
+	rows, err := q.db.QueryContext(ctx, getSchoolAttendanceByCategory, arg.Startdate, arg.Startdate_2, arg.Column3)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetSchoolAttendanceByCategoryRow{}
+	for rows.Next() {
+		var i GetSchoolAttendanceByCategoryRow
+		if err := rows.Scan(&i.Category, &i.SchoolCount, &i.PercentageChange); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSchoolAttendanceByLocation = `-- name: GetSchoolAttendanceByLocation :many
+WITH CurrentPeriod AS (
+    SELECT
+        CASE
+            WHEN $4 = TRUE AND s.country = 'Rwanda' THEN s.province
+            ELSE s.country
+        END as location,
+        CASE
+            WHEN $4 = TRUE AND s.country = 'Rwanda' THEN 'province'
+            ELSE 'country'
+        END as location_type,
+        COUNT(DISTINCT s.schoolid) as current_count
+    FROM schools s
+    JOIN schooltournamentregistrations str ON s.schoolid = str.schoolid
+    JOIN tournaments t ON str.tournamentid = t.tournamentid
+    WHERE t.startdate BETWEEN $1 AND $2
+    AND ($3::INTEGER IS NULL OR t.tournamentid = $3)
+    AND (
+        CASE
+            WHEN array_length($5::VARCHAR[], 1) IS NULL THEN TRUE
+            ELSE s.country = ANY($5::VARCHAR[])
+        END
+    )
+    GROUP BY
+        CASE
+            WHEN $4 = TRUE AND s.country = 'Rwanda' THEN s.province
+            ELSE s.country
+        END,
+        CASE
+            WHEN $4 = TRUE AND s.country = 'Rwanda' THEN 'province'
+            ELSE 'country'
+        END
+),
+PreviousPeriod AS (
+    SELECT
+        CASE
+            WHEN $4 = TRUE AND s.country = 'Rwanda' THEN s.province
+            ELSE s.country
+        END as location,
+        COUNT(DISTINCT s.schoolid) as previous_count
+    FROM schools s
+    JOIN schooltournamentregistrations str ON s.schoolid = str.schoolid
+    JOIN tournaments t ON str.tournamentid = t.tournamentid
+    WHERE t.startdate BETWEEN
+        $1 - ($2 - $1) AND -- Start of previous period
+        $1 - INTERVAL '1 day' -- End of previous period
+    AND ($3::INTEGER IS NULL OR t.tournamentid = $3)
+    AND (
+        CASE
+            WHEN array_length($5::VARCHAR[], 1) IS NULL THEN TRUE
+            ELSE s.country = ANY($5::VARCHAR[])
+        END
+    )
+    GROUP BY
+        CASE
+            WHEN $4 = TRUE AND s.country = 'Rwanda' THEN s.province
+            ELSE s.country
+        END
+)
+SELECT
+    c.location,
+    c.location_type,
+    c.current_count as school_count,
+    CASE
+        WHEN p.previous_count IS NULL OR p.previous_count = 0 THEN 100.0
+        ELSE ((c.current_count::float - p.previous_count::float) / p.previous_count::float * 100)
+    END as percentage_change
+FROM CurrentPeriod c
+LEFT JOIN PreviousPeriod p ON c.location = p.location
+ORDER BY c.location
+`
+
+type GetSchoolAttendanceByLocationParams struct {
+	Startdate   time.Time   `json:"startdate"`
+	Startdate_2 time.Time   `json:"startdate_2"`
+	Column3     int32       `json:"column_3"`
+	Column4     interface{} `json:"column_4"`
+	Column5     []string    `json:"column_5"`
+}
+
+type GetSchoolAttendanceByLocationRow struct {
+	Location         interface{} `json:"location"`
+	LocationType     string      `json:"location_type"`
+	SchoolCount      int64       `json:"school_count"`
+	PercentageChange interface{} `json:"percentage_change"`
+}
+
+func (q *Queries) GetSchoolAttendanceByLocation(ctx context.Context, arg GetSchoolAttendanceByLocationParams) ([]GetSchoolAttendanceByLocationRow, error) {
+	rows, err := q.db.QueryContext(ctx, getSchoolAttendanceByLocation,
+		arg.Startdate,
+		arg.Startdate_2,
+		arg.Column3,
+		arg.Column4,
+		pq.Array(arg.Column5),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetSchoolAttendanceByLocationRow{}
+	for rows.Next() {
+		var i GetSchoolAttendanceByLocationRow
+		if err := rows.Scan(
+			&i.Location,
+			&i.LocationType,
+			&i.SchoolCount,
+			&i.PercentageChange,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getSchoolPerformanceByCategory = `-- name: GetSchoolPerformanceByCategory :many

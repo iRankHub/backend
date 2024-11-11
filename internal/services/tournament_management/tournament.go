@@ -9,6 +9,7 @@ import (
 	"log"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
@@ -469,6 +470,43 @@ func (s *TournamentService) DeleteTournament(ctx context.Context, req *tournamen
 	return &tournament_management.DeleteTournamentResponse{
 		Success: true,
 		Message: "Tournament deleted successfully",
+	}, nil
+}
+
+func (s *TournamentService) SearchTournaments(ctx context.Context, req *tournament_management.SearchTournamentsRequest) (*tournament_management.SearchTournamentsResponse, error) {
+	if err := s.validateAuthentication(req.GetToken()); err != nil {
+		return nil, err
+	}
+
+	// Clean and prepare the search query
+	searchQuery := strings.TrimSpace(req.GetQuery())
+	if searchQuery == "" {
+		return &tournament_management.SearchTournamentsResponse{
+			Tournaments: []*tournament_management.TournamentSearchResult{},
+		}, nil
+	}
+
+	// Add wildcards for partial matching
+	searchPattern := "%" + searchQuery + "%"
+
+	// Execute the search query
+	queries := models.New(s.db)
+	tournaments, err := queries.SearchTournaments(ctx, searchPattern)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search tournaments: %v", err)
+	}
+
+	// Convert the results to proto message
+	results := make([]*tournament_management.TournamentSearchResult, len(tournaments))
+	for i, t := range tournaments {
+		results[i] = &tournament_management.TournamentSearchResult{
+			TournamentId: t.Tournamentid,
+			Name:         t.Name,
+		}
+	}
+
+	return &tournament_management.SearchTournamentsResponse{
+		Tournaments: results,
 	}, nil
 }
 

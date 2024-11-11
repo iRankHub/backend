@@ -235,6 +235,135 @@ func (s *AnalyticsService) GetFinancialReports(ctx context.Context, req *analyti
 	return response, nil
 }
 
+func (s *AnalyticsService) GetAttendanceReports(ctx context.Context, req *analytics.AttendanceReportRequest) (*analytics.AttendanceReportResponse, error) {
+	// Validate admin access
+	claims, err := utils.ValidateToken(req.Token)
+	if err != nil {
+		return nil, fmt.Errorf("invalid token: %v", err)
+	}
+
+	userRole, ok := claims["user_role"].(string)
+	if !ok || userRole != "admin" {
+		return nil, fmt.Errorf("unauthorized: only admins can access attendance reports")
+	}
+
+	// Parse dates
+	startDate, err := time.Parse("2006-01-02", req.DateRange.StartDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid start date: %v", err)
+	}
+
+	endDate, err := time.Parse("2006-01-02", req.DateRange.EndDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid end date: %v", err)
+	}
+
+	// Convert tournament ID
+	var tournamentID int32
+	if req.TournamentId != nil && *req.TournamentId != "" {
+		id, err := strconv.ParseInt(*req.TournamentId, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("invalid tournament ID: %v", err)
+		}
+		tournamentID = int32(id)
+	}
+
+	queries := models.New(s.db)
+	response := &analytics.AttendanceReportResponse{
+		ReportType: req.ReportType,
+	}
+
+	switch req.ReportType {
+	case "category":
+		attendance, err := queries.GetSchoolAttendanceByCategory(ctx, models.GetSchoolAttendanceByCategoryParams{
+			Startdate:   startDate,
+			Startdate_2: endDate,
+			Column3:     tournamentID,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get category attendance: %v", err)
+		}
+
+		var totalSchools int64 = 0
+		var weightedTotalChange float64 = 0.0
+
+		for _, data := range attendance {
+			totalSchools += data.SchoolCount
+
+			// Convert interface{} to float64 for percentage change
+			percentageChange := 0.0
+			if pc, ok := data.PercentageChange.(float64); ok {
+				percentageChange = pc
+			}
+
+			response.CategoryAttendance = append(response.CategoryAttendance, &analytics.CategoryAttendance{
+				Category:         data.Category,
+				SchoolCount:      int32(data.SchoolCount),
+				PercentageChange: percentageChange,
+			})
+
+			weightedTotalChange += float64(data.SchoolCount) * percentageChange
+		}
+
+		response.TotalSchools = int32(totalSchools)
+		if totalSchools > 0 {
+			response.TotalPercentageChange = weightedTotalChange / float64(totalSchools)
+		}
+
+	case "location":
+		showRwandaProvinces := len(req.Countries) == 1 && req.Countries[0] == "Rwanda"
+
+		attendance, err := queries.GetSchoolAttendanceByLocation(ctx, models.GetSchoolAttendanceByLocationParams{
+			Startdate:   startDate,
+			Startdate_2: endDate,
+			Column3:     tournamentID,
+			Column4:     showRwandaProvinces,
+			Column5:     req.Countries,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get location attendance: %v", err)
+		}
+
+		var totalSchools int64 = 0
+		var weightedTotalChange float64 = 0.0
+
+		for _, data := range attendance {
+			totalSchools += data.SchoolCount
+
+			// Convert interface{} to string for location
+			location := ""
+			if loc, ok := data.Location.(string); ok {
+				location = loc
+			}
+
+			// Convert interface{} to float64 for percentage change
+			percentageChange := 0.0
+			if pc, ok := data.PercentageChange.(float64); ok {
+				percentageChange = pc
+			}
+
+			response.LocationAttendance = append(response.LocationAttendance, &analytics.LocationAttendance{
+				Location:         location,
+				LocationType:     data.LocationType,
+				SchoolCount:      int32(data.SchoolCount),
+				PercentageChange: percentageChange,
+			})
+
+			weightedTotalChange += float64(data.SchoolCount) * percentageChange
+		}
+
+		response.TotalSchools = int32(totalSchools)
+		if totalSchools > 0 {
+			response.TotalPercentageChange = weightedTotalChange / float64(totalSchools)
+		}
+
+	default:
+		return nil, fmt.Errorf("invalid report type: %s", req.ReportType)
+	}
+
+	return response, nil
+}
+
 // Helper function to convert interface{} to float64
 func getFloat64FromInterface(value interface{}) float64 {
 	switch v := value.(type) {

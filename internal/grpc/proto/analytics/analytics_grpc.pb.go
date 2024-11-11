@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AnalyticsService_GetFinancialReports_FullMethodName = "/analytics.AnalyticsService/GetFinancialReports"
+	AnalyticsService_GetFinancialReports_FullMethodName  = "/analytics.AnalyticsService/GetFinancialReports"
+	AnalyticsService_GetAttendanceReports_FullMethodName = "/analytics.AnalyticsService/GetAttendanceReports"
 )
 
 // AnalyticsServiceClient is the client API for AnalyticsService service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AnalyticsServiceClient interface {
 	GetFinancialReports(ctx context.Context, in *FinancialReportRequest, opts ...grpc.CallOption) (*FinancialReportResponse, error)
+	GetAttendanceReports(ctx context.Context, in *AttendanceReportRequest, opts ...grpc.CallOption) (*AttendanceReportResponse, error)
 }
 
 type analyticsServiceClient struct {
@@ -47,11 +49,22 @@ func (c *analyticsServiceClient) GetFinancialReports(ctx context.Context, in *Fi
 	return out, nil
 }
 
+func (c *analyticsServiceClient) GetAttendanceReports(ctx context.Context, in *AttendanceReportRequest, opts ...grpc.CallOption) (*AttendanceReportResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AttendanceReportResponse)
+	err := c.cc.Invoke(ctx, AnalyticsService_GetAttendanceReports_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AnalyticsServiceServer is the server API for AnalyticsService service.
 // All implementations must embed UnimplementedAnalyticsServiceServer
 // for forward compatibility.
 type AnalyticsServiceServer interface {
 	GetFinancialReports(context.Context, *FinancialReportRequest) (*FinancialReportResponse, error)
+	GetAttendanceReports(context.Context, *AttendanceReportRequest) (*AttendanceReportResponse, error)
 	mustEmbedUnimplementedAnalyticsServiceServer()
 }
 
@@ -64,6 +77,9 @@ type UnimplementedAnalyticsServiceServer struct{}
 
 func (UnimplementedAnalyticsServiceServer) GetFinancialReports(context.Context, *FinancialReportRequest) (*FinancialReportResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFinancialReports not implemented")
+}
+func (UnimplementedAnalyticsServiceServer) GetAttendanceReports(context.Context, *AttendanceReportRequest) (*AttendanceReportResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAttendanceReports not implemented")
 }
 func (UnimplementedAnalyticsServiceServer) mustEmbedUnimplementedAnalyticsServiceServer() {}
 func (UnimplementedAnalyticsServiceServer) testEmbeddedByValue()                          {}
@@ -104,6 +120,24 @@ func _AnalyticsService_GetFinancialReports_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AnalyticsService_GetAttendanceReports_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AttendanceReportRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AnalyticsServiceServer).GetAttendanceReports(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AnalyticsService_GetAttendanceReports_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AnalyticsServiceServer).GetAttendanceReports(ctx, req.(*AttendanceReportRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AnalyticsService_ServiceDesc is the grpc.ServiceDesc for AnalyticsService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -114,6 +148,10 @@ var AnalyticsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetFinancialReports",
 			Handler:    _AnalyticsService_GetFinancialReports_Handler,
+		},
+		{
+			MethodName: "GetAttendanceReports",
+			Handler:    _AnalyticsService_GetAttendanceReports_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
