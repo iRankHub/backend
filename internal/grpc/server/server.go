@@ -9,12 +9,14 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/iRankHub/backend/internal/grpc/proto/analytics"
 	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
 	"github.com/iRankHub/backend/internal/grpc/proto/debate_management"
 	"github.com/iRankHub/backend/internal/grpc/proto/notification"
 	"github.com/iRankHub/backend/internal/grpc/proto/system_health"
 	"github.com/iRankHub/backend/internal/grpc/proto/tournament_management"
 	"github.com/iRankHub/backend/internal/grpc/proto/user_management"
+	analyticsserver "github.com/iRankHub/backend/internal/grpc/server/analytics"
 	authserver "github.com/iRankHub/backend/internal/grpc/server/authentication"
 	debateserver "github.com/iRankHub/backend/internal/grpc/server/debate_management"
 	notificationserver "github.com/iRankHub/backend/internal/grpc/server/notification"
@@ -57,6 +59,12 @@ func StartGRPCServer(db *sql.DB) error {
 		return fmt.Errorf("failed to create NotificationServer: %v", err)
 	}
 	notification.RegisterNotificationServiceServer(grpcServer, notificationServer)
+
+	analyticsServer, err := analyticsserver.NewAnalyticsServer(db)
+	if err != nil {
+		return fmt.Errorf("failed to create AnalyticsServer: %v", err)
+	}
+	analytics.RegisterAnalyticsServiceServer(grpcServer, analyticsServer)
 
 	systemHealthServer, err := systemhealthserver.NewSystemHealthServer()
 	if err != nil {
