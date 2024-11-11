@@ -221,37 +221,73 @@ func (s *TournamentService) GetTournamentStats(ctx context.Context, req *tournam
 		return nil, fmt.Errorf("authentication failed: %v", err)
 	}
 
-	// Extract user ID from token
-	userIDFloat, ok := claims["user_id"].(float64)
+	// Extract user role and ID from token
+	userRole, ok := claims["user_role"].(string)
 	if !ok {
-		return nil, fmt.Errorf("user_id not found in token")
+		return nil, fmt.Errorf("user_role not found in token")
 	}
 
 	queries := models.New(s.db)
-	schoolInfo, err := queries.GetSchoolByUserID(ctx, int32(userIDFloat))
-	if err != nil {
-		return nil, fmt.Errorf("failed to get school ID by user ID: %v", err)
+	var stats models.GetTournamentStatsRow
+
+	params := models.GetTournamentStatsParams{
+		UserRole: userRole,
 	}
 
-	// Fetch tournament stats for the current user's school ID
-	stats, err := queries.GetTournamentStats(ctx, schoolInfo.Schoolid)
+	if userRole == "admin" {
+		// For admin, only pass the role
+		params.SchoolID = sql.NullInt32{Valid: false}
+	} else {
+		// For school users, get their school ID
+		userIDFloat, ok := claims["user_id"].(float64)
+		if !ok {
+			return nil, fmt.Errorf("user_id not found in token")
+		}
+
+		schoolInfo, err := queries.GetSchoolByUserID(ctx, int32(userIDFloat))
+		if err != nil {
+			return nil, fmt.Errorf("failed to get school ID by user ID: %v", err)
+		}
+
+		params.SchoolID = sql.NullInt32{Int32: schoolInfo.Schoolid, Valid: true}
+	}
+
+	stats, err = queries.GetTournamentStats(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tournament stats: %v", err)
 	}
 
+	// Convert interface{} to int64 for calculations
+	yesterdayActiveDebaters, ok := stats.YesterdayActiveDebatersCount.(int64)
+	if !ok {
+		// Handle the case where it might be int32 or another numeric type
+		if val, ok := stats.YesterdayActiveDebatersCount.(int32); ok {
+			yesterdayActiveDebaters = int64(val)
+		} else {
+			return nil, fmt.Errorf("unexpected type for YesterdayActiveDebatersCount")
+		}
+	}
+
+	activeDebaters, ok := stats.ActiveDebaterCount.(int64)
+	if !ok {
+		// Handle the case where it might be int32 or another numeric type
+		if val, ok := stats.ActiveDebaterCount.(int32); ok {
+			activeDebaters = int64(val)
+		} else {
+			return nil, fmt.Errorf("unexpected type for ActiveDebaterCount")
+		}
+	}
+
 	totalPercentageChange := calculatePercentageChange(int64(stats.YesterdayTotalCount.Int32), stats.TotalTournaments)
 	upcomingPercentageChange := calculatePercentageChange(int64(stats.YesterdayUpcomingCount.Int32), stats.UpcomingTournaments)
-	activeDebatersPercentageChange := calculatePercentageChange(
-		int64(stats.YesterdayActiveDebatersCount.Int32),
-		stats.ActiveDebaterCount,
-	)
+	activeDebatersPercentageChange := calculatePercentageChange(yesterdayActiveDebaters, activeDebaters)
 
 	return &tournament_management.GetTournamentStatsResponse{
 		TotalTournaments:               int32(stats.TotalTournaments),
 		UpcomingTournaments:            int32(stats.UpcomingTournaments),
 		TotalPercentageChange:          totalPercentageChange,
 		UpcomingPercentageChange:       upcomingPercentageChange,
-		ActiveDebaters:                 int32(stats.ActiveDebaterCount),
+		ActiveDebaters:                 int32(activeDebaters),
 		ActiveDebatersPercentageChange: activeDebatersPercentageChange,
 	}, nil
 }

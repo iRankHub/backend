@@ -275,13 +275,13 @@ HistoricalStats AS (
     FROM Tournaments
     WHERE TournamentID = (SELECT MIN(TournamentID) FROM Tournaments)
 ),
-ActiveDebaters AS (
+SchoolDebaters AS (
     SELECT COUNT(DISTINCT tm.StudentID) as active_debater_count
     FROM TeamMembers tm
     JOIN Teams t ON tm.TeamID = t.TeamID
     JOIN Students s ON tm.StudentID = s.StudentID
     JOIN Tournaments tour ON t.TournamentID = tour.TournamentID
-    WHERE s.SchoolID = $1
+    WHERE s.SchoolID = sqlc.narg('school_id')
       AND tour.deleted_at IS NULL
 )
 SELECT
@@ -289,9 +289,17 @@ SELECT
     cs.upcoming_tournaments,
     hs.yesterday_total_count,
     hs.yesterday_upcoming_count,
-    COALESCE(ad.active_debater_count, 0) as active_debater_count,
-    hs.yesterday_active_debaters_count
-FROM CurrentStats cs, HistoricalStats hs, ActiveDebaters ad;
+    CASE
+        WHEN sqlc.narg('user_role') = 'admin' THEN 0
+        ELSE COALESCE(sd.active_debater_count, 0)
+    END as active_debater_count,
+    CASE
+        WHEN sqlc.narg('user_role') = 'admin' THEN 0
+        ELSE COALESCE(hs.yesterday_active_debaters_count, 0)
+    END as yesterday_active_debaters_count
+FROM CurrentStats cs, HistoricalStats hs
+LEFT JOIN SchoolDebaters sd ON true
+WHERE (sqlc.narg('user_role') = 'admin' OR sqlc.narg('school_id') IS NOT NULL);
 
 -- name: CreateTournamentExpenses :one
 INSERT INTO TournamentExpenses (

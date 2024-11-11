@@ -954,13 +954,13 @@ HistoricalStats AS (
     FROM Tournaments
     WHERE TournamentID = (SELECT MIN(TournamentID) FROM Tournaments)
 ),
-ActiveDebaters AS (
+SchoolDebaters AS (
     SELECT COUNT(DISTINCT tm.StudentID) as active_debater_count
     FROM TeamMembers tm
     JOIN Teams t ON tm.TeamID = t.TeamID
     JOIN Students s ON tm.StudentID = s.StudentID
     JOIN Tournaments tour ON t.TournamentID = tour.TournamentID
-    WHERE s.SchoolID = $1
+    WHERE s.SchoolID = $2
       AND tour.deleted_at IS NULL
 )
 SELECT
@@ -968,23 +968,36 @@ SELECT
     cs.upcoming_tournaments,
     hs.yesterday_total_count,
     hs.yesterday_upcoming_count,
-    COALESCE(ad.active_debater_count, 0) as active_debater_count,
-    hs.yesterday_active_debaters_count
-FROM CurrentStats cs, HistoricalStats hs, ActiveDebaters ad
+    CASE
+        WHEN $1 = 'admin' THEN 0
+        ELSE COALESCE(sd.active_debater_count, 0)
+    END as active_debater_count,
+    CASE
+        WHEN $1 = 'admin' THEN 0
+        ELSE COALESCE(hs.yesterday_active_debaters_count, 0)
+    END as yesterday_active_debaters_count
+FROM CurrentStats cs, HistoricalStats hs
+LEFT JOIN SchoolDebaters sd ON true
+WHERE ($1 = 'admin' OR $2 IS NOT NULL)
 `
+
+type GetTournamentStatsParams struct {
+	UserRole interface{} `json:"user_role"`
+	SchoolID interface{} `json:"school_id"`
+}
 
 type GetTournamentStatsRow struct {
 	TotalTournaments             int64         `json:"total_tournaments"`
 	UpcomingTournaments          int64         `json:"upcoming_tournaments"`
 	YesterdayTotalCount          sql.NullInt32 `json:"yesterday_total_count"`
 	YesterdayUpcomingCount       sql.NullInt32 `json:"yesterday_upcoming_count"`
-	ActiveDebaterCount           int64         `json:"active_debater_count"`
-	YesterdayActiveDebatersCount sql.NullInt32 `json:"yesterday_active_debaters_count"`
+	ActiveDebaterCount           interface{}   `json:"active_debater_count"`
+	YesterdayActiveDebatersCount interface{}   `json:"yesterday_active_debaters_count"`
 }
 
 // Limiting to last 30 days, adjust as needed
-func (q *Queries) GetTournamentStats(ctx context.Context, schoolid int32) (GetTournamentStatsRow, error) {
-	row := q.db.QueryRowContext(ctx, getTournamentStats, schoolid)
+func (q *Queries) GetTournamentStats(ctx context.Context, arg GetTournamentStatsParams) (GetTournamentStatsRow, error) {
+	row := q.db.QueryRowContext(ctx, getTournamentStats, arg.UserRole, arg.SchoolID)
 	var i GetTournamentStatsRow
 	err := row.Scan(
 		&i.TotalTournaments,
