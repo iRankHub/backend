@@ -43,16 +43,6 @@ func (s *AnalyticsService) GetFinancialReports(ctx context.Context, req *analyti
 		return nil, fmt.Errorf("invalid end date: %v", err)
 	}
 
-	// Convert tournament ID
-	var tournamentID int32
-	if req.TournamentId != nil && *req.TournamentId != "" {
-		id, err := strconv.ParseInt(*req.TournamentId, 10, 32)
-		if err != nil {
-			return nil, fmt.Errorf("invalid tournament ID: %v", err)
-		}
-		tournamentID = int32(id)
-	}
-
 	queries := models.New(s.db)
 	response := &analytics.FinancialReportResponse{}
 	if req.ReportType != nil {
@@ -66,6 +56,17 @@ func (s *AnalyticsService) GetFinancialReports(ctx context.Context, req *analyti
 
 	switch *req.ReportType {
 	case "income_overview":
+		var tournamentID int32
+		if req.TournamentId != nil && *req.TournamentId != "" {
+			id, err := strconv.ParseInt(*req.TournamentId, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("invalid tournament ID: %v", err)
+			}
+			tournamentID = int32(id)
+		} else {
+			tournamentID = -1 // Use -1 to indicate "all tournaments"
+		}
+
 		incomes, err := queries.GetTournamentIncomeOverview(ctx, models.GetTournamentIncomeOverviewParams{
 			Startdate:   startDate,
 			Startdate_2: endDate,
@@ -85,14 +86,10 @@ func (s *AnalyticsService) GetFinancialReports(ctx context.Context, req *analyti
 				leagueName = income.LeagueName.String
 			}
 
-			totalIncome := 0.0
-			if v, ok := income.TotalIncome.(float64); ok {
-				totalIncome = v
-			}
-			netRevenue := 0.0
-			if v, ok := income.NetRevenue.(float64); ok {
-				netRevenue = v
-			}
+			// Handle the numeric values
+			totalIncome := parseNumericValue(income.TotalIncome)
+			netRevenue := parseNumericValue(income.NetRevenue)
+			netProfit := parseNumericValue(income.NetProfit)
 
 			response.TournamentIncomes = append(response.TournamentIncomes, &analytics.TournamentIncome{
 				TournamentId:   fmt.Sprintf("%d", income.Tournamentid),
@@ -101,7 +98,7 @@ func (s *AnalyticsService) GetFinancialReports(ctx context.Context, req *analyti
 				LeagueName:     leagueName,
 				TotalIncome:    totalIncome,
 				NetRevenue:     netRevenue,
-				NetProfit:      float64(income.NetProfit),
+				NetProfit:      netProfit,
 				TournamentDate: income.Startdate.Format("2006-01-02"),
 			})
 		}
@@ -111,61 +108,76 @@ func (s *AnalyticsService) GetFinancialReports(ctx context.Context, req *analyti
 			return nil, fmt.Errorf("group_by parameter is required for school performance report")
 		}
 
-		var performanceData interface{}
+		// Initialize tournamentID as -1 by default for "all tournaments"
+		var tournamentID int32 = -1
+		if req.TournamentId != nil && *req.TournamentId != "" {
+			id, err := strconv.ParseInt(*req.TournamentId, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("invalid tournament ID: %v", err)
+			}
+			tournamentID = int32(id)
+		}
+
 		switch *req.GroupBy {
 		case "category":
-			performanceData, err = queries.GetSchoolPerformanceByCategory(ctx, models.GetSchoolPerformanceByCategoryParams{
+			categoryData, err := queries.GetSchoolPerformanceByCategory(ctx, models.GetSchoolPerformanceByCategoryParams{
 				Startdate:   startDate,
 				Startdate_2: endDate,
 				Column3:     tournamentID,
 			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to get category performance: %v", err)
+			}
+
+			for _, row := range categoryData {
+				response.SchoolPerformance = append(response.SchoolPerformance, &analytics.SchoolPerformanceData{
+					GroupName:   row.GroupName,
+					TotalAmount: float64(row.TotalAmount),
+					SchoolCount: int32(row.SchoolCount),
+				})
+			}
+
 		case "location":
-			performanceData, err = queries.GetSchoolPerformanceByLocation(ctx, models.GetSchoolPerformanceByLocationParams{
+			locationData, err := queries.GetSchoolPerformanceByLocation(ctx, models.GetSchoolPerformanceByLocationParams{
 				Startdate:   startDate,
 				Startdate_2: endDate,
 				Column3:     tournamentID,
 			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to get location performance: %v", err)
+			}
+
+			for _, row := range locationData {
+				groupName := ""
+				if row.GroupName != nil {
+					if str, ok := row.GroupName.(string); ok {
+						groupName = str
+					}
+				}
+
+				response.SchoolPerformance = append(response.SchoolPerformance, &analytics.SchoolPerformanceData{
+					GroupName:   groupName,
+					TotalAmount: float64(row.TotalAmount),
+					SchoolCount: int32(row.SchoolCount),
+				})
+			}
+
 		default:
 			return nil, fmt.Errorf("invalid group_by parameter: %s", *req.GroupBy)
 		}
 
-		if err != nil {
-			return nil, fmt.Errorf("failed to get school performance: %v", err)
-		}
-
-		switch data := performanceData.(type) {
-		case []models.GetSchoolPerformanceByCategoryRow:
-			for _, row := range data {
-				totalAmount := 0.0
-				if v, ok := row.TotalAmount.(float64); ok {
-					totalAmount = v
-				}
-				response.SchoolPerformance = append(response.SchoolPerformance, &analytics.SchoolPerformanceData{
-					GroupName:   row.GroupName,
-					TotalAmount: totalAmount,
-					SchoolCount: int32(row.SchoolCount),
-				})
-			}
-		case []models.GetSchoolPerformanceByLocationRow:
-			for _, row := range data {
-				groupName := ""
-				if v, ok := row.GroupName.(string); ok {
-					groupName = v
-				}
-				totalAmount := 0.0
-				if v, ok := row.TotalAmount.(float64); ok {
-					totalAmount = v
-				}
-				response.SchoolPerformance = append(response.SchoolPerformance, &analytics.SchoolPerformanceData{
-					GroupName:   groupName,
-					TotalAmount: totalAmount,
-					SchoolCount: int32(row.SchoolCount),
-				})
-			}
-		}
-
 	case "expenses":
+		var tournamentID int32 = -1 // Default to all tournaments
 		if req.TournamentId != nil && *req.TournamentId != "" {
+			id, err := strconv.ParseInt(*req.TournamentId, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("invalid tournament ID: %v", err)
+			}
+			tournamentID = int32(id)
+		}
+
+		if tournamentID > 0 {
+			// Get expenses for specific tournament
 			expenses, err := queries.GetExpensesByTournament(ctx, models.GetExpensesByTournamentParams{
 				Startdate:   startDate,
 				Startdate_2: endDate,
@@ -176,18 +188,13 @@ func (s *AnalyticsService) GetFinancialReports(ctx context.Context, req *analyti
 			}
 
 			for _, expense := range expenses {
-				totalExpense := 0.0
-				if expense.Totalexpense.Valid {
-					total, _ := strconv.ParseFloat(expense.Totalexpense.String, 64)
-					totalExpense = total
-				}
-
 				foodExpense, _ := strconv.ParseFloat(expense.Foodexpense, 64)
 				transportExpense, _ := strconv.ParseFloat(expense.Transportexpense, 64)
 				perDiemExpense, _ := strconv.ParseFloat(expense.Perdiemexpense, 64)
 				awardingExpense, _ := strconv.ParseFloat(expense.Awardingexpense, 64)
 				stationaryExpense, _ := strconv.ParseFloat(expense.Stationaryexpense, 64)
 				otherExpenses, _ := strconv.ParseFloat(expense.Otherexpenses, 64)
+				totalExpense, _ := strconv.ParseFloat(expense.Totalexpense.String, 64)
 
 				response.ExpenseCategories = append(response.ExpenseCategories, &analytics.ExpenseCategory{
 					TournamentId:      fmt.Sprintf("%d", expense.Tournamentid),
@@ -202,6 +209,7 @@ func (s *AnalyticsService) GetFinancialReports(ctx context.Context, req *analyti
 				})
 			}
 		} else {
+			// Get summary of all tournaments
 			summary, err := queries.GetExpensesSummary(ctx, models.GetExpensesSummaryParams{
 				Startdate:   startDate,
 				Startdate_2: endDate,
@@ -211,27 +219,33 @@ func (s *AnalyticsService) GetFinancialReports(ctx context.Context, req *analyti
 				return nil, fmt.Errorf("failed to get expenses summary: %v", err)
 			}
 
-			// Convert interface{} values to float64
-			foodExpense := getFloat64FromInterface(summary.FoodExpense)
-			transportExpense := getFloat64FromInterface(summary.TransportExpense)
-			perDiemExpense := getFloat64FromInterface(summary.PerDiemExpense)
-			awardingExpense := getFloat64FromInterface(summary.AwardingExpense)
-			stationaryExpense := getFloat64FromInterface(summary.StationaryExpense)
-			otherExpenses := getFloat64FromInterface(summary.OtherExpenses)
-			totalExpense := getFloat64FromInterface(summary.TotalExpense)
+			// Parse the interface values to float64
+			foodExpense := parseNumericValue(summary.FoodExpense)
+			transportExpense := parseNumericValue(summary.TransportExpense)
+			perDiemExpense := parseNumericValue(summary.PerDiemExpense)
+			awardingExpense := parseNumericValue(summary.AwardingExpense)
+			stationaryExpense := parseNumericValue(summary.StationaryExpense)
+			otherExpenses := parseNumericValue(summary.OtherExpenses)
+			totalExpense := parseNumericValue(summary.TotalExpense)
 
-			response.ExpenseCategories = append(response.ExpenseCategories, &analytics.ExpenseCategory{
-				FoodExpense:       foodExpense,
-				TransportExpense:  transportExpense,
-				PerDiemExpense:    perDiemExpense,
-				AwardingExpense:   awardingExpense,
-				StationaryExpense: stationaryExpense,
-				OtherExpenses:     otherExpenses,
-				TotalExpense:      totalExpense,
-			})
+			// Only add to response if there's actual data
+			if foodExpense > 0 || transportExpense > 0 ||
+				perDiemExpense > 0 || awardingExpense > 0 ||
+				stationaryExpense > 0 || otherExpenses > 0 ||
+				totalExpense > 0 {
+
+				response.ExpenseCategories = append(response.ExpenseCategories, &analytics.ExpenseCategory{
+					FoodExpense:       foodExpense,
+					TransportExpense:  transportExpense,
+					PerDiemExpense:    perDiemExpense,
+					AwardingExpense:   awardingExpense,
+					StationaryExpense: stationaryExpense,
+					OtherExpenses:     otherExpenses,
+					TotalExpense:      totalExpense,
+				})
+			}
 		}
 	}
-
 	return response, nil
 }
 
@@ -258,19 +272,20 @@ func (s *AnalyticsService) GetAttendanceReports(ctx context.Context, req *analyt
 		return nil, fmt.Errorf("invalid end date: %v", err)
 	}
 
+	// Initialize the queries and response
+	queries := models.New(s.db)
+	response := &analytics.AttendanceReportResponse{
+		ReportType: req.ReportType,
+	}
+
 	// Convert tournament ID
-	var tournamentID int32
+	var tournamentID int32 = -1 // Default to all tournaments
 	if req.TournamentId != nil && *req.TournamentId != "" {
 		id, err := strconv.ParseInt(*req.TournamentId, 10, 32)
 		if err != nil {
 			return nil, fmt.Errorf("invalid tournament ID: %v", err)
 		}
 		tournamentID = int32(id)
-	}
-
-	queries := models.New(s.db)
-	response := &analytics.AttendanceReportResponse{
-		ReportType: req.ReportType,
 	}
 
 	switch req.ReportType {
@@ -289,12 +304,7 @@ func (s *AnalyticsService) GetAttendanceReports(ctx context.Context, req *analyt
 
 		for _, data := range attendance {
 			totalSchools += data.SchoolCount
-
-			// Convert interface{} to float64 for percentage change
-			percentageChange := 0.0
-			if pc, ok := data.PercentageChange.(float64); ok {
-				percentageChange = pc
-			}
+			percentageChange := parseNumericValue(data.PercentageChange)
 
 			response.CategoryAttendance = append(response.CategoryAttendance, &analytics.CategoryAttendance{
 				Category:         data.Category,
@@ -329,18 +339,12 @@ func (s *AnalyticsService) GetAttendanceReports(ctx context.Context, req *analyt
 
 		for _, data := range attendance {
 			totalSchools += data.SchoolCount
-
-			// Convert interface{} to string for location
 			location := ""
 			if loc, ok := data.Location.(string); ok {
 				location = loc
 			}
 
-			// Convert interface{} to float64 for percentage change
-			percentageChange := 0.0
-			if pc, ok := data.PercentageChange.(float64); ok {
-				percentageChange = pc
-			}
+			percentageChange := parseNumericValue(data.PercentageChange)
 
 			response.LocationAttendance = append(response.LocationAttendance, &analytics.LocationAttendance{
 				Location:         location,
@@ -364,17 +368,21 @@ func (s *AnalyticsService) GetAttendanceReports(ctx context.Context, req *analyt
 	return response, nil
 }
 
-// Helper function to convert interface{} to float64
-func getFloat64FromInterface(value interface{}) float64 {
+func parseNumericValue(value interface{}) float64 {
 	switch v := value.(type) {
 	case float64:
 		return v
-	case int64:
-		return float64(v)
-	case int32:
-		return float64(v)
 	case string:
-		f, _ := strconv.ParseFloat(v, 64)
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return 0
+		}
+		return f
+	case []uint8:
+		f, err := strconv.ParseFloat(string(v), 64)
+		if err != nil {
+			return 0
+		}
 		return f
 	default:
 		return 0
