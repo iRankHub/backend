@@ -33,6 +33,9 @@ go.work
 *k8s*.tar.gz
 *k8s*.tgz
 *k8s*.sh
+.idea/
+*.iml
+.fleet/
 
 # Ignore .env files
 .env

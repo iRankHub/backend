@@ -52,6 +52,7 @@ func GeneratePairings(teams []*Team, judges []*Judge, rooms []int, specs Tournam
 func generateEliminationPairings(teams []*Team, judges []*Judge, rooms []int, specs TournamentSpecs, roundNumber int) ([]*Debate, error) {
 	teamsNeeded := int(math.Pow(2, float64(specs.EliminationRounds-roundNumber+1)))
 	if len(teams) < teamsNeeded {
+
 		return nil, fmt.Errorf("not enough teams for elimination round %d: have %d, need %d", roundNumber, len(teams), teamsNeeded)
 	}
 

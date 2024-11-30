@@ -8,7 +8,9 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 
@@ -44,7 +46,17 @@ type NotificationService struct {
 
 func NewNotificationService(db *sql.DB) (*NotificationService, error) {
 	queries := models.New(db)
+
+	emailSender, err := NewSMTPEmailSender()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize email sender: %v", err)
+	}
+
 	url := os.Getenv("RABBITMQ_URL")
+	if url == "" {
+		return nil, fmt.Errorf("RABBITMQ_URL environment variable is not set")
+	}
+
 	conn, err := amqp.Dial(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to RabbitMQ: %v", err)
@@ -52,18 +64,33 @@ func NewNotificationService(db *sql.DB) (*NotificationService, error) {
 
 	ch, err := conn.Channel()
 	if err != nil {
+		conn.Close()
 		return nil, fmt.Errorf("failed to open a channel: %v", err)
 	}
 
-	q, err := ch.QueueDeclare(
-		"notifications", // name
-		true,            // durable
-		false,           // delete when unused
-		false,           // exclusive
-		false,           // no-wait
-		nil,             // arguments
+	// Set QoS for better message handling
+	err = ch.Qos(
+		1,     // prefetch count
+		0,     // prefetch size
+		false, // global
 	)
 	if err != nil {
+		ch.Close()
+		conn.Close()
+		return nil, fmt.Errorf("failed to set QoS: %v", err)
+	}
+
+	q, err := ch.QueueDeclare(
+		"notifications",
+		true,  // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+	if err != nil {
+		ch.Close()
+		conn.Close()
 		return nil, fmt.Errorf("failed to declare a queue: %v", err)
 	}
 
@@ -73,7 +100,7 @@ func NewNotificationService(db *sql.DB) (*NotificationService, error) {
 		conn:          conn,
 		channel:       ch,
 		queue:         q,
-		emailSender:   NewSMTPEmailSender(),
+		emailSender:   emailSender,
 		inAppSender:   NewDBInAppSender(queries),
 		subscriptions: make(map[int32][]chan *pb.Notification),
 	}
@@ -81,6 +108,152 @@ func NewNotificationService(db *sql.DB) (*NotificationService, error) {
 	go service.startConsumer()
 
 	return service, nil
+}
+
+func (s *NotificationService) startConsumer() {
+	backoff := time.Second
+	maxBackoff := 30 * time.Second
+
+	for {
+		msgs, err := s.channel.Consume(
+			s.queue.Name,
+			"",    // consumer
+			false, // auto-ack
+			false, // exclusive
+			false, // no-local
+			false, // no-wait
+			nil,   // args
+		)
+		if err != nil {
+			log.Printf("Failed to start consuming messages: %v. Retrying in %v...", err, backoff)
+			time.Sleep(backoff)
+			backoff = min(backoff*2, maxBackoff)
+			continue
+		}
+
+		log.Println("Started consuming messages")
+		backoff = time.Second // Reset backoff on successful connection
+
+		for msg := range msgs {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			var notification Notification
+			if err := json.Unmarshal(msg.Body, &notification); err != nil {
+				log.Printf("Error unmarshalling notification: %v", err)
+				msg.Nack(false, false) // Don't requeue on unmarshal error
+				cancel()
+				continue
+			}
+
+			err := s.handleNotificationWithTimeout(ctx, notification)
+			if err != nil {
+				log.Printf("Error handling notification for %s: %v", notification.To, err)
+				shouldRequeue := !isPermanentError(err)
+				msg.Nack(false, shouldRequeue)
+			} else {
+				msg.Ack(false)
+			}
+			cancel()
+		}
+
+		log.Println("Consumer channel closed. Attempting to reconnect...")
+		time.Sleep(backoff)
+	}
+}
+
+func (s *NotificationService) handleNotificationWithTimeout(ctx context.Context, notification Notification) error {
+	done := make(chan error, 1)
+
+	go func() {
+		done <- s.handleNotification(notification)
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		return fmt.Errorf("notification processing timed out")
+	}
+}
+
+func isPermanentError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errStr := err.Error()
+
+	// Define permanent error conditions
+	permanentErrors := []string{
+		"unknown notification type",
+		"invalid email address",
+		"recipient not found",
+		"failed to unmarshal",
+		"permanent error",
+	}
+
+	for _, pe := range permanentErrors {
+		if strings.Contains(errStr, pe) {
+			return true
+		}
+	}
+
+	// Email-specific permanent errors
+	emailPermanentErrors := []string{
+		"invalid auth",
+		"invalid recipient",
+		"malformed email",
+		"user unknown",
+		"email address rejected",
+	}
+
+	for _, epe := range emailPermanentErrors {
+		if strings.Contains(errStr, epe) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (s *NotificationService) handleNotification(notification Notification) error {
+	switch notification.Type {
+	case EmailNotification:
+		if !isValidEmail(notification.To) {
+			return fmt.Errorf("permanent error: invalid email address: %s", notification.To)
+		}
+		if err := s.emailSender.SendEmail(notification.To, notification.Subject, notification.Content); err != nil {
+			return fmt.Errorf("email sending failed: %w", err)
+		}
+	case InAppNotification:
+		if notification.To == "" {
+			return fmt.Errorf("permanent error: recipient not found")
+		}
+		if err := s.inAppSender.SendInAppNotification(notification.To, notification.Content); err != nil {
+			return fmt.Errorf("in-app notification failed: %w", err)
+		}
+	default:
+		return fmt.Errorf("permanent error: unknown notification type: %s", notification.Type)
+	}
+	return nil
+}
+
+// Helper function to validate email addresses
+func isValidEmail(email string) bool {
+	// Basic email validation
+	if email == "" {
+		return false
+	}
+	if !strings.Contains(email, "@") {
+		return false
+	}
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		return false
+	}
+	if !strings.Contains(parts[1], ".") {
+		return false
+	}
+	return true
 }
 
 func (s *NotificationService) RegisterNotificationChannel(userID int32, ch chan *pb.Notification) {
@@ -180,49 +353,6 @@ func (s *NotificationService) SubscribeToNotifications(userID int32) (<-chan *pb
 	}
 }
 
-func (s *NotificationService) startConsumer() {
-	msgs, err := s.channel.Consume(
-		s.queue.Name, // queue
-		"",           // consumer
-		false,        // auto-ack
-		false,        // exclusive
-		false,        // no-local
-		false,        // no-wait
-		nil,          // args
-	)
-	if err != nil {
-		log.Printf("Failed to register a consumer: %v", err)
-		return
-	}
-
-	for d := range msgs {
-		var notification Notification
-		if err := json.Unmarshal(d.Body, &notification); err != nil {
-			log.Printf("Error unmarshalling notification: %v", err)
-			d.Nack(false, true)
-			continue
-		}
-
-		if err := s.handleNotification(notification); err != nil {
-			log.Printf("Error handling notification: %v", err)
-			d.Nack(false, true)
-		} else {
-			d.Ack(false)
-		}
-	}
-}
-
-func (s *NotificationService) handleNotification(notification Notification) error {
-	switch notification.Type {
-	case EmailNotification:
-		return s.emailSender.SendEmail(notification.To, notification.Subject, notification.Content)
-	case InAppNotification:
-		return s.inAppSender.SendInAppNotification(notification.To, notification.Content)
-	default:
-		return fmt.Errorf("unknown notification type: %s", notification.Type)
-	}
-}
-
 func (s *NotificationService) Close() error {
 	if err := s.channel.Close(); err != nil {
 		return fmt.Errorf("failed to close channel: %v", err)
@@ -239,4 +369,11 @@ func (s *NotificationService) GetUnreadNotifications(ctx context.Context, userID
 
 func (s *NotificationService) MarkNotificationsAsRead(ctx context.Context, userID int32) error {
 	return s.queries.MarkNotificationsAsRead(ctx, userID)
+}
+
+func min(a, b time.Duration) time.Duration {
+	if a < b {
+		return a
+	}
+	return b
 }
