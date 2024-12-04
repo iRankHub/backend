@@ -1,6 +1,7 @@
 package notification
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net/smtp"
@@ -9,80 +10,119 @@ import (
 )
 
 type EmailSender interface {
-	SendEmail(to, subject, body string) error
+	SendEmail(to, subject, content string) error
 }
 
 type SMTPEmailSender struct {
-	from       string
-	password   string
-	host       string
-	port       string
-	timeout    time.Duration
-	maxRetries int
+	host     string
+	port     string
+	from     string
+	password string
+	timeout  time.Duration
 }
 
-func NewSMTPEmailSender() (*SMTPEmailSender, error) {
+func NewSMTPEmailSender() (EmailSender, error) {
 	from := os.Getenv("EMAIL_FROM")
 	password := os.Getenv("EMAIL_PASSWORD")
 	host := os.Getenv("SMTP_HOST")
 	port := os.Getenv("SMTP_PORT")
 
-	// Validate environment variables
-	if from == "" || password == "" || host == "" || port == "" {
-		return nil, fmt.Errorf("missing email configuration: EMAIL_FROM=%s, SMTP_HOST=%s, SMTP_PORT=%s", from, host, port)
+	if host == "" || port == "" || from == "" || password == "" {
+		return nil, fmt.Errorf("missing email configuration. Required: EMAIL_FROM, EMAIL_PASSWORD, SMTP_HOST, SMTP_PORT")
 	}
 
 	return &SMTPEmailSender{
-		from:       from,
-		password:   password,
-		host:       host,
-		port:       port,
-		timeout:    10 * time.Second, // Shorter timeout
-		maxRetries: 3,                // Fewer retries
+		host:     host,
+		port:     port,
+		from:     from,
+		password: password,
+		timeout:  10 * time.Second,
 	}, nil
 }
 
-func (s *SMTPEmailSender) SendEmail(to, subject, body string) error {
-	var lastErr error
-	for attempt := 0; attempt <= s.maxRetries; attempt++ {
-		if attempt > 0 {
-			log.Printf("Retrying email send to %s (attempt %d/%d)", to, attempt+1, s.maxRetries)
-			time.Sleep(time.Duration(attempt) * 2 * time.Second) // Exponential backoff
-		}
-
-		err := s.sendWithTimeout(to, subject, body)
+func (s *SMTPEmailSender) SendEmail(to, subject, content string) error {
+	maxAttempts := 3
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		err := s.sendWithTimeout(to, subject, content)
 		if err == nil {
-			if attempt > 0 {
-				log.Printf("Successfully sent email to %s after %d retries", to, attempt)
-			}
 			return nil
 		}
-
-		lastErr = err
-		log.Printf("Failed to send email to %s: %v", to, err)
+		log.Printf("Attempt %d failed: %v", attempt, err)
+		if attempt < maxAttempts {
+			time.Sleep(time.Second * time.Duration(attempt))
+			continue
+		}
+		return fmt.Errorf("failed to send email after %d attempts: %w", maxAttempts, err)
 	}
-
-	return fmt.Errorf("failed to send email after %d attempts: %v", s.maxRetries, lastErr)
+	return nil
 }
 
-func (s *SMTPEmailSender) sendWithTimeout(to, subject, body string) error {
+func (s *SMTPEmailSender) sendWithTimeout(to, subject, content string) error {
 	done := make(chan error, 1)
 
 	go func() {
-		auth := smtp.PlainAuth("", s.from, s.password, s.host)
-		addr := fmt.Sprintf("%s:%s", s.host, s.port)
+		// Configure TLS
+		tlsConfig := &tls.Config{
+			ServerName:         s.host,
+			InsecureSkipVerify: false,
+		}
 
-		headers := fmt.Sprintf("From: %s\r\n"+
+		// Connect to the SMTP Server
+		addr := fmt.Sprintf("%s:%s", s.host, s.port)
+		log.Printf("Attempting to connect to SMTP server at %s", addr)
+
+		c, err := smtp.Dial(addr)
+		if err != nil {
+			done <- fmt.Errorf("failed to connect to SMTP server: %w", err)
+			return
+		}
+		defer c.Close()
+
+		// Start TLS
+		if err = c.StartTLS(tlsConfig); err != nil {
+			done <- fmt.Errorf("failed to start TLS: %w", err)
+			return
+		}
+
+		// Auth
+		auth := smtp.PlainAuth("", s.from, s.password, s.host)
+		if err = c.Auth(auth); err != nil {
+			done <- fmt.Errorf("failed to authenticate: %w", err)
+			return
+		}
+
+		// Set the sender and recipient
+		if err = c.Mail(s.from); err != nil {
+			done <- fmt.Errorf("failed to set sender: %w", err)
+			return
+		}
+		if err = c.Rcpt(to); err != nil {
+			done <- fmt.Errorf("failed to set recipient: %w", err)
+			return
+		}
+
+		// Send the email body
+		wc, err := c.Data()
+		if err != nil {
+			done <- fmt.Errorf("failed to create data writer: %w", err)
+			return
+		}
+		defer wc.Close()
+
+		msg := fmt.Sprintf("From: %s\r\n"+
 			"To: %s\r\n"+
 			"Subject: %s\r\n"+
-			"MIME-Version: 1.0\r\n"+
-			"Content-Type: text/html; charset=\"UTF-8\"\r\n"+
-			"\r\n",
-			s.from, to, subject)
+			"Content-Type: text/html; charset=UTF-8\r\n"+
+			"\r\n"+
+			"%s\r\n", s.from, to, subject, content)
 
-		msg := []byte(headers + body)
+		if _, err = fmt.Fprint(wc, msg); err != nil {
+			done <- fmt.Errorf("failed to write email body: %w", err)
+			return
+		}
 
-		done <- smtp.SendMail(addr, auth, s.from, []string{to}, msg)
+		log.Printf("Successfully sent email to %s", to)
+		done <- nil
 	}()
 
 	select {
