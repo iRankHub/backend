@@ -194,12 +194,3 @@ func (s *SMTPEmailSender) sendWithTimeout(to, subject, content string) error {
 		return fmt.Errorf("email sending timed out after %v", s.timeout)
 	}
 }
-
-// Helper function to check if error is temporary
-func isTemporaryError(err error) bool {
-	if netErr, ok := err.(net.Error); ok {
-		return netErr.Temporary()
-	}
-	// Add other temporary error conditions if needed
-	return false
-}
