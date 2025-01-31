@@ -18,7 +18,7 @@ To get started with the iRankHub backend, follow these steps:
    ```
 
 3. Set up the database:
-   - Create a PostgreSQL database for the project.
+   - Create a PostgresQL database for the project.
    - Rename the `.env.example` to `.env` file in the root directory and add your database configuration:
 
 4. Install Docker
