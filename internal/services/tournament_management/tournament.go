@@ -184,9 +184,11 @@ func (s *TournamentService) ListTournaments(ctx context.Context, req *tournament
 		return nil, err
 	}
 	queries := models.New(s.db)
+
 	tournaments, err := queries.ListTournamentsPaginated(ctx, models.ListTournamentsPaginatedParams{
-		Limit:  int32(req.GetPageSize()),
-		Offset: int32(req.GetPageToken()),
+		Limit:       int32(req.GetPageSize()),
+		Offset:      int32(req.GetPageToken()),
+		SearchQuery: req.GetSearchQuery(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list tournaments: %v", err)

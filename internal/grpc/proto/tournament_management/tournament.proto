@@ -152,6 +152,7 @@ message ListLeaguesRequest {
   int32 page_size = 1;
   int32 page_token = 2;
   string token = 3;
+  string search_query = 4;
 }
 
 message UpdateLeagueRequest {
@@ -186,6 +187,7 @@ message ListTournamentFormatsRequest {
   int32 page_size = 1;
   int32 page_token = 2;
   string token = 3;
+  string search_query = 4;
 }
 
 message UpdateTournamentFormatRequest {
@@ -227,6 +229,7 @@ message ListTournamentsRequest {
   int32 page_size = 1;
   int32 page_token = 2;
   string token = 3;
+  string search_query = 4;
 }
 
 message UpdateTournamentRequest {

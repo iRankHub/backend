@@ -120,8 +120,9 @@ func (s *LeagueService) ListLeagues(ctx context.Context, req *tournament_managem
 	queries := models.New(s.db)
 
 	leagues, err := queries.ListLeaguesPaginated(ctx, models.ListLeaguesPaginatedParams{
-		Limit:  int32(req.GetPageSize()),
-		Offset: int32(req.GetPageToken()),
+		Limit:       int32(req.GetPageSize()),
+		Offset:      int32(req.GetPageToken()),
+		SearchQuery: req.GetSearchQuery(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list leagues: %v", err)

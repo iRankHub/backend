@@ -11,8 +11,10 @@ WHERE LeagueID = $1 AND deleted_at IS NULL;
 -- name: ListLeaguesPaginated :many
 SELECT * FROM Leagues
 WHERE deleted_at IS NULL
+  AND (LOWER(Name) LIKE LOWER('%' || COALESCE(@search_query::text, '') || '%')
+    OR COALESCE(@search_query::text, '') = '')
 ORDER BY LeagueID
-LIMIT $1 OFFSET $2;
+    LIMIT $1 OFFSET $2;
 
 -- name: UpdateLeague :one
 UPDATE Leagues
@@ -38,8 +40,11 @@ WHERE FormatID = $1 AND deleted_at IS NULL;
 -- name: ListTournamentFormatsPaginated :many
 SELECT * FROM TournamentFormats
 WHERE deleted_at IS NULL
+  AND (LOWER(FormatName) LIKE LOWER('%' || COALESCE(@search_query::text, '') || '%')
+    OR LOWER(Description) LIKE LOWER('%' || COALESCE(@search_query::text, '') || '%')
+    OR COALESCE(@search_query::text, '') = '')
 ORDER BY FormatID
-LIMIT $1 OFFSET $2;
+    LIMIT $1 OFFSET $2;
 
 -- name: UpdateTournamentFormatDetails :one
 UPDATE TournamentFormats
@@ -85,23 +90,27 @@ SELECT
     COUNT(DISTINCT tm.TeamID) AS TeamsCount
 FROM
     Tournaments t
-JOIN
+        JOIN
     TournamentFormats tf ON t.FormatID = tf.FormatID
-JOIN
+        JOIN
     Leagues l ON t.LeagueID = l.LeagueID
-JOIN
+        JOIN
     Users u ON t.CoordinatorID = u.UserID
-LEFT JOIN
+        LEFT JOIN
     TournamentInvitations ti ON t.TournamentID = ti.TournamentID
-LEFT JOIN
+        LEFT JOIN
     Teams tm ON t.TournamentID = tm.TournamentID
 WHERE
     t.deleted_at IS NULL
+  AND (LOWER(t.Name) LIKE LOWER('%' || COALESCE(@search_query::text, '') || '%')
+    OR LOWER(t.Location) LIKE LOWER('%' || COALESCE(@search_query::text, '') || '%')
+    OR LOWER(l.Name) LIKE LOWER('%' || COALESCE(@search_query::text, '') || '%')
+    OR COALESCE(@search_query::text, '') = '')
 GROUP BY
     t.TournamentID, tf.FormatName, l.Name, u.Name, u.UserID
 ORDER BY
     t.StartDate DESC
-LIMIT $1 OFFSET $2;
+    LIMIT $1 OFFSET $2;
 
 -- name: UpdateTournamentDetails :one
 WITH debate_check AS (

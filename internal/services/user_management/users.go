@@ -58,7 +58,7 @@ func (s *UserManagementService) GetPendingUsers(ctx context.Context, token strin
 	return queries.GetUsersByStatus(ctx, sql.NullString{String: "pending", Valid: true})
 }
 
-func (s *UserManagementService) GetAllUsers(ctx context.Context, token string, page, pageSize int32) ([]models.GetAllUsersRow, int32, int32, int32, error) {
+func (s *UserManagementService) GetAllUsers(ctx context.Context, token string, page, pageSize int32, searchQuery string) ([]models.GetAllUsersRow, int32, int32, int32, error) {
 	claims, err := utils.ValidateToken(token)
 	if err != nil {
 		return nil, 0, 0, 0, fmt.Errorf("invalid token: %v", err)
@@ -71,14 +71,15 @@ func (s *UserManagementService) GetAllUsers(ctx context.Context, token string, p
 
 	queries := models.New(s.db)
 	users, err := queries.GetAllUsers(ctx, models.GetAllUsersParams{
-		Limit:  pageSize,
-		Offset: (page - 1) * pageSize,
+		Limit:       pageSize,
+		Offset:      (page - 1) * pageSize,
+		SearchQuery: searchQuery,
 	})
 	if err != nil {
 		return nil, 0, 0, 0, fmt.Errorf("failed to get users: %v", err)
 	}
 
-	totalCount, err := queries.GetTotalUserCount(ctx)
+	totalCount, err := queries.GetTotalUserCountWithSearch(ctx, searchQuery)
 	if err != nil {
 		return nil, 0, 0, 0, fmt.Errorf("failed to get total user count: %v", err)
 	}
@@ -87,7 +88,6 @@ func (s *UserManagementService) GetAllUsers(ctx context.Context, token string, p
 		return nil, 0, 0, 0, fmt.Errorf("total user count exceeds maximum value for int32")
 	}
 
-	// Get the approved users count and recent signups count from the first row
 	var approvedUsersCount, recentSignupsCount int32
 	if len(users) > 0 {
 		approvedUsersCount = int32(users[0].ApprovedUsersCount)

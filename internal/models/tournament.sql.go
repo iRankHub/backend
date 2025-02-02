@@ -1013,17 +1013,20 @@ func (q *Queries) GetTournamentStats(ctx context.Context, arg GetTournamentStats
 const listLeaguesPaginated = `-- name: ListLeaguesPaginated :many
 SELECT leagueid, name, leaguetype, details, deleted_at FROM Leagues
 WHERE deleted_at IS NULL
+  AND (LOWER(Name) LIKE LOWER('%' || COALESCE($3::text, '') || '%')
+    OR COALESCE($3::text, '') = '')
 ORDER BY LeagueID
-LIMIT $1 OFFSET $2
+    LIMIT $1 OFFSET $2
 `
 
 type ListLeaguesPaginatedParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+	Limit       int32  `json:"limit"`
+	Offset      int32  `json:"offset"`
+	SearchQuery string `json:"search_query"`
 }
 
 func (q *Queries) ListLeaguesPaginated(ctx context.Context, arg ListLeaguesPaginatedParams) ([]League, error) {
-	rows, err := q.db.QueryContext(ctx, listLeaguesPaginated, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listLeaguesPaginated, arg.Limit, arg.Offset, arg.SearchQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -1054,17 +1057,21 @@ func (q *Queries) ListLeaguesPaginated(ctx context.Context, arg ListLeaguesPagin
 const listTournamentFormatsPaginated = `-- name: ListTournamentFormatsPaginated :many
 SELECT formatid, formatname, description, speakersperteam, deleted_at FROM TournamentFormats
 WHERE deleted_at IS NULL
+  AND (LOWER(FormatName) LIKE LOWER('%' || COALESCE($3::text, '') || '%')
+    OR LOWER(Description) LIKE LOWER('%' || COALESCE($3::text, '') || '%')
+    OR COALESCE($3::text, '') = '')
 ORDER BY FormatID
-LIMIT $1 OFFSET $2
+    LIMIT $1 OFFSET $2
 `
 
 type ListTournamentFormatsPaginatedParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+	Limit       int32  `json:"limit"`
+	Offset      int32  `json:"offset"`
+	SearchQuery string `json:"search_query"`
 }
 
 func (q *Queries) ListTournamentFormatsPaginated(ctx context.Context, arg ListTournamentFormatsPaginatedParams) ([]Tournamentformat, error) {
-	rows, err := q.db.QueryContext(ctx, listTournamentFormatsPaginated, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listTournamentFormatsPaginated, arg.Limit, arg.Offset, arg.SearchQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -1190,28 +1197,33 @@ SELECT
     COUNT(DISTINCT tm.TeamID) AS TeamsCount
 FROM
     Tournaments t
-JOIN
+        JOIN
     TournamentFormats tf ON t.FormatID = tf.FormatID
-JOIN
+        JOIN
     Leagues l ON t.LeagueID = l.LeagueID
-JOIN
+        JOIN
     Users u ON t.CoordinatorID = u.UserID
-LEFT JOIN
+        LEFT JOIN
     TournamentInvitations ti ON t.TournamentID = ti.TournamentID
-LEFT JOIN
+        LEFT JOIN
     Teams tm ON t.TournamentID = tm.TournamentID
 WHERE
     t.deleted_at IS NULL
+  AND (LOWER(t.Name) LIKE LOWER('%' || COALESCE($3::text, '') || '%')
+    OR LOWER(t.Location) LIKE LOWER('%' || COALESCE($3::text, '') || '%')
+    OR LOWER(l.Name) LIKE LOWER('%' || COALESCE($3::text, '') || '%')
+    OR COALESCE($3::text, '') = '')
 GROUP BY
     t.TournamentID, tf.FormatName, l.Name, u.Name, u.UserID
 ORDER BY
     t.StartDate DESC
-LIMIT $1 OFFSET $2
+    LIMIT $1 OFFSET $2
 `
 
 type ListTournamentsPaginatedParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+	Limit       int32  `json:"limit"`
+	Offset      int32  `json:"offset"`
+	SearchQuery string `json:"search_query"`
 }
 
 type ListTournamentsPaginatedRow struct {
@@ -1244,7 +1256,7 @@ type ListTournamentsPaginatedRow struct {
 }
 
 func (q *Queries) ListTournamentsPaginated(ctx context.Context, arg ListTournamentsPaginatedParams) ([]ListTournamentsPaginatedRow, error) {
-	rows, err := q.db.QueryContext(ctx, listTournamentsPaginated, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listTournamentsPaginated, arg.Limit, arg.Offset, arg.SearchQuery)
 	if err != nil {
 		return nil, err
 	}
