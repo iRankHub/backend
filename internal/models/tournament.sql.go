@@ -1024,6 +1024,42 @@ func (q *Queries) GetTournamentStats(ctx context.Context, arg GetTournamentStats
 	return i, err
 }
 
+const getUserDetailsForInvitation = `-- name: GetUserDetailsForInvitation :one
+SELECT
+    u.UserRole,
+    CASE
+        WHEN u.UserRole = 'student' THEN s.iDebateStudentID
+        WHEN u.UserRole = 'volunteer' THEN v.iDebateVolunteerID
+        WHEN u.UserRole = 'school' THEN sch.iDebateSchoolID
+        END as iDebateID,
+    u.Email,
+    u.Name
+FROM Users u
+         LEFT JOIN Students s ON u.UserID = s.UserID
+         LEFT JOIN Volunteers v ON u.UserID = v.UserID
+         LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
+WHERE u.UserID = $1 AND u.deleted_at IS NULL
+`
+
+type GetUserDetailsForInvitationRow struct {
+	Userrole  string      `json:"userrole"`
+	Idebateid interface{} `json:"idebateid"`
+	Email     string      `json:"email"`
+	Name      string      `json:"name"`
+}
+
+func (q *Queries) GetUserDetailsForInvitation(ctx context.Context, userid int32) (GetUserDetailsForInvitationRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserDetailsForInvitation, userid)
+	var i GetUserDetailsForInvitationRow
+	err := row.Scan(
+		&i.Userrole,
+		&i.Idebateid,
+		&i.Email,
+		&i.Name,
+	)
+	return i, err
+}
+
 const listLeaguesPaginated = `-- name: ListLeaguesPaginated :many
 SELECT leagueid, name, leaguetype, details, deleted_at FROM Leagues
 WHERE deleted_at IS NULL

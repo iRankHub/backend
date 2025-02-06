@@ -599,6 +599,113 @@ func (s *TournamentService) SearchTournaments(ctx context.Context, req *tourname
 	}, nil
 }
 
+func (s *TournamentService) SendInvitations(ctx context.Context, req *tournament_management.SendInvitationsRequest) (*tournament_management.SendInvitationsResponse, error) {
+	_, err := s.validateAdminRole(req.Token)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start transaction: %v", err)
+	}
+	defer tx.Rollback()
+
+	queries := models.New(tx)
+
+	tournament, err := queries.GetTournamentByID(ctx, req.TournamentId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tournament: %v", err)
+	}
+
+	league, err := queries.GetLeagueByID(ctx, tournament.Leagueid.Int32)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get league: %v", err)
+	}
+
+	failedUserIDs := []int32{}
+	for _, userID := range req.UserIds {
+		userDetails, err := queries.GetUserDetailsForInvitation(ctx, userID)
+		if err != nil {
+			failedUserIDs = append(failedUserIDs, userID)
+			continue
+		}
+
+		isDAC := strings.ToUpper(league.Name) == "DAC"
+		if isDAC {
+			if userDetails.Userrole != "volunteer" && userDetails.Userrole != "student" {
+				failedUserIDs = append(failedUserIDs, userID)
+				continue
+			}
+		} else {
+			if userDetails.Userrole != "volunteer" && userDetails.Userrole != "school" {
+				failedUserIDs = append(failedUserIDs, userID)
+				continue
+			}
+		}
+
+		_, err = queries.CreateInvitation(ctx, models.CreateInvitationParams{
+			Tournamentid: req.TournamentId,
+			Inviteeid:    userDetails.Idebateid.(string),
+			Inviteerole:  userDetails.Userrole,
+			Status:       "pending",
+		})
+		if err != nil {
+			failedUserIDs = append(failedUserIDs, userID)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %v", err)
+	}
+
+	// Send notifications asynchronously using existing flow
+	go func() {
+		bgCtx := context.Background()
+		notificationService, err := notifications.NewNotificationService(s.db)
+		if err != nil {
+			log.Printf("Failed to create notification service: %v", err)
+			return
+		}
+		bgQueries := models.New(s.db)
+
+		format, err := bgQueries.GetTournamentFormatByID(bgCtx, tournament.Formatid)
+		if err != nil {
+			log.Printf("Failed to get tournament format: %v", err)
+			return
+		}
+
+		// Convert GetTournamentByIDRow to Tournament
+		tournamentModel := models.Tournament{
+			Tournamentid:               tournament.Tournamentid,
+			Name:                       tournament.Name,
+			Startdate:                  tournament.Startdate,
+			Enddate:                    tournament.Enddate,
+			Location:                   tournament.Location,
+			Formatid:                   tournament.Formatid,
+			Leagueid:                   tournament.Leagueid,
+			Coordinatorid:              tournament.Coordinatorid,
+			Numberofpreliminaryrounds:  tournament.Numberofpreliminaryrounds,
+			Numberofeliminationrounds:  tournament.Numberofeliminationrounds,
+			Judgesperdebatepreliminary: tournament.Judgesperdebatepreliminary,
+			Judgesperdebateelimination: tournament.Judgesperdebateelimination,
+			Tournamentfee:              tournament.Tournamentfee,
+			Imageurl:                   tournament.Imageurl,
+		}
+
+		err = notification.SendTournamentInvitations(bgCtx, notificationService, tournamentModel, league, format, bgQueries)
+		if err != nil {
+			log.Printf("Failed to send tournament invitations: %v", err)
+		}
+	}()
+
+	return &tournament_management.SendInvitationsResponse{
+		Success:       len(failedUserIDs) < len(req.UserIds),
+		Message:       fmt.Sprintf("Successfully sent %d invitations", len(req.UserIds)-len(failedUserIDs)),
+		FailedUserIds: failedUserIDs,
+	}, nil
+}
+
 func (s *TournamentService) createInvitations(ctx context.Context, queries *models.Queries, tournamentID int32, league models.League) error {
 	log.Printf("Creating invitations for tournament %d", tournamentID)
 

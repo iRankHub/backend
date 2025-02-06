@@ -232,6 +232,14 @@ func (s *tournamentServer) DeleteTournament(ctx context.Context, req *tournament
 	}, nil
 }
 
+func (s *tournamentServer) SendInvitations(ctx context.Context, req *tournament_management.SendInvitationsRequest) (*tournament_management.SendInvitationsResponse, error) {
+	response, err := s.tournamentService.SendInvitations(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to send invitations: %v", err)
+	}
+	return response, nil
+}
+
 func (s *tournamentServer) GetInvitationsByUser(ctx context.Context, req *tournament_management.GetInvitationsByUserRequest) (*tournament_management.GetInvitationsByUserResponse, error) {
 	response, err := s.invitationService.GetInvitationsByUser(ctx, req)
 	if err != nil {

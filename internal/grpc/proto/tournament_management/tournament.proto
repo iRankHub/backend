@@ -31,6 +31,7 @@ service TournamentService {
   rpc GetTournamentRegistrations(GetTournamentRegistrationsRequest) returns (GetTournamentRegistrationsResponse);
 
   // Invitation operations
+  rpc SendInvitations(SendInvitationsRequest) returns (SendInvitationsResponse);
   rpc GetInvitationsByUser(GetInvitationsByUserRequest) returns (GetInvitationsByUserResponse);
   rpc GetInvitationsByTournament(GetInvitationsByTournamentRequest) returns (GetInvitationsByTournamentResponse);
   rpc UpdateInvitationStatus(UpdateInvitationStatusRequest) returns (UpdateInvitationStatusResponse);
@@ -336,6 +337,18 @@ message UpdateTournamentResponse {
 message DeleteTournamentResponse {
   bool success = 1;
   string message = 2;
+}
+
+message SendInvitationsRequest {
+  string token = 1;
+  int32 tournament_id = 2;
+  repeated int32 user_ids = 3;
+}
+
+message SendInvitationsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated int32 failed_user_ids = 3;
 }
 
 message GetInvitationsByUserRequest {

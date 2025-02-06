@@ -160,6 +160,22 @@ INSERT INTO TournamentInvitations (TournamentID, InviteeID, InviteeRole, Status)
 VALUES ($1, $2, $3, $4)
 RETURNING *;
 
+-- name: GetUserDetailsForInvitation :one
+SELECT
+    u.UserRole,
+    CASE
+        WHEN u.UserRole = 'student' THEN s.iDebateStudentID
+        WHEN u.UserRole = 'volunteer' THEN v.iDebateVolunteerID
+        WHEN u.UserRole = 'school' THEN sch.iDebateSchoolID
+        END as iDebateID,
+    u.Email,
+    u.Name
+FROM Users u
+         LEFT JOIN Students s ON u.UserID = s.UserID
+         LEFT JOIN Volunteers v ON u.UserID = v.UserID
+         LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
+WHERE u.UserID = $1 AND u.deleted_at IS NULL;
+
 -- name: GetInvitationByID :one
 SELECT * FROM TournamentInvitations WHERE InvitationID = $1;
 
