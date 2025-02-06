@@ -15,6 +15,7 @@ require (
 	github.com/pquerna/otp v1.4.0
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/robfig/cron/v3 v3.0.1
+	github.com/sqlc-dev/pqtype v0.3.0
 	golang.org/x/crypto v0.24.0
 	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.34.2

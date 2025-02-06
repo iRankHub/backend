@@ -59,8 +59,15 @@ WHERE FormatID = $1;
 
 -- Tournament Queries
 -- name: CreateTournamentEntry :one
-INSERT INTO Tournaments (Name, StartDate, EndDate, Location, FormatID, LeagueID, CoordinatorID, NumberOfPreliminaryRounds, NumberOfEliminationRounds, JudgesPerDebatePreliminary, JudgesPerDebateElimination, TournamentFee, ImageUrl)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+INSERT INTO Tournaments (
+    Name, StartDate, EndDate, Location, FormatID, LeagueID,
+    CoordinatorID, NumberOfPreliminaryRounds, NumberOfEliminationRounds,
+    JudgesPerDebatePreliminary, JudgesPerDebateElimination, TournamentFee,
+    ImageUrl, Motions
+)
+VALUES (
+           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+       )
 RETURNING *;
 
 -- name: GetTournamentByID :one
@@ -132,7 +139,8 @@ SET Name = $2,
     JudgesPerDebatePreliminary = $10,
     JudgesPerDebateElimination = $11,
     TournamentFee = $12,
-    ImageUrl = $13
+    ImageUrl = $13,
+    Motions = $14
 FROM debate_check
 WHERE t.TournamentID = $1
   AND NOT debate_check.has_debates
@@ -140,7 +148,7 @@ RETURNING t.*,
     CASE
         WHEN debate_check.has_debates THEN 'Cannot update: Debates exist'::text
         ELSE NULL
-    END AS error_message;
+        END AS error_message;
 
 -- name: DeleteTournamentByID :exec
 UPDATE Tournaments

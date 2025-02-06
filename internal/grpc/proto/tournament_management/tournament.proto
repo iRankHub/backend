@@ -85,6 +85,17 @@ message TournamentFormat {
   int32 speakers_per_team = 4;
 }
 
+message Motion {
+  string text = 1;
+  string info_slide = 2;  // Optional additional context
+  int32 round_number = 3;
+}
+
+message TournamentMotions {
+  repeated Motion preliminary_motions = 1;
+  repeated Motion elimination_motions = 2;
+}
+
 message Tournament {
   int32 tournament_id = 1;
   string name = 2;
@@ -104,6 +115,7 @@ message Tournament {
   int32 number_of_schools = 16;
   int32 number_of_teams = 17;
   string league_name = 18;
+  TournamentMotions motions = 19;
 }
 
 message GetTournamentStatsRequest {
@@ -218,6 +230,7 @@ message CreateTournamentRequest {
   double tournament_fee = 12;
   string token = 13;
   string image_url = 14;
+  TournamentMotions motions = 15;
 }
 
 message GetTournamentRequest {
@@ -248,6 +261,7 @@ message UpdateTournamentRequest {
   double tournament_fee = 13;
   string token = 14;
   string image_url = 15;
+  TournamentMotions motions = 16;
 }
 
 message DeleteTournamentRequest {

@@ -57,6 +57,7 @@ CREATE TABLE Tournaments (
     JudgesPerDebateElimination INTEGER NOT NULL,
     TournamentFee DECIMAL(10, 2) NOT NULL,
     ImageUrl VARCHAR(2048),
+    Motions JSONB DEFAULT '{"preliminary": [], "elimination": []}',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP,
