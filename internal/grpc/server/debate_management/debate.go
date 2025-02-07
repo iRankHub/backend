@@ -348,3 +348,11 @@ func (s *debateServer) GetTournamentVolunteerRanking(ctx context.Context, req *d
 	}
 	return response, nil
 }
+
+func (s *debateServer) SetRankingVisibility(ctx context.Context, req *debate_management.SetRankingVisibilityRequest) (*debate_management.SetRankingVisibilityResponse, error) {
+	response, err := s.rankingService.SetRankingVisibility(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to set ranking visibility: %v", err)
+	}
+	return response, nil
+}

@@ -1,4 +1,5 @@
   -- Drop all tables in reverse order of creation
+    DROP TABLE IF EXISTS RankingVisibility;
     DROP TABLE IF EXISTS VolunteerRatings;
     DROP TABLE IF EXISTS StudentTransfers;
     DROP TABLE IF EXISTS JudgeReviews;

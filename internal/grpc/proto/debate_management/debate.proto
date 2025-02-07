@@ -38,6 +38,7 @@ service DebateService {
   rpc DeleteTeam(DeleteTeamRequest) returns (DeleteTeamResponse);
 
   // Ranking operations
+  rpc SetRankingVisibility(SetRankingVisibilityRequest) returns (SetRankingVisibilityResponse);
   rpc GetTournamentStudentRanking(TournamentRankingRequest) returns (TournamentRankingResponse);
   rpc GetOverallStudentRanking(OverallRankingRequest) returns (OverallRankingResponse);
   rpc GetStudentOverallPerformance(PerformanceRequest) returns (PerformanceResponse);
@@ -376,6 +377,7 @@ message TournamentRankingRequest {
   string token = 2;
   int32 page = 3;
   int32 page_size = 4;
+  string search = 5;
 }
 
 message TournamentRankingResponse {
@@ -389,6 +391,7 @@ message StudentRanking {
   int32 total_wins = 4;
   double total_points = 5;
   double average_rank = 6;
+  int32 place = 7;
 }
 
 message TournamentTeamsRankingRequest {
@@ -396,6 +399,7 @@ message TournamentTeamsRankingRequest {
   string token = 2;
   int32 page = 3;
   int32 page_size = 4;
+  string search = 5;
 }
 
 message TournamentTeamsRankingResponse {
@@ -410,6 +414,7 @@ message TeamRanking {
   int32 wins = 4;
   double total_points = 5;
   double average_rank = 6;
+  int32 place = 7;
 }
 
 message TournamentSchoolRankingRequest {
@@ -417,6 +422,7 @@ message TournamentSchoolRankingRequest {
   string token = 2;
   int32 page = 3;
   int32 page_size = 4;
+  string search = 5;
 }
 
 message TournamentSchoolRankingResponse {
@@ -430,6 +436,7 @@ message SchoolRanking {
   int32 total_wins = 3;
   double average_rank = 4;
   double total_points = 5;
+  int32 place = 6;
 }
 
 message OverallSchoolRankingRequest {
@@ -634,6 +641,7 @@ message TournamentVolunteerRankingRequest {
   string token = 2;
   int32 page = 3;
   int32 page_size = 4;
+  string search = 5;
 }
 
 message VolunteerTournamentRank {
@@ -643,9 +651,23 @@ message VolunteerTournamentRank {
   int32 preliminary_rounds = 4;
   int32 elimination_rounds = 5;
   int32 rank = 6;
+  int32 place = 7;
 }
 
 message TournamentVolunteerRankingResponse {
   repeated VolunteerTournamentRank rankings = 1;
   int32 total_count = 2;
+}
+
+message SetRankingVisibilityRequest {
+  int32 tournament_id = 1;
+  string ranking_type = 2;  // "student", "team", "school", "volunteer"
+  string visible_to = 3;    // "volunteer", "school", "student"
+  bool is_visible = 4;
+  string token = 5;
+}
+
+message SetRankingVisibilityResponse {
+  bool success = 1;
+  string message = 2;
 }

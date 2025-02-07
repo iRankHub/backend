@@ -124,6 +124,15 @@ type Pairinghistory struct {
 	Iselimination bool  `json:"iselimination"`
 }
 
+type Rankingvisibility struct {
+	Tournamentid int32        `json:"tournamentid"`
+	Rankingtype  string       `json:"rankingtype"`
+	Visibleto    string       `json:"visibleto"`
+	Isvisible    bool         `json:"isvisible"`
+	Createdat    sql.NullTime `json:"createdat"`
+	Updatedat    sql.NullTime `json:"updatedat"`
+}
+
 type Room struct {
 	Roomid       int32         `json:"roomid"`
 	Roomname     string        `json:"roomname"`
