@@ -39,6 +39,18 @@ static_resources:
           - name: envoy.filters.http.router
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+          - name: envoy.filters.http.lua
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+              inline_code: |
+                function envoy_on_request(request_handle)
+                  local metadata = {
+                    ip_address = request_handle:headers():get("x-real-ip") or request_handle:headers():get("x-forwarded-for"),
+                    user_agent = request_handle:headers():get("user-agent"),
+                    device_info = request_handle:headers():get("sec-ch-ua") -- Browser provides platform info
+                  }
+                  request_handle:headers():add("x-client-info", request_handle:streamInfo():dynamicMetadata():get("client_info"))
+                end
     # Add debug logging for the listener
     listener_filters:
     - name: envoy.filters.listener.http_inspector

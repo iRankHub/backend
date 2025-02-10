@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -26,6 +27,8 @@ import (
 )
 
 func StartGRPCServer(db *sql.DB) error {
+	ctx := context.Background()
+
 	// Create a new gRPC server
 	grpcServer := grpc.NewServer()
 
@@ -54,7 +57,7 @@ func StartGRPCServer(db *sql.DB) error {
 	}
 	debate_management.RegisterDebateServiceServer(grpcServer, debateServer)
 
-	notificationServer, err := notificationserver.NewNotificationServer(db)
+	notificationServer, err := notificationserver.NewNotificationServer(ctx, db)
 	if err != nil {
 		return fmt.Errorf("failed to create NotificationServer: %v", err)
 	}
@@ -71,6 +74,7 @@ func StartGRPCServer(db *sql.DB) error {
 		return fmt.Errorf("failed to create SystemHealthServer: %v", err)
 	}
 	system_health.RegisterSystemHealthServiceServer(grpcServer, systemHealthServer)
+
 	// Read the gRPC server port from the environment
 	grpcPort := os.Getenv("GRPC_PORT")
 	if grpcPort == "" {

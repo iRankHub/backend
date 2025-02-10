@@ -5,56 +5,253 @@ package notification;
 option go_package = "github.com/iRankHub/backend/internal/grpc/proto/notification";
 
 service NotificationService {
-  rpc SendNotification(SendNotificationRequest) returns (SendNotificationResponse) {}
-  rpc GetUnreadNotifications(GetUnreadNotificationsRequest) returns (GetUnreadNotificationsResponse) {}
-  rpc MarkNotificationsAsRead(MarkNotificationsAsReadRequest) returns (MarkNotificationsAsReadResponse) {}
-  rpc SubscribeToNotifications(SubscribeRequest) returns (stream NotificationEvent) {}
+  rpc SendNotification(SendNotificationRequest) returns (SendNotificationResponse);
+  rpc GetUnreadNotifications(GetUnreadNotificationsRequest) returns (GetUnreadNotificationsResponse);
+  rpc MarkNotificationsAsRead(MarkNotificationsAsReadRequest) returns (MarkNotificationsAsReadResponse);
+  rpc SubscribeToNotifications(SubscribeRequest) returns (stream NotificationEvent);
+}
+
+enum Category {
+  CATEGORY_UNSPECIFIED = 0;
+  CATEGORY_AUTH = 1;
+  CATEGORY_USER = 2;
+  CATEGORY_TOURNAMENT = 3;
+  CATEGORY_DEBATE = 4;
+  CATEGORY_REPORT = 5;
 }
 
 enum NotificationType {
-  EMAIL = 0;
-  IN_APP = 1;
+  TYPE_UNSPECIFIED = 0;
+  // Auth notifications
+  TYPE_ACCOUNT_CREATION = 1;
+  TYPE_ACCOUNT_APPROVAL = 2;
+  TYPE_PASSWORD_RESET = 3;
+  TYPE_SECURITY_ALERT = 4;
+  TYPE_TWO_FACTOR_AUTH = 5;
+
+  // User notifications
+  TYPE_PROFILE_UPDATE = 10;
+  TYPE_ROLE_ASSIGNMENT = 11;
+  TYPE_STATUS_CHANGE = 12;
+
+  // Tournament notifications
+  TYPE_TOURNAMENT_INVITE = 20;
+  TYPE_TOURNAMENT_REGISTRATION = 21;
+  TYPE_TOURNAMENT_SCHEDULE = 22;
+  TYPE_TOURNAMENT_PAYMENT = 23;
+  TYPE_COORDINATOR_ASSIGNMENT = 24;
+
+  // Debate notifications
+  TYPE_ROUND_ASSIGNMENT = 30;
+  TYPE_JUDGE_ASSIGNMENT = 31;
+  TYPE_BALLOT_SUBMISSION = 32;
+  TYPE_DEBATE_RESULTS = 33;
+  TYPE_ROOM_CHANGE = 34;
+
+  // Report notifications
+  TYPE_REPORT_GENERATION = 40;
+  TYPE_PERFORMANCE_REPORT = 41;
+  TYPE_ANALYTICS_REPORT = 42;
+  TYPE_AUDIT_REPORT = 43;
+}
+
+enum UserRole {
+  ROLE_UNSPECIFIED = 0;
+  ROLE_ADMIN = 1;
+  ROLE_VOLUNTEER = 2;
+  ROLE_SCHOOL = 3;
+  ROLE_STUDENT = 4;
+}
+
+enum Priority {
+  PRIORITY_UNSPECIFIED = 0;
+  PRIORITY_LOW = 1;
+  PRIORITY_MEDIUM = 2;
+  PRIORITY_HIGH = 3;
+  PRIORITY_URGENT = 4;
+}
+
+enum DeliveryMethod {
+  DELIVERY_METHOD_UNSPECIFIED = 0;
+  DELIVERY_METHOD_EMAIL = 1;
+  DELIVERY_METHOD_IN_APP = 2;
+  DELIVERY_METHOD_PUSH = 3;
+}
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_PENDING = 1;
+  STATUS_DELIVERED = 2;
+  STATUS_FAILED = 3;
+  STATUS_EXPIRED = 4;
+}
+
+enum ActionType {
+  ACTION_TYPE_UNSPECIFIED = 0;
+  ACTION_VIEW = 1;
+  ACTION_ACCEPT = 2;
+  ACTION_REJECT = 3;
+  ACTION_SUBMIT = 4;
+  ACTION_DOWNLOAD = 5;
+}
+
+message Action {
+  ActionType type = 1;
+  string label = 2;
+  string url = 3;
+  string data = 4;
+  bool completed = 5;
+  string completed_at = 6;
+}
+
+message DeliveryStatus {
+  Status status = 1;
+  int32 attempts = 2;
+  string last_attempt = 3;
+  string error = 4;
+  string delivered_at = 5;
+}
+
+message Metadata {
+  oneof metadata {
+    AuthMetadata auth = 1;
+    UserMetadata user = 2;
+    TournamentMetadata tournament = 3;
+    DebateMetadata debate = 4;
+    ReportMetadata report = 5;
+  }
+}
+
+message AuthMetadata {
+  string ip_address = 1;
+  string device_info = 2;
+  string location = 3;
+  int32 attempt_count = 4;
+  string last_attempt = 5;
+}
+
+message UserMetadata {
+  map<string, string> changes = 1;
+  string previous_role = 2;
+  string new_role = 3;
+  string reason = 4;
+  string approved_by = 5;
+  string approved_at = 6;
+  string expiration_date = 7;
+}
+
+message TournamentMetadata {
+  string tournament_id = 1;
+  string tournament_name = 2;
+  string start_date = 3;
+  string end_date = 4;
+  string location = 5;
+  string format = 6;
+  string league = 7;
+  double fee = 8;
+  string currency = 9;
+  string coordinator = 10;
+}
+
+message DebateMetadata {
+  string debate_id = 1;
+  string tournament_id = 2;
+  int32 round_number = 3;
+  bool is_elimination = 4;
+  string room = 5;
+  string start_time = 6;
+  string end_time = 7;
+  string team1 = 8;
+  string team2 = 9;
+  repeated string judge_panel = 10;
+  string head_judge = 11;
+  string motion = 12;
+}
+
+message ReportMetadata {
+  string report_id = 1;
+  string report_type = 2;
+  string period = 3;
+  string generated_at = 4;
+  string generated_by = 5;
+  string size = 6;
+  string download_url = 7;
+  map<string, string> summary = 8;
+  map<string, string> key_metrics = 9;
+  string expires_at = 10;
+  string file_size = 11;
 }
 
 message Notification {
-  int32 id = 1;
-  NotificationType type = 2;
-  string to = 3;
-  string subject = 4;
-  string content = 5;
+  string id = 1;
+  Category category = 2;
+  NotificationType type = 3;
+  string user_id = 4;
+  UserRole user_role = 5;
+  string title = 6;
+  string content = 7;
+  repeated DeliveryMethod delivery_methods = 8;
+  Priority priority = 9;
+  repeated Action actions = 10;
+  Metadata metadata = 11;
+  map<string, DeliveryStatus> delivery_status = 12;
+  Status status = 13;
+  bool is_read = 14;
+  string read_at = 15;
+  string created_at = 16;
+  string updated_at = 17;
+  string expires_at = 18;
 }
 
 message SendNotificationRequest {
-  NotificationType type = 1;
-  string to = 2;
-  string subject = 3;
-  string content = 4;
+  Notification notification = 1;
 }
 
 message SendNotificationResponse {
-  bool success = 1;
+  string notification_id = 1;
+  Status status = 2;
 }
 
 message GetUnreadNotificationsRequest {
-  int32 user_id = 1;
+  string user_id = 1;
+  Category category = 2;
+  NotificationType type = 3;
+  int32 limit = 4;
+  int32 offset = 5;
 }
 
 message GetUnreadNotificationsResponse {
   repeated Notification notifications = 1;
+  int32 total = 2;
 }
 
 message MarkNotificationsAsReadRequest {
-  int32 user_id = 1;
+  string user_id = 1;
+  repeated string notification_ids = 2;
 }
 
 message MarkNotificationsAsReadResponse {
   bool success = 1;
+  repeated string failed_ids = 2;
 }
 
 message SubscribeRequest {
-  int32 user_id = 1;
+  string user_id = 1;
+  UserRole user_role = 2;
+  Category category = 3;
+  repeated NotificationType types = 4;
+  int32 batch_size = 5;
 }
 
 message NotificationEvent {
-  Notification notification = 1;
+  oneof event {
+    Notification notification = 1;
+    DeliveryStatus status_update = 2;
+    Error error = 3;
+  }
+}
+
+message Error {
+  string code = 1;
+  string message = 2;
 }

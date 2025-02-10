@@ -343,3 +343,29 @@ CREATE TABLE RankingVisibility (
     UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (TournamentID, RankingType, VisibleTo)
 );
+
+CREATE TABLE notification_metadata (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    notification_id VARCHAR(255) NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    priority VARCHAR(50) NOT NULL,
+    delivery_methods JSONB NOT NULL,
+    delivery_status JSONB NOT NULL,
+    metadata JSONB,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    read_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL,
+    file_size VARCHAR(50),
+
+    CONSTRAINT notification_metadata_category_check
+        CHECK (category IN ('auth', 'user', 'tournament', 'debate', 'report')),
+    CONSTRAINT notification_metadata_status_check
+        CHECK (status IN ('pending', 'delivered', 'failed', 'expired')),
+    CONSTRAINT notification_metadata_priority_check
+        CHECK (priority IN ('low', 'medium', 'high', 'urgent'))
+);

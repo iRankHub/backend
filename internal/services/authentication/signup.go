@@ -3,22 +3,22 @@ package services
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/iRankHub/backend/internal/models"
-	notificationService "github.com/iRankHub/backend/internal/services/notification"
+	"github.com/iRankHub/backend/internal/services/notification"
+	notificationModels "github.com/iRankHub/backend/internal/services/notification/models"
 	"github.com/iRankHub/backend/internal/utils"
-	notification "github.com/iRankHub/backend/internal/utils/notifications"
 )
 
 type SignUpService struct {
 	db                  *sql.DB
-	notificationService *notificationService.NotificationService
+	notificationService *notification.Service
 }
 
-func NewSignUpService(db *sql.DB, ns *notificationService.NotificationService) *SignUpService {
+func NewSignUpService(db *sql.DB, ns *notification.Service) *SignUpService {
 	return &SignUpService{
 		db:                  db,
 		notificationService: ns,
@@ -42,13 +42,11 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 
 	queries := models.New(tx)
 
-	// Check if email is unique (now inside the transaction)
+	// Check if email is unique
 	_, err = queries.GetUserByEmail(ctx, email)
 	if err == nil {
-		// User with this email already exists
 		return fmt.Errorf("email already in use")
-	} else if err != sql.ErrNoRows {
-		// An error occurred that wasn't "no rows found"
+	} else if !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("error checking email uniqueness: %v", err)
 	}
 
@@ -74,6 +72,7 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 		return fmt.Errorf("failed to create user: %v", err)
 	}
 
+	// Create role-specific record
 	switch userRole {
 	case "student":
 		err = s.createStudentRecord(ctx, queries, user.Userid, firstName, lastName, email, gender, hashedPassword, additionalInfo)
@@ -95,35 +94,93 @@ func (s *SignUpService) SignUp(ctx context.Context, firstName, lastName, email, 
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	// This go routine runs in the background as to not impact performance
-	go func() {
-		if userRole == "admin" {
-			if err := notification.SendAdminWelcomeEmail(s.notificationService, email, firstName, user.Userid); err != nil {
-				log.Printf("Failed to send admin welcome email: %v", err)
-			}
-		} else {
-			ctx := context.Background()
-			queries := models.New(s.db)
-			if err := s.notifyAdminOfNewSignUp(ctx, queries, user.Userid, userRole); err != nil {
-				log.Printf("Failed to notify admin of new signup: %v", err)
-			}
-			if err := notification.SendWelcomeEmail(s.notificationService, email, firstName); err != nil {
-				log.Printf("Failed to send welcome email: %v", err)
-			}
+	// Get client metadata for notifications
+	clientMeta := utils.FromContext(ctx)
+
+	// Send appropriate notifications based on role
+	if userRole == "admin" {
+		metadata := notificationModels.AuthMetadata{
+			DeviceInfo:   clientMeta.DeviceInfo,
+			Location:     "Admin Account Creation",
+			LastAttempt:  time.Now(),
+			AttemptCount: 0,
+			IPAddress:    clientMeta.IP,
 		}
-	}()
+
+		err = s.notificationService.SendAccountCreation(
+			ctx,
+			email,
+			notificationModels.AdminRole,
+			metadata,
+		)
+	} else {
+		// Send welcome email to user
+		metadata := notificationModels.AuthMetadata{
+			DeviceInfo:   clientMeta.DeviceInfo,
+			Location:     "Account Creation",
+			LastAttempt:  time.Now(),
+			AttemptCount: 0,
+			IPAddress:    clientMeta.IP,
+		}
+
+		err = s.notificationService.SendAccountCreation(
+			ctx,
+			email,
+			s.getUserRole(userRole),
+			metadata,
+		)
+
+		if err != nil {
+			return fmt.Errorf("failed to send welcome notification: %v", err)
+		}
+
+		// Notify admins about new signup
+		err = s.notifyAdminsOfNewSignup(ctx, user.Userid, userRole, clientMeta)
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to send notifications: %v", err)
+	}
 
 	return nil
 }
 
-func (s *SignUpService) notifyAdminOfNewSignUp(ctx context.Context, queries *models.Queries, userID int32, userRole string) error {
-	message := fmt.Sprintf("New %s user signed up and needs approval", userRole)
-	_, err := queries.CreateNotification(ctx, models.CreateNotificationParams{
-		Userid:  userID,
-		Type:    "new_signup",
-		Message: message,
+func (s *SignUpService) notifyAdminsOfNewSignup(ctx context.Context, userID int32, userRole string, clientMeta utils.ClientMetadata) error {
+	metadata := notificationModels.AuthMetadata{
+		DeviceInfo:   clientMeta.DeviceInfo,
+		Location:     "New User Registration",
+		LastAttempt:  time.Now(),
+		AttemptCount: 0,
+		IPAddress:    clientMeta.IP,
+	}
+
+	// Query for admin users
+	queries := models.New(s.db)
+	adminUsers, err := queries.GetVolunteersAndAdmins(ctx, models.GetVolunteersAndAdminsParams{
+		Limit:  100,
+		Offset: 0,
 	})
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to get admin users: %v", err)
+	}
+
+	// Notify each admin
+	for _, admin := range adminUsers {
+		if admin.Userrole == "admin" {
+			err = s.notificationService.SendSecurityAlert(
+				ctx,
+				admin.Email,
+				notificationModels.AdminRole,
+				fmt.Sprintf("New %s user registration requires approval. IP: %s", userRole, clientMeta.IP),
+				metadata,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to notify admin: %v", err)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (s *SignUpService) createStudentRecord(ctx context.Context, queries *models.Queries, userID int32, firstName, lastName, email, gender, hashedPassword string, additionalInfo map[string]interface{}) error {
@@ -279,4 +336,19 @@ func (s *SignUpService) createAdminProfile(ctx context.Context, queries *models.
 		return fmt.Errorf("failed to create admin user profile: %v", err)
 	}
 	return nil
+}
+
+func (s *SignUpService) getUserRole(role string) notificationModels.UserRole {
+	switch role {
+	case "admin":
+		return notificationModels.AdminRole
+	case "school":
+		return notificationModels.SchoolRole
+	case "student":
+		return notificationModels.StudentRole
+	case "volunteer":
+		return notificationModels.VolunteerRole
+	default:
+		return notificationModels.UnspecifiedRole
+	}
 }

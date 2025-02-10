@@ -15,6 +15,14 @@ type DatabaseConfig struct {
 	Ssl      string
 }
 
+type EmailConfig struct {
+	FromAddress string
+	Password    string
+	SMTPHost    string
+	SMTPPort    int
+	LogoURL     string
+}
+
 func LoadDatabaseConfig() (*DatabaseConfig, error) {
 	port, err := strconv.Atoi(os.Getenv("DB_PORT"))
 	if err != nil {

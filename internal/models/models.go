@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/sqlc-dev/pqtype"
 )
 
@@ -103,6 +104,25 @@ type Notification struct {
 	Subject        sql.NullString `json:"subject"`
 	Isread         sql.NullBool   `json:"isread"`
 	Createdat      sql.NullTime   `json:"createdat"`
+}
+
+type NotificationMetadatum struct {
+	ID              uuid.UUID             `json:"id"`
+	NotificationID  string                `json:"notification_id"`
+	UserID          string                `json:"user_id"`
+	Category        string                `json:"category"`
+	Type            string                `json:"type"`
+	Status          string                `json:"status"`
+	Priority        string                `json:"priority"`
+	DeliveryMethods json.RawMessage       `json:"delivery_methods"`
+	DeliveryStatus  json.RawMessage       `json:"delivery_status"`
+	Metadata        pqtype.NullRawMessage `json:"metadata"`
+	IsRead          bool                  `json:"is_read"`
+	ReadAt          sql.NullTime          `json:"read_at"`
+	CreatedAt       time.Time             `json:"created_at"`
+	UpdatedAt       time.Time             `json:"updated_at"`
+	ExpiresAt       time.Time             `json:"expires_at"`
+	FileSize        sql.NullString        `json:"file_size"`
 }
 
 type Notificationpreference struct {

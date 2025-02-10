@@ -4,19 +4,20 @@ import (
 	"context"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/authentication"
-	notificationService "github.com/iRankHub/backend/internal/services/notification"
+	"github.com/iRankHub/backend/internal/services/notification"
+	"github.com/iRankHub/backend/internal/services/notification/models"
 	"github.com/iRankHub/backend/internal/utils"
-	notification "github.com/iRankHub/backend/internal/utils/notifications"
 )
 
 type ImportUsersService struct {
 	signUpService       *SignUpService
-	notificationService *notificationService.NotificationService
+	notificationService *notification.Service
 }
 
-func NewImportUsersService(signUpService *SignUpService, ns *notificationService.NotificationService) *ImportUsersService {
+func NewImportUsersService(signUpService *SignUpService, ns *notification.Service) *ImportUsersService {
 	return &ImportUsersService{
 		signUpService:       signUpService,
 		notificationService: ns,
@@ -77,10 +78,36 @@ func (s *ImportUsersService) BatchImportUsers(ctx context.Context, users []*auth
 				importedCount++
 				mu.Unlock()
 
-				// Send email with temporary password
+				// Send welcome notification with temp password
 				go func() {
-					if err := notification.SendTemporaryPasswordEmail(s.notificationService, userData.Email, userData.FirstName, password); err != nil {
-						log.Printf("Failed to send temporary password email to %s: %v", userData.Email, err)
+					metadata := models.AuthMetadata{
+						DeviceInfo:   "Batch Import",
+						Location:     "Account Creation",
+						LastAttempt:  time.Now(),
+						AttemptCount: 0,
+						IPAddress:    "system",
+					}
+
+					// First, send temp password notification
+					if err := s.notificationService.SendAccountCreation(
+						context.Background(),
+						userData.Email,
+						s.mapUserRole(userData.UserRole),
+						metadata,
+					); err != nil {
+						log.Printf("Failed to send account creation notification to %s: %v", userData.Email, err)
+					}
+
+					// Then send security alert with temp password
+					alertMsg := "Your temporary password is: " + password + ". Please change it upon first login."
+					if err := s.notificationService.SendSecurityAlert(
+						context.Background(),
+						userData.Email,
+						s.mapUserRole(userData.UserRole),
+						alertMsg,
+						metadata,
+					); err != nil {
+						log.Printf("Failed to send temporary password notification to %s: %v", userData.Email, err)
 					}
 				}()
 			}
@@ -90,4 +117,20 @@ func (s *ImportUsersService) BatchImportUsers(ctx context.Context, users []*auth
 	wg.Wait()
 
 	return importedCount, failedEmails
+}
+
+// mapUserRole converts proto user role to models.UserRole
+func (s *ImportUsersService) mapUserRole(role string) models.UserRole {
+	switch role {
+	case "admin":
+		return models.AdminRole
+	case "school":
+		return models.SchoolRole
+	case "student":
+		return models.StudentRole
+	case "volunteer":
+		return models.VolunteerRole
+	default:
+		return models.UnspecifiedRole
+	}
 }

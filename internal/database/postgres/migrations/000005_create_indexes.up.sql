@@ -137,4 +137,9 @@ CREATE INDEX IF NOT EXISTS idx_tournament_invitations_status_tracking ON Tournam
 CREATE INDEX IF NOT EXISTS idx_invitations_pending_reminders ON TournamentInvitations(TournamentID) WHERE Status = 'pending' AND ReminderSentAt IS NULL;
 
 -- Notification Management
-CREATE INDEX IF NOT EXISTS idx_notifications_userid ON Notifications(UserID);
+CREATE INDEX IF NOT EXISTS idx_notification_metadata_user_id ON notification_metadata(user_id);
+CREATE INDEX IF NOT EXISTS idx_notification_metadata_notification_id ON notification_metadata(notification_id);
+CREATE INDEX IF NOT EXISTS idx_notification_metadata_category ON notification_metadata(category);
+CREATE INDEX IF NOT EXISTS idx_notification_metadata_status ON notification_metadata(status);
+CREATE INDEX IF NOT EXISTS idx_notification_metadata_expires_at ON notification_metadata(expires_at);
+CREATE INDEX IF NOT EXISTS idx_notification_metadata_is_read ON notification_metadata(is_read);

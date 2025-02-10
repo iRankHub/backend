@@ -5,375 +5,904 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
-	"os"
-	"strconv"
-	"strings"
 	"sync"
-	"time"
+	_ "time"
 
-	amqp "github.com/rabbitmq/amqp091-go"
-
-	pb "github.com/iRankHub/backend/internal/grpc/proto/notification"
-	"github.com/iRankHub/backend/internal/models"
+	"github.com/iRankHub/backend/internal/services/notification/dispatchers"
+	"github.com/iRankHub/backend/internal/services/notification/models"
+	"github.com/iRankHub/backend/internal/services/notification/senders"
+	"github.com/iRankHub/backend/internal/services/notification/storage"
 )
 
-type NotificationType string
-
-const (
-	EmailNotification NotificationType = "email"
-	InAppNotification NotificationType = "in_app"
-)
-
-type Notification struct {
-	Type    NotificationType `json:"type"`
-	To      string           `json:"to"`
-	Subject string           `json:"subject"`
-	Content string           `json:"content"`
+type Service struct {
+	storage     *storage.CombinedStorage
+	dispatchers *dispatchers.DispatcherFactory
+	subscribers map[string]chan *models.Notification
+	mu          sync.RWMutex
 }
 
-type NotificationService struct {
-	db            *sql.DB
-	queries       *models.Queries
-	conn          *amqp.Connection
-	channel       *amqp.Channel
-	queue         amqp.Queue
-	emailSender   EmailSender
-	inAppSender   InAppSender
-	subscriptions map[int32][]chan *pb.Notification
-	mu            sync.RWMutex
+type ServiceConfig struct {
+	RabbitMQURL    string
+	EmailConfig    senders.EmailSenderConfig
+	DispatcherOpts dispatchers.DispatcherOptions
 }
 
-func NewNotificationService(db *sql.DB) (*NotificationService, error) {
-	queries := models.New(db)
-
-	emailSender, err := NewSMTPEmailSender()
+func NewNotificationService(ctx context.Context, config ServiceConfig, dbConn *sql.DB) (*Service, error) {
+	// Initialize email sender
+	emailSender, err := senders.NewEmailSender(config.EmailConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize email sender: %v", err)
+		return nil, fmt.Errorf("failed to create email sender: %w", err)
 	}
 
-	url := os.Getenv("RABBITMQ_URL")
-	if url == "" {
-		return nil, fmt.Errorf("RABBITMQ_URL environment variable is not set")
+	// Initialize in-app sender
+	inAppSender := senders.NewInAppSender()
+
+	// Initialize RabbitMQ sender
+	rabbitmqConfig := senders.RabbitMQConfig{
+		URL:          config.RabbitMQURL,
+		Exchange:     "notifications",
+		ExchangeType: "topic",
+		TTL:          30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
 	}
 
-	conn, err := amqp.Dial(url)
+	rabbitmqSender, err := senders.NewRabbitMQSender(rabbitmqConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to RabbitMQ: %v", err)
+		return nil, fmt.Errorf("failed to create RabbitMQ sender: %w", err)
 	}
 
-	ch, err := conn.Channel()
-	if err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("failed to open a channel: %v", err)
-	}
+	// Create base dispatcher
+	baseDispatcher := dispatchers.NewBaseDispatcher(emailSender, inAppSender, rabbitmqSender)
 
-	// Set QoS for better message handling
-	err = ch.Qos(
-		1,     // prefetch count
-		0,     // prefetch size
-		false, // global
-	)
-	if err != nil {
-		ch.Close()
-		conn.Close()
-		return nil, fmt.Errorf("failed to set QoS: %v", err)
-	}
+	// Initialize dispatcher factory
+	dispatcherFactory := dispatchers.NewDispatcherFactory(baseDispatcher, config.DispatcherOpts)
 
-	q, err := ch.QueueDeclare(
-		"notifications",
-		true,  // durable
-		false, // delete when unused
-		false, // exclusive
-		false, // no-wait
-		nil,   // arguments
-	)
-	if err != nil {
-		ch.Close()
-		conn.Close()
-		return nil, fmt.Errorf("failed to declare a queue: %v", err)
-	}
+	// Initialize storage
+	metadataStorage := storage.NewMetadataStorage(dbConn)
+	rabbitmqStorage, _ := storage.NewRabbitMQStorage(config.RabbitMQURL, metadataStorage)
+	combinedStorage := storage.NewCombinedStorage(rabbitmqStorage, metadataStorage)
 
-	service := &NotificationService{
-		db:            db,
-		queries:       queries,
-		conn:          conn,
-		channel:       ch,
-		queue:         q,
-		emailSender:   emailSender,
-		inAppSender:   NewDBInAppSender(queries),
-		subscriptions: make(map[int32][]chan *pb.Notification),
-	}
-
-	go service.startConsumer()
-
-	return service, nil
+	return &Service{
+		storage:     combinedStorage,
+		dispatchers: dispatcherFactory,
+		subscribers: make(map[string]chan *models.Notification),
+	}, nil
 }
 
-func (s *NotificationService) startConsumer() {
-	backoff := time.Second
-	maxBackoff := 30 * time.Second
+// SendNotification sends a notification using the appropriate dispatcher
+func (s *Service) SendNotification(ctx context.Context, notification *models.Notification) error {
+	dispatcher, err := s.dispatchers.GetDispatcher(notification.Category)
+	if err != nil {
+		return fmt.Errorf("failed to get dispatcher: %w", err)
+	}
 
-	for {
-		msgs, err := s.channel.Consume(
-			s.queue.Name,
-			"",    // consumer
-			false, // auto-ack
-			false, // exclusive
-			false, // no-local
-			false, // no-wait
-			nil,   // args
-		)
-		if err != nil {
-			log.Printf("Failed to start consuming messages: %v. Retrying in %v...", err, backoff)
-			time.Sleep(backoff)
-			backoff = min(backoff*2, maxBackoff)
-			continue
+	// Store notification before dispatching
+	if err := s.storage.Store(ctx, notification); err != nil {
+		return fmt.Errorf("failed to store notification: %w", err)
+	}
+
+	// Dispatch notification
+	if err := dispatcher.Dispatch(ctx, notification); err != nil {
+		// Update storage with failure status
+		_ = s.storage.UpdateDeliveryStatus(ctx, notification.ID, models.EmailDelivery, models.StatusFailed)
+		return fmt.Errorf("failed to dispatch notification: %w", err)
+	}
+
+	// Notify subscribers
+	s.notifySubscribers(notification)
+
+	return nil
+}
+
+// GetUnreadNotifications retrieves unread notifications for a user
+func (s *Service) GetUnreadNotifications(ctx context.Context, userID string) ([]*models.Notification, error) {
+	return s.storage.GetUnread(ctx, userID)
+}
+
+// MarkAsRead marks notifications as read
+func (s *Service) MarkAsRead(ctx context.Context, userID string, notificationIDs []string) error {
+	for _, id := range notificationIDs {
+		if err := s.storage.MarkAsRead(ctx, id); err != nil {
+			return fmt.Errorf("failed to mark notification %s as read: %w", id, err)
 		}
-
-		log.Println("Started consuming messages")
-		backoff = time.Second // Reset backoff on successful connection
-
-		for msg := range msgs {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			var notification Notification
-			if err := json.Unmarshal(msg.Body, &notification); err != nil {
-				log.Printf("Error unmarshalling notification: %v", err)
-				msg.Nack(false, false) // Don't requeue on unmarshal error
-				cancel()
-				continue
-			}
-
-			err := s.handleNotificationWithTimeout(ctx, notification)
-			if err != nil {
-				log.Printf("Error handling notification for %s: %v", notification.To, err)
-				shouldRequeue := !isPermanentError(err)
-				msg.Nack(false, shouldRequeue)
-			} else {
-				msg.Ack(false)
-			}
-			cancel()
-		}
-
-		log.Println("Consumer channel closed. Attempting to reconnect...")
-		time.Sleep(backoff)
 	}
+	return nil
 }
 
-func (s *NotificationService) handleNotificationWithTimeout(ctx context.Context, notification Notification) error {
-	done := make(chan error, 1)
+// Subscribe allows a client to subscribe to notifications
+func (s *Service) Subscribe(ctx context.Context, userID string) (<-chan *models.Notification, func(), error) {
+	s.mu.Lock()
+	ch := make(chan *models.Notification, 100)
+	s.subscribers[userID] = ch
+	s.mu.Unlock()
 
+	// Create unsubscribe function
+	unsubscribe := func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if ch, ok := s.subscribers[userID]; ok {
+			close(ch)
+			delete(s.subscribers, userID)
+		}
+	}
+
+	// Start subscription cleanup when context is done
 	go func() {
-		done <- s.handleNotification(notification)
+		<-ctx.Done()
+		unsubscribe()
 	}()
 
-	select {
-	case err := <-done:
-		return err
-	case <-ctx.Done():
-		return fmt.Errorf("notification processing timed out")
-	}
+	return ch, unsubscribe, nil
 }
 
-func isPermanentError(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	errStr := err.Error()
-
-	// Define permanent error conditions
-	permanentErrors := []string{
-		"unknown notification type",
-		"invalid email address",
-		"recipient not found",
-		"failed to unmarshal",
-		"permanent error",
-	}
-
-	for _, pe := range permanentErrors {
-		if strings.Contains(errStr, pe) {
-			return true
-		}
-	}
-
-	// Email-specific permanent errors
-	emailPermanentErrors := []string{
-		"invalid auth",
-		"invalid recipient",
-		"malformed email",
-		"user unknown",
-		"email address rejected",
-	}
-
-	for _, epe := range emailPermanentErrors {
-		if strings.Contains(errStr, epe) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (s *NotificationService) handleNotification(notification Notification) error {
-	switch notification.Type {
-	case EmailNotification:
-		if !isValidEmail(notification.To) {
-			return fmt.Errorf("permanent error: invalid email address: %s", notification.To)
-		}
-		if err := s.emailSender.SendEmail(notification.To, notification.Subject, notification.Content); err != nil {
-			return fmt.Errorf("email sending failed: %w", err)
-		}
-	case InAppNotification:
-		if notification.To == "" {
-			return fmt.Errorf("permanent error: recipient not found")
-		}
-		if err := s.inAppSender.SendInAppNotification(notification.To, notification.Content); err != nil {
-			return fmt.Errorf("in-app notification failed: %w", err)
-		}
-	default:
-		return fmt.Errorf("permanent error: unknown notification type: %s", notification.Type)
-	}
-	return nil
-}
-
-// Helper function to validate email addresses
-func isValidEmail(email string) bool {
-	// Basic email validation
-	if email == "" {
-		return false
-	}
-	if !strings.Contains(email, "@") {
-		return false
-	}
-	parts := strings.Split(email, "@")
-	if len(parts) != 2 {
-		return false
-	}
-	if !strings.Contains(parts[1], ".") {
-		return false
-	}
-	return true
-}
-
-func (s *NotificationService) RegisterNotificationChannel(userID int32, ch chan *pb.Notification) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.subscriptions[userID] = append(s.subscriptions[userID], ch)
-}
-
-func (s *NotificationService) UnregisterNotificationChannel(userID int32, ch chan *pb.Notification) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	channels := s.subscriptions[userID]
-	for i, c := range channels {
-		if c == ch {
-			s.subscriptions[userID] = append(channels[:i], channels[i+1:]...)
-			close(ch)
-			break
-		}
-	}
-}
-
-func (s *NotificationService) SendNotification(ctx context.Context, notification Notification) error {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %v", err)
-	}
-	defer tx.Rollback()
-
-	qtx := s.queries.WithTx(tx)
-
-	// Save notification to database
-	userID, _ := strconv.Atoi(notification.To)
-	createdNotification, err := qtx.CreateNotification(ctx, models.CreateNotificationParams{
-		Userid:         int32(userID),
-		Type:           string(notification.Type),
-		Recipientemail: sql.NullString{String: notification.To, Valid: notification.To != ""},
-		Subject:        sql.NullString{String: notification.Subject, Valid: notification.Subject != ""},
-		Message:        notification.Content,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create notification in database: %v", err)
-	}
-
-	// Publish to RabbitMQ
-	body, err := json.Marshal(notification)
-	if err != nil {
-		return fmt.Errorf("failed to marshal notification: %v", err)
-	}
-
-	err = s.channel.PublishWithContext(ctx,
-		"",           // exchange
-		s.queue.Name, // routing key
-		false,        // mandatory
-		false,        // immediate
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        body,
-		})
-	if err != nil {
-		return fmt.Errorf("failed to publish a message: %v", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %v", err)
-	}
-
-	// Send to subscribed channels
+// notifySubscribers sends notification to all subscribed clients
+func (s *Service) notifySubscribers(notification *models.Notification) {
 	s.mu.RLock()
-	channels := s.subscriptions[int32(userID)]
-	s.mu.RUnlock()
+	defer s.mu.RUnlock()
 
-	protoNotification := &pb.Notification{
-		Id:      int32(createdNotification.Notificationid),
-		Type:    pb.NotificationType(pb.NotificationType_value[string(notification.Type)]),
-		To:      notification.To,
-		Subject: notification.Subject,
-		Content: notification.Content,
+	if ch, ok := s.subscribers[notification.UserID]; ok {
+		select {
+		case ch <- notification:
+		default:
+			// Channel is full, skip notification
+		}
+	}
+}
+
+// Helper methods for common notification scenarios
+
+func (s *Service) SendDebateAssignment(ctx context.Context, userID string, role models.UserRole, metadata models.DebateMetadata) error {
+	// Marshal metadata to json.RawMessage
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal debate metadata: %w", err)
 	}
 
-	for _, ch := range channels {
-		select {
-		case ch <- protoNotification:
-		default:
-			log.Printf("Failed to send notification to channel for user %d: channel full or closed", userID)
+	notification := &models.Notification{
+		Category: models.DebateCategory,
+		Type:     models.RoundAssignment,
+		UserID:   userID,
+		UserRole: role,
+		Title:    fmt.Sprintf("Round %d Assignment", metadata.RoundNumber),
+		Content:  fmt.Sprintf("You have been assigned to debate in room %s", metadata.Room),
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "View Details",
+				URL:   fmt.Sprintf("/debates/%s", metadata.DebateID),
+			},
+		},
+		Priority: models.HighPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendAccountCreation(ctx context.Context, userID string, role models.UserRole, metadata models.AuthMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal debate metadata: %w", err)
+	}
+	notification := &models.Notification{
+		Category: models.AuthCategory,
+		Type:     models.AccountCreation,
+		UserID:   userID,
+		UserRole: role,
+		Title:    "Welcome to iRankHub",
+		Content:  "Your account has been created successfully. Please complete your profile to get started.",
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "Complete Profile",
+				URL:   "/profile/edit",
+			},
+		},
+		Priority: models.MediumPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendPasswordReset(ctx context.Context, userID string, role models.UserRole, resetToken string, metadata models.AuthMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal password metadata: %w", err)
+	}
+	notification := &models.Notification{
+		Category: models.AuthCategory,
+		Type:     models.PasswordReset,
+		UserID:   userID,
+		UserRole: role,
+		Title:    "Password Reset Request",
+		Content:  "A password reset has been requested for your account. Click the link below to reset your password.",
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "Reset Password",
+				URL:   fmt.Sprintf("/auth/reset-password?token=%s", resetToken),
+			},
+		},
+		Priority: models.HighPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendSecurityAlert(ctx context.Context, userID string, role models.UserRole, alertMessage string, metadata models.AuthMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal security metadata: %w", err)
+	}
+	notification := &models.Notification{
+		Category: models.AuthCategory,
+		Type:     models.SecurityAlert,
+		UserID:   userID,
+		UserRole: role,
+		Title:    "Security Alert",
+		Content:  alertMessage,
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "Review Activity",
+				URL:   "/settings/security",
+			},
+		},
+		Priority: models.UrgentPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendTwoFactorCode(ctx context.Context, userID string, role models.UserRole, code string, metadata models.AuthMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+	notification := &models.Notification{
+		Category: models.AuthCategory,
+		Type:     models.TwoFactorAuth,
+		UserID:   userID,
+		UserRole: role,
+		Title:    "Two-Factor Authentication Code",
+		Content:  fmt.Sprintf("Your verification code is: %s", code),
+		Priority: models.UrgentPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendAccountApproval(ctx context.Context, userID string, role models.UserRole, metadata models.AuthMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+	notification := &models.Notification{
+		Category: models.AuthCategory,
+		Type:     models.AccountApproval,
+		UserID:   userID,
+		UserRole: role,
+		Title:    "Account Approved",
+		Content:  "Your account has been approved. You can now access all features of iRankHub.",
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "Get Started",
+				URL:   "/dashboard",
+			},
+		},
+		Priority: models.MediumPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendProfileUpdate(ctx context.Context, userID string, role models.UserRole, metadata models.UserMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	content := "Your profile has been updated with the following changes:\n"
+	for field, value := range metadata.Changes {
+		content += fmt.Sprintf("- %s: %s\n", field, value)
+	}
+
+	notification := &models.Notification{
+		Category: models.UserCategory,
+		Type:     models.ProfileUpdate,
+		UserID:   userID,
+		UserRole: role,
+		Title:    "Profile Updated",
+		Content:  content,
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "View Profile",
+				URL:   "/profile",
+			},
+		},
+		Priority: models.MediumPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendRoleAssignment(ctx context.Context, userID string, role models.UserRole, metadata models.UserMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	notification := &models.Notification{
+		Category: models.UserCategory,
+		Type:     models.RoleAssignment,
+		UserID:   userID,
+		UserRole: role,
+		Title:    "Role Updated",
+		Content:  fmt.Sprintf("Your role has been changed from %s to %s", metadata.PreviousRole, metadata.NewRole),
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "View Permissions",
+				URL:   "/profile/permissions",
+			},
+		},
+		Priority: models.HighPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendStatusChange(ctx context.Context, userID string, role models.UserRole, metadata models.UserMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	notification := &models.Notification{
+		Category: models.UserCategory,
+		Type:     models.StatusChange,
+		UserID:   userID,
+		UserRole: role,
+		Title:    "Account Status Changed",
+		Content:  fmt.Sprintf("Your account status has been changed. Reason: %s", metadata.Reason),
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "Contact Support",
+				URL:   "/support",
+			},
+		},
+		Priority: models.UrgentPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendRoleExpiration(ctx context.Context, userID string, role models.UserRole, metadata models.UserMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+	notification := &models.Notification{
+		Category: models.UserCategory,
+		Type:     models.RoleAssignment,
+		UserID:   userID,
+		UserRole: role,
+		Title:    "Role Expiration Notice",
+		Content:  fmt.Sprintf("Your role as %s will expire on %s", metadata.NewRole, metadata.ExpirationDate.Format("January 2, 2006")),
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "Review Details",
+				URL:   "/profile/role",
+			},
+		},
+		Priority: models.HighPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendTournamentInvitation(ctx context.Context, tournamentID string, inviteeID string, inviteeRole models.UserRole, metadata models.TournamentMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	notification := &models.Notification{
+		Category: models.TournamentCategory,
+		Type:     models.TournamentInvite,
+		UserID:   inviteeID,
+		UserRole: inviteeRole,
+		Title:    fmt.Sprintf("Tournament Invitation: %s", metadata.TournamentName),
+		Content: fmt.Sprintf("You have been invited to participate in the %s tournament. Tournament dates: %s to %s",
+			metadata.TournamentName,
+			metadata.StartDate.Format("Jan 2"),
+			metadata.EndDate.Format("Jan 2, 2006")),
+		Actions: []models.Action{
+			{
+				Type:  models.ActionAccept,
+				Label: "Accept Invitation",
+				URL:   fmt.Sprintf("/tournaments/%s/accept", tournamentID),
+			},
+			{
+				Type:  models.ActionReject,
+				Label: "Decline",
+				URL:   fmt.Sprintf("/tournaments/%s/decline", tournamentID),
+			},
+			{
+				Type:  models.ActionView,
+				Label: "View Details",
+				URL:   fmt.Sprintf("/tournaments/%s", tournamentID),
+			},
+		},
+		Priority: models.MediumPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendTournamentRegistrationConfirmation(ctx context.Context, userID string, role models.UserRole, metadata models.TournamentMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+	notification := &models.Notification{
+		Category: models.TournamentCategory,
+		Type:     models.TournamentRegistration,
+		UserID:   userID,
+		UserRole: role,
+		Title:    "Tournament Registration Confirmed",
+		Content: fmt.Sprintf("Your registration for %s has been confirmed. Tournament dates: %s to %s",
+			metadata.TournamentName,
+			metadata.StartDate.Format("Jan 2"),
+			metadata.EndDate.Format("Jan 2, 2006")),
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "View Registration",
+				URL:   fmt.Sprintf("/tournaments/%s/registration", metadata.TournamentID),
+			},
+			{
+				Type:  models.ActionView,
+				Label: "View Schedule",
+				URL:   fmt.Sprintf("/tournaments/%s/schedule", metadata.TournamentID),
+			},
+		},
+		Priority: models.MediumPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendTournamentPaymentReminder(ctx context.Context, userID string, role models.UserRole, metadata models.TournamentMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+	notification := &models.Notification{
+		Category: models.TournamentCategory,
+		Type:     models.TournamentPayment,
+		UserID:   userID,
+		UserRole: role,
+		Title:    "Tournament Payment Due",
+		Content: fmt.Sprintf("Payment of %s %v for %s tournament registration is due. Please complete your payment to confirm your participation.",
+			metadata.Currency,
+			metadata.Fee,
+			metadata.TournamentName),
+		Actions: []models.Action{
+			{
+				Type:  models.ActionSubmit,
+				Label: "Complete Payment",
+				URL:   fmt.Sprintf("/tournaments/%s/payment", metadata.TournamentID),
+			},
+		},
+		Priority: models.HighPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendTournamentScheduleUpdate(ctx context.Context, userID string, role models.UserRole, metadata models.TournamentMetadata, changes string) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+	notification := &models.Notification{
+		Category: models.TournamentCategory,
+		Type:     models.TournamentSchedule,
+		UserID:   userID,
+		UserRole: role,
+		Title:    fmt.Sprintf("Schedule Update: %s", metadata.TournamentName),
+		Content:  fmt.Sprintf("The tournament schedule has been updated: %s", changes),
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "View Updated Schedule",
+				URL:   fmt.Sprintf("/tournaments/%s/schedule", metadata.TournamentID),
+			},
+		},
+		Priority: models.HighPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendCoordinatorAssignment(ctx context.Context, userID string, role models.UserRole, metadata models.TournamentMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+	notification := &models.Notification{
+		Category: models.TournamentCategory,
+		Type:     models.CoordinatorAssignment,
+		UserID:   userID,
+		UserRole: role,
+		Title:    "Tournament Coordinator Assignment",
+		Content: fmt.Sprintf("You have been assigned as coordinator for %s tournament (%s - %s)",
+			metadata.TournamentName,
+			metadata.StartDate.Format("Jan 2"),
+			metadata.EndDate.Format("Jan 2, 2006")),
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "View Tournament Details",
+				URL:   fmt.Sprintf("/tournaments/%s", metadata.TournamentID),
+			},
+			{
+				Type:  models.ActionView,
+				Label: "Coordinator Dashboard",
+				URL:   fmt.Sprintf("/tournaments/%s/coordinator", metadata.TournamentID),
+			},
+		},
+		Priority: models.MediumPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendRoundAssignment(ctx context.Context, userID string, role models.UserRole, metadata models.DebateMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+	notification := &models.Notification{
+		Category: models.DebateCategory,
+		Type:     models.RoundAssignment,
+		UserID:   userID,
+		UserRole: role,
+		Title:    fmt.Sprintf("Round %d Assignment", metadata.RoundNumber),
+		Content: fmt.Sprintf("You have been assigned to debate in room %s.\nTime: %s\nTeams: %s vs %s",
+			metadata.Room,
+			metadata.StartTime.Format("3:04 PM"),
+			metadata.Team1,
+			metadata.Team2),
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "View Details",
+				URL:   fmt.Sprintf("/debates/%s", metadata.DebateID),
+			},
+			{
+				Type:  models.ActionView,
+				Label: "View Motion",
+				URL:   fmt.Sprintf("/debates/%s/motion", metadata.DebateID),
+			},
+		},
+		Priority: models.HighPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendJudgeAssignment(ctx context.Context, userID string, role models.UserRole, metadata models.DebateMetadata) error {
+	title := "Judge Assignment"
+	if metadata.HeadJudge == userID {
+		title = "Head Judge Assignment"
+	}
+
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	notification := &models.Notification{
+		Category: models.DebateCategory,
+		Type:     models.JudgeAssignment,
+		UserID:   userID,
+		UserRole: role,
+		Title:    title,
+		Content: fmt.Sprintf("You have been assigned as %s for Round %d in room %s.\nTime: %s\nTeams: %s vs %s",
+			title == "Judge",
+			metadata.RoundNumber,
+			metadata.Room,
+			metadata.StartTime.Format("3:04 PM"),
+			metadata.Team1,
+			metadata.Team2),
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "View Assignment",
+				URL:   fmt.Sprintf("/debates/%s", metadata.DebateID),
+			},
+			{
+				Type:  models.ActionSubmit,
+				Label: "Submit Ballot",
+				URL:   fmt.Sprintf("/debates/%s/ballot", metadata.DebateID),
+			},
+		},
+		Priority: models.HighPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendBallotReminder(ctx context.Context, userID string, metadata models.DebateMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+	notification := &models.Notification{
+		Category: models.DebateCategory,
+		Type:     models.BallotSubmission,
+		UserID:   userID,
+		UserRole: models.VolunteerRole,
+		Title:    "Ballot Submission Reminder",
+		Content: fmt.Sprintf("Please submit your ballot for Round %d (Room %s)\nDebate: %s vs %s",
+			metadata.RoundNumber,
+			metadata.Room,
+			metadata.Team1,
+			metadata.Team2),
+		Actions: []models.Action{
+			{
+				Type:  models.ActionSubmit,
+				Label: "Submit Ballot",
+				URL:   fmt.Sprintf("/debates/%s/ballot", metadata.DebateID),
+			},
+		},
+		Priority: models.UrgentPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendDebateResults(ctx context.Context, userID string, role models.UserRole, metadata models.DebateMetadata, winner string, score string) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+	notification := &models.Notification{
+		Category: models.DebateCategory,
+		Type:     models.DebateResults,
+		UserID:   userID,
+		UserRole: role,
+		Title:    fmt.Sprintf("Round %d Results", metadata.RoundNumber),
+		Content: fmt.Sprintf("Results for debate in room %s:\n%s vs %s\nWinner: %s\nScore: %s",
+			metadata.Room,
+			metadata.Team1,
+			metadata.Team2,
+			winner,
+			score),
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "View Results",
+				URL:   fmt.Sprintf("/debates/%s/results", metadata.DebateID),
+			},
+		},
+		Priority: models.MediumPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendRoomChange(ctx context.Context, userID string, role models.UserRole, metadata models.DebateMetadata, oldRoom string) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+	notification := &models.Notification{
+		Category: models.DebateCategory,
+		Type:     models.RoomChange,
+		UserID:   userID,
+		UserRole: role,
+		Title:    "Room Change Alert",
+		Content: fmt.Sprintf("Your Round %d debate has been moved from Room %s to Room %s",
+			metadata.RoundNumber,
+			oldRoom,
+			metadata.Room),
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "View Updated Details",
+				URL:   fmt.Sprintf("/debates/%s", metadata.DebateID),
+			},
+		},
+		Priority: models.UrgentPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendReportGenerated(ctx context.Context, userID string, role models.UserRole, metadata models.ReportMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal report metadata: %w", err)
+	}
+
+	notification := &models.Notification{
+		Category: models.ReportCategory,
+		Type:     models.ReportGeneration,
+		UserID:   userID,
+		UserRole: role,
+		Title:    fmt.Sprintf("%s Report Ready", metadata.ReportType),
+		Content: fmt.Sprintf("Your requested %s report for %s has been generated and is ready for viewing. Report size: %s",
+			metadata.ReportType,
+			metadata.Period,
+			metadata.FileSize),
+		Actions: []models.Action{
+			{
+				Type:  models.ActionDownload,
+				Label: "Download Report",
+				URL:   metadata.DownloadURL,
+			},
+			{
+				Type:  models.ActionView,
+				Label: "View Online",
+				URL:   fmt.Sprintf("/reports/%s", metadata.ReportID),
+			},
+		},
+		Priority: models.LowPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendPerformanceReport(ctx context.Context, userID string, role models.UserRole, metadata models.ReportMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal performance report metadata: %w", err)
+	}
+
+	content := fmt.Sprintf("Your performance report for %s is now available. ", metadata.Period)
+	if len(metadata.KeyMetrics) > 0 {
+		content += "\n\nKey Metrics:\n"
+		for metric, value := range metadata.KeyMetrics {
+			content += fmt.Sprintf("- %s: %v\n", metric, value)
 		}
 	}
 
-	return nil
-}
-
-func (s *NotificationService) SubscribeToNotifications(userID int32) (<-chan *pb.Notification, func()) {
-	ch := make(chan *pb.Notification, 100)
-	s.RegisterNotificationChannel(userID, ch)
-
-	return ch, func() {
-		s.UnregisterNotificationChannel(userID, ch)
+	notification := &models.Notification{
+		Category: models.ReportCategory,
+		Type:     models.PerformanceReport,
+		UserID:   userID,
+		UserRole: role,
+		Title:    "Performance Report Available",
+		Content:  content,
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "View Report",
+				URL:   fmt.Sprintf("/reports/%s", metadata.ReportID),
+			},
+			{
+				Type:  models.ActionDownload,
+				Label: "Download Report",
+				URL:   metadata.DownloadURL,
+			},
+		},
+		Priority: models.MediumPriority,
+		Metadata: json.RawMessage(metadataBytes),
 	}
+
+	return s.SendNotification(ctx, notification)
 }
 
-func (s *NotificationService) Close() error {
-	if err := s.channel.Close(); err != nil {
-		return fmt.Errorf("failed to close channel: %v", err)
+func (s *Service) SendAnalyticsReport(ctx context.Context, userID string, role models.UserRole, metadata models.ReportMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal analytics report metadata: %w", err)
 	}
-	if err := s.conn.Close(); err != nil {
-		return fmt.Errorf("failed to close connection: %v", err)
+
+	content := fmt.Sprintf("The analytics report for %s has been generated. ", metadata.Period)
+	if len(metadata.Summary) > 0 {
+		content += "\n\nHighlights:\n"
+		for key, value := range metadata.Summary {
+			content += fmt.Sprintf("- %s: %s\n", key, value)
+		}
 	}
-	return nil
-}
 
-func (s *NotificationService) GetUnreadNotifications(ctx context.Context, userID int32) ([]models.Notification, error) {
-	return s.queries.GetUnreadNotifications(ctx, userID)
-}
-
-func (s *NotificationService) MarkNotificationsAsRead(ctx context.Context, userID int32) error {
-	return s.queries.MarkNotificationsAsRead(ctx, userID)
-}
-
-func min(a, b time.Duration) time.Duration {
-	if a < b {
-		return a
+	notification := &models.Notification{
+		Category: models.ReportCategory,
+		Type:     models.AnalyticsReport,
+		UserID:   userID,
+		UserRole: role,
+		Title:    fmt.Sprintf("%s Analytics Report", metadata.Period),
+		Content:  content,
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "View Analytics",
+				URL:   fmt.Sprintf("/reports/%s", metadata.ReportID),
+			},
+			{
+				Type:  models.ActionDownload,
+				Label: "Download Full Report",
+				URL:   metadata.DownloadURL,
+			},
+		},
+		Priority: models.MediumPriority,
+		Metadata: json.RawMessage(metadataBytes),
 	}
-	return b
+
+	return s.SendNotification(ctx, notification)
+}
+
+func (s *Service) SendAuditReport(ctx context.Context, userID string, role models.UserRole, metadata models.ReportMetadata) error {
+	metadataBytes, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal audit report metadata: %w", err)
+	}
+
+	notification := &models.Notification{
+		Category: models.ReportCategory,
+		Type:     models.AuditReport,
+		UserID:   userID,
+		UserRole: role,
+		Title:    "Audit Report Ready",
+		Content: fmt.Sprintf("An audit report covering %s has been generated for your review. Please review it at your earliest convenience.",
+			metadata.Period),
+		Actions: []models.Action{
+			{
+				Type:  models.ActionView,
+				Label: "Review Audit",
+				URL:   fmt.Sprintf("/reports/%s", metadata.ReportID),
+			},
+			{
+				Type:  models.ActionDownload,
+				Label: "Download Report",
+				URL:   metadata.DownloadURL,
+			},
+		},
+		Priority: models.HighPriority,
+		Metadata: json.RawMessage(metadataBytes),
+	}
+
+	return s.SendNotification(ctx, notification)
+}
+
+// Close gracefully shuts down the service
+func (s *Service) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Close all subscriber channels
+	for _, ch := range s.subscribers {
+		close(ch)
+	}
+	s.subscribers = make(map[string]chan *models.Notification)
+
+	// Close storage
+	return s.storage.Close()
 }

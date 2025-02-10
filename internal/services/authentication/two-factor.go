@@ -11,16 +11,17 @@ import (
 	"github.com/pquerna/otp/totp"
 
 	"github.com/iRankHub/backend/internal/models"
-	notificationService "github.com/iRankHub/backend/internal/services/notification"
-	notification "github.com/iRankHub/backend/internal/utils/notifications"
+	"github.com/iRankHub/backend/internal/services/notification"
+	notificationModels "github.com/iRankHub/backend/internal/services/notification/models"
+	"github.com/iRankHub/backend/internal/utils"
 )
 
 type TwoFactorService struct {
 	db                  *sql.DB
-	notificationService *notificationService.NotificationService
+	notificationService *notification.Service
 }
 
-func NewTwoFactorService(db *sql.DB, ns *notificationService.NotificationService) *TwoFactorService {
+func NewTwoFactorService(db *sql.DB, ns *notification.Service) *TwoFactorService {
 	return &TwoFactorService{
 		db:                  db,
 		notificationService: ns,
@@ -56,17 +57,36 @@ func (s *TwoFactorService) GenerateTwoFactorOTP(ctx context.Context, email strin
 		return fmt.Errorf("two-factor authentication not enabled for this user")
 	}
 
+	// Get client metadata and increment attempt count
+	clientMeta := utils.FromContext(ctx)
+	clientMeta.AttemptCount++
+
+	// Update context with new attempt count
+	ctx = utils.WithAttemptCount(ctx, clientMeta.AttemptCount)
+
 	otp, err := s.GenerateOTP(user.TwoFactorSecret.String)
 	if err != nil {
 		return fmt.Errorf("failed to generate OTP: %v", err)
 	}
 
-	go func() {
-		err := notification.SendTwoFactorOTPEmail(s.notificationService, user.Email, otp)
-		if err != nil {
-			fmt.Printf("failed to send OTP email: %v\n", err)
-		}
-	}()
+	metadata := notificationModels.AuthMetadata{
+		DeviceInfo:   clientMeta.DeviceInfo,
+		Location:     "2FA Login",
+		LastAttempt:  time.Now(),
+		AttemptCount: int(clientMeta.AttemptCount),
+		IPAddress:    clientMeta.IP,
+	}
+
+	err = s.notificationService.SendTwoFactorCode(
+		ctx,
+		email,
+		s.getUserRole(user.Userrole),
+		otp,
+		metadata,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to send OTP: %v", err)
+	}
 
 	return nil
 }
@@ -89,11 +109,43 @@ func (s *TwoFactorService) VerifyTwoFactor(ctx context.Context, email, code stri
 		Digits: 6,
 	})
 
-	if err != nil {
-		return false, fmt.Errorf("error validating OTP: %v", err)
+	// Get client metadata for logging attempts
+	clientMeta := utils.FromContext(ctx)
+
+	if err != nil || !valid {
+		// Increment failed attempts
+		clientMeta.AttemptCount++
+		ctx = utils.WithAttemptCount(ctx, clientMeta.AttemptCount)
+
+		// Send security alert if too many failed attempts
+		if clientMeta.AttemptCount >= 3 {
+			metadata := notificationModels.AuthMetadata{
+				DeviceInfo:   clientMeta.DeviceInfo,
+				Location:     "2FA Verification",
+				LastAttempt:  time.Now(),
+				AttemptCount: int(clientMeta.AttemptCount),
+				IPAddress:    clientMeta.IP,
+			}
+
+			s.notificationService.SendSecurityAlert(
+				ctx,
+				email,
+				s.getUserRole(user.Userrole),
+				fmt.Sprintf("Multiple failed 2FA attempts detected from IP: %s", clientMeta.IP),
+				metadata,
+			)
+		}
+
+		if err != nil {
+			return false, fmt.Errorf("error validating OTP: %v", err)
+		}
+		return false, nil
 	}
 
-	return valid, nil
+	// Reset attempt count on successful verification
+	ctx = utils.WithAttemptCount(ctx, 0)
+
+	return true, nil
 }
 
 func (s *TwoFactorService) EnableTwoFactor(ctx context.Context, userID int32) error {
@@ -127,17 +179,45 @@ func (s *TwoFactorService) EnableTwoFactor(ctx context.Context, userID int32) er
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
-	go func() {
-		otp, err := s.GenerateOTP(secret)
-		if err != nil {
-			return
-		}
+	// Get client metadata
+	clientMeta := utils.FromContext(ctx)
 
-		err = notification.SendTwoFactorOTPEmail(s.notificationService, user.Email, otp)
-		if err != nil {
-			fmt.Printf("failed to send OTP email: %v\n", err)
-		}
-	}()
+	metadata := notificationModels.AuthMetadata{
+		DeviceInfo:   clientMeta.DeviceInfo,
+		Location:     "2FA Setup",
+		LastAttempt:  time.Now(),
+		AttemptCount: 0,
+		IPAddress:    clientMeta.IP,
+	}
+
+	// Send initial setup OTP
+	otp, err := s.GenerateOTP(secret)
+	if err != nil {
+		return fmt.Errorf("failed to generate setup OTP: %v", err)
+	}
+
+	err = s.notificationService.SendTwoFactorCode(
+		ctx,
+		user.Email,
+		s.getUserRole(user.Userrole),
+		otp,
+		metadata,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to send setup OTP: %v", err)
+	}
+
+	// Send confirmation of 2FA enablement
+	err = s.notificationService.SendSecurityAlert(
+		ctx,
+		user.Email,
+		s.getUserRole(user.Userrole),
+		"Two-factor authentication has been enabled for your account.",
+		metadata,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to send 2FA enablement confirmation: %v", err)
+	}
 
 	return nil
 }
@@ -151,6 +231,11 @@ func (s *TwoFactorService) DisableTwoFactor(ctx context.Context, userID int32) e
 
 	queries := models.New(tx)
 
+	user, err := queries.GetUserByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user: %v", err)
+	}
+
 	err = queries.UpdateAndEnableTwoFactor(ctx, models.UpdateAndEnableTwoFactorParams{
 		Userid:          userID,
 		TwoFactorSecret: sql.NullString{String: "", Valid: false},
@@ -163,13 +248,44 @@ func (s *TwoFactorService) DisableTwoFactor(ctx context.Context, userID int32) e
 		return fmt.Errorf("failed to commit transaction: %v", err)
 	}
 
+	// Get client metadata
+	clientMeta := utils.FromContext(ctx)
+
+	metadata := notificationModels.AuthMetadata{
+		DeviceInfo:   clientMeta.DeviceInfo,
+		Location:     "2FA Disable",
+		LastAttempt:  time.Now(),
+		AttemptCount: 0,
+		IPAddress:    clientMeta.IP,
+	}
+
+	// Send security alert about 2FA being disabled
+	err = s.notificationService.SendSecurityAlert(
+		ctx,
+		user.Email,
+		s.getUserRole(user.Userrole),
+		"Two-factor authentication has been disabled for your account. If you did not make this change, please contact support immediately.",
+		metadata,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to send 2FA disablement alert: %v", err)
+	}
+
 	return nil
 }
 
-func (s *TwoFactorService) ValidateCode(secret, code string) (bool, error) {
-	return totp.ValidateCustom(code, secret, time.Now(), totp.ValidateOpts{
-		Period: 900, // 15 minutes in seconds
-		Skew:   1,   // Allow 1 period before and after
-		Digits: 6,
-	})
+// getUserRole converts string role to notificationModels.UserRole
+func (s *TwoFactorService) getUserRole(role string) notificationModels.UserRole {
+	switch role {
+	case "admin":
+		return notificationModels.AdminRole
+	case "school":
+		return notificationModels.SchoolRole
+	case "student":
+		return notificationModels.StudentRole
+	case "volunteer":
+		return notificationModels.VolunteerRole
+	default:
+		return notificationModels.UnspecifiedRole
+	}
 }

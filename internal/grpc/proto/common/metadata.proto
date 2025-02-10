@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package common;
+
+option go_package = "github.com/iRankHub/backend/internal/grpc/proto/common";
+
+// ClientMetadata represents client connection information
+message ClientMetadata {
+  string ip_address = 1;
+  string user_agent = 2;
+  string device_info = 3;
+  int32 attempt_count = 4;
+}
+
+// MetadataContext represents common metadata for all requests
+message MetadataContext {
+  ClientMetadata client_info = 1;
+  string request_id = 2;
+  string session_id = 3;
+}
