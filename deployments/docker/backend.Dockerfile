@@ -1,4 +1,4 @@
-FROM golang:1.22.2-alpine AS builder
+FROM golang:1.23-alpine AS builder
 WORKDIR /app
 COPY . .
 RUN go build -o backend cmd/server/main.go

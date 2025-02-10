@@ -1,6 +1,6 @@
 module github.com/iRankHub/backend
 
-go 1.22.2
+go 1.23
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.32.2
@@ -16,6 +16,7 @@ require (
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/robfig/cron/v3 v3.0.1
 	golang.org/x/crypto v0.31.0
+	github.com/sqlc-dev/pqtype v0.3.0
 	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.34.2
 	k8s.io/api v0.31.1

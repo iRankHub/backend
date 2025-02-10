@@ -112,14 +112,14 @@ func (q *Queries) GetAccountStatus(ctx context.Context, userid int32) (string, e
 const getAllUsers = `-- name: GetAllUsers :many
 WITH ApprovedCount AS (
     SELECT COUNT(*) AS count
-    FROM Users
-    WHERE Status = 'approved' AND deleted_at IS NULL
-),
-RecentSignupsCount AS (
-    SELECT COUNT(*) AS count
-    FROM Users
-    WHERE created_at >= NOW() - INTERVAL '30 days' AND deleted_at IS NULL
-)
+FROM Users
+WHERE Status = 'approved' AND deleted_at IS NULL
+    ),
+    RecentSignupsCount AS (
+SELECT COUNT(*) AS count
+FROM Users
+WHERE created_at >= NOW() - INTERVAL '30 days' AND deleted_at IS NULL
+    )
 SELECT
     u.userid, u.webauthnuserid, u.name, u.gender, u.email, u.password, u.userrole, u.status, u.verificationstatus, u.deactivatedat, u.two_factor_secret, u.two_factor_enabled, u.failed_login_attempts, u.last_login_attempt, u.last_logout, u.reset_token, u.reset_token_expires, u.created_at, u.updated_at, u.deleted_at, u.yesterday_approved_count,
     CASE
@@ -128,25 +128,35 @@ SELECT
         WHEN u.UserRole = 'school' THEN sch.iDebateSchoolID
         WHEN u.UserRole = 'admin' THEN 'iDebate'
         ELSE NULL
-    END AS iDebateID,
+        END AS iDebateID,
     CASE
         WHEN u.UserRole = 'school' THEN sch.SchoolName
         ELSE u.Name
-    END AS DisplayName,
+        END AS DisplayName,
     (SELECT count FROM ApprovedCount) AS approved_users_count,
     (SELECT count FROM RecentSignupsCount) AS recent_signups_count
 FROM Users u
-LEFT JOIN Students s ON u.UserID = s.UserID
-LEFT JOIN Volunteers v ON u.UserID = v.UserID
-LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
+         LEFT JOIN Students s ON u.UserID = s.UserID
+         LEFT JOIN Volunteers v ON u.UserID = v.UserID
+         LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
 WHERE u.deleted_at IS NULL
+  AND (
+    CASE
+        WHEN u.UserRole = 'school' THEN
+            sch.SchoolName ILIKE '%' || COALESCE($3::text, '') || '%'
+            ELSE
+                u.Name ILIKE '%' || COALESCE($3::text, '') || '%'
+        END
+        OR $3::text = ''
+    )
 ORDER BY u.created_at DESC
-LIMIT $1 OFFSET $2
+    LIMIT $1 OFFSET $2
 `
 
 type GetAllUsersParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+	Limit       int32  `json:"limit"`
+	Offset      int32  `json:"offset"`
+	SearchQuery string `json:"search_query"`
 }
 
 type GetAllUsersRow struct {
@@ -178,7 +188,7 @@ type GetAllUsersRow struct {
 }
 
 func (q *Queries) GetAllUsers(ctx context.Context, arg GetAllUsersParams) ([]GetAllUsersRow, error) {
-	rows, err := q.db.QueryContext(ctx, getAllUsers, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, getAllUsers, arg.Limit, arg.Offset, arg.SearchQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -276,12 +286,24 @@ func (q *Queries) GetPendingUsers(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
-const getTotalUserCount = `-- name: GetTotalUserCount :one
-SELECT COUNT(*) FROM Users WHERE deleted_at IS NULL
+const getTotalUserCountWithSearch = `-- name: GetTotalUserCountWithSearch :one
+SELECT COUNT(*)
+FROM Users u
+         LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
+WHERE u.deleted_at IS NULL
+  AND (
+    CASE
+        WHEN u.UserRole = 'school' THEN
+            sch.SchoolName ILIKE '%' || COALESCE($1::text, '') || '%'
+            ELSE
+                u.Name ILIKE '%' || COALESCE($1::text, '') || '%'
+        END
+        OR $1::text = ''
+    )
 `
 
-func (q *Queries) GetTotalUserCount(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getTotalUserCount)
+func (q *Queries) GetTotalUserCountWithSearch(ctx context.Context, searchQuery string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getTotalUserCountWithSearch, searchQuery)
 	var count int64
 	err := row.Scan(&count)
 	return count, err

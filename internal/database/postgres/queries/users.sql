@@ -50,14 +50,14 @@ RETURNING *;
 -- name: GetAllUsers :many
 WITH ApprovedCount AS (
     SELECT COUNT(*) AS count
-    FROM Users
-    WHERE Status = 'approved' AND deleted_at IS NULL
-),
-RecentSignupsCount AS (
-    SELECT COUNT(*) AS count
-    FROM Users
-    WHERE created_at >= NOW() - INTERVAL '30 days' AND deleted_at IS NULL
-)
+FROM Users
+WHERE Status = 'approved' AND deleted_at IS NULL
+    ),
+    RecentSignupsCount AS (
+SELECT COUNT(*) AS count
+FROM Users
+WHERE created_at >= NOW() - INTERVAL '30 days' AND deleted_at IS NULL
+    )
 SELECT
     u.*,
     CASE
@@ -66,20 +66,44 @@ SELECT
         WHEN u.UserRole = 'school' THEN sch.iDebateSchoolID
         WHEN u.UserRole = 'admin' THEN 'iDebate'
         ELSE NULL
-    END AS iDebateID,
+        END AS iDebateID,
     CASE
         WHEN u.UserRole = 'school' THEN sch.SchoolName
         ELSE u.Name
-    END AS DisplayName,
+        END AS DisplayName,
     (SELECT count FROM ApprovedCount) AS approved_users_count,
     (SELECT count FROM RecentSignupsCount) AS recent_signups_count
 FROM Users u
-LEFT JOIN Students s ON u.UserID = s.UserID
-LEFT JOIN Volunteers v ON u.UserID = v.UserID
-LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
+         LEFT JOIN Students s ON u.UserID = s.UserID
+         LEFT JOIN Volunteers v ON u.UserID = v.UserID
+         LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
 WHERE u.deleted_at IS NULL
+  AND (
+    CASE
+        WHEN u.UserRole = 'school' THEN
+            sch.SchoolName ILIKE '%' || COALESCE(@search_query::text, '') || '%'
+            ELSE
+                u.Name ILIKE '%' || COALESCE(@search_query::text, '') || '%'
+        END
+        OR @search_query::text = ''
+    )
 ORDER BY u.created_at DESC
-LIMIT $1 OFFSET $2;
+    LIMIT $1 OFFSET $2;
+
+-- name: GetTotalUserCountWithSearch :one
+SELECT COUNT(*)
+FROM Users u
+         LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
+WHERE u.deleted_at IS NULL
+  AND (
+    CASE
+        WHEN u.UserRole = 'school' THEN
+            sch.SchoolName ILIKE '%' || COALESCE(@search_query::text, '') || '%'
+            ELSE
+                u.Name ILIKE '%' || COALESCE(@search_query::text, '') || '%'
+        END
+        OR @search_query::text = ''
+    );
 
 -- name: GetUserStatistics :one
 WITH AdminCount AS (
@@ -132,8 +156,6 @@ SELECT
     (SELECT count FROM LastMonthNewUsersCount) AS last_month_new_users_count,
     (SELECT yesterday_approved_count FROM YesterdayApprovedCount) AS yesterday_approved_count;
 
--- name: GetTotalUserCount :one
-SELECT COUNT(*) FROM Users WHERE deleted_at IS NULL;
 
 -- name: UpdateUserStatus :exec
 UPDATE Users

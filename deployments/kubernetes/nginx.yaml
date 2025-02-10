@@ -15,68 +15,68 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: lke252359-403034-55c1a49e0000
       containers:
-      - name: nginx
-        image: nginx:1.25-alpine
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "200m"
-          limits:
-            memory: "512Mi"
-            cpu: "400m"
-        ports:
-        - containerPort: 80
-          hostPort: 80
-          protocol: TCP
-        - containerPort: 443
-          hostPort: 443
-          protocol: TCP
-        volumeMounts:
-        - name: nginx-config
-          mountPath: /etc/nginx/conf.d/default.conf
-          subPath: default.conf
-        - name: certbot-webroot
-          mountPath: /var/www/certbot
-        - name: ssl-certs
-          mountPath: /etc/letsencrypt/live/backend.debaterwanda.org/
-          readOnly: true
-        - name: nginx-temp
-          mountPath: /var/cache/nginx
-        - name: nginx-run
-          mountPath: /var/run
-        lifecycle:
-          preStop:
-            exec:
-              command: ["/usr/sbin/nginx", "-s", "quit"]
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 80
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 80
-          initialDelaySeconds: 15
-          periodSeconds: 20
+        - name: nginx
+          image: nginx:1.25-alpine
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "400m"
+          ports:
+            - containerPort: 80
+              hostPort: 80
+              protocol: TCP
+            - containerPort: 443
+              hostPort: 443
+              protocol: TCP
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+            - name: certbot-webroot
+              mountPath: /var/www/certbot
+            - name: ssl-certs
+              mountPath: /etc/letsencrypt/live/backend.debaterwanda.org/
+              readOnly: true
+            - name: nginx-temp
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/usr/sbin/nginx", "-s", "quit"]
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 20
       volumes:
-      - name: nginx-config
-        configMap:
-          name: nginx-config
-      - name: certbot-webroot
-        emptyDir: {}
-      - name: ssl-certs
-        secret:
-          secretName: ssl-cert-secret
-          items:
-          - key: tls.crt
-            path: fullchain.pem
-          - key: tls.key
-            path: privkey.pem
-          - key: chain.pem
-            path: chain.pem
-      - name: nginx-temp
-        emptyDir: {}
-      - name: nginx-run
-        emptyDir: {}
+        - name: nginx-config
+          configMap:
+            name: nginx-config
+        - name: certbot-webroot
+          emptyDir: {}
+        - name: ssl-certs
+          secret:
+            secretName: ssl-cert-secret
+            items:
+              - key: tls.crt
+                path: fullchain.pem
+              - key: tls.key
+                path: privkey.pem
+              - key: chain.pem
+                path: chain.pem
+        - name: nginx-temp
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}

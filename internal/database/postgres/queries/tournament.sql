@@ -11,8 +11,10 @@ WHERE LeagueID = $1 AND deleted_at IS NULL;
 -- name: ListLeaguesPaginated :many
 SELECT * FROM Leagues
 WHERE deleted_at IS NULL
+  AND (LOWER(Name) LIKE LOWER('%' || COALESCE(@search_query::text, '') || '%')
+    OR COALESCE(@search_query::text, '') = '')
 ORDER BY LeagueID
-LIMIT $1 OFFSET $2;
+    LIMIT $1 OFFSET $2;
 
 -- name: UpdateLeague :one
 UPDATE Leagues
@@ -38,8 +40,11 @@ WHERE FormatID = $1 AND deleted_at IS NULL;
 -- name: ListTournamentFormatsPaginated :many
 SELECT * FROM TournamentFormats
 WHERE deleted_at IS NULL
+  AND (LOWER(FormatName) LIKE LOWER('%' || COALESCE(@search_query::text, '') || '%')
+    OR LOWER(Description) LIKE LOWER('%' || COALESCE(@search_query::text, '') || '%')
+    OR COALESCE(@search_query::text, '') = '')
 ORDER BY FormatID
-LIMIT $1 OFFSET $2;
+    LIMIT $1 OFFSET $2;
 
 -- name: UpdateTournamentFormatDetails :one
 UPDATE TournamentFormats
@@ -54,8 +59,15 @@ WHERE FormatID = $1;
 
 -- Tournament Queries
 -- name: CreateTournamentEntry :one
-INSERT INTO Tournaments (Name, StartDate, EndDate, Location, FormatID, LeagueID, CoordinatorID, NumberOfPreliminaryRounds, NumberOfEliminationRounds, JudgesPerDebatePreliminary, JudgesPerDebateElimination, TournamentFee, ImageUrl)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+INSERT INTO Tournaments (
+    Name, StartDate, EndDate, Location, FormatID, LeagueID,
+    CoordinatorID, NumberOfPreliminaryRounds, NumberOfEliminationRounds,
+    JudgesPerDebatePreliminary, JudgesPerDebateElimination, TournamentFee,
+    ImageUrl, Motions
+)
+VALUES (
+           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+       )
 RETURNING *;
 
 -- name: GetTournamentByID :one
@@ -85,23 +97,27 @@ SELECT
     COUNT(DISTINCT tm.TeamID) AS TeamsCount
 FROM
     Tournaments t
-JOIN
+        JOIN
     TournamentFormats tf ON t.FormatID = tf.FormatID
-JOIN
+        JOIN
     Leagues l ON t.LeagueID = l.LeagueID
-JOIN
+        JOIN
     Users u ON t.CoordinatorID = u.UserID
-LEFT JOIN
+        LEFT JOIN
     TournamentInvitations ti ON t.TournamentID = ti.TournamentID
-LEFT JOIN
+        LEFT JOIN
     Teams tm ON t.TournamentID = tm.TournamentID
 WHERE
     t.deleted_at IS NULL
+  AND (LOWER(t.Name) LIKE LOWER('%' || COALESCE(@search_query::text, '') || '%')
+    OR LOWER(t.Location) LIKE LOWER('%' || COALESCE(@search_query::text, '') || '%')
+    OR LOWER(l.Name) LIKE LOWER('%' || COALESCE(@search_query::text, '') || '%')
+    OR COALESCE(@search_query::text, '') = '')
 GROUP BY
     t.TournamentID, tf.FormatName, l.Name, u.Name, u.UserID
 ORDER BY
     t.StartDate DESC
-LIMIT $1 OFFSET $2;
+    LIMIT $1 OFFSET $2;
 
 -- name: UpdateTournamentDetails :one
 WITH debate_check AS (
@@ -123,7 +139,8 @@ SET Name = $2,
     JudgesPerDebatePreliminary = $10,
     JudgesPerDebateElimination = $11,
     TournamentFee = $12,
-    ImageUrl = $13
+    ImageUrl = $13,
+    Motions = $14
 FROM debate_check
 WHERE t.TournamentID = $1
   AND NOT debate_check.has_debates
@@ -131,7 +148,7 @@ RETURNING t.*,
     CASE
         WHEN debate_check.has_debates THEN 'Cannot update: Debates exist'::text
         ELSE NULL
-    END AS error_message;
+        END AS error_message;
 
 -- name: DeleteTournamentByID :exec
 UPDATE Tournaments
@@ -142,6 +159,22 @@ WHERE TournamentID = $1;
 INSERT INTO TournamentInvitations (TournamentID, InviteeID, InviteeRole, Status)
 VALUES ($1, $2, $3, $4)
 RETURNING *;
+
+-- name: GetUserDetailsForInvitation :one
+SELECT
+    u.UserRole,
+    CASE
+        WHEN u.UserRole = 'student' THEN s.iDebateStudentID
+        WHEN u.UserRole = 'volunteer' THEN v.iDebateVolunteerID
+        WHEN u.UserRole = 'school' THEN sch.iDebateSchoolID
+        END as iDebateID,
+    u.Email,
+    u.Name
+FROM Users u
+         LEFT JOIN Students s ON u.UserID = s.UserID
+         LEFT JOIN Volunteers v ON u.UserID = v.UserID
+         LEFT JOIN Schools sch ON u.UserID = sch.ContactPersonID
+WHERE u.UserID = $1 AND u.deleted_at IS NULL;
 
 -- name: GetInvitationByID :one
 SELECT * FROM TournamentInvitations WHERE InvitationID = $1;

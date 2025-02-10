@@ -85,9 +85,11 @@ func (s *FormatService) ListTournamentFormats(ctx context.Context, req *tourname
 		return nil, err
 	}
 	queries := models.New(s.db)
+
 	formats, err := queries.ListTournamentFormatsPaginated(ctx, models.ListTournamentFormatsPaginatedParams{
-		Limit:  req.GetPageSize(),
-		Offset: req.GetPageToken(),
+		Limit:       req.GetPageSize(),
+		Offset:      req.GetPageToken(),
+		SearchQuery: req.GetSearchQuery(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list tournament formats: %v", err)

@@ -26,18 +26,35 @@ func NewRankingService(db *sql.DB) *RankingService {
 }
 
 func (s *RankingService) GetTournamentStudentRanking(ctx context.Context, req *debate_management.TournamentRankingRequest) (*debate_management.TournamentRankingResponse, error) {
-	if err := s.validateAuthentication(req.GetToken()); err != nil {
+	claims, err := utils.ValidateToken(req.GetToken())
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
+	}
+
+	userRole, ok := claims["user_role"].(string)
+	if !ok {
+		return nil, status.Error(codes.Internal, "invalid user role in token")
+	}
+
+	// Check visibility for non-admin users
+	if err := s.checkRankingVisibility(ctx, req.GetTournamentId(), "student", userRole); err != nil {
 		return nil, err
 	}
 
 	queries := models.New(s.db)
-	dbRankings, err := queries.GetTournamentStudentRanking(ctx, models.GetTournamentStudentRankingParams{
+	params := models.GetTournamentStudentRankingParams{
 		Tournamentid: req.GetTournamentId(),
 		Limit:        int32(req.GetPageSize()),
 		Offset:       int32((req.GetPage() - 1) * req.GetPageSize()),
-	})
+	}
+
+	if req.GetSearch() != "" {
+		params.Column4 = req.GetSearch()
+	}
+
+	dbRankings, err := queries.GetTournamentStudentRanking(ctx, params)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get tournament student ranking: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to get tournament student ranking: %v", err)
 	}
 
 	rankings := make([]*debate_management.StudentRanking, len(dbRankings))
@@ -54,6 +71,7 @@ func (s *RankingService) GetTournamentStudentRanking(ctx context.Context, req *d
 			TotalWins:   int32(dbRanking.Totalwins),
 			TotalPoints: totalPoints,
 			AverageRank: float64(dbRanking.Averagerank),
+			Place:       int32(dbRanking.Place), // Include the actual place in response
 		}
 	}
 
@@ -291,12 +309,33 @@ func (s *RankingService) GetTournamentTeamsRanking(ctx context.Context, req *deb
 		return nil, err
 	}
 
+	// Get user role and check visibility
+	claims, err := utils.ValidateToken(req.GetToken())
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
+	}
+
+	userRole, ok := claims["user_role"].(string)
+	if !ok {
+		return nil, status.Error(codes.Internal, "invalid user role in token")
+	}
+
+	if err := s.checkRankingVisibility(ctx, req.GetTournamentId(), "team", userRole); err != nil {
+		return nil, err
+	}
+
 	queries := models.New(s.db)
-	dbRankings, err := queries.GetTournamentTeamsRanking(ctx, models.GetTournamentTeamsRankingParams{
+	params := models.GetTournamentTeamsRankingParams{
 		Tournamentid: req.GetTournamentId(),
 		Limit:        int32(req.GetPageSize()),
 		Offset:       int32((req.GetPage() - 1) * req.GetPageSize()),
-	})
+	}
+
+	if req.GetSearch() != "" {
+		params.Column4 = req.GetSearch()
+	}
+
+	dbRankings, err := queries.GetTournamentTeamsRanking(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tournament teams ranking: %v", err)
 	}
@@ -308,24 +347,9 @@ func (s *RankingService) GetTournamentTeamsRanking(ctx context.Context, req *deb
 
 	rankings := make([]*debate_management.TeamRanking, len(dbRankings))
 	for i, dbRanking := range dbRankings {
-		// Handle Schoolnames
-		schoolNamesStr, ok := dbRanking.Schoolnames.(string)
-		if !ok {
-			return nil, fmt.Errorf("unexpected type for Schoolnames for team %s", dbRanking.Teamname)
-		}
-		schoolNames := strings.Split(schoolNamesStr, ",")
-
-		// Handle Totalpoints
-		totalPoints, err := convertToFloat64(dbRanking.Totalpoints)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse total points for team %s: %v", dbRanking.Teamname, err)
-		}
-
-		// Handle Averagerank
-		averageRank, err := convertToFloat64(dbRanking.Averagerank)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse average rank for team %s: %v", dbRanking.Teamname, err)
-		}
+		schoolNames := strings.Split(dbRanking.Schoolnames.(string), ",")
+		totalPoints, _ := convertToFloat64(dbRanking.Totalpoints)
+		averageRank, _ := convertToFloat64(dbRanking.Averagerank)
 
 		rankings[i] = &debate_management.TeamRanking{
 			TeamId:      dbRanking.Teamid,
@@ -334,6 +358,7 @@ func (s *RankingService) GetTournamentTeamsRanking(ctx context.Context, req *deb
 			Wins:        int32(dbRanking.Wins),
 			TotalPoints: totalPoints,
 			AverageRank: averageRank,
+			Place:       int32(dbRanking.Place),
 		}
 	}
 
@@ -362,16 +387,32 @@ func convertToFloat64(value interface{}) (float64, error) {
 }
 
 func (s *RankingService) GetTournamentSchoolRanking(ctx context.Context, req *debate_management.TournamentSchoolRankingRequest) (*debate_management.TournamentSchoolRankingResponse, error) {
-	if err := s.validateAuthentication(req.GetToken()); err != nil {
+	claims, err := utils.ValidateToken(req.GetToken())
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
+	}
+
+	userRole, ok := claims["user_role"].(string)
+	if !ok {
+		return nil, status.Error(codes.Internal, "invalid user role in token")
+	}
+
+	if err := s.checkRankingVisibility(ctx, req.GetTournamentId(), "school", userRole); err != nil {
 		return nil, err
 	}
 
 	queries := models.New(s.db)
-	dbRankings, err := queries.GetTournamentSchoolRanking(ctx, models.GetTournamentSchoolRankingParams{
+	params := models.GetTournamentSchoolRankingParams{
 		Tournamentid: req.GetTournamentId(),
 		Limit:        int32(req.GetPageSize()),
 		Offset:       int32((req.GetPage() - 1) * req.GetPageSize()),
-	})
+	}
+
+	if req.GetSearch() != "" {
+		params.Column4 = req.GetSearch()
+	}
+
+	dbRankings, err := queries.GetTournamentSchoolRanking(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tournament school ranking: %v", err)
 	}
@@ -383,17 +424,22 @@ func (s *RankingService) GetTournamentSchoolRanking(ctx context.Context, req *de
 
 	rankings := make([]*debate_management.SchoolRanking, len(dbRankings))
 	for i, dbRanking := range dbRankings {
-		totalPoints, err := strconv.ParseFloat(dbRanking.Totalpoints, 64)
+		totalPoints, err := convertToFloat64(dbRanking.Totalpoints)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse total points for school %s: %v", dbRanking.Schoolname, err)
+			return nil, fmt.Errorf("failed to parse total points: %v", err)
+		}
+		averageRank, err := convertToFloat64(dbRanking.Averagerank)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse average rank: %v", err)
 		}
 
 		rankings[i] = &debate_management.SchoolRanking{
 			SchoolName:  dbRanking.Schoolname,
 			TeamCount:   int32(dbRanking.Teamcount),
 			TotalWins:   int32(dbRanking.Totalwins),
-			AverageRank: dbRanking.Averagerank,
+			AverageRank: averageRank,
 			TotalPoints: totalPoints,
+			Place:       int32(dbRanking.Place),
 		}
 	}
 
@@ -728,29 +774,41 @@ func (s *RankingService) validateAuthentication(token string) error {
 }
 
 func (s *RankingService) GetTournamentVolunteerRanking(ctx context.Context, req *debate_management.TournamentVolunteerRankingRequest) (*debate_management.TournamentVolunteerRankingResponse, error) {
-	if err := s.validateAuthentication(req.GetToken()); err != nil {
+	claims, err := utils.ValidateToken(req.GetToken())
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
+	}
+
+	userRole, ok := claims["user_role"].(string)
+	if !ok {
+		return nil, status.Error(codes.Internal, "invalid user role in token")
+	}
+
+	if err := s.checkRankingVisibility(ctx, req.GetTournamentId(), "volunteer", userRole); err != nil {
 		return nil, err
 	}
 
 	queries := models.New(s.db)
-
-	// Get the rankings
-	dbRankings, err := queries.GetTournamentVolunteerRanking(ctx, models.GetTournamentVolunteerRankingParams{
+	params := models.GetTournamentVolunteerRankingParams{
 		Tournamentid: req.GetTournamentId(),
 		Limit:        int32(req.GetPageSize()),
 		Offset:       int32((req.GetPage() - 1) * req.GetPageSize()),
-	})
+	}
+
+	if req.GetSearch() != "" {
+		params.Column4 = req.GetSearch()
+	}
+
+	dbRankings, err := queries.GetTournamentVolunteerRanking(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tournament volunteer ranking: %v", err)
 	}
 
-	// Get total count
 	totalCount, err := queries.GetTournamentVolunteerRankingCount(ctx, req.GetTournamentId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get total count: %v", err)
 	}
 
-	// Convert database results to response format
 	rankings := make([]*debate_management.VolunteerTournamentRank, len(dbRankings))
 	for i, dbRanking := range dbRankings {
 		// Convert average rating to float64
@@ -771,7 +829,8 @@ func (s *RankingService) GetTournamentVolunteerRanking(ctx context.Context, req 
 			AverageRating:     averageRating,
 			PreliminaryRounds: int32(dbRanking.Preliminaryrounds),
 			EliminationRounds: int32(dbRanking.Eliminationrounds),
-			Rank:              int32(dbRanking.Rankposition),
+			Rank:              int32(dbRanking.Place),
+			Place:             int32(dbRanking.Place),
 		}
 	}
 
@@ -788,4 +847,59 @@ func (s *RankingService) getUserStudentID(ctx context.Context, userID int32) (in
 		return 0, fmt.Errorf("failed to get student: %v", err)
 	}
 	return student.Studentid, nil
+}
+
+func (s *RankingService) SetRankingVisibility(ctx context.Context, req *debate_management.SetRankingVisibilityRequest) (*debate_management.SetRankingVisibilityResponse, error) {
+	// Verify admin role
+	claims, err := utils.ValidateToken(req.GetToken())
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
+	}
+
+	userRole, ok := claims["user_role"].(string)
+	if !ok || userRole != "admin" {
+		return nil, status.Error(codes.PermissionDenied, "only admins can modify ranking visibility")
+	}
+
+	queries := models.New(s.db)
+	err = queries.SetRankingVisibility(ctx, models.SetRankingVisibilityParams{
+		Tournamentid: req.GetTournamentId(),
+		Rankingtype:  req.GetRankingType(),
+		Visibleto:    req.GetVisibleTo(),
+		Isvisible:    req.GetIsVisible(),
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to set ranking visibility: %v", err)
+	}
+
+	return &debate_management.SetRankingVisibilityResponse{
+		Success: true,
+		Message: "Ranking visibility updated successfully",
+	}, nil
+}
+
+// Add this helper method to check visibility
+func (s *RankingService) checkRankingVisibility(ctx context.Context, tournamentID int32, rankingType string, userRole string) error {
+	if userRole == "admin" {
+		return nil
+	}
+
+	queries := models.New(s.db)
+	isVisible, err := queries.GetRankingVisibility(ctx, models.GetRankingVisibilityParams{
+		Tournamentid: tournamentID,
+		Rankingtype:  rankingType,
+		Visibleto:    userRole,
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return status.Error(codes.PermissionDenied, "ranking not visible for your role")
+		}
+		return status.Errorf(codes.Internal, "failed to check ranking visibility: %v", err)
+	}
+
+	if !isVisible {
+		return status.Error(codes.PermissionDenied, "ranking not visible for your role")
+	}
+
+	return nil
 }

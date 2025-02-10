@@ -31,6 +31,7 @@ service TournamentService {
   rpc GetTournamentRegistrations(GetTournamentRegistrationsRequest) returns (GetTournamentRegistrationsResponse);
 
   // Invitation operations
+  rpc SendInvitations(SendInvitationsRequest) returns (SendInvitationsResponse);
   rpc GetInvitationsByUser(GetInvitationsByUserRequest) returns (GetInvitationsByUserResponse);
   rpc GetInvitationsByTournament(GetInvitationsByTournamentRequest) returns (GetInvitationsByTournamentResponse);
   rpc UpdateInvitationStatus(UpdateInvitationStatusRequest) returns (UpdateInvitationStatusResponse);
@@ -85,6 +86,17 @@ message TournamentFormat {
   int32 speakers_per_team = 4;
 }
 
+message Motion {
+  string text = 1;
+  string info_slide = 2;  // Optional additional context
+  int32 round_number = 3;
+}
+
+message TournamentMotions {
+  repeated Motion preliminary_motions = 1;
+  repeated Motion elimination_motions = 2;
+}
+
 message Tournament {
   int32 tournament_id = 1;
   string name = 2;
@@ -104,6 +116,7 @@ message Tournament {
   int32 number_of_schools = 16;
   int32 number_of_teams = 17;
   string league_name = 18;
+  TournamentMotions motions = 19;
 }
 
 message GetTournamentStatsRequest {
@@ -152,6 +165,7 @@ message ListLeaguesRequest {
   int32 page_size = 1;
   int32 page_token = 2;
   string token = 3;
+  string search_query = 4;
 }
 
 message UpdateLeagueRequest {
@@ -186,6 +200,7 @@ message ListTournamentFormatsRequest {
   int32 page_size = 1;
   int32 page_token = 2;
   string token = 3;
+  string search_query = 4;
 }
 
 message UpdateTournamentFormatRequest {
@@ -216,6 +231,7 @@ message CreateTournamentRequest {
   double tournament_fee = 12;
   string token = 13;
   string image_url = 14;
+  TournamentMotions motions = 15;
 }
 
 message GetTournamentRequest {
@@ -227,6 +243,7 @@ message ListTournamentsRequest {
   int32 page_size = 1;
   int32 page_token = 2;
   string token = 3;
+  string search_query = 4;
 }
 
 message UpdateTournamentRequest {
@@ -245,6 +262,7 @@ message UpdateTournamentRequest {
   double tournament_fee = 13;
   string token = 14;
   string image_url = 15;
+  TournamentMotions motions = 16;
 }
 
 message DeleteTournamentRequest {
@@ -319,6 +337,18 @@ message UpdateTournamentResponse {
 message DeleteTournamentResponse {
   bool success = 1;
   string message = 2;
+}
+
+message SendInvitationsRequest {
+  string token = 1;
+  int32 tournament_id = 2;
+  repeated int32 user_ids = 3;
+}
+
+message SendInvitationsResponse {
+  bool success = 1;
+  string message = 2;
+  repeated int32 failed_user_ids = 3;
 }
 
 message GetInvitationsByUserRequest {

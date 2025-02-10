@@ -57,6 +57,7 @@ CREATE TABLE Tournaments (
     JudgesPerDebateElimination INTEGER NOT NULL,
     TournamentFee DECIMAL(10, 2) NOT NULL,
     ImageUrl VARCHAR(2048),
+    Motions JSONB DEFAULT '{"preliminary": [], "elimination": []}',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP,
@@ -331,4 +332,14 @@ CREATE TABLE SchoolTournamentRegistrations (
     CreatedBy INTEGER REFERENCES Users(UserID),
     UpdatedBy INTEGER REFERENCES Users(UserID),
     UNIQUE(SchoolID, TournamentID)
+);
+
+CREATE TABLE RankingVisibility (
+    TournamentID INTEGER NOT NULL REFERENCES Tournaments(TournamentID),
+    RankingType VARCHAR(50) NOT NULL CHECK (RankingType IN ('student', 'team', 'school', 'volunteer')),
+    VisibleTo VARCHAR(50) NOT NULL CHECK (VisibleTo IN ('volunteer', 'school', 'student')),
+    IsVisible BOOLEAN NOT NULL DEFAULT FALSE,
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (TournamentID, RankingType, VisibleTo)
 );

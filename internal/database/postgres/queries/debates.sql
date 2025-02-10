@@ -681,27 +681,45 @@ WHERE
     Teams.TeamID = team_stats.TeamID AND Teams.TournamentID = team_stats.TournamentID;
 
 -- name: GetTournamentStudentRanking :many
-SELECT
-    s.StudentID,
-    s.FirstName || ' ' || s.LastName AS StudentName,
-    sch.SchoolName,
-    COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) AS TotalWins,
-    CAST(SUM(ss.SpeakerPoints) AS DECIMAL(10,2)) AS TotalPoints,
-    AVG(ss.SpeakerRank) AS AverageRank
-FROM
-    Students s
-JOIN TeamMembers tm ON s.StudentID = tm.StudentID
-JOIN Teams t ON tm.TeamID = t.TeamID
-JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
-JOIN Ballots b ON d.DebateID = b.DebateID
-JOIN SpeakerScores ss ON s.StudentID = ss.SpeakerID AND b.BallotID = ss.BallotID
-JOIN Schools sch ON s.SchoolID = sch.SchoolID
-WHERE
-    d.TournamentID = $1 AND d.IsEliminationRound = false
-GROUP BY
-    s.StudentID, StudentName, sch.SchoolName
-ORDER BY
-    TotalPoints DESC, AverageRank ASC, TotalWins DESC
+WITH RankedStudents AS (
+    SELECT
+        s.StudentID,
+        s.FirstName || ' ' || s.LastName AS StudentName,
+        sch.SchoolName,
+        COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) AS TotalWins,
+        CAST(SUM(ss.SpeakerPoints) AS DECIMAL(10,2)) AS TotalPoints,
+        AVG(ss.SpeakerRank) AS AverageRank,
+        RANK() OVER (ORDER BY SUM(ss.SpeakerPoints) DESC, AVG(ss.SpeakerRank) ASC,
+            COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) DESC) as place
+    FROM Students s
+             JOIN TeamMembers tm ON s.StudentID = tm.StudentID
+             JOIN Teams t ON tm.TeamID = t.TeamID
+             JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
+             JOIN Ballots b ON d.DebateID = b.DebateID
+             JOIN SpeakerScores ss ON s.StudentID = ss.SpeakerID AND b.BallotID = ss.BallotID
+             JOIN Schools sch ON s.SchoolID = sch.SchoolID
+    WHERE d.TournamentID = $1 AND d.IsEliminationRound = false
+    GROUP BY s.StudentID, StudentName, sch.SchoolName
+),
+     TopThree AS (
+         SELECT *
+         FROM RankedStudents
+         WHERE place <= 3
+     ),
+     SearchResults AS (
+         SELECT *
+         FROM RankedStudents
+         WHERE $4::text IS NULL
+            OR StudentName ILIKE '%' || $4 || '%'
+            OR SchoolName ILIKE '%' || $4 || '%'
+     )
+SELECT DISTINCT ON (place) *
+FROM (
+         SELECT * FROM TopThree
+         UNION
+         SELECT * FROM SearchResults WHERE place > 3
+     ) combined
+ORDER BY place
 LIMIT $2 OFFSET $3;
 
 -- name: GetOverallStudentRanking :many
@@ -767,38 +785,46 @@ ORDER BY
     StartDate;
 
 -- name: GetTournamentTeamsRanking :many
-WITH team_data AS (
-  SELECT
-    t.TeamID,
-    t.Name AS TeamName,
-    ARRAY_AGG(DISTINCT s.SchoolName) AS SchoolNames,
-    COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) AS Wins,
-    COALESCE(SUM(ts.TotalScore), 0) AS TotalPoints,
-    COALESCE(AVG(ts.Rank), 0) AS AverageRank
-  FROM
-    Teams t
-    JOIN TeamMembers tm ON t.TeamID = tm.TeamID
-    JOIN Students stu ON tm.StudentID = stu.StudentID
-    JOIN Schools s ON stu.SchoolID = s.SchoolID
-    LEFT JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
-    LEFT JOIN Ballots b ON d.DebateID = b.DebateID
-    LEFT JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
-  WHERE
-    t.TournamentID = $1 AND d.IsEliminationRound = false
-  GROUP BY
-    t.TeamID, t.Name
-)
-SELECT
-  TeamID,
-  TeamName,
-  SchoolNames,
-  Wins,
-  TotalPoints,
-  AverageRank
-FROM
-  team_data
-ORDER BY
-  Wins DESC, TotalPoints DESC, AverageRank ASC
+WITH RankedTeams AS (
+    SELECT
+        t.TeamID,
+        t.Name AS TeamName,
+        ARRAY_AGG(DISTINCT s.SchoolName) AS SchoolNames,
+        COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) AS Wins,
+        COALESCE(SUM(ts.TotalScore), 0) AS TotalPoints,
+        COALESCE(AVG(ts.Rank), 0) AS AverageRank,
+        RANK() OVER (ORDER BY COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) DESC,
+            COALESCE(SUM(ts.TotalScore), 0) DESC,
+            COALESCE(AVG(ts.Rank), 0) ASC) as place
+    FROM Teams t
+             JOIN TeamMembers tm ON t.TeamID = tm.TeamID
+             JOIN Students stu ON tm.StudentID = stu.StudentID
+             JOIN Schools s ON stu.SchoolID = s.SchoolID
+             LEFT JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
+             LEFT JOIN Ballots b ON d.DebateID = b.DebateID
+             LEFT JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+    WHERE t.TournamentID = $1 AND d.IsEliminationRound = false
+    GROUP BY t.TeamID, t.Name
+),
+     TopThree AS (
+         SELECT *
+         FROM RankedTeams
+         WHERE place <= 3
+     ),
+     SearchResults AS (
+         SELECT *
+         FROM RankedTeams
+         WHERE $4::text IS NULL
+            OR TeamName ILIKE '%' || $4 || '%'
+            OR $4 = ANY(SchoolNames)
+     )
+SELECT DISTINCT ON (place) *
+FROM (
+         SELECT * FROM TopThree
+         UNION
+         SELECT * FROM SearchResults WHERE place > 3
+     ) combined
+ORDER BY place
 LIMIT $2 OFFSET $3;
 
 -- name: GetTournamentTeamsRankingCount :one
@@ -807,54 +833,61 @@ FROM Teams t
 WHERE t.TournamentID = $1;
 
 -- name: GetTournamentSchoolRanking :many
-WITH team_data AS (
-  SELECT
-    s.SchoolID,
-    t.TeamID,
-    CASE WHEN b.Verdict = t.Name THEN 1 ELSE 0 END AS Win,
-    COALESCE(ts.TotalScore, 0) AS TotalScore,
-    COALESCE(ts.Rank, 0) AS Rank
-  FROM
-    Schools s
-    JOIN Students stu ON s.SchoolID = stu.SchoolID
-    JOIN TeamMembers tm ON stu.StudentID = tm.StudentID
-    JOIN Teams t ON tm.TeamID = t.TeamID
-    JOIN Tournaments tour ON t.TournamentID = tour.TournamentID
-    LEFT JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
-    LEFT JOIN Ballots b ON d.DebateID = b.DebateID
-    LEFT JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
-    LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
-  WHERE
-    t.TournamentID = $1
-    AND l.Name != 'DAC'
-    AND d.IsEliminationRound = false
+WITH SchoolData AS (
+    SELECT
+        s.SchoolID,
+        s.SchoolName,
+        COUNT(DISTINCT te.TeamID) AS TeamCount,
+        COUNT(CASE WHEN b.Verdict = te.Name THEN 1 END) AS TotalWins,
+        CAST(COALESCE(AVG(ts.Rank), 0) AS text) AS AverageRank,
+        CAST(COALESCE(SUM(ts.TotalScore), 0) AS text) AS TotalPoints
+    FROM Schools s
+             JOIN Students stu ON s.SchoolID = stu.SchoolID
+             JOIN TeamMembers tm ON stu.StudentID = tm.StudentID
+             JOIN Teams te ON tm.TeamID = te.TeamID
+             JOIN Tournaments tour ON te.TournamentID = tour.TournamentID
+             LEFT JOIN Debates d ON (te.TeamID = d.Team1ID OR te.TeamID = d.Team2ID)
+             LEFT JOIN Ballots b ON d.DebateID = b.DebateID
+             LEFT JOIN TeamScores ts ON te.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+             LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
+    WHERE te.TournamentID = $1
+      AND l.Name != 'DAC'
+      AND d.IsEliminationRound = false
+    GROUP BY s.SchoolID, s.SchoolName
+    HAVING COUNT(DISTINCT te.TeamID) > 0
 ),
-school_stats AS (
-  SELECT
-    s.SchoolID,
-    s.SchoolName,
-    COUNT(DISTINCT td.TeamID) AS TeamCount,
-    SUM(td.Win) AS TotalWins,
-    AVG(td.Rank) AS AverageRank,
-    SUM(td.TotalScore) AS TotalPoints
-  FROM
-    Schools s
-    LEFT JOIN team_data td ON s.SchoolID = td.SchoolID
-  GROUP BY
-    s.SchoolID, s.SchoolName
-)
-SELECT
-  SchoolName,
-  TeamCount,
-  TotalWins,
-  COALESCE(AverageRank, 0) AS AverageRank,
-  CAST(COALESCE(TotalPoints, 0) AS DECIMAL(10,2)) AS TotalPoints
-FROM
-  school_stats
-WHERE
-  TeamCount > 0
-ORDER BY
-  TotalWins DESC, TotalPoints DESC, AverageRank ASC
+     RankedSchools AS (
+         SELECT
+             SchoolName,
+             TeamCount,
+             TotalWins,
+             AverageRank,
+             TotalPoints,
+             RANK() OVER (
+                 ORDER BY TotalWins DESC,
+                     CAST(TotalPoints AS numeric) DESC,
+                     CAST(AverageRank AS numeric) ASC
+                 ) as place
+         FROM SchoolData
+     ),
+     TopThree AS (
+         SELECT *
+         FROM RankedSchools
+         WHERE place <= 3
+     ),
+     SearchResults AS (
+         SELECT *
+         FROM RankedSchools
+         WHERE $4::text IS NULL
+            OR SchoolName ILIKE '%' || $4 || '%'
+     )
+SELECT DISTINCT ON (place) *
+FROM (
+         SELECT * FROM TopThree
+         UNION
+         SELECT * FROM SearchResults WHERE place > 3
+     ) combined
+ORDER BY place
 LIMIT $2 OFFSET $3;
 
 -- name: GetTournamentSchoolRankingCount :one
@@ -1145,37 +1178,44 @@ SET IsRead = true
 WHERE FeedbackID = $1 AND JudgeID = $2;
 
 -- name: GetTournamentVolunteerRanking :many
-WITH volunteer_stats AS (
+WITH RankedVolunteers AS (
     SELECT
         v.VolunteerID,
         v.FirstName || ' ' || v.LastName AS VolunteerName,
         COUNT(DISTINCT CASE WHEN d.IsEliminationRound = false THEN d.DebateID END) as PreliminaryRounds,
         COUNT(DISTINCT CASE WHEN d.IsEliminationRound = true THEN d.DebateID END) as EliminationRounds,
-        COALESCE(AVG(jf.AverageRating), 0) as AverageRating
-    FROM
-        Volunteers v
-        JOIN JudgeAssignments ja ON v.UserID = ja.JudgeID
-        JOIN Debates d ON ja.DebateID = d.DebateID
-        LEFT JOIN JudgeFeedback jf ON v.UserID = jf.JudgeID AND jf.DebateID = d.DebateID
-    WHERE
-        d.TournamentID = $1
-    GROUP BY
-        v.VolunteerID, v.FirstName, v.LastName
-),
-ranked_volunteers AS (
-    SELECT
-        *,
+        COALESCE(AVG(jf.AverageRating), 0) as AverageRating,
         RANK() OVER (
             ORDER BY
-                AverageRating DESC,
-                EliminationRounds DESC,
-                PreliminaryRounds DESC
-        ) as RankPosition
-    FROM volunteer_stats
-)
-SELECT *
-FROM ranked_volunteers
-ORDER BY RankPosition
+                COALESCE(AVG(jf.AverageRating), 0) DESC,
+                COUNT(DISTINCT CASE WHEN d.IsEliminationRound = true THEN d.DebateID END) DESC,
+                COUNT(DISTINCT CASE WHEN d.IsEliminationRound = false THEN d.DebateID END) DESC
+            ) as place
+    FROM Volunteers v
+             JOIN JudgeAssignments ja ON v.UserID = ja.JudgeID
+             JOIN Debates d ON ja.DebateID = d.DebateID
+             LEFT JOIN JudgeFeedback jf ON v.UserID = jf.JudgeID AND jf.DebateID = d.DebateID
+    WHERE d.TournamentID = $1
+    GROUP BY v.VolunteerID, v.FirstName, v.LastName
+),
+     TopThree AS (
+         SELECT *
+         FROM RankedVolunteers
+         WHERE place <= 3
+     ),
+     SearchResults AS (
+         SELECT *
+         FROM RankedVolunteers
+         WHERE $4::text IS NULL
+            OR VolunteerName ILIKE '%' || $4 || '%'
+     )
+SELECT DISTINCT ON (place) *
+FROM (
+         SELECT * FROM TopThree
+         UNION
+         SELECT * FROM SearchResults WHERE place > 3
+     ) combined
+ORDER BY place
 LIMIT $2 OFFSET $3;
 
 -- name: GetTournamentVolunteerRankingCount :one
@@ -1184,3 +1224,14 @@ FROM Volunteers v
 JOIN JudgeAssignments ja ON v.UserID = ja.JudgeID
 JOIN Debates d ON ja.DebateID = d.DebateID
 WHERE d.TournamentID = $1;
+
+-- name: GetRankingVisibility :one
+SELECT IsVisible
+FROM RankingVisibility
+WHERE TournamentID = $1 AND RankingType = $2 AND VisibleTo = $3;
+
+-- name: SetRankingVisibility :exec
+INSERT INTO RankingVisibility (TournamentID, RankingType, VisibleTo, IsVisible)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (TournamentID, RankingType, VisibleTo)
+    DO UPDATE SET IsVisible = $4, UpdatedAt = CURRENT_TIMESTAMP;

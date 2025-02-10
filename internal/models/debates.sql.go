@@ -1774,6 +1774,25 @@ func (q *Queries) GetPreviousPairings(ctx context.Context, arg GetPreviousPairin
 	return items, nil
 }
 
+const getRankingVisibility = `-- name: GetRankingVisibility :one
+SELECT IsVisible
+FROM RankingVisibility
+WHERE TournamentID = $1 AND RankingType = $2 AND VisibleTo = $3
+`
+
+type GetRankingVisibilityParams struct {
+	Tournamentid int32  `json:"tournamentid"`
+	Rankingtype  string `json:"rankingtype"`
+	Visibleto    string `json:"visibleto"`
+}
+
+func (q *Queries) GetRankingVisibility(ctx context.Context, arg GetRankingVisibilityParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, getRankingVisibility, arg.Tournamentid, arg.Rankingtype, arg.Visibleto)
+	var isvisible bool
+	err := row.Scan(&isvisible)
+	return isvisible, err
+}
+
 const getRoomByID = `-- name: GetRoomByID :one
 SELECT RoomID, RoomName, TournamentID, Location, Capacity
 FROM Rooms
@@ -2573,73 +2592,87 @@ func (q *Queries) GetTopPerformingTeams(ctx context.Context, arg GetTopPerformin
 }
 
 const getTournamentSchoolRanking = `-- name: GetTournamentSchoolRanking :many
-WITH team_data AS (
-  SELECT
-    s.SchoolID,
-    t.TeamID,
-    CASE WHEN b.Verdict = t.Name THEN 1 ELSE 0 END AS Win,
-    COALESCE(ts.TotalScore, 0) AS TotalScore,
-    COALESCE(ts.Rank, 0) AS Rank
-  FROM
-    Schools s
-    JOIN Students stu ON s.SchoolID = stu.SchoolID
-    JOIN TeamMembers tm ON stu.StudentID = tm.StudentID
-    JOIN Teams t ON tm.TeamID = t.TeamID
-    JOIN Tournaments tour ON t.TournamentID = tour.TournamentID
-    LEFT JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
-    LEFT JOIN Ballots b ON d.DebateID = b.DebateID
-    LEFT JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
-    LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
-  WHERE
-    t.TournamentID = $1
-    AND l.Name != 'DAC'
-    AND d.IsEliminationRound = false
+WITH SchoolData AS (
+    SELECT
+        s.SchoolID,
+        s.SchoolName,
+        COUNT(DISTINCT te.TeamID) AS TeamCount,
+        COUNT(CASE WHEN b.Verdict = te.Name THEN 1 END) AS TotalWins,
+        CAST(COALESCE(AVG(ts.Rank), 0) AS text) AS AverageRank,
+        CAST(COALESCE(SUM(ts.TotalScore), 0) AS text) AS TotalPoints
+    FROM Schools s
+             JOIN Students stu ON s.SchoolID = stu.SchoolID
+             JOIN TeamMembers tm ON stu.StudentID = tm.StudentID
+             JOIN Teams te ON tm.TeamID = te.TeamID
+             JOIN Tournaments tour ON te.TournamentID = tour.TournamentID
+             LEFT JOIN Debates d ON (te.TeamID = d.Team1ID OR te.TeamID = d.Team2ID)
+             LEFT JOIN Ballots b ON d.DebateID = b.DebateID
+             LEFT JOIN TeamScores ts ON te.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+             LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
+    WHERE te.TournamentID = $1
+      AND l.Name != 'DAC'
+      AND d.IsEliminationRound = false
+    GROUP BY s.SchoolID, s.SchoolName
+    HAVING COUNT(DISTINCT te.TeamID) > 0
 ),
-school_stats AS (
-  SELECT
-    s.SchoolID,
-    s.SchoolName,
-    COUNT(DISTINCT td.TeamID) AS TeamCount,
-    SUM(td.Win) AS TotalWins,
-    AVG(td.Rank) AS AverageRank,
-    SUM(td.TotalScore) AS TotalPoints
-  FROM
-    Schools s
-    LEFT JOIN team_data td ON s.SchoolID = td.SchoolID
-  GROUP BY
-    s.SchoolID, s.SchoolName
-)
-SELECT
-  SchoolName,
-  TeamCount,
-  TotalWins,
-  COALESCE(AverageRank, 0) AS AverageRank,
-  CAST(COALESCE(TotalPoints, 0) AS DECIMAL(10,2)) AS TotalPoints
-FROM
-  school_stats
-WHERE
-  TeamCount > 0
-ORDER BY
-  TotalWins DESC, TotalPoints DESC, AverageRank ASC
+     RankedSchools AS (
+         SELECT
+             SchoolName,
+             TeamCount,
+             TotalWins,
+             AverageRank,
+             TotalPoints,
+             RANK() OVER (
+                 ORDER BY TotalWins DESC,
+                     CAST(TotalPoints AS numeric) DESC,
+                     CAST(AverageRank AS numeric) ASC
+                 ) as place
+         FROM SchoolData
+     ),
+     TopThree AS (
+         SELECT schoolname, teamcount, totalwins, averagerank, totalpoints, place
+         FROM RankedSchools
+         WHERE place <= 3
+     ),
+     SearchResults AS (
+         SELECT schoolname, teamcount, totalwins, averagerank, totalpoints, place
+         FROM RankedSchools
+         WHERE $4::text IS NULL
+            OR SchoolName ILIKE '%' || $4 || '%'
+     )
+SELECT DISTINCT ON (place) schoolname, teamcount, totalwins, averagerank, totalpoints, place
+FROM (
+         SELECT schoolname, teamcount, totalwins, averagerank, totalpoints, place FROM TopThree
+         UNION
+         SELECT schoolname, teamcount, totalwins, averagerank, totalpoints, place FROM SearchResults WHERE place > 3
+     ) combined
+ORDER BY place
 LIMIT $2 OFFSET $3
 `
 
 type GetTournamentSchoolRankingParams struct {
-	Tournamentid int32 `json:"tournamentid"`
-	Limit        int32 `json:"limit"`
-	Offset       int32 `json:"offset"`
+	Tournamentid int32  `json:"tournamentid"`
+	Limit        int32  `json:"limit"`
+	Offset       int32  `json:"offset"`
+	Column4      string `json:"column_4"`
 }
 
 type GetTournamentSchoolRankingRow struct {
-	Schoolname  string  `json:"schoolname"`
-	Teamcount   int64   `json:"teamcount"`
-	Totalwins   int64   `json:"totalwins"`
-	Averagerank float64 `json:"averagerank"`
-	Totalpoints string  `json:"totalpoints"`
+	Schoolname  string `json:"schoolname"`
+	Teamcount   int64  `json:"teamcount"`
+	Totalwins   int64  `json:"totalwins"`
+	Averagerank string `json:"averagerank"`
+	Totalpoints string `json:"totalpoints"`
+	Place       int64  `json:"place"`
 }
 
 func (q *Queries) GetTournamentSchoolRanking(ctx context.Context, arg GetTournamentSchoolRankingParams) ([]GetTournamentSchoolRankingRow, error) {
-	rows, err := q.db.QueryContext(ctx, getTournamentSchoolRanking, arg.Tournamentid, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, getTournamentSchoolRanking,
+		arg.Tournamentid,
+		arg.Limit,
+		arg.Offset,
+		arg.Column4,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -2653,6 +2686,7 @@ func (q *Queries) GetTournamentSchoolRanking(ctx context.Context, arg GetTournam
 			&i.Totalwins,
 			&i.Averagerank,
 			&i.Totalpoints,
+			&i.Place,
 		); err != nil {
 			return nil, err
 		}
@@ -2686,34 +2720,53 @@ func (q *Queries) GetTournamentSchoolRankingCount(ctx context.Context, tournamen
 }
 
 const getTournamentStudentRanking = `-- name: GetTournamentStudentRanking :many
-SELECT
-    s.StudentID,
-    s.FirstName || ' ' || s.LastName AS StudentName,
-    sch.SchoolName,
-    COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) AS TotalWins,
-    CAST(SUM(ss.SpeakerPoints) AS DECIMAL(10,2)) AS TotalPoints,
-    AVG(ss.SpeakerRank) AS AverageRank
-FROM
-    Students s
-JOIN TeamMembers tm ON s.StudentID = tm.StudentID
-JOIN Teams t ON tm.TeamID = t.TeamID
-JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
-JOIN Ballots b ON d.DebateID = b.DebateID
-JOIN SpeakerScores ss ON s.StudentID = ss.SpeakerID AND b.BallotID = ss.BallotID
-JOIN Schools sch ON s.SchoolID = sch.SchoolID
-WHERE
-    d.TournamentID = $1 AND d.IsEliminationRound = false
-GROUP BY
-    s.StudentID, StudentName, sch.SchoolName
-ORDER BY
-    TotalPoints DESC, AverageRank ASC, TotalWins DESC
+WITH RankedStudents AS (
+    SELECT
+        s.StudentID,
+        s.FirstName || ' ' || s.LastName AS StudentName,
+        sch.SchoolName,
+        COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) AS TotalWins,
+        CAST(SUM(ss.SpeakerPoints) AS DECIMAL(10,2)) AS TotalPoints,
+        AVG(ss.SpeakerRank) AS AverageRank,
+        RANK() OVER (ORDER BY SUM(ss.SpeakerPoints) DESC, AVG(ss.SpeakerRank) ASC,
+            COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) DESC) as place
+    FROM Students s
+             JOIN TeamMembers tm ON s.StudentID = tm.StudentID
+             JOIN Teams t ON tm.TeamID = t.TeamID
+             JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
+             JOIN Ballots b ON d.DebateID = b.DebateID
+             JOIN SpeakerScores ss ON s.StudentID = ss.SpeakerID AND b.BallotID = ss.BallotID
+             JOIN Schools sch ON s.SchoolID = sch.SchoolID
+    WHERE d.TournamentID = $1 AND d.IsEliminationRound = false
+    GROUP BY s.StudentID, StudentName, sch.SchoolName
+),
+     TopThree AS (
+         SELECT studentid, studentname, schoolname, totalwins, totalpoints, averagerank, place
+         FROM RankedStudents
+         WHERE place <= 3
+     ),
+     SearchResults AS (
+         SELECT studentid, studentname, schoolname, totalwins, totalpoints, averagerank, place
+         FROM RankedStudents
+         WHERE $4::text IS NULL
+            OR StudentName ILIKE '%' || $4 || '%'
+            OR SchoolName ILIKE '%' || $4 || '%'
+     )
+SELECT DISTINCT ON (place) studentid, studentname, schoolname, totalwins, totalpoints, averagerank, place
+FROM (
+         SELECT studentid, studentname, schoolname, totalwins, totalpoints, averagerank, place FROM TopThree
+         UNION
+         SELECT studentid, studentname, schoolname, totalwins, totalpoints, averagerank, place FROM SearchResults WHERE place > 3
+     ) combined
+ORDER BY place
 LIMIT $2 OFFSET $3
 `
 
 type GetTournamentStudentRankingParams struct {
-	Tournamentid int32 `json:"tournamentid"`
-	Limit        int32 `json:"limit"`
-	Offset       int32 `json:"offset"`
+	Tournamentid int32  `json:"tournamentid"`
+	Limit        int32  `json:"limit"`
+	Offset       int32  `json:"offset"`
+	Column4      string `json:"column_4"`
 }
 
 type GetTournamentStudentRankingRow struct {
@@ -2723,10 +2776,16 @@ type GetTournamentStudentRankingRow struct {
 	Totalwins   int64       `json:"totalwins"`
 	Totalpoints string      `json:"totalpoints"`
 	Averagerank float64     `json:"averagerank"`
+	Place       int64       `json:"place"`
 }
 
 func (q *Queries) GetTournamentStudentRanking(ctx context.Context, arg GetTournamentStudentRankingParams) ([]GetTournamentStudentRankingRow, error) {
-	rows, err := q.db.QueryContext(ctx, getTournamentStudentRanking, arg.Tournamentid, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, getTournamentStudentRanking,
+		arg.Tournamentid,
+		arg.Limit,
+		arg.Offset,
+		arg.Column4,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -2741,6 +2800,7 @@ func (q *Queries) GetTournamentStudentRanking(ctx context.Context, arg GetTourna
 			&i.Totalwins,
 			&i.Totalpoints,
 			&i.Averagerank,
+			&i.Place,
 		); err != nil {
 			return nil, err
 		}
@@ -2756,45 +2816,54 @@ func (q *Queries) GetTournamentStudentRanking(ctx context.Context, arg GetTourna
 }
 
 const getTournamentTeamsRanking = `-- name: GetTournamentTeamsRanking :many
-WITH team_data AS (
-  SELECT
-    t.TeamID,
-    t.Name AS TeamName,
-    ARRAY_AGG(DISTINCT s.SchoolName) AS SchoolNames,
-    COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) AS Wins,
-    COALESCE(SUM(ts.TotalScore), 0) AS TotalPoints,
-    COALESCE(AVG(ts.Rank), 0) AS AverageRank
-  FROM
-    Teams t
-    JOIN TeamMembers tm ON t.TeamID = tm.TeamID
-    JOIN Students stu ON tm.StudentID = stu.StudentID
-    JOIN Schools s ON stu.SchoolID = s.SchoolID
-    LEFT JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
-    LEFT JOIN Ballots b ON d.DebateID = b.DebateID
-    LEFT JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
-  WHERE
-    t.TournamentID = $1 AND d.IsEliminationRound = false
-  GROUP BY
-    t.TeamID, t.Name
-)
-SELECT
-  TeamID,
-  TeamName,
-  SchoolNames,
-  Wins,
-  TotalPoints,
-  AverageRank
-FROM
-  team_data
-ORDER BY
-  Wins DESC, TotalPoints DESC, AverageRank ASC
+WITH RankedTeams AS (
+    SELECT
+        t.TeamID,
+        t.Name AS TeamName,
+        ARRAY_AGG(DISTINCT s.SchoolName) AS SchoolNames,
+        COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) AS Wins,
+        COALESCE(SUM(ts.TotalScore), 0) AS TotalPoints,
+        COALESCE(AVG(ts.Rank), 0) AS AverageRank,
+        RANK() OVER (ORDER BY COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) DESC,
+            COALESCE(SUM(ts.TotalScore), 0) DESC,
+            COALESCE(AVG(ts.Rank), 0) ASC) as place
+    FROM Teams t
+             JOIN TeamMembers tm ON t.TeamID = tm.TeamID
+             JOIN Students stu ON tm.StudentID = stu.StudentID
+             JOIN Schools s ON stu.SchoolID = s.SchoolID
+             LEFT JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
+             LEFT JOIN Ballots b ON d.DebateID = b.DebateID
+             LEFT JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+    WHERE t.TournamentID = $1 AND d.IsEliminationRound = false
+    GROUP BY t.TeamID, t.Name
+),
+     TopThree AS (
+         SELECT teamid, teamname, schoolnames, wins, totalpoints, averagerank, place
+         FROM RankedTeams
+         WHERE place <= 3
+     ),
+     SearchResults AS (
+         SELECT teamid, teamname, schoolnames, wins, totalpoints, averagerank, place
+         FROM RankedTeams
+         WHERE $4::text IS NULL
+            OR TeamName ILIKE '%' || $4 || '%'
+            OR $4 = ANY(SchoolNames)
+     )
+SELECT DISTINCT ON (place) teamid, teamname, schoolnames, wins, totalpoints, averagerank, place
+FROM (
+         SELECT teamid, teamname, schoolnames, wins, totalpoints, averagerank, place FROM TopThree
+         UNION
+         SELECT teamid, teamname, schoolnames, wins, totalpoints, averagerank, place FROM SearchResults WHERE place > 3
+     ) combined
+ORDER BY place
 LIMIT $2 OFFSET $3
 `
 
 type GetTournamentTeamsRankingParams struct {
-	Tournamentid int32 `json:"tournamentid"`
-	Limit        int32 `json:"limit"`
-	Offset       int32 `json:"offset"`
+	Tournamentid int32  `json:"tournamentid"`
+	Limit        int32  `json:"limit"`
+	Offset       int32  `json:"offset"`
+	Column4      string `json:"column_4"`
 }
 
 type GetTournamentTeamsRankingRow struct {
@@ -2804,10 +2873,16 @@ type GetTournamentTeamsRankingRow struct {
 	Wins        int64       `json:"wins"`
 	Totalpoints interface{} `json:"totalpoints"`
 	Averagerank interface{} `json:"averagerank"`
+	Place       int64       `json:"place"`
 }
 
 func (q *Queries) GetTournamentTeamsRanking(ctx context.Context, arg GetTournamentTeamsRankingParams) ([]GetTournamentTeamsRankingRow, error) {
-	rows, err := q.db.QueryContext(ctx, getTournamentTeamsRanking, arg.Tournamentid, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, getTournamentTeamsRanking,
+		arg.Tournamentid,
+		arg.Limit,
+		arg.Offset,
+		arg.Column4,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -2822,6 +2897,7 @@ func (q *Queries) GetTournamentTeamsRanking(ctx context.Context, arg GetTourname
 			&i.Wins,
 			&i.Totalpoints,
 			&i.Averagerank,
+			&i.Place,
 		); err != nil {
 			return nil, err
 		}
@@ -2850,44 +2926,52 @@ func (q *Queries) GetTournamentTeamsRankingCount(ctx context.Context, tournament
 }
 
 const getTournamentVolunteerRanking = `-- name: GetTournamentVolunteerRanking :many
-WITH volunteer_stats AS (
+WITH RankedVolunteers AS (
     SELECT
         v.VolunteerID,
         v.FirstName || ' ' || v.LastName AS VolunteerName,
         COUNT(DISTINCT CASE WHEN d.IsEliminationRound = false THEN d.DebateID END) as PreliminaryRounds,
         COUNT(DISTINCT CASE WHEN d.IsEliminationRound = true THEN d.DebateID END) as EliminationRounds,
-        COALESCE(AVG(jf.AverageRating), 0) as AverageRating
-    FROM
-        Volunteers v
-        JOIN JudgeAssignments ja ON v.UserID = ja.JudgeID
-        JOIN Debates d ON ja.DebateID = d.DebateID
-        LEFT JOIN JudgeFeedback jf ON v.UserID = jf.JudgeID AND jf.DebateID = d.DebateID
-    WHERE
-        d.TournamentID = $1
-    GROUP BY
-        v.VolunteerID, v.FirstName, v.LastName
-),
-ranked_volunteers AS (
-    SELECT
-        volunteerid, volunteername, preliminaryrounds, eliminationrounds, averagerating,
+        COALESCE(AVG(jf.AverageRating), 0) as AverageRating,
         RANK() OVER (
             ORDER BY
-                AverageRating DESC,
-                EliminationRounds DESC,
-                PreliminaryRounds DESC
-        ) as RankPosition
-    FROM volunteer_stats
-)
-SELECT volunteerid, volunteername, preliminaryrounds, eliminationrounds, averagerating, rankposition
-FROM ranked_volunteers
-ORDER BY RankPosition
+                COALESCE(AVG(jf.AverageRating), 0) DESC,
+                COUNT(DISTINCT CASE WHEN d.IsEliminationRound = true THEN d.DebateID END) DESC,
+                COUNT(DISTINCT CASE WHEN d.IsEliminationRound = false THEN d.DebateID END) DESC
+            ) as place
+    FROM Volunteers v
+             JOIN JudgeAssignments ja ON v.UserID = ja.JudgeID
+             JOIN Debates d ON ja.DebateID = d.DebateID
+             LEFT JOIN JudgeFeedback jf ON v.UserID = jf.JudgeID AND jf.DebateID = d.DebateID
+    WHERE d.TournamentID = $1
+    GROUP BY v.VolunteerID, v.FirstName, v.LastName
+),
+     TopThree AS (
+         SELECT volunteerid, volunteername, preliminaryrounds, eliminationrounds, averagerating, place
+         FROM RankedVolunteers
+         WHERE place <= 3
+     ),
+     SearchResults AS (
+         SELECT volunteerid, volunteername, preliminaryrounds, eliminationrounds, averagerating, place
+         FROM RankedVolunteers
+         WHERE $4::text IS NULL
+            OR VolunteerName ILIKE '%' || $4 || '%'
+     )
+SELECT DISTINCT ON (place) volunteerid, volunteername, preliminaryrounds, eliminationrounds, averagerating, place
+FROM (
+         SELECT volunteerid, volunteername, preliminaryrounds, eliminationrounds, averagerating, place FROM TopThree
+         UNION
+         SELECT volunteerid, volunteername, preliminaryrounds, eliminationrounds, averagerating, place FROM SearchResults WHERE place > 3
+     ) combined
+ORDER BY place
 LIMIT $2 OFFSET $3
 `
 
 type GetTournamentVolunteerRankingParams struct {
-	Tournamentid int32 `json:"tournamentid"`
-	Limit        int32 `json:"limit"`
-	Offset       int32 `json:"offset"`
+	Tournamentid int32  `json:"tournamentid"`
+	Limit        int32  `json:"limit"`
+	Offset       int32  `json:"offset"`
+	Column4      string `json:"column_4"`
 }
 
 type GetTournamentVolunteerRankingRow struct {
@@ -2896,11 +2980,16 @@ type GetTournamentVolunteerRankingRow struct {
 	Preliminaryrounds int64       `json:"preliminaryrounds"`
 	Eliminationrounds int64       `json:"eliminationrounds"`
 	Averagerating     interface{} `json:"averagerating"`
-	Rankposition      int64       `json:"rankposition"`
+	Place             int64       `json:"place"`
 }
 
 func (q *Queries) GetTournamentVolunteerRanking(ctx context.Context, arg GetTournamentVolunteerRankingParams) ([]GetTournamentVolunteerRankingRow, error) {
-	rows, err := q.db.QueryContext(ctx, getTournamentVolunteerRanking, arg.Tournamentid, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, getTournamentVolunteerRanking,
+		arg.Tournamentid,
+		arg.Limit,
+		arg.Offset,
+		arg.Column4,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -2914,7 +3003,7 @@ func (q *Queries) GetTournamentVolunteerRanking(ctx context.Context, arg GetTour
 			&i.Preliminaryrounds,
 			&i.Eliminationrounds,
 			&i.Averagerating,
-			&i.Rankposition,
+			&i.Place,
 		); err != nil {
 			return nil, err
 		}
@@ -3151,6 +3240,30 @@ WHERE TeamID = $1
 
 func (q *Queries) RemoveTeamMembers(ctx context.Context, teamid int32) error {
 	_, err := q.db.ExecContext(ctx, removeTeamMembers, teamid)
+	return err
+}
+
+const setRankingVisibility = `-- name: SetRankingVisibility :exec
+INSERT INTO RankingVisibility (TournamentID, RankingType, VisibleTo, IsVisible)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (TournamentID, RankingType, VisibleTo)
+    DO UPDATE SET IsVisible = $4, UpdatedAt = CURRENT_TIMESTAMP
+`
+
+type SetRankingVisibilityParams struct {
+	Tournamentid int32  `json:"tournamentid"`
+	Rankingtype  string `json:"rankingtype"`
+	Visibleto    string `json:"visibleto"`
+	Isvisible    bool   `json:"isvisible"`
+}
+
+func (q *Queries) SetRankingVisibility(ctx context.Context, arg SetRankingVisibilityParams) error {
+	_, err := q.db.ExecContext(ctx, setRankingVisibility,
+		arg.Tournamentid,
+		arg.Rankingtype,
+		arg.Visibleto,
+		arg.Isvisible,
+	)
 	return err
 }
 
