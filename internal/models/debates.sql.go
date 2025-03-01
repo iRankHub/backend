@@ -2016,17 +2016,18 @@ func (q *Queries) GetSinglePairing(ctx context.Context, debateid int32) (GetSing
 }
 
 const getSpeakerScoresByBallot = `-- name: GetSpeakerScoresByBallot :many
-SELECT DISTINCT ON (ss.SpeakerID) ss.ScoreID, ss.SpeakerID, s.FirstName, s.LastName,
+SELECT ss.ScoreID, ss.SpeakerID, s.FirstName, s.LastName,
        ss.SpeakerRank, ss.SpeakerPoints, ss.Feedback,
        t.TeamID, t.Name AS TeamName
 FROM SpeakerScores ss
-JOIN Students s ON ss.SpeakerID = s.StudentID
-JOIN TeamMembers tm ON s.StudentID = tm.StudentID
-JOIN Teams t ON tm.TeamID = t.TeamID
-JOIN Debates d ON t.TournamentID = d.TournamentID
-JOIN Ballots b ON d.DebateID = b.DebateID
-WHERE b.BallotID = $1
-ORDER BY ss.SpeakerID, ss.ScoreID DESC
+         JOIN Students s ON ss.SpeakerID = s.StudentID
+         JOIN Ballots b ON ss.BallotID = b.BallotID
+         JOIN Debates d ON b.DebateID = d.DebateID
+         JOIN TeamMembers tm ON s.StudentID = tm.StudentID
+         JOIN Teams t ON tm.TeamID = t.TeamID
+WHERE ss.BallotID = $1
+  AND (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
+ORDER BY t.TeamID, ss.SpeakerRank
 `
 
 type GetSpeakerScoresByBallotRow struct {

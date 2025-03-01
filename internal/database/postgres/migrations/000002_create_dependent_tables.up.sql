@@ -180,7 +180,7 @@ CREATE TABLE JudgeAssignments (
     RoundNumber INTEGER NOT NULL,
     IsElimination BOOLEAN NOT NULL DEFAULT FALSE,
     IsHeadJudge BOOLEAN NOT NULL DEFAULT FALSE,
-    UNIQUE(TournamentID, JudgeID, RoundNumber, IsElimination)
+    UNIQUE(TournamentID, RoundNumber, IsElimination)
 );
 
 CREATE TABLE JudgeFeedback (

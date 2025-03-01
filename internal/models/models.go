@@ -71,19 +71,19 @@ type Judgeassignment struct {
 }
 
 type Judgefeedback struct {
-	Feedbackid             int32          `json:"feedbackid"`
-	Judgeid                sql.NullInt32  `json:"judgeid"`
-	Studentid              sql.NullInt32  `json:"studentid"`
-	Debateid               sql.NullInt32  `json:"debateid"`
-	Clarityrating          sql.NullString `json:"clarityrating"`
-	Constructivenessrating sql.NullString `json:"constructivenessrating"`
-	Timelinessrating       sql.NullString `json:"timelinessrating"`
-	Fairnessrating         sql.NullString `json:"fairnessrating"`
-	Engagementrating       sql.NullString `json:"engagementrating"`
-	Averagerating          sql.NullString `json:"averagerating"`
-	Textfeedback           sql.NullString `json:"textfeedback"`
-	Isread                 sql.NullBool   `json:"isread"`
-	Createdat              sql.NullTime   `json:"createdat"`
+	Feedbackid             int32           `json:"feedbackid"`
+	Judgeid                sql.NullInt32   `json:"judgeid"`
+	Studentid              sql.NullInt32   `json:"studentid"`
+	Debateid               sql.NullInt32   `json:"debateid"`
+	Clarityrating          sql.NullFloat64 `json:"clarityrating"`
+	Constructivenessrating sql.NullFloat64 `json:"constructivenessrating"`
+	Timelinessrating       sql.NullFloat64 `json:"timelinessrating"`
+	Fairnessrating         sql.NullFloat64 `json:"fairnessrating"`
+	Engagementrating       sql.NullFloat64 `json:"engagementrating"`
+	Averagerating          sql.NullFloat64 `json:"averagerating"`
+	Textfeedback           sql.NullString  `json:"textfeedback"`
+	Isread                 sql.NullBool    `json:"isread"`
+	Createdat              sql.NullTime    `json:"createdat"`
 }
 
 type League struct {

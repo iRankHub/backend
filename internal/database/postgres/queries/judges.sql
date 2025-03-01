@@ -68,17 +68,17 @@ AND ja.iselimination = $4
 AND ja.isheadjudge = true;
 
 -- name: UpdateJudgeAssignment :exec
-UPDATE judgeassignments ja
+UPDATE judgeassignments
 SET debateid = (
     SELECT d.debateid
     FROM debates d
     WHERE d.roomid = $4
-    AND d.tournamentid = $2
-    AND d.roundnumber = $3
-    AND d.iseliminationround = $6
+      AND d.tournamentid = $2
+      AND d.roundnumber = $3
+      AND d.iseliminationround = $6
     LIMIT 1
 ),
-isheadjudge = $5
-WHERE ja.judgeid = $1
-AND ja.tournamentid = $2
-AND ja.roundnumber = $3;
+    isheadjudge = $5
+WHERE judgeid = $1
+  AND tournamentid = $2
+  AND roundnumber = $3;
