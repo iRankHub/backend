@@ -417,6 +417,16 @@ func (q *Queries) DeleteRoundsForTournament(ctx context.Context, tournamentid in
 	return err
 }
 
+const deleteSpeakerScoresByBallot = `-- name: DeleteSpeakerScoresByBallot :exec
+DELETE FROM SpeakerScores
+WHERE BallotID = $1
+`
+
+func (q *Queries) DeleteSpeakerScoresByBallot(ctx context.Context, ballotid int32) error {
+	_, err := q.db.ExecContext(ctx, deleteSpeakerScoresByBallot, ballotid)
+	return err
+}
+
 const deleteTeam = `-- name: DeleteTeam :exec
 WITH debate_check AS (
     SELECT 1
@@ -634,6 +644,47 @@ func (q *Queries) GetBallotByJudgeID(ctx context.Context, arg GetBallotByJudgeID
 	return i, err
 }
 
+const getBallotsByDebateID = `-- name: GetBallotsByDebateID :many
+SELECT ballotid, debateid, judgeid, team1totalscore, team1feedback, team2totalscore, team2feedback, recordingstatus, verdict, last_updated_by, last_updated_at, head_judge_submitted FROM Ballots
+WHERE DebateID = $1
+`
+
+func (q *Queries) GetBallotsByDebateID(ctx context.Context, debateid int32) ([]Ballot, error) {
+	rows, err := q.db.QueryContext(ctx, getBallotsByDebateID, debateid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Ballot{}
+	for rows.Next() {
+		var i Ballot
+		if err := rows.Scan(
+			&i.Ballotid,
+			&i.Debateid,
+			&i.Judgeid,
+			&i.Team1totalscore,
+			&i.Team1feedback,
+			&i.Team2totalscore,
+			&i.Team2feedback,
+			&i.Recordingstatus,
+			&i.Verdict,
+			&i.LastUpdatedBy,
+			&i.LastUpdatedAt,
+			&i.HeadJudgeSubmitted,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getBallotsByTournamentAndRound = `-- name: GetBallotsByTournamentAndRound :many
 SELECT b.BallotID, d.RoundNumber, d.IsEliminationRound, r.RoomName,
        u.Name AS HeadJudgeName, b.RecordingStatus, b.Verdict,
@@ -727,6 +778,30 @@ func (q *Queries) GetDebateByBallotID(ctx context.Context, ballotid int32) (GetD
 		&i.Team2id,
 		&i.Iseliminationround,
 		&i.Tournamentid,
+	)
+	return i, err
+}
+
+const getDebateByID = `-- name: GetDebateByID :one
+SELECT debateid, roundid, roundnumber, iseliminationround, tournamentid, team1id, team2id, starttime, endtime, roomid, status FROM Debates
+WHERE DebateID = $1
+`
+
+func (q *Queries) GetDebateByID(ctx context.Context, debateid int32) (Debate, error) {
+	row := q.db.QueryRowContext(ctx, getDebateByID, debateid)
+	var i Debate
+	err := row.Scan(
+		&i.Debateid,
+		&i.Roundid,
+		&i.Roundnumber,
+		&i.Iseliminationround,
+		&i.Tournamentid,
+		&i.Team1id,
+		&i.Team2id,
+		&i.Starttime,
+		&i.Endtime,
+		&i.Roomid,
+		&i.Status,
 	)
 	return i, err
 }
@@ -3241,6 +3316,44 @@ WHERE TeamID = $1
 
 func (q *Queries) RemoveTeamMembers(ctx context.Context, teamid int32) error {
 	_, err := q.db.ExecContext(ctx, removeTeamMembers, teamid)
+	return err
+}
+
+const resetBallotAfterTeamChange = `-- name: ResetBallotAfterTeamChange :exec
+UPDATE Ballots
+SET Team1TotalScore = $2,
+    Team2TotalScore = $3,
+    RecordingStatus = $4,
+    Verdict = $5,
+    Team1Feedback = $6,
+    Team2Feedback = $7,
+    head_judge_submitted = $8,
+    last_updated_at = CURRENT_TIMESTAMP
+WHERE BallotID = $1
+`
+
+type ResetBallotAfterTeamChangeParams struct {
+	Ballotid           int32          `json:"ballotid"`
+	Team1totalscore    sql.NullString `json:"team1totalscore"`
+	Team2totalscore    sql.NullString `json:"team2totalscore"`
+	Recordingstatus    string         `json:"recordingstatus"`
+	Verdict            string         `json:"verdict"`
+	Team1feedback      sql.NullString `json:"team1feedback"`
+	Team2feedback      sql.NullString `json:"team2feedback"`
+	HeadJudgeSubmitted sql.NullBool   `json:"head_judge_submitted"`
+}
+
+func (q *Queries) ResetBallotAfterTeamChange(ctx context.Context, arg ResetBallotAfterTeamChangeParams) error {
+	_, err := q.db.ExecContext(ctx, resetBallotAfterTeamChange,
+		arg.Ballotid,
+		arg.Team1totalscore,
+		arg.Team2totalscore,
+		arg.Recordingstatus,
+		arg.Verdict,
+		arg.Team1feedback,
+		arg.Team2feedback,
+		arg.HeadJudgeSubmitted,
+	)
 	return err
 }
 

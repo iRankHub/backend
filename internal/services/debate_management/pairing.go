@@ -78,6 +78,20 @@ func (s *PairingService) UpdatePairings(ctx context.Context, req *debate_managem
 	updatedPairings := make([]*debate_management.Pairing, 0, len(req.GetPairings()))
 
 	for _, pairing := range req.GetPairings() {
+		// Get the debate details to find the associated ballot
+		debate, err := queries.GetDebateByID(ctx, pairing.GetPairingId())
+		if err != nil {
+			return nil, fmt.Errorf("failed to get debate: %v", err)
+		}
+
+		// Get the current teams in the debate before updating
+		oldTeam1ID := debate.Team1id
+		oldTeam2ID := debate.Team2id
+
+		// Only proceed with special handling if teams are actually changing
+		teamsChanged := oldTeam1ID != pairing.GetTeam1().GetTeamId() || oldTeam2ID != pairing.GetTeam2().GetTeamId()
+
+		// Update the teams in the debate
 		err = queries.UpdatePairing(ctx, models.UpdatePairingParams{
 			Debateid: pairing.GetPairingId(),
 			Team1id:  pairing.GetTeam1().GetTeamId(),
@@ -85,6 +99,54 @@ func (s *PairingService) UpdatePairings(ctx context.Context, req *debate_managem
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to update pairing: %v", err)
+		}
+
+		// Only update speaker scores if teams actually changed
+		if teamsChanged {
+			// Find the ballots associated with this debate
+			ballots, err := queries.GetBallotsByDebateID(ctx, pairing.GetPairingId())
+			if err != nil {
+				return nil, fmt.Errorf("failed to find ballots for debate: %v", err)
+			}
+
+			// For each ballot, we need to recreate the speaker scores for the new teams
+			for _, ballot := range ballots {
+				// Delete existing speaker scores
+				err = queries.DeleteSpeakerScoresByBallot(ctx, ballot.Ballotid)
+				if err != nil {
+					return nil, fmt.Errorf("failed to delete old speaker scores: %v", err)
+				}
+
+				// Create new speaker scores for the updated teams
+				err = queries.CreateInitialSpeakerScores(ctx, pairing.GetPairingId())
+				if err != nil {
+					return nil, fmt.Errorf("failed to create new speaker scores: %v", err)
+				}
+
+				// Reset the ballot to "not yet" status since teams changed
+				err = queries.ResetBallotAfterTeamChange(ctx, models.ResetBallotAfterTeamChangeParams{
+					Ballotid: ballot.Ballotid,
+					Team1totalscore: sql.NullString{
+						String: "0",
+						Valid:  true,
+					},
+					Team2totalscore: sql.NullString{
+						String: "0",
+						Valid:  true,
+					},
+					Recordingstatus: "not yet",
+					Verdict:         "pending",
+					Team1feedback:   sql.NullString{String: "", Valid: true},
+					Team2feedback:   sql.NullString{String: "", Valid: true},
+					HeadJudgeSubmitted: sql.NullBool{
+						Bool:  false,
+						Valid: true,
+					},
+				})
+				if err != nil {
+					return nil, fmt.Errorf("failed to reset ballot after team change: %v", err)
+				}
+			}
 		}
 
 		// Fetch the updated pairing

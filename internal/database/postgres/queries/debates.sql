@@ -619,6 +619,30 @@ FROM Debates d
 JOIN Ballots b ON d.DebateID = b.DebateID
 WHERE b.BallotID = $1;
 
+-- name: GetDebateByID :one
+SELECT * FROM Debates
+WHERE DebateID = $1;
+
+-- name: GetBallotsByDebateID :many
+SELECT * FROM Ballots
+WHERE DebateID = $1;
+
+-- name: DeleteSpeakerScoresByBallot :exec
+DELETE FROM SpeakerScores
+WHERE BallotID = $1;
+
+-- name: ResetBallotAfterTeamChange :exec
+UPDATE Ballots
+SET Team1TotalScore = $2,
+    Team2TotalScore = $3,
+    RecordingStatus = $4,
+    Verdict = $5,
+    Team1Feedback = $6,
+    Team2Feedback = $7,
+    head_judge_submitted = $8,
+    last_updated_at = CURRENT_TIMESTAMP
+WHERE BallotID = $1;
+
 -- name: UpdateTeamScore :exec
 UPDATE TeamScores
 SET TotalScore = $3, IsElimination = $4
