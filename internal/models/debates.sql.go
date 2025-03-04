@@ -2740,25 +2740,36 @@ const getTopPerformingTeams = `-- name: GetTopPerformingTeams :many
 WITH ballot_check AS (
     SELECT COUNT(*) = 0 AS all_recorded
     FROM Ballots b
-    JOIN Debates d ON b.DebateID = d.DebateID
+             JOIN Debates d ON b.DebateID = d.DebateID
     WHERE d.TournamentID = $1 AND d.IsEliminationRound = false AND b.RecordingStatus != 'Recorded'
 ),
-team_performance AS (
-    SELECT t.TeamID, t.Name, t.TournamentID,
-           COALESCE(SUM(CASE WHEN b.Verdict = t.Name THEN 1 ELSE 0 END), 0) as Wins,
-           COALESCE(SUM(ts.TotalScore), 0) as TotalSpeakerPoints,
-           COALESCE(AVG(ts.Rank), 0) as AverageRank
-    FROM Teams t
-    LEFT JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
-    LEFT JOIN Ballots b ON d.DebateID = b.DebateID
-    LEFT JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
-    WHERE t.TournamentID = $1 AND d.IsEliminationRound = false
-    GROUP BY t.TeamID, t.Name, t.TournamentID
-)
-SELECT tp.TeamID, tp.Name, tp.TournamentID, tp.Wins, tp.TotalSpeakerPoints, tp.AverageRank
-FROM team_performance tp, ballot_check
-WHERE ballot_check.all_recorded = true
-ORDER BY tp.Wins DESC, tp.TotalSpeakerPoints DESC, tp.AverageRank ASC
+     team_performance AS (
+         SELECT
+             t.TeamID,
+             t.Name,
+             t.TournamentID,
+             COALESCE(t.TotalWins, 0) as Wins,
+             COALESCE(t.TotalSpeakerPoints, 0) as TotalSpeakerPoints,
+             COALESCE(t.AverageRank, 99) as AverageRank  -- Use 99 as default for ranking purposes
+         FROM
+             Teams t
+         WHERE
+             t.TournamentID = $1
+           AND EXISTS (
+             -- Only include teams that have participated in debates
+             SELECT 1 FROM Debates d
+             WHERE (d.Team1ID = t.TeamID OR d.Team2ID = t.TeamID)
+               AND d.IsEliminationRound = false
+         )
+     )
+SELECT
+    tp.TeamID, tp.Name, tp.TournamentID, tp.Wins, tp.TotalSpeakerPoints, tp.AverageRank
+FROM
+    team_performance tp, ballot_check
+WHERE
+    ballot_check.all_recorded = true
+ORDER BY
+    tp.Wins DESC, tp.TotalSpeakerPoints DESC, tp.AverageRank ASC
 LIMIT $2
 `
 
@@ -2768,12 +2779,12 @@ type GetTopPerformingTeamsParams struct {
 }
 
 type GetTopPerformingTeamsRow struct {
-	Teamid             int32       `json:"teamid"`
-	Name               string      `json:"name"`
-	Tournamentid       int32       `json:"tournamentid"`
-	Wins               interface{} `json:"wins"`
-	Totalspeakerpoints interface{} `json:"totalspeakerpoints"`
-	Averagerank        interface{} `json:"averagerank"`
+	Teamid             int32  `json:"teamid"`
+	Name               string `json:"name"`
+	Tournamentid       int32  `json:"tournamentid"`
+	Wins               int32  `json:"wins"`
+	Totalspeakerpoints string `json:"totalspeakerpoints"`
+	Averagerank        string `json:"averagerank"`
 }
 
 func (q *Queries) GetTopPerformingTeams(ctx context.Context, arg GetTopPerformingTeamsParams) ([]GetTopPerformingTeamsRow, error) {
@@ -3031,77 +3042,52 @@ func (q *Queries) GetTournamentStudentRanking(ctx context.Context, arg GetTourna
 }
 
 const getTournamentTeamsRanking = `-- name: GetTournamentTeamsRanking :many
-WITH AllTeams AS (
+WITH TeamData AS (
     SELECT
         t.TeamID,
         t.Name AS TeamName,
+        t.TotalWins AS Wins,
+        t.TotalSpeakerPoints AS TotalPoints,
+        t.AverageRank,
         t.TournamentID
-    FROM Teams t
-    WHERE t.TournamentID = $1
+    FROM
+        Teams t
+    WHERE
+        t.TournamentID = $1
 ),
      TeamSchools AS (
          SELECT
-             at.TeamID,
-             at.TeamName,
+             td.TeamID,
+             td.TeamName,
+             td.Wins,
+             td.TotalPoints,
+             td.AverageRank,
              ARRAY_AGG(DISTINCT s.SchoolName) FILTER (WHERE s.SchoolName IS NOT NULL) AS SchoolNames
-         FROM AllTeams at
-                  LEFT JOIN TeamMembers tm ON at.TeamID = tm.TeamID
-                  LEFT JOIN Students stu ON tm.StudentID = stu.StudentID
-                  LEFT JOIN Schools s ON stu.SchoolID = s.SchoolID
-         GROUP BY at.TeamID, at.TeamName
-     ),
-     TeamWins AS (
-         SELECT
-             at.TeamID,
-             COUNT(CASE
-                       WHEN (d.Team1ID = at.TeamID AND b.Verdict = at.TeamName) OR
-                            (d.Team2ID = at.TeamID AND b.Verdict = at.TeamName)
-                           THEN 1 ELSE NULL END) as Wins
-         FROM AllTeams at
-                  LEFT JOIN Debates d ON (at.TeamID = d.Team1ID OR at.TeamID = d.Team2ID)
-             AND d.TournamentID = at.TournamentID
-             AND d.IsEliminationRound = false
-                  LEFT JOIN Ballots b ON d.DebateID = b.DebateID
-         GROUP BY at.TeamID
-     ),
-     TeamPoints AS (
-         SELECT
-             at.TeamID,
-             COALESCE(SUM(ts.TotalScore), 0) AS TotalPoints,
-             COALESCE(AVG(ts.Rank), 0) AS AverageRank
-         FROM AllTeams at
-                  LEFT JOIN Debates d ON (at.TeamID = d.Team1ID OR at.TeamID = d.Team2ID)
-             AND d.TournamentID = at.TournamentID
-             AND d.IsEliminationRound = false
-                  LEFT JOIN TeamScores ts ON at.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
-         GROUP BY at.TeamID
-     ),
-     FinalTeamData AS (
-         SELECT
-             ts.TeamID,
-             ts.TeamName,
-             ts.SchoolNames,
-             COALESCE(tw.Wins, 0) AS Wins,
-             COALESCE(tp.TotalPoints, 0) AS TotalPoints,
-             COALESCE(tp.AverageRank, 0) AS AverageRank
-         FROM TeamSchools ts
-                  LEFT JOIN TeamWins tw ON ts.TeamID = tw.TeamID
-                  LEFT JOIN TeamPoints tp ON ts.TeamID = tp.TeamID
+         FROM
+             TeamData td
+                 LEFT JOIN TeamMembers tm ON td.TeamID = tm.TeamID
+                 LEFT JOIN Students stu ON tm.StudentID = stu.StudentID
+                 LEFT JOIN Schools s ON stu.SchoolID = s.SchoolID
+         GROUP BY
+             td.TeamID, td.TeamName, td.Wins, td.TotalPoints, td.AverageRank
      ),
      RankedTeams AS (
          SELECT
-             teamid, teamname, schoolnames, wins, totalpoints, averagerank,
+             TeamID,
+             TeamName,
+             SchoolNames,
+             Wins,
+             TotalPoints,
+             AverageRank,
              RANK() OVER (ORDER BY Wins DESC, TotalPoints DESC, AverageRank ASC) as place
-         FROM FinalTeamData
+         FROM
+             TeamSchools
      ),
      TopThree AS (
-         SELECT teamid, teamname, schoolnames, wins, totalpoints, averagerank, place
-         FROM RankedTeams
-         WHERE place <= 3
+         SELECT teamid, teamname, schoolnames, wins, totalpoints, averagerank, place FROM RankedTeams WHERE place <= 3
      ),
-     SearchResults AS (
-         SELECT teamid, teamname, schoolnames, wins, totalpoints, averagerank, place
-         FROM RankedTeams
+     FilteredTeams AS (
+         SELECT teamid, teamname, schoolnames, wins, totalpoints, averagerank, place FROM RankedTeams
          WHERE $4::text IS NULL
             OR TeamName ILIKE '%' || $4 || '%'
             OR EXISTS (
@@ -3110,12 +3096,11 @@ WITH AllTeams AS (
              WHERE school ILIKE '%' || $4 || '%'
          )
      )
-SELECT DISTINCT ON (place) teamid, teamname, schoolnames, wins, totalpoints, averagerank, place
-FROM (
-         SELECT teamid, teamname, schoolnames, wins, totalpoints, averagerank, place FROM TopThree
-         UNION
-         SELECT teamid, teamname, schoolnames, wins, totalpoints, averagerank, place FROM SearchResults WHERE place > 3
-     ) combined
+SELECT teamid, teamname, schoolnames, wins, totalpoints, averagerank, place FROM (
+                  SELECT teamid, teamname, schoolnames, wins, totalpoints, averagerank, place FROM TopThree
+                  UNION ALL
+                  SELECT teamid, teamname, schoolnames, wins, totalpoints, averagerank, place FROM FilteredTeams WHERE place > 3
+              ) combined
 ORDER BY place
 LIMIT $2 OFFSET $3
 `
@@ -3128,13 +3113,13 @@ type GetTournamentTeamsRankingParams struct {
 }
 
 type GetTournamentTeamsRankingRow struct {
-	Teamid      int32       `json:"teamid"`
-	Teamname    string      `json:"teamname"`
-	Schoolnames interface{} `json:"schoolnames"`
-	Wins        int64       `json:"wins"`
-	Totalpoints interface{} `json:"totalpoints"`
-	Averagerank interface{} `json:"averagerank"`
-	Place       int64       `json:"place"`
+	Teamid      int32          `json:"teamid"`
+	Teamname    string         `json:"teamname"`
+	Schoolnames interface{}    `json:"schoolnames"`
+	Wins        sql.NullInt32  `json:"wins"`
+	Totalpoints sql.NullString `json:"totalpoints"`
+	Averagerank sql.NullString `json:"averagerank"`
+	Place       int64          `json:"place"`
 }
 
 func (q *Queries) GetTournamentTeamsRanking(ctx context.Context, arg GetTournamentTeamsRankingParams) ([]GetTournamentTeamsRankingRow, error) {

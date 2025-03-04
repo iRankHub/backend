@@ -392,14 +392,24 @@ func (s *RankingService) GetTournamentTeamsRanking(ctx context.Context, req *deb
 				dbRanking.Teamid, err)
 		}
 
+		var wins int32
+		if dbRanking.Wins.Valid {
+			wins = dbRanking.Wins.Int32
+		} else {
+			wins = 0 // Default value when NULL
+		}
+
+		// Use sequential position (i+1) instead of the place from database
+		sequentialPlace := int32(i + 1)
+
 		rankings[i] = &debate_management.TeamRanking{
 			TeamId:      dbRanking.Teamid,
 			TeamName:    strings.Trim(dbRanking.Teamname, "\" \t"),
 			SchoolNames: schoolNames,
-			Wins:        int32(dbRanking.Wins),
+			Wins:        wins,
 			TotalPoints: totalPoints,
 			AverageRank: averageRank,
-			Place:       int32(dbRanking.Place),
+			Place:       sequentialPlace,
 		}
 	}
 
@@ -422,6 +432,21 @@ func convertToFloat64(value interface{}) (float64, error) {
 		return float64(v), nil
 	case string:
 		return strconv.ParseFloat(v, 64)
+	case sql.NullString:
+		if !v.Valid {
+			return 0, nil
+		}
+		return strconv.ParseFloat(v.String, 64)
+	case sql.NullFloat64:
+		if !v.Valid {
+			return 0, nil
+		}
+		return v.Float64, nil
+	case sql.NullInt64:
+		if !v.Valid {
+			return 0, nil
+		}
+		return float64(v.Int64), nil
 	default:
 		return 0, fmt.Errorf("unexpected type: %T", value)
 	}
