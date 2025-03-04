@@ -1273,6 +1273,18 @@ VALUES ($1, $2, $3, $4)
 ON CONFLICT (TournamentID, RankingType, VisibleTo)
     DO UPDATE SET IsVisible = $4, UpdatedAt = CURRENT_TIMESTAMP;
 
+-- name: GetSpeakerScoresByBallotAndTeam :many
+SELECT ss.ScoreID, ss.SpeakerID, ss.BallotID, ss.SpeakerRank,
+       ss.SpeakerPoints, ss.Feedback, tm.TeamID
+FROM SpeakerScores ss
+         JOIN TeamMembers tm ON ss.SpeakerID = tm.StudentID
+WHERE ss.BallotID = $1 AND tm.TeamID = $2
+ORDER BY ss.SpeakerRank;
+
+-- name: CreateSpeakerScore :exec
+INSERT INTO SpeakerScores (BallotID, SpeakerID, SpeakerRank, SpeakerPoints, Feedback)
+VALUES ($1, $2, $3, $4, $5);
+
 -- name: TeamHasDebates :one
 SELECT EXISTS (
     SELECT 1 FROM Debates
@@ -1290,27 +1302,4 @@ WHERE BallotID = $1
     SELECT tm.StudentID
     FROM TeamMembers tm
     WHERE tm.TeamID = $2
-);
-
--- name: CreateSpeakerScoresForTeam :exec
-WITH ballot_info AS (
-    SELECT b.ballotid
-    FROM Ballots b
-             JOIN Debates d ON b.debateid = d.debateid
-    WHERE d.debateid = $1
-),
-     team_speakers AS (
-         SELECT tm.studentid as speakerid
-         FROM TeamMembers tm
-         WHERE tm.teamid = $2
-     )
-INSERT INTO SpeakerScores (ballotid, speakerid, speakerrank, speakerpoints)
-SELECT bi.ballotid, ts.speakerid,
-       ROW_NUMBER() OVER (PARTITION BY bi.ballotid ORDER BY ts.speakerid) as speakerrank,
-       '0' as speakerpoints
-FROM ballot_info bi
-         CROSS JOIN team_speakers ts
-WHERE NOT EXISTS (
-    SELECT 1 FROM SpeakerScores
-    WHERE ballotid = bi.ballotid AND speakerid = ts.speakerid
 );

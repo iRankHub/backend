@@ -333,37 +333,27 @@ func (q *Queries) CreateRoom(ctx context.Context, arg CreateRoomParams) (Room, e
 	return i, err
 }
 
-const createSpeakerScoresForTeam = `-- name: CreateSpeakerScoresForTeam :exec
-WITH ballot_info AS (
-    SELECT b.ballotid
-    FROM Ballots b
-             JOIN Debates d ON b.debateid = d.debateid
-    WHERE d.debateid = $1
-),
-     team_speakers AS (
-         SELECT tm.studentid as speakerid
-         FROM TeamMembers tm
-         WHERE tm.teamid = $2
-     )
-INSERT INTO SpeakerScores (ballotid, speakerid, speakerrank, speakerpoints)
-SELECT bi.ballotid, ts.speakerid,
-       ROW_NUMBER() OVER (PARTITION BY bi.ballotid ORDER BY ts.speakerid) as speakerrank,
-       '0' as speakerpoints
-FROM ballot_info bi
-         CROSS JOIN team_speakers ts
-WHERE NOT EXISTS (
-    SELECT 1 FROM SpeakerScores
-    WHERE ballotid = bi.ballotid AND speakerid = ts.speakerid
-)
+const createSpeakerScore = `-- name: CreateSpeakerScore :exec
+INSERT INTO SpeakerScores (BallotID, SpeakerID, SpeakerRank, SpeakerPoints, Feedback)
+VALUES ($1, $2, $3, $4, $5)
 `
 
-type CreateSpeakerScoresForTeamParams struct {
-	Debateid int32 `json:"debateid"`
-	Teamid   int32 `json:"teamid"`
+type CreateSpeakerScoreParams struct {
+	Ballotid      int32          `json:"ballotid"`
+	Speakerid     int32          `json:"speakerid"`
+	Speakerrank   int32          `json:"speakerrank"`
+	Speakerpoints string         `json:"speakerpoints"`
+	Feedback      sql.NullString `json:"feedback"`
 }
 
-func (q *Queries) CreateSpeakerScoresForTeam(ctx context.Context, arg CreateSpeakerScoresForTeamParams) error {
-	_, err := q.db.ExecContext(ctx, createSpeakerScoresForTeam, arg.Debateid, arg.Teamid)
+func (q *Queries) CreateSpeakerScore(ctx context.Context, arg CreateSpeakerScoreParams) error {
+	_, err := q.db.ExecContext(ctx, createSpeakerScore,
+		arg.Ballotid,
+		arg.Speakerid,
+		arg.Speakerrank,
+		arg.Speakerpoints,
+		arg.Feedback,
+	)
 	return err
 }
 
@@ -2230,6 +2220,61 @@ func (q *Queries) GetSpeakerScoresByBallot(ctx context.Context, ballotid int32) 
 			&i.Feedback,
 			&i.Teamid,
 			&i.Teamname,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSpeakerScoresByBallotAndTeam = `-- name: GetSpeakerScoresByBallotAndTeam :many
+SELECT ss.ScoreID, ss.SpeakerID, ss.BallotID, ss.SpeakerRank,
+       ss.SpeakerPoints, ss.Feedback, tm.TeamID
+FROM SpeakerScores ss
+         JOIN TeamMembers tm ON ss.SpeakerID = tm.StudentID
+WHERE ss.BallotID = $1 AND tm.TeamID = $2
+ORDER BY ss.SpeakerRank
+`
+
+type GetSpeakerScoresByBallotAndTeamParams struct {
+	Ballotid int32 `json:"ballotid"`
+	Teamid   int32 `json:"teamid"`
+}
+
+type GetSpeakerScoresByBallotAndTeamRow struct {
+	Scoreid       int32          `json:"scoreid"`
+	Speakerid     int32          `json:"speakerid"`
+	Ballotid      int32          `json:"ballotid"`
+	Speakerrank   int32          `json:"speakerrank"`
+	Speakerpoints string         `json:"speakerpoints"`
+	Feedback      sql.NullString `json:"feedback"`
+	Teamid        int32          `json:"teamid"`
+}
+
+func (q *Queries) GetSpeakerScoresByBallotAndTeam(ctx context.Context, arg GetSpeakerScoresByBallotAndTeamParams) ([]GetSpeakerScoresByBallotAndTeamRow, error) {
+	rows, err := q.db.QueryContext(ctx, getSpeakerScoresByBallotAndTeam, arg.Ballotid, arg.Teamid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetSpeakerScoresByBallotAndTeamRow{}
+	for rows.Next() {
+		var i GetSpeakerScoresByBallotAndTeamRow
+		if err := rows.Scan(
+			&i.Scoreid,
+			&i.Speakerid,
+			&i.Ballotid,
+			&i.Speakerrank,
+			&i.Speakerpoints,
+			&i.Feedback,
+			&i.Teamid,
 		); err != nil {
 			return nil, err
 		}

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"sort"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/debate_management"
 	"github.com/iRankHub/backend/internal/models"
@@ -194,30 +195,31 @@ func (s *TeamService) UpdateTeam(ctx context.Context, req *debate_management.Upd
 		currentMembersMap[member.Studentid] = true
 	}
 
-	newMembersMap := make(map[int32]bool)
+	newMembersMap := make(map[int32]struct{})
 	for _, speaker := range req.GetTeam().GetSpeakers() {
-		newMembersMap[speaker.GetSpeakerId()] = true
+		newMembersMap[speaker.GetSpeakerId()] = struct{}{}
 	}
 
-	// Check if team composition is changing and team has debates
+	// Check if team composition is changing
 	membersChanged := false
 	if len(currentMembers) != len(req.GetTeam().GetSpeakers()) {
 		membersChanged = true
 	} else {
-		for _, speaker := range req.GetTeam().GetSpeakers() {
-			if !currentMembersMap[speaker.GetSpeakerId()] {
+		for _, member := range currentMembers {
+			if _, exists := newMembersMap[member.Studentid]; !exists {
 				membersChanged = true
 				break
 			}
 		}
 	}
 
+	// If team has debates and members are changing, we need special handling
 	if hasDebates && membersChanged {
 		if userRole != "admin" {
 			return nil, fmt.Errorf("cannot modify team members: team is already part of debates - contact an admin")
 		}
 
-		// If user is admin, we'll allow the change but need to update speaker scores
+		// Admin is allowed to modify, but we need to handle speaker scores
 
 		// Get all debates the team is part of
 		debates, err := queries.GetDebatesByTeam(ctx, req.GetTeam().GetTeamId())
@@ -225,7 +227,7 @@ func (s *TeamService) UpdateTeam(ctx context.Context, req *debate_management.Upd
 			return nil, fmt.Errorf("failed to get debates for team: %v", err)
 		}
 
-		// For each debate, update the speaker scores
+		// For each debate, we need to handle speaker scores
 		for _, debate := range debates {
 			// Get ballots for this debate
 			ballots, err := queries.GetBallotsByDebateID(ctx, debate.Debateid)
@@ -234,7 +236,22 @@ func (s *TeamService) UpdateTeam(ctx context.Context, req *debate_management.Upd
 			}
 
 			for _, ballot := range ballots {
-				// Delete existing speaker scores for this team in this ballot
+				// Get current speaker scores for this ballot and team
+				currentScores, err := queries.GetSpeakerScoresByBallotAndTeam(ctx, models.GetSpeakerScoresByBallotAndTeamParams{
+					Ballotid: ballot.Ballotid,
+					Teamid:   req.GetTeam().GetTeamId(),
+				})
+				if err != nil {
+					return nil, fmt.Errorf("failed to get speaker scores: %v", err)
+				}
+
+				// Create a map of speaker positions and scores to preserve
+				positionScores := make(map[int]models.GetSpeakerScoresByBallotAndTeamRow)
+				for _, score := range currentScores {
+					positionScores[int(score.Speakerrank)] = score
+				}
+
+				// Delete existing scores
 				err = queries.DeleteSpeakerScoresByBallotAndTeam(ctx, models.DeleteSpeakerScoresByBallotAndTeamParams{
 					Ballotid: ballot.Ballotid,
 					Teamid:   req.GetTeam().GetTeamId(),
@@ -243,7 +260,43 @@ func (s *TeamService) UpdateTeam(ctx context.Context, req *debate_management.Upd
 					return nil, fmt.Errorf("failed to delete speaker scores: %v", err)
 				}
 
-				// We'll recreate the speaker scores after updating team members
+				// Create new speaker scores with preserved values where possible
+				sortedSpeakers := make([]int32, 0, len(req.GetTeam().GetSpeakers()))
+				for _, speaker := range req.GetTeam().GetSpeakers() {
+					sortedSpeakers = append(sortedSpeakers, speaker.GetSpeakerId())
+				}
+
+				// Sort speakers by ID to ensure deterministic ordering
+				sort.Slice(sortedSpeakers, func(i, j int) bool {
+					return sortedSpeakers[i] < sortedSpeakers[j]
+				})
+
+				// Create new speaker scores, preserving values from same position if available
+				for i, speakerID := range sortedSpeakers {
+					rank := i + 1 // 1-based ranking
+
+					// Check if we have scores to preserve for this position
+					var speakerPoints string = "0"
+					var feedback sql.NullString = sql.NullString{String: "", Valid: false}
+
+					if oldScore, exists := positionScores[rank]; exists {
+						// Preserve scores from the same position
+						speakerPoints = oldScore.Speakerpoints
+						feedback = oldScore.Feedback
+					}
+
+					// Create new score record
+					err = queries.CreateSpeakerScore(ctx, models.CreateSpeakerScoreParams{
+						Ballotid:      ballot.Ballotid,
+						Speakerid:     speakerID,
+						Speakerrank:   int32(rank),
+						Speakerpoints: speakerPoints,
+						Feedback:      feedback,
+					})
+					if err != nil {
+						return nil, fmt.Errorf("failed to create speaker score: %v", err)
+					}
+				}
 			}
 		}
 	}
@@ -271,26 +324,6 @@ func (s *TeamService) UpdateTeam(ctx context.Context, req *debate_management.Upd
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to add team member: %v", err)
-		}
-	}
-
-	// If team members changed and team has debates, recreate speaker scores
-	if hasDebates && membersChanged {
-		// Get all debates the team is part of (again, since we need the updated info)
-		debates, err := queries.GetDebatesByTeam(ctx, req.GetTeam().GetTeamId())
-		if err != nil {
-			return nil, fmt.Errorf("failed to get debates for team: %v", err)
-		}
-
-		// For each debate, create new speaker scores for the updated team members
-		for _, debate := range debates {
-			err = queries.CreateSpeakerScoresForTeam(ctx, models.CreateSpeakerScoresForTeamParams{
-				Debateid: debate.Debateid,
-				Teamid:   req.GetTeam().GetTeamId(),
-			})
-			if err != nil {
-				return nil, fmt.Errorf("failed to create new speaker scores: %v", err)
-			}
 		}
 	}
 
