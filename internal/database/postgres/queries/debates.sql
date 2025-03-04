@@ -814,27 +814,48 @@ WITH TeamData AS (
     SELECT
         t.TeamID,
         t.Name AS TeamName,
+        t.TournamentID,
         ARRAY_AGG(DISTINCT s.SchoolName) AS SchoolNames
     FROM Teams t
-             JOIN TeamMembers tm ON t.TeamID = tm.TeamID
-             JOIN Students stu ON tm.StudentID = stu.StudentID
-             JOIN Schools s ON stu.SchoolID = s.SchoolID
+             LEFT JOIN TeamMembers tm ON t.TeamID = tm.TeamID
+             LEFT JOIN Students stu ON tm.StudentID = stu.StudentID
+             LEFT JOIN Schools s ON stu.SchoolID = s.SchoolID
     WHERE t.TournamentID = $1
-    GROUP BY t.TeamID, t.Name
+    GROUP BY t.TeamID, t.Name, t.TournamentID
 ),
+     TeamDebates AS (
+         SELECT
+             td.TeamID,
+             d.DebateID,
+             d.IsEliminationRound,
+             CASE
+                 WHEN d.Team1ID = td.TeamID THEN 'Team1'
+                 WHEN d.Team2ID = td.TeamID THEN 'Team2'
+                 ELSE NULL
+                 END AS TeamPosition,
+             b.Verdict,
+             ts.TotalScore,
+             ts.Rank
+         FROM TeamData td
+                  LEFT JOIN Debates d ON (td.TeamID = d.Team1ID OR td.TeamID = d.Team2ID) AND d.TournamentID = td.TournamentID
+                  LEFT JOIN Ballots b ON d.DebateID = b.DebateID
+                  LEFT JOIN TeamScores ts ON td.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+         WHERE d.IsEliminationRound = false OR d.IsEliminationRound IS NULL
+     ),
      TeamStats AS (
          SELECT
              td.TeamID,
              td.TeamName,
              td.SchoolNames,
-             COUNT(CASE WHEN b.Verdict = td.TeamName THEN 1 END) AS Wins,
-             COALESCE(SUM(ts.TotalScore), 0) AS TotalPoints,
-             COALESCE(AVG(ts.Rank), 0) AS AverageRank
+             COUNT(CASE
+                       WHEN tdb.TeamPosition = 'Team1' AND tdb.Verdict = td.TeamName THEN 1
+                       WHEN tdb.TeamPosition = 'Team2' AND tdb.Verdict = td.TeamName THEN 1
+                       ELSE NULL
+                 END) AS Wins,
+             COALESCE(SUM(tdb.TotalScore), 0) AS TotalPoints,
+             COALESCE(AVG(tdb.Rank), 0) AS AverageRank
          FROM TeamData td
-                  LEFT JOIN Debates d ON (td.TeamID = d.Team1ID OR td.TeamID = d.Team2ID)
-                  LEFT JOIN Ballots b ON d.DebateID = b.DebateID
-                  LEFT JOIN TeamScores ts ON td.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
-         WHERE d.TournamentID = $1 AND d.IsEliminationRound = false
+                  LEFT JOIN TeamDebates tdb ON td.TeamID = tdb.TeamID
          GROUP BY td.TeamID, td.TeamName, td.SchoolNames
      ),
      RankedTeams AS (

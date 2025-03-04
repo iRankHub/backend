@@ -2,6 +2,7 @@ package app
 
 import (
 	"bufio"
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -13,10 +14,12 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/iRankHub/backend/envoy"
 	"github.com/iRankHub/backend/internal/config"
+	_ "github.com/iRankHub/backend/internal/database/postgres"
 	"github.com/iRankHub/backend/internal/grpc/server"
 	"github.com/iRankHub/backend/internal/utils"
 	script "github.com/iRankHub/backend/scripts"
@@ -74,25 +77,56 @@ func StartBackend() {
 		log.Fatalf("Failed to load database configuration: %v", err)
 	}
 
-	// Connect to the database
+	// Create connection string for both SQL and PGX
 	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
 		dbConfig.User, dbConfig.Password, dbConfig.Host, dbConfig.Port, dbConfig.Name, dbConfig.Ssl)
+
+	// Create a connection pool with pgx
+	poolConfig, err := pgxpool.ParseConfig(connString)
+	if err != nil {
+		log.Fatalf("Failed to parse connection pool config: %v", err)
+	}
+
+	// Configure connection pool
+	poolConfig.MaxConns = 20
+	poolConfig.MinConns = 5
+	poolConfig.MaxConnLifetime = 30 * time.Minute
+	poolConfig.MaxConnIdleTime = 10 * time.Minute
+	poolConfig.HealthCheckPeriod = 30 * time.Second
+
+	// Create the connection pool
+	pool, err := pgxpool.NewWithConfig(context.Background(), poolConfig)
+	if err != nil {
+		log.Fatalf("Failed to create connection pool: %v", err)
+	}
+	log.Println("Successfully created database connection pool")
+	defer pool.Close()
+
+	// Test the connection
+	if err = pool.Ping(context.Background()); err != nil {
+		log.Fatalf("Failed to ping database connection pool: %v", err)
+	}
+	log.Println("Successfully verified connection pool with ping")
+
+	// Convert pgx pool to standard database/sql for compatibility with existing code
 	db, err := sql.Open("pgx", connString)
 	if err != nil {
-		log.Fatalf("Failed to connect to the database: %v", err)
+		log.Fatalf("Failed to create sql.DB: %v", err)
 	}
-	log.Println("Successfully connected to the database")
+	log.Println("Successfully created SQL database connection")
 	defer db.Close()
 
-	// Set connection pool settings
-	db.SetMaxOpenConns(100)
-	db.SetMaxIdleConns(50)
-	db.SetConnMaxLifetime(time.Minute * 5)
+	// Configure the sql.DB pool settings
+	db.SetMaxOpenConns(50)
+	db.SetMaxIdleConns(25)
+	db.SetConnMaxLifetime(time.Hour)
+	db.SetConnMaxIdleTime(30 * time.Minute)
 
 	// Verify connection
 	if err = db.Ping(); err != nil {
-		log.Fatalf("Failed to ping database: %v", err)
+		log.Fatalf("Failed to ping SQL database: %v", err)
 	}
+	log.Println("Successfully verified SQL connection with ping")
 
 	// Run database migrations only in development
 	if isDevMode {
@@ -124,7 +158,7 @@ func StartBackend() {
 	// Start the token cleanup goroutine
 	utils.StartTokenCleanup()
 
-	// Start the gRPC server
+	// Start the gRPC server with the SQL DB (for compatibility with existing code)
 	if err := server.StartGRPCServer(db); err != nil {
 		log.Fatalf("Failed to start gRPC server: %v", err)
 	}
