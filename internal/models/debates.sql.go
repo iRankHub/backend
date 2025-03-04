@@ -333,6 +333,40 @@ func (q *Queries) CreateRoom(ctx context.Context, arg CreateRoomParams) (Room, e
 	return i, err
 }
 
+const createSpeakerScoresForTeam = `-- name: CreateSpeakerScoresForTeam :exec
+WITH ballot_info AS (
+    SELECT b.ballotid
+    FROM Ballots b
+             JOIN Debates d ON b.debateid = d.debateid
+    WHERE d.debateid = $1
+),
+     team_speakers AS (
+         SELECT tm.studentid as speakerid
+         FROM TeamMembers tm
+         WHERE tm.teamid = $2
+     )
+INSERT INTO SpeakerScores (ballotid, speakerid, speakerrank, speakerpoints)
+SELECT bi.ballotid, ts.speakerid,
+       ROW_NUMBER() OVER (PARTITION BY bi.ballotid ORDER BY ts.speakerid) as speakerrank,
+       '0' as speakerpoints
+FROM ballot_info bi
+         CROSS JOIN team_speakers ts
+WHERE NOT EXISTS (
+    SELECT 1 FROM SpeakerScores
+    WHERE ballotid = bi.ballotid AND speakerid = ts.speakerid
+)
+`
+
+type CreateSpeakerScoresForTeamParams struct {
+	Debateid int32 `json:"debateid"`
+	Teamid   int32 `json:"teamid"`
+}
+
+func (q *Queries) CreateSpeakerScoresForTeam(ctx context.Context, arg CreateSpeakerScoresForTeamParams) error {
+	_, err := q.db.ExecContext(ctx, createSpeakerScoresForTeam, arg.Debateid, arg.Teamid)
+	return err
+}
+
 const createTeam = `-- name: CreateTeam :one
 INSERT INTO Teams (Name, TournamentID)
 VALUES ($1, $2)
@@ -424,6 +458,26 @@ WHERE BallotID = $1
 
 func (q *Queries) DeleteSpeakerScoresByBallot(ctx context.Context, ballotid int32) error {
 	_, err := q.db.ExecContext(ctx, deleteSpeakerScoresByBallot, ballotid)
+	return err
+}
+
+const deleteSpeakerScoresByBallotAndTeam = `-- name: DeleteSpeakerScoresByBallotAndTeam :exec
+DELETE FROM SpeakerScores
+WHERE BallotID = $1
+  AND SpeakerID IN (
+    SELECT tm.StudentID
+    FROM TeamMembers tm
+    WHERE tm.TeamID = $2
+)
+`
+
+type DeleteSpeakerScoresByBallotAndTeamParams struct {
+	Ballotid int32 `json:"ballotid"`
+	Teamid   int32 `json:"teamid"`
+}
+
+func (q *Queries) DeleteSpeakerScoresByBallotAndTeam(ctx context.Context, arg DeleteSpeakerScoresByBallotAndTeamParams) error {
+	_, err := q.db.ExecContext(ctx, deleteSpeakerScoresByBallotAndTeam, arg.Ballotid, arg.Teamid)
 	return err
 }
 
@@ -858,6 +912,46 @@ type GetDebatesByRoomAndTournamentParams struct {
 
 func (q *Queries) GetDebatesByRoomAndTournament(ctx context.Context, arg GetDebatesByRoomAndTournamentParams) ([]Debate, error) {
 	rows, err := q.db.QueryContext(ctx, getDebatesByRoomAndTournament, arg.Tournamentid, arg.Roomid, arg.Iseliminationround)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Debate{}
+	for rows.Next() {
+		var i Debate
+		if err := rows.Scan(
+			&i.Debateid,
+			&i.Roundid,
+			&i.Roundnumber,
+			&i.Iseliminationround,
+			&i.Tournamentid,
+			&i.Team1id,
+			&i.Team2id,
+			&i.Starttime,
+			&i.Endtime,
+			&i.Roomid,
+			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getDebatesByTeam = `-- name: GetDebatesByTeam :many
+SELECT debateid, roundid, roundnumber, iseliminationround, tournamentid, team1id, team2id, starttime, endtime, roomid, status FROM Debates
+WHERE Team1ID = $1 OR Team2ID = $1
+`
+
+func (q *Queries) GetDebatesByTeam(ctx context.Context, team1id int32) ([]Debate, error) {
+	rows, err := q.db.QueryContext(ctx, getDebatesByTeam, team1id)
 	if err != nil {
 		return nil, err
 	}
@@ -2892,27 +2986,39 @@ func (q *Queries) GetTournamentStudentRanking(ctx context.Context, arg GetTourna
 }
 
 const getTournamentTeamsRanking = `-- name: GetTournamentTeamsRanking :many
-WITH RankedTeams AS (
+WITH TeamData AS (
     SELECT
         t.TeamID,
         t.Name AS TeamName,
-        ARRAY_AGG(DISTINCT s.SchoolName) AS SchoolNames,
-        COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) AS Wins,
-        COALESCE(SUM(ts.TotalScore), 0) AS TotalPoints,
-        COALESCE(AVG(ts.Rank), 0) AS AverageRank,
-        RANK() OVER (ORDER BY COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) DESC,
-            COALESCE(SUM(ts.TotalScore), 0) DESC,
-            COALESCE(AVG(ts.Rank), 0) ASC) as place
+        ARRAY_AGG(DISTINCT s.SchoolName) AS SchoolNames
     FROM Teams t
              JOIN TeamMembers tm ON t.TeamID = tm.TeamID
              JOIN Students stu ON tm.StudentID = stu.StudentID
              JOIN Schools s ON stu.SchoolID = s.SchoolID
-             LEFT JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
-             LEFT JOIN Ballots b ON d.DebateID = b.DebateID
-             LEFT JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
-    WHERE t.TournamentID = $1 AND d.IsEliminationRound = false
+    WHERE t.TournamentID = $1
     GROUP BY t.TeamID, t.Name
 ),
+     TeamStats AS (
+         SELECT
+             td.TeamID,
+             td.TeamName,
+             td.SchoolNames,
+             COUNT(CASE WHEN b.Verdict = td.TeamName THEN 1 END) AS Wins,
+             COALESCE(SUM(ts.TotalScore), 0) AS TotalPoints,
+             COALESCE(AVG(ts.Rank), 0) AS AverageRank
+         FROM TeamData td
+                  LEFT JOIN Debates d ON (td.TeamID = d.Team1ID OR td.TeamID = d.Team2ID)
+                  LEFT JOIN Ballots b ON d.DebateID = b.DebateID
+                  LEFT JOIN TeamScores ts ON td.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+         WHERE d.TournamentID = $1 AND d.IsEliminationRound = false
+         GROUP BY td.TeamID, td.TeamName, td.SchoolNames
+     ),
+     RankedTeams AS (
+         SELECT
+             teamid, teamname, schoolnames, wins, totalpoints, averagerank,
+             RANK() OVER (ORDER BY Wins DESC, TotalPoints DESC, AverageRank ASC) as place
+         FROM TeamStats
+     ),
      TopThree AS (
          SELECT teamid, teamname, schoolnames, wins, totalpoints, averagerank, place
          FROM RankedTeams
@@ -3379,6 +3485,20 @@ func (q *Queries) SetRankingVisibility(ctx context.Context, arg SetRankingVisibi
 		arg.Isvisible,
 	)
 	return err
+}
+
+const teamHasDebates = `-- name: TeamHasDebates :one
+SELECT EXISTS (
+    SELECT 1 FROM Debates
+    WHERE Team1ID = $1 OR Team2ID = $1
+) AS has_debates
+`
+
+func (q *Queries) TeamHasDebates(ctx context.Context, team1id int32) (bool, error) {
+	row := q.db.QueryRowContext(ctx, teamHasDebates, team1id)
+	var has_debates bool
+	err := row.Scan(&has_debates)
+	return has_debates, err
 }
 
 const updateBallot = `-- name: UpdateBallot :exec

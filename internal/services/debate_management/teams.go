@@ -176,6 +176,78 @@ func (s *TeamService) UpdateTeam(ctx context.Context, req *debate_management.Upd
 
 	queries := models.New(s.db).WithTx(tx)
 
+	// Check if team is part of any debate
+	hasDebates, err := queries.TeamHasDebates(ctx, req.GetTeam().GetTeamId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if team has debates: %v", err)
+	}
+
+	// Get current team members before updating
+	currentMembers, err := queries.GetTeamMembers(ctx, req.GetTeam().GetTeamId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current team members: %v", err)
+	}
+
+	// Create maps of current and new members for comparison
+	currentMembersMap := make(map[int32]bool)
+	for _, member := range currentMembers {
+		currentMembersMap[member.Studentid] = true
+	}
+
+	newMembersMap := make(map[int32]bool)
+	for _, speaker := range req.GetTeam().GetSpeakers() {
+		newMembersMap[speaker.GetSpeakerId()] = true
+	}
+
+	// Check if team composition is changing and team has debates
+	membersChanged := false
+	if len(currentMembers) != len(req.GetTeam().GetSpeakers()) {
+		membersChanged = true
+	} else {
+		for _, speaker := range req.GetTeam().GetSpeakers() {
+			if !currentMembersMap[speaker.GetSpeakerId()] {
+				membersChanged = true
+				break
+			}
+		}
+	}
+
+	if hasDebates && membersChanged {
+		if userRole != "admin" {
+			return nil, fmt.Errorf("cannot modify team members: team is already part of debates - contact an admin")
+		}
+
+		// If user is admin, we'll allow the change but need to update speaker scores
+
+		// Get all debates the team is part of
+		debates, err := queries.GetDebatesByTeam(ctx, req.GetTeam().GetTeamId())
+		if err != nil {
+			return nil, fmt.Errorf("failed to get debates for team: %v", err)
+		}
+
+		// For each debate, update the speaker scores
+		for _, debate := range debates {
+			// Get ballots for this debate
+			ballots, err := queries.GetBallotsByDebateID(ctx, debate.Debateid)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get ballots for debate: %v", err)
+			}
+
+			for _, ballot := range ballots {
+				// Delete existing speaker scores for this team in this ballot
+				err = queries.DeleteSpeakerScoresByBallotAndTeam(ctx, models.DeleteSpeakerScoresByBallotAndTeamParams{
+					Ballotid: ballot.Ballotid,
+					Teamid:   req.GetTeam().GetTeamId(),
+				})
+				if err != nil {
+					return nil, fmt.Errorf("failed to delete speaker scores: %v", err)
+				}
+
+				// We'll recreate the speaker scores after updating team members
+			}
+		}
+	}
+
 	// Update team name
 	err = queries.UpdateTeam(ctx, models.UpdateTeamParams{
 		Teamid: req.GetTeam().GetTeamId(),
@@ -199,6 +271,26 @@ func (s *TeamService) UpdateTeam(ctx context.Context, req *debate_management.Upd
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to add team member: %v", err)
+		}
+	}
+
+	// If team members changed and team has debates, recreate speaker scores
+	if hasDebates && membersChanged {
+		// Get all debates the team is part of (again, since we need the updated info)
+		debates, err := queries.GetDebatesByTeam(ctx, req.GetTeam().GetTeamId())
+		if err != nil {
+			return nil, fmt.Errorf("failed to get debates for team: %v", err)
+		}
+
+		// For each debate, create new speaker scores for the updated team members
+		for _, debate := range debates {
+			err = queries.CreateSpeakerScoresForTeam(ctx, models.CreateSpeakerScoresForTeamParams{
+				Debateid: debate.Debateid,
+				Teamid:   req.GetTeam().GetTeamId(),
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to create new speaker scores: %v", err)
+			}
 		}
 	}
 
@@ -257,18 +349,25 @@ func (s *TeamService) DeleteTeam(ctx context.Context, req *debate_management.Del
 
 	queries := models.New(s.db).WithTx(tx)
 
-	// Delete team members (if any)
+	// Check if team is part of any debate
+	hasDebates, err := queries.TeamHasDebates(ctx, req.GetTeamId())
+	if err != nil {
+		return false, "", fmt.Errorf("failed to check if team has debates: %v", err)
+	}
+
+	if hasDebates {
+		return false, "Team cannot be deleted because it is part of one or more debates", nil
+	}
+
+	// Delete team members
 	err = queries.DeleteTeamMembers(ctx, req.GetTeamId())
 	if err != nil {
 		return false, "", fmt.Errorf("failed to delete team members: %v", err)
 	}
 
-	// Try to delete the team
+	// Delete the team
 	err = queries.DeleteTeam(ctx, req.GetTeamId())
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return false, "Team cannot be deleted because it is associated with one or more debates", nil
-		}
 		return false, "", fmt.Errorf("failed to delete team: %v", err)
 	}
 
