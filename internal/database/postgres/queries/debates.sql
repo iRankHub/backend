@@ -810,59 +810,68 @@ ORDER BY
     StartDate;
 
 -- name: GetTournamentTeamsRanking :many
-WITH TeamData AS (
+WITH AllTeams AS (
     SELECT
         t.TeamID,
         t.Name AS TeamName,
-        t.TournamentID,
-        ARRAY_AGG(DISTINCT s.SchoolName) AS SchoolNames
+        t.TournamentID
     FROM Teams t
-             LEFT JOIN TeamMembers tm ON t.TeamID = tm.TeamID
-             LEFT JOIN Students stu ON tm.StudentID = stu.StudentID
-             LEFT JOIN Schools s ON stu.SchoolID = s.SchoolID
     WHERE t.TournamentID = $1
-    GROUP BY t.TeamID, t.Name, t.TournamentID
 ),
-     TeamDebates AS (
+     TeamSchools AS (
          SELECT
-             td.TeamID,
-             d.DebateID,
-             d.IsEliminationRound,
-             CASE
-                 WHEN d.Team1ID = td.TeamID THEN 'Team1'
-                 WHEN d.Team2ID = td.TeamID THEN 'Team2'
-                 ELSE NULL
-                 END AS TeamPosition,
-             b.Verdict,
-             ts.TotalScore,
-             ts.Rank
-         FROM TeamData td
-                  LEFT JOIN Debates d ON (td.TeamID = d.Team1ID OR td.TeamID = d.Team2ID) AND d.TournamentID = td.TournamentID
-                  LEFT JOIN Ballots b ON d.DebateID = b.DebateID
-                  LEFT JOIN TeamScores ts ON td.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
-         WHERE d.IsEliminationRound = false OR d.IsEliminationRound IS NULL
+             at.TeamID,
+             at.TeamName,
+             ARRAY_AGG(DISTINCT s.SchoolName) FILTER (WHERE s.SchoolName IS NOT NULL) AS SchoolNames
+         FROM AllTeams at
+                  LEFT JOIN TeamMembers tm ON at.TeamID = tm.TeamID
+                  LEFT JOIN Students stu ON tm.StudentID = stu.StudentID
+                  LEFT JOIN Schools s ON stu.SchoolID = s.SchoolID
+         GROUP BY at.TeamID, at.TeamName
      ),
-     TeamStats AS (
+     TeamWins AS (
          SELECT
-             td.TeamID,
-             td.TeamName,
-             td.SchoolNames,
+             at.TeamID,
              COUNT(CASE
-                       WHEN tdb.TeamPosition = 'Team1' AND tdb.Verdict = td.TeamName THEN 1
-                       WHEN tdb.TeamPosition = 'Team2' AND tdb.Verdict = td.TeamName THEN 1
-                       ELSE NULL
-                 END) AS Wins,
-             COALESCE(SUM(tdb.TotalScore), 0) AS TotalPoints,
-             COALESCE(AVG(tdb.Rank), 0) AS AverageRank
-         FROM TeamData td
-                  LEFT JOIN TeamDebates tdb ON td.TeamID = tdb.TeamID
-         GROUP BY td.TeamID, td.TeamName, td.SchoolNames
+                       WHEN (d.Team1ID = at.TeamID AND b.Verdict = at.TeamName) OR
+                            (d.Team2ID = at.TeamID AND b.Verdict = at.TeamName)
+                           THEN 1 ELSE NULL END) as Wins
+         FROM AllTeams at
+                  LEFT JOIN Debates d ON (at.TeamID = d.Team1ID OR at.TeamID = d.Team2ID)
+             AND d.TournamentID = at.TournamentID
+             AND d.IsEliminationRound = false
+                  LEFT JOIN Ballots b ON d.DebateID = b.DebateID
+         GROUP BY at.TeamID
+     ),
+     TeamPoints AS (
+         SELECT
+             at.TeamID,
+             COALESCE(SUM(ts.TotalScore), 0) AS TotalPoints,
+             COALESCE(AVG(ts.Rank), 0) AS AverageRank
+         FROM AllTeams at
+                  LEFT JOIN Debates d ON (at.TeamID = d.Team1ID OR at.TeamID = d.Team2ID)
+             AND d.TournamentID = at.TournamentID
+             AND d.IsEliminationRound = false
+                  LEFT JOIN TeamScores ts ON at.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+         GROUP BY at.TeamID
+     ),
+     FinalTeamData AS (
+         SELECT
+             ts.TeamID,
+             ts.TeamName,
+             ts.SchoolNames,
+             COALESCE(tw.Wins, 0) AS Wins,
+             COALESCE(tp.TotalPoints, 0) AS TotalPoints,
+             COALESCE(tp.AverageRank, 0) AS AverageRank
+         FROM TeamSchools ts
+                  LEFT JOIN TeamWins tw ON ts.TeamID = tw.TeamID
+                  LEFT JOIN TeamPoints tp ON ts.TeamID = tp.TeamID
      ),
      RankedTeams AS (
          SELECT
              *,
              RANK() OVER (ORDER BY Wins DESC, TotalPoints DESC, AverageRank ASC) as place
-         FROM TeamStats
+         FROM FinalTeamData
      ),
      TopThree AS (
          SELECT *
@@ -874,7 +883,11 @@ WITH TeamData AS (
          FROM RankedTeams
          WHERE $4::text IS NULL
             OR TeamName ILIKE '%' || $4 || '%'
-            OR $4 = ANY(SchoolNames)
+            OR EXISTS (
+             SELECT 1
+             FROM unnest(SchoolNames) AS school
+             WHERE school ILIKE '%' || $4 || '%'
+         )
      )
 SELECT DISTINCT ON (place) *
 FROM (

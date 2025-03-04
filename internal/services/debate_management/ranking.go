@@ -347,13 +347,54 @@ func (s *RankingService) GetTournamentTeamsRanking(ctx context.Context, req *deb
 
 	rankings := make([]*debate_management.TeamRanking, len(dbRankings))
 	for i, dbRanking := range dbRankings {
-		schoolNames := strings.Split(dbRanking.Schoolnames.(string), ",")
-		totalPoints, _ := convertToFloat64(dbRanking.Totalpoints)
-		averageRank, _ := convertToFloat64(dbRanking.Averagerank)
+		// Proper handling of SchoolNames array
+		var schoolNames []string
+
+		switch v := dbRanking.Schoolnames.(type) {
+		case []string:
+			schoolNames = v
+		case string:
+			// Handle string format, might be "{school1,school2}" or "school1,school2"
+			s := strings.TrimPrefix(v, "{")
+			s = strings.TrimSuffix(s, "}")
+			if s != "" {
+				schoolNames = strings.Split(s, ",")
+			}
+		case []interface{}:
+			// Handle array of interfaces
+			for _, item := range v {
+				if str, ok := item.(string); ok {
+					schoolNames = append(schoolNames, str)
+				}
+			}
+		default:
+			// If we can't determine the type, log it and use empty array
+			fmt.Printf("WARNING: Unknown SchoolNames type: %T for team %d\n",
+				dbRanking.Schoolnames, dbRanking.Teamid)
+			schoolNames = []string{}
+		}
+
+		// Clean up school names to remove any quotes or extra spaces
+		for j, name := range schoolNames {
+			schoolNames[j] = strings.Trim(name, "\" \t")
+		}
+
+		// Proper handling of numeric values
+		totalPoints, err := convertToFloat64(dbRanking.Totalpoints)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse total points for team %d: %v",
+				dbRanking.Teamid, err)
+		}
+
+		averageRank, err := convertToFloat64(dbRanking.Averagerank)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse average rank for team %d: %v",
+				dbRanking.Teamid, err)
+		}
 
 		rankings[i] = &debate_management.TeamRanking{
 			TeamId:      dbRanking.Teamid,
-			TeamName:    dbRanking.Teamname,
+			TeamName:    strings.Trim(dbRanking.Teamname, "\" \t"),
 			SchoolNames: schoolNames,
 			Wins:        int32(dbRanking.Wins),
 			TotalPoints: totalPoints,
