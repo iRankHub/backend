@@ -19,17 +19,17 @@ spec:
           image: nginx:1.25-alpine
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "200m"
+              memory: "512Mi"  # Doubled from 256Mi
+              cpu: "400m"      # Doubled from 200m
             limits:
-              memory: "512Mi"
-              cpu: "400m"
+              memory: "1Gi"    # Doubled from 512Mi
+              cpu: "800m"      # Doubled from 400m
           ports:
             - containerPort: 80
-              hostPort: 80
+              hostPort: 80     # Kept hostPort since we're using 1 replica
               protocol: TCP
             - containerPort: 443
-              hostPort: 443
+              hostPort: 443    # Kept hostPort since we're using 1 replica
               protocol: TCP
           volumeMounts:
             - name: nginx-config
@@ -60,6 +60,12 @@ spec:
               port: 80
             initialDelaySeconds: 15
             periodSeconds: 20
+          # Added performance optimizations
+          env:
+            - name: NGINX_WORKER_PROCESSES
+              value: "auto"
+            - name: NGINX_WORKER_CONNECTIONS
+              value: "8192"
       volumes:
         - name: nginx-config
           configMap:
@@ -80,3 +86,21 @@ spec:
           emptyDir: {}
         - name: nginx-run
           emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+spec:
+  type: ClusterIP
+  selector:
+    app: nginx
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+    - name: https
+      port: 443
+      targetPort: 443
+      protocol: TCP

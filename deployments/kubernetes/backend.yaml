@@ -17,35 +17,58 @@ spec:
         kubernetes.io/hostname: lke252359-403035-18d2c9e90000
       terminationGracePeriodSeconds: 10
       initContainers:
-      - name: wait-for-envoy
-        image: busybox
-        command: ['sh', '-c', 'until nc -z envoy 80; do echo waiting for envoy; sleep 2; done;']
-      - name: wait-for-rabbitmq
-        image: busybox
-        command: ['sh', '-c', 'until nc -z rabbitmq 5672; do echo waiting for rabbitmq; sleep 2; done;']
-      - name: wait-for-postgres
-        image: busybox
-        command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for postgres; sleep 2; done;']
+        - name: wait-for-envoy
+          image: busybox
+          command: ['sh', '-c', 'until nc -z envoy 80; do echo waiting for envoy; sleep 2; done;']
+        - name: wait-for-rabbitmq
+          image: busybox
+          command: ['sh', '-c', 'until nc -z rabbitmq 5672; do echo waiting for rabbitmq; sleep 2; done;']
+        - name: wait-for-postgres
+          image: busybox
+          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for postgres; sleep 2; done;']
       containers:
-      - name: backend
-        image: josycoder/irankhub:backend-latest
-        imagePullPolicy: Always
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "200m"
-            ephemeral-storage: "16Gi"
-          limits:
-            memory: "1Gi"
-            cpu: "400m"
-            ephemeral-storage: "24Gi"
-        envFrom:
-        - configMapRef:
-            name: app-config
-        - secretRef:
-            name: app-secrets
-        ports:
-        - containerPort: 8080
-          name: grpc
+        - name: backend
+          image: josycoder/irankhub:backend-latest
+          imagePullPolicy: Always
+          resources:
+            requests:
+              memory: "4Gi"      # Equal to 4 × 1Gi
+              cpu: "1600m"       # Equal to 4 × 400m
+              ephemeral-storage: "64Gi"  # Equal to 4 × 16Gi
+            limits:
+              memory: "8Gi"      # Equal to 4 × 2Gi
+              cpu: "3200m"       # Equal to 4 × 800m
+              ephemeral-storage: "96Gi"  # Equal to 4 × 24Gi
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          env:
+            - name: MAX_PROCS
+              value: "4"         # Set to use 4 cores (1 per previous instance)
+            - name: DB_MAX_CONNS
+              value: "80"        # Equal to 4 × 20
+            - name: DB_MIN_CONNS
+              value: "20"        # Equal to 4 × 5
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          ports:
+            - containerPort: 8080
+              name: grpc
       imagePullSecrets:
-      - name: regcred
+        - name: regcred

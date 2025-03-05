@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: envoy
 spec:
-  replicas: 1
+  replicas: 1  # Reduced to 1 replica for consistency with nginx
   selector:
     matchLabels:
       app: envoy
@@ -15,41 +15,47 @@ spec:
       nodeSelector:
         kubernetes.io/hostname: lke252359-403034-55c1a49e0000
       containers:
-      - name: envoy
-        image: envoyproxy/envoy:v1.30-latest
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "300m"
-            ephemeral-storage: "6Gi"
-          limits:
-            memory: "1Gi"
-            cpu: "500m"
-            ephemeral-storage: "8Gi"
-        ports:
-        - containerPort: 80
-          protocol: TCP
-        - containerPort: 9901
-          protocol: TCP
-        volumeMounts:
-        - name: envoy-config
-          mountPath: /etc/envoy/envoy.yaml
-          subPath: envoy.yaml
-        command:
-        - /usr/local/bin/envoy
-        args:
-        - -c
-        - /etc/envoy/envoy.yaml
-        - --service-cluster
-        - envoy
-        - --service-node
-        - envoy
-        - -l
-        - info
+        - name: envoy
+          image: envoyproxy/envoy:v1.30-latest
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "600m"
+              ephemeral-storage: "12Gi"
+            limits:
+              memory: "2Gi"
+              cpu: "1200m"
+              ephemeral-storage: "16Gi"
+          ports:
+            - containerPort: 80
+              protocol: TCP
+            - containerPort: 9901
+              protocol: TCP
+          volumeMounts:
+            - name: envoy-config
+              mountPath: /etc/envoy/envoy.yaml
+              subPath: envoy.yaml
+          command:
+            - /usr/local/bin/envoy
+          args:
+            - -c
+            - /etc/envoy/envoy.yaml
+            - --service-cluster
+            - envoy
+            - --service-node
+            - envoy
+            - -l
+            - info
+            - --component-log-level
+            - upstream:warning,connection:warning
+          # Resource utilization optimizations
+          env:
+            - name: ENVOY_CONCURRENCY
+              value: "4"
       volumes:
-      - name: envoy-config
-        configMap:
-          name: envoy-config
+        - name: envoy-config
+          configMap:
+            name: envoy-config
 ---
 apiVersion: v1
 kind: Service

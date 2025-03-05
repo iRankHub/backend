@@ -15,54 +15,137 @@ spec:
     spec:
       nodeSelector:
         kubernetes.io/hostname: lke252359-403035-18d2c9e90000
-      terminationGracePeriodSeconds: 10
+      terminationGracePeriodSeconds: 30
       containers:
-      - name: postgres
-        image: postgres:13-alpine
+        - name: postgres
+          image: postgres:13-alpine
+          resources:
+            requests:
+              memory: "4Gi"
+              cpu: "2"
+            limits:
+              memory: "6Gi"
+              cpu: "4"
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: DB_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: DB_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: DB_NAME
+            # Performance tuning parameters
+            - name: POSTGRES_SHARED_BUFFERS
+              value: "2GB"
+            - name: POSTGRES_EFFECTIVE_CACHE_SIZE
+              value: "4GB"
+            - name: POSTGRES_WORK_MEM
+              value: "32MB"
+            - name: POSTGRES_MAINTENANCE_WORK_MEM
+              value: "512MB"
+            - name: POSTGRES_MAX_CONNECTIONS
+              value: "200"
+            - name: POSTGRES_MAX_WORKER_PROCESSES
+              value: "8"
+            - name: POSTGRES_MAX_PARALLEL_WORKERS
+              value: "8"
+            - name: POSTGRES_MAX_PARALLEL_WORKERS_PER_GATHER
+              value: "4"
+
+            # WAL Configuration parameters
+            - name: POSTGRES_WAL_BUFFERS
+              value: "16MB"
+            - name: POSTGRES_WAL_LEVEL
+              value: "replica"
+
+            # Checkpoint optimization parameters
+            - name: POSTGRES_CHECKPOINT_TIMEOUT
+              value: "15min"
+            - name: POSTGRES_CHECKPOINT_COMPLETION_TARGET
+              value: "0.9"
+            - name: POSTGRES_MIN_WAL_SIZE
+              value: "1GB"
+            - name: POSTGRES_MAX_WAL_SIZE
+              value: "4GB"
+
+            # Autovacuum optimization parameters
+            - name: POSTGRES_AUTOVACUUM_MAX_WORKERS
+              value: "4"
+            - name: POSTGRES_AUTOVACUUM_NAPTIME
+              value: "1min"
+            - name: POSTGRES_AUTOVACUUM_VACUUM_SCALE_FACTOR
+              value: "0.1"
+            - name: POSTGRES_AUTOVACUUM_ANALYZE_SCALE_FACTOR
+              value: "0.05"
+
+            # Additional performance parameters
+            - name: POSTGRES_RANDOM_PAGE_COST
+              value: "1.1"  # Optimized for SSD storage
+            - name: POSTGRES_EFFECTIVE_IO_CONCURRENCY
+              value: "200"  # Higher for SSD storage
+            - name: POSTGRES_TRACK_ACTIVITY_QUERY_SIZE
+              value: "4096" # For better query tracking
+            - name: POSTGRES_LOG_MIN_DURATION_STATEMENT
+              value: "1000" # Log slow queries (1 second)
+
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+              subPath: postgres
+            - name: init-script
+              mountPath: /docker-entrypoint-initdb.d
+            - name: postgres-config
+              mountPath: /etc/postgresql/postgresql.conf
+              subPath: postgresql.conf
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          startupProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 30
+            timeoutSeconds: 5
+      volumes:
+        - name: init-script
+          configMap:
+            name: postgres-init-script
+        - name: postgres-config
+          configMap:
+            name: postgres-config
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: "linode-block-storage"
         resources:
           requests:
-            memory: "1Gi"
-            cpu: "500m"
-          limits:
-            memory: "2Gi"
-            cpu: "1"
-        env:
-        - name: POSTGRES_USER
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: DB_USER
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: DB_PASSWORD
-        - name: POSTGRES_DB
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: DB_NAME
-        ports:
-        - containerPort: 5432
-        volumeMounts:
-        - name: postgres-storage
-          mountPath: /var/lib/postgresql/data
-          subPath: postgres
-        - name: init-script
-          mountPath: /docker-entrypoint-initdb.d
-      volumes:
-      - name: init-script
-        configMap:
-          name: postgres-init-script
-  volumeClaimTemplates:
-  - metadata:
-      name: postgres-storage
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      storageClassName: "linode-block-storage"
-      resources:
-        requests:
-          storage: 30Gi
+            storage: 100Gi
 ---
 apiVersion: v1
 kind: Service
