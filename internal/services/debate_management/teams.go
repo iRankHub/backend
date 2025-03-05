@@ -4,12 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
-	"sort"
-
 	"github.com/iRankHub/backend/internal/grpc/proto/debate_management"
 	"github.com/iRankHub/backend/internal/models"
 	"github.com/iRankHub/backend/internal/utils"
+	"log"
 )
 
 type TeamService struct {
@@ -227,6 +225,13 @@ func (s *TeamService) UpdateTeam(ctx context.Context, req *debate_management.Upd
 			return nil, fmt.Errorf("failed to get debates for team: %v", err)
 		}
 
+		// Create a mapping from old speakers to new speakers by position
+		// This attempts to preserve the original speaker positions when possible
+		type speakerMapping struct {
+			oldID int32
+			newID int32
+		}
+
 		// For each debate, we need to handle speaker scores
 		for _, debate := range debates {
 			// Get ballots for this debate
@@ -245,10 +250,16 @@ func (s *TeamService) UpdateTeam(ctx context.Context, req *debate_management.Upd
 					return nil, fmt.Errorf("failed to get speaker scores: %v", err)
 				}
 
-				// Create a map of speaker positions and scores to preserve
+				// Create a map to store information about each position's scores
 				positionScores := make(map[int]models.GetSpeakerScoresByBallotAndTeamRow)
 				for _, score := range currentScores {
 					positionScores[int(score.Speakerrank)] = score
+				}
+
+				// Create a map of position to speaker ID for old team
+				oldSpeakerPositions := make(map[int]int32)
+				for _, score := range currentScores {
+					oldSpeakerPositions[int(score.Speakerrank)] = score.Speakerid
 				}
 
 				// Delete existing scores
@@ -260,26 +271,49 @@ func (s *TeamService) UpdateTeam(ctx context.Context, req *debate_management.Upd
 					return nil, fmt.Errorf("failed to delete speaker scores: %v", err)
 				}
 
-				// Create new speaker scores with preserved values where possible
-				sortedSpeakers := make([]int32, 0, len(req.GetTeam().GetSpeakers()))
+				// Create an array of new speaker IDs
+				newSpeakerIDs := make([]int32, 0, len(req.GetTeam().GetSpeakers()))
 				for _, speaker := range req.GetTeam().GetSpeakers() {
-					sortedSpeakers = append(sortedSpeakers, speaker.GetSpeakerId())
+					newSpeakerIDs = append(newSpeakerIDs, speaker.GetSpeakerId())
 				}
 
-				// Sort speakers by ID to ensure deterministic ordering
-				sort.Slice(sortedSpeakers, func(i, j int) bool {
-					return sortedSpeakers[i] < sortedSpeakers[j]
-				})
+				// Assign speakers to positions, trying to preserve the original rank order if possible
+				assignedPositions := make(map[int32]bool)
+				positionAssignments := make(map[int]int32) // position -> speakerID
 
-				// Create new speaker scores, preserving values from same position if available
-				for i, speakerID := range sortedSpeakers {
-					rank := i + 1 // 1-based ranking
+				// First, match speakers that are in both old and new teams
+				// This ensures speakers who remain in the team keep their positions
+				for position, oldSpeakerID := range oldSpeakerPositions {
+					for _, newSpeakerID := range newSpeakerIDs {
+						if oldSpeakerID == newSpeakerID && !assignedPositions[newSpeakerID] {
+							positionAssignments[position] = newSpeakerID
+							assignedPositions[newSpeakerID] = true
+							break
+						}
+					}
+				}
 
+				// Assign remaining positions to unassigned speakers
+				for position := 1; position <= len(newSpeakerIDs); position++ {
+					if _, exists := positionAssignments[position]; !exists {
+						// Find an unassigned speaker
+						for _, speakerID := range newSpeakerIDs {
+							if !assignedPositions[speakerID] {
+								positionAssignments[position] = speakerID
+								assignedPositions[speakerID] = true
+								break
+							}
+						}
+					}
+				}
+
+				// Create new speaker scores, preserving values from same position
+				for position, speakerID := range positionAssignments {
 					// Check if we have scores to preserve for this position
 					var speakerPoints string = "0"
 					var feedback sql.NullString = sql.NullString{String: "", Valid: false}
 
-					if oldScore, exists := positionScores[rank]; exists {
+					if oldScore, exists := positionScores[position]; exists {
 						// Preserve scores from the same position
 						speakerPoints = oldScore.Speakerpoints
 						feedback = oldScore.Feedback
@@ -289,7 +323,7 @@ func (s *TeamService) UpdateTeam(ctx context.Context, req *debate_management.Upd
 					err = queries.CreateSpeakerScore(ctx, models.CreateSpeakerScoreParams{
 						Ballotid:      ballot.Ballotid,
 						Speakerid:     speakerID,
-						Speakerrank:   int32(rank),
+						Speakerrank:   int32(position),
 						Speakerpoints: speakerPoints,
 						Feedback:      feedback,
 					})
