@@ -42,15 +42,6 @@ spec:
             - secretRef:
                 name: app-secrets
           env:
-            # Performance optimizations for message storage
-            - name: RABBITMQ_VM_MEMORY_HIGH_WATERMARK
-              value: "0.7"  # Allow using more memory (70% of limit)
-            - name: RABBITMQ_DISK_FREE_LIMIT
-              value: "5GB"  # Increased disk free limit
-            # Message persistence settings
-            - name: RABBITMQ_MNESIA_BASE
-              value: "/var/lib/rabbitmq/mnesia"
-            # Enable message persistence
             - name: RABBITMQ_PLUGINS_DIR
               value: "/plugins:/usr/lib/rabbitmq/plugins"
             - name: RABBITMQ_ENABLED_PLUGINS_FILE
