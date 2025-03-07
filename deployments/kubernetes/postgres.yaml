@@ -48,11 +48,11 @@ spec:
             - name: POSTGRES_EFFECTIVE_CACHE_SIZE
               value: "4GB"
             - name: POSTGRES_WORK_MEM
-              value: "32MB"
+              value: "64MB"
             - name: POSTGRES_MAINTENANCE_WORK_MEM
               value: "512MB"
             - name: POSTGRES_MAX_CONNECTIONS
-              value: "200"
+              value: "300"
             - name: POSTGRES_MAX_WORKER_PROCESSES
               value: "8"
             - name: POSTGRES_MAX_PARALLEL_WORKERS
@@ -90,7 +90,7 @@ spec:
             - name: POSTGRES_RANDOM_PAGE_COST
               value: "1.1"  # Optimized for SSD storage
             - name: POSTGRES_EFFECTIVE_IO_CONCURRENCY
-              value: "200"  # Higher for SSD storage
+              value: "300"  # Higher for SSD storage
             - name: POSTGRES_TRACK_ACTIVITY_QUERY_SIZE
               value: "4096" # For better query tracking
             - name: POSTGRES_LOG_MIN_DURATION_STATEMENT

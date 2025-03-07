@@ -88,8 +88,8 @@ func StartBackend() {
 	}
 
 	// Configure connection pool
-	poolConfig.MaxConns = 20
-	poolConfig.MinConns = 5
+	poolConfig.MaxConns = 80
+	poolConfig.MinConns = 20
 	poolConfig.MaxConnLifetime = 30 * time.Minute
 	poolConfig.MaxConnIdleTime = 10 * time.Minute
 	poolConfig.HealthCheckPeriod = 30 * time.Second
