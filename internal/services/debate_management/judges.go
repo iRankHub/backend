@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 	"database/sql"
-	"errors"
+	_ "errors"
 	"fmt"
 
 	"github.com/iRankHub/backend/internal/grpc/proto/debate_management"
@@ -25,15 +25,33 @@ func (s *JudgeService) GetJudges(ctx context.Context, req *debate_management.Get
 	}
 
 	queries := models.New(s.db)
-	judges, err := queries.GetJudgesForTournament(ctx, req.GetTournamentId())
+
+	// Ensure "Unassigned" room exists
+	_, err := queries.EnsureUnassignedRoomExists(ctx, sql.NullInt32{
+		Int32: req.GetTournamentId(),
+		Valid: true,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get judges: %v", err)
+		return nil, fmt.Errorf("failed to ensure unassigned room exists: %v", err)
 	}
 
-	var result []*debate_management.Judge
-	for _, j := range judges {
+	// Get all volunteers who accepted the tournament invitation
+	availableJudges, err := queries.GetAvailableJudges(ctx, req.GetTournamentId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get available judges: %v", err)
+	}
+
+	// Create a map to track unique judges and prevent duplicates
+	uniqueJudges := make(map[int32]*debate_management.Judge)
+
+	for _, j := range availableJudges {
+		// Skip if we already have this judge in our map
+		if _, exists := uniqueJudges[j.Userid]; exists {
+			continue
+		}
+
 		preliminaryDebates, err := queries.CountJudgeDebates(ctx, models.CountJudgeDebatesParams{
-			Judgeid:            j.Judgeid,
+			Judgeid:            j.Userid,
 			Tournamentid:       req.GetTournamentId(),
 			Iseliminationround: false,
 		})
@@ -42,7 +60,7 @@ func (s *JudgeService) GetJudges(ctx context.Context, req *debate_management.Get
 		}
 
 		eliminationDebates, err := queries.CountJudgeDebates(ctx, models.CountJudgeDebatesParams{
-			Judgeid:            j.Judgeid,
+			Judgeid:            j.Userid,
 			Tournamentid:       req.GetTournamentId(),
 			Iseliminationround: true,
 		})
@@ -50,45 +68,70 @@ func (s *JudgeService) GetJudges(ctx context.Context, req *debate_management.Get
 			return nil, fmt.Errorf("failed to count elimination debates: %v", err)
 		}
 
-		result = append(result, &debate_management.Judge{
-			JudgeId:            int32(j.Judgeid),
+		uniqueJudges[j.Userid] = &debate_management.Judge{
+			JudgeId:            j.Userid,
 			Name:               j.Name,
 			IdebateId:          j.Idebatevolunteerid.String,
 			PreliminaryDebates: int32(preliminaryDebates),
 			EliminationDebates: int32(eliminationDebates),
-		})
+		}
+	}
+
+	// Convert map to slice
+	result := make([]*debate_management.Judge, 0, len(uniqueJudges))
+	for _, judge := range uniqueJudges {
+		result = append(result, judge)
 	}
 
 	return result, nil
 }
 
+// Update the GetJudge method in internal/services/judge.go
 func (s *JudgeService) GetJudge(ctx context.Context, req *debate_management.GetJudgeRequest) (*debate_management.GetJudgeResponse, error) {
 	if err := s.validateAuthentication(req.GetToken()); err != nil {
 		return nil, err
 	}
 
 	queries := models.New(s.db)
+
+	// Ensure "Unassigned" room exists
+	unassignedRoom, err := queries.EnsureUnassignedRoomExists(ctx, sql.NullInt32{
+		Int32: req.GetTournamentId(),
+		Valid: true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to ensure unassigned room exists: %v", err)
+	}
+
 	judge, err := queries.GetJudgeDetails(ctx, int32(req.GetJudgeId()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get judge details: %v", err)
 	}
 
+	// Get judge assignments for preliminary rounds
 	preliminaryRooms, err := queries.GetJudgeRooms(ctx, models.GetJudgeRoomsParams{
 		Judgeid:            int32(req.GetJudgeId()),
 		Tournamentid:       req.GetTournamentId(),
 		Iseliminationround: false,
 	})
-	if err != nil {
+	if err != nil && !isNoRowsError(err) {
 		return nil, fmt.Errorf("failed to get preliminary rooms: %v", err)
 	}
 
+	// Get judge assignments for elimination rounds
 	eliminationRooms, err := queries.GetJudgeRooms(ctx, models.GetJudgeRoomsParams{
 		Judgeid:            int32(req.GetJudgeId()),
 		Tournamentid:       req.GetTournamentId(),
 		Iseliminationround: true,
 	})
-	if err != nil {
+	if err != nil && !isNoRowsError(err) {
 		return nil, fmt.Errorf("failed to get elimination rooms: %v", err)
+	}
+
+	// Get tournament details
+	tournament, err := queries.GetTournamentByID(ctx, req.GetTournamentId())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tournament: %v", err)
 	}
 
 	response := &debate_management.GetJudgeResponse{
@@ -99,21 +142,57 @@ func (s *JudgeService) GetJudge(ctx context.Context, req *debate_management.GetJ
 		Elimination: make(map[int32]*debate_management.RoomInfo),
 	}
 
+	// Create maps for quick access to room assignments
+	prelimMap := make(map[int32]models.GetJudgeRoomsRow)
 	for _, room := range preliminaryRooms {
-		response.Preliminary[room.Roundnumber] = &debate_management.RoomInfo{
-			RoomId:   int32(room.Roomid),
-			RoomName: room.Roomname,
+		prelimMap[room.Roundnumber] = room
+	}
+
+	elimMap := make(map[int32]models.GetJudgeRoomsRow)
+	for _, room := range eliminationRooms {
+		elimMap[room.Roundnumber] = room
+	}
+
+	// Add all preliminary rounds (including unassigned ones)
+	for round := int32(1); round <= tournament.Numberofpreliminaryrounds; round++ {
+		if room, ok := prelimMap[round]; ok {
+			response.Preliminary[round] = &debate_management.RoomInfo{
+				RoomId:      room.Roomid,
+				RoomName:    room.Roomname,
+				IsHeadJudge: room.Isheadjudge,
+			}
+		} else {
+			response.Preliminary[round] = &debate_management.RoomInfo{
+				RoomId:      unassignedRoom,
+				RoomName:    "Unassigned",
+				IsHeadJudge: false,
+			}
 		}
 	}
 
-	for _, room := range eliminationRooms {
-		response.Elimination[room.Roundnumber] = &debate_management.RoomInfo{
-			RoomId:   int32(room.Roomid),
-			RoomName: room.Roomname,
+	// Add all elimination rounds (including unassigned ones)
+	for round := int32(1); round <= tournament.Numberofeliminationrounds; round++ {
+		if room, ok := elimMap[round]; ok {
+			response.Elimination[round] = &debate_management.RoomInfo{
+				RoomId:      room.Roomid,
+				RoomName:    room.Roomname,
+				IsHeadJudge: room.Isheadjudge,
+			}
+		} else {
+			response.Elimination[round] = &debate_management.RoomInfo{
+				RoomId:      unassignedRoom,
+				RoomName:    "Unassigned",
+				IsHeadJudge: false,
+			}
 		}
 	}
 
 	return response, nil
+}
+
+// Helper function to check if error is "no rows" error
+func isNoRowsError(err error) bool {
+	return err == sql.ErrNoRows
 }
 
 func (s *JudgeService) UpdateJudge(ctx context.Context, req *debate_management.UpdateJudgeRequest) (*debate_management.UpdateJudgeResponse, error) {
@@ -134,9 +213,6 @@ func (s *JudgeService) UpdateJudge(ctx context.Context, req *debate_management.U
 			Roundnumber:   int32(roundNumber),
 			Iselimination: false,
 		})
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("failed to get current assignment for round %d: %v", roundNumber, err)
-		}
 
 		var oldRoomID int32
 		var wasHeadJudge bool
@@ -145,15 +221,17 @@ func (s *JudgeService) UpdateJudge(ctx context.Context, req *debate_management.U
 			wasHeadJudge = currentAssignment.Isheadjudge
 		}
 
+		// Update with the simplified swap logic
 		err = assignmentService.UpdateJudgeAssignment(ctx, JudgeUpdateOperation{
 			TournamentID:   req.GetTournamentId(),
-			JudgeID:        int32(req.GetJudgeId()),
-			RoundNumber:    int32(roundNumber),
+			JudgeID:        req.GetJudgeId(),
+			RoundNumber:    roundNumber,
 			IsElimination:  false,
 			OldRoomID:      oldRoomID,
-			NewRoomID:      int32(roomInfo.GetRoomId()),
+			NewRoomID:      roomInfo.GetRoomId(),
 			WasHeadJudge:   wasHeadJudge,
 			NewIsHeadJudge: roomInfo.GetIsHeadJudge(),
+			TargetJudgeID:  0, // No specific target judge, will find by room
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to update preliminary round %d: %v", roundNumber, err)
@@ -169,9 +247,6 @@ func (s *JudgeService) UpdateJudge(ctx context.Context, req *debate_management.U
 			Roundnumber:   int32(roundNumber),
 			Iselimination: true,
 		})
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("failed to get current assignment for round %d: %v", roundNumber, err)
-		}
 
 		var oldRoomID int32
 		var wasHeadJudge bool
@@ -180,6 +255,7 @@ func (s *JudgeService) UpdateJudge(ctx context.Context, req *debate_management.U
 			wasHeadJudge = currentAssignment.Isheadjudge
 		}
 
+		// Update with the simplified swap logic
 		err = assignmentService.UpdateJudgeAssignment(ctx, JudgeUpdateOperation{
 			TournamentID:   req.GetTournamentId(),
 			JudgeID:        int32(req.GetJudgeId()),
@@ -189,6 +265,7 @@ func (s *JudgeService) UpdateJudge(ctx context.Context, req *debate_management.U
 			NewRoomID:      int32(roomInfo.GetRoomId()),
 			WasHeadJudge:   wasHeadJudge,
 			NewIsHeadJudge: roomInfo.GetIsHeadJudge(),
+			TargetJudgeID:  0, // No specific target judge, will find by room
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to update elimination round %d: %v", roundNumber, err)

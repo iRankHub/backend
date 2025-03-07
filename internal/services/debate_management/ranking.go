@@ -68,10 +68,15 @@ func (s *RankingService) GetTournamentStudentRanking(ctx context.Context, req *d
 			StudentId:   dbRanking.Studentid,
 			StudentName: dbRanking.Studentname.(string),
 			SchoolName:  dbRanking.Schoolname,
-			TotalWins:   int32(dbRanking.Totalwins),
+			TotalWins: func() int32 {
+				if dbRanking.Totalwins.Valid {
+					return dbRanking.Totalwins.Int32
+				}
+				return 0
+			}(),
 			TotalPoints: totalPoints,
 			AverageRank: float64(dbRanking.Averagerank),
-			Place:       int32(dbRanking.Place), // Include the actual place in response
+			Place:       int32(dbRanking.Place),
 		}
 	}
 

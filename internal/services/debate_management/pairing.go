@@ -334,7 +334,7 @@ func (s *PairingService) generatePreliminaryPairings(ctx context.Context, querie
 	if len(rooms) < len(teams)/2 {
 		neededRooms := len(teams)/2 - len(rooms)
 		for i := 0; i < neededRooms; i++ {
-			roomName := fmt.Sprintf("Room %d", len(rooms)+i+1)
+			roomName := fmt.Sprintf("Room %d", len(rooms)+1)
 			room, err := txQueries.CreateRoom(ctx, models.CreateRoomParams{
 				Roomname:     roomName,
 				Location:     "TBD",

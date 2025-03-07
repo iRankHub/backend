@@ -500,10 +500,9 @@ func (q *Queries) DeleteTeamMembers(ctx context.Context, teamid int32) error {
 const getAvailableJudges = `-- name: GetAvailableJudges :many
 SELECT DISTINCT u.UserID, u.Name, u.Email, v.iDebateVolunteerID
 FROM Users u
-JOIN Volunteers v ON u.UserID = v.UserID
-JOIN TournamentInvitations ti ON ti.InviteeID = v.iDebateVolunteerID
-WHERE v.Role = 'Judge'
-  AND ti.TournamentID = $1
+         JOIN Volunteers v ON u.UserID = v.UserID
+         JOIN TournamentInvitations ti ON ti.InviteeID = v.iDebateVolunteerID
+WHERE ti.TournamentID = $1
   AND ti.Status = 'accepted'
   AND ti.InviteeRole = 'volunteer'
 `
@@ -1198,12 +1197,13 @@ const getJudgeRooms = `-- name: GetJudgeRooms :many
 SELECT
     d.RoundNumber,
     d.RoomID,
-    r.RoomName
+    r.RoomName,
+    ja.IsHeadJudge
 FROM
     JudgeAssignments ja
-JOIN
+        JOIN
     Debates d ON ja.DebateID = d.DebateID
-JOIN
+        JOIN
     Rooms r ON d.RoomID = r.RoomID
 WHERE
     ja.JudgeID = $1 AND
@@ -1223,6 +1223,7 @@ type GetJudgeRoomsRow struct {
 	Roundnumber int32  `json:"roundnumber"`
 	Roomid      int32  `json:"roomid"`
 	Roomname    string `json:"roomname"`
+	Isheadjudge bool   `json:"isheadjudge"`
 }
 
 func (q *Queries) GetJudgeRooms(ctx context.Context, arg GetJudgeRoomsParams) ([]GetJudgeRoomsRow, error) {
@@ -1234,7 +1235,12 @@ func (q *Queries) GetJudgeRooms(ctx context.Context, arg GetJudgeRoomsParams) ([
 	items := []GetJudgeRoomsRow{}
 	for rows.Next() {
 		var i GetJudgeRoomsRow
-		if err := rows.Scan(&i.Roundnumber, &i.Roomid, &i.Roomname); err != nil {
+		if err := rows.Scan(
+			&i.Roundnumber,
+			&i.Roomid,
+			&i.Roomname,
+			&i.Isheadjudge,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -1335,23 +1341,37 @@ const getJudgesForTournament = `-- name: GetJudgesForTournament :many
 SELECT
     u.UserID as JudgeID,
     u.Name,
-    v.iDebateVolunteerID
+    v.iDebateVolunteerID,
+    COALESCE(r.RoomName, 'Unassigned') AS RoomName,
+    COALESCE(ja.IsHeadJudge, false) AS IsHeadJudge,
+    CASE WHEN ja.JudgeID IS NULL THEN false ELSE true END AS IsAssigned
 FROM
     Users u
-JOIN
+        JOIN
     Volunteers v ON u.UserID = v.UserID
-JOIN
-    JudgeAssignments ja ON u.UserID = ja.JudgeID
+        JOIN
+    TournamentInvitations ti ON ti.InviteeID = v.iDebateVolunteerID
+        LEFT JOIN
+    JudgeAssignments ja ON u.UserID = ja.JudgeID AND ja.TournamentID = $1
+        LEFT JOIN
+    Debates d ON ja.DebateID = d.DebateID
+        LEFT JOIN
+    Rooms r ON d.RoomID = r.RoomID
 WHERE
-    ja.TournamentID = $1
-GROUP BY
-    u.UserID, v.iDebateVolunteerID
+    ti.TournamentID = $1
+  AND ti.Status = 'accepted'
+  AND ti.InviteeRole = 'volunteer'
+ORDER BY
+    IsAssigned DESC, u.Name
 `
 
 type GetJudgesForTournamentRow struct {
 	Judgeid            int32          `json:"judgeid"`
 	Name               string         `json:"name"`
 	Idebatevolunteerid sql.NullString `json:"idebatevolunteerid"`
+	Roomname           string         `json:"roomname"`
+	Isheadjudge        bool           `json:"isheadjudge"`
+	Isassigned         bool           `json:"isassigned"`
 }
 
 func (q *Queries) GetJudgesForTournament(ctx context.Context, tournamentid int32) ([]GetJudgesForTournamentRow, error) {
@@ -1363,7 +1383,14 @@ func (q *Queries) GetJudgesForTournament(ctx context.Context, tournamentid int32
 	items := []GetJudgesForTournamentRow{}
 	for rows.Next() {
 		var i GetJudgesForTournamentRow
-		if err := rows.Scan(&i.Judgeid, &i.Name, &i.Idebatevolunteerid); err != nil {
+		if err := rows.Scan(
+			&i.Judgeid,
+			&i.Name,
+			&i.Idebatevolunteerid,
+			&i.Roomname,
+			&i.Isheadjudge,
+			&i.Isassigned,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -2951,11 +2978,12 @@ WITH RankedStudents AS (
         s.StudentID,
         s.FirstName || ' ' || s.LastName AS StudentName,
         sch.SchoolName,
-        COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) AS TotalWins,
+        t.TotalWins AS TotalWins,
         CAST(SUM(ss.SpeakerPoints) AS DECIMAL(10,2)) AS TotalPoints,
         AVG(ss.SpeakerRank) AS AverageRank,
-        RANK() OVER (ORDER BY SUM(ss.SpeakerPoints) DESC, AVG(ss.SpeakerRank) ASC,
-            COUNT(CASE WHEN b.Verdict = t.Name THEN 1 END) DESC) as place
+        RANK() OVER (ORDER BY SUM(ss.SpeakerPoints) DESC,
+            t.TotalWins DESC,
+            AVG(ss.SpeakerRank) ASC) as place
     FROM Students s
              JOIN TeamMembers tm ON s.StudentID = tm.StudentID
              JOIN Teams t ON tm.TeamID = t.TeamID
@@ -2964,7 +2992,7 @@ WITH RankedStudents AS (
              JOIN SpeakerScores ss ON s.StudentID = ss.SpeakerID AND b.BallotID = ss.BallotID
              JOIN Schools sch ON s.SchoolID = sch.SchoolID
     WHERE d.TournamentID = $1 AND d.IsEliminationRound = false
-    GROUP BY s.StudentID, StudentName, sch.SchoolName
+    GROUP BY s.StudentID, StudentName, sch.SchoolName, t.TotalWins, t.TeamID
 ),
      TopThree AS (
          SELECT studentid, studentname, schoolname, totalwins, totalpoints, averagerank, place
@@ -2996,13 +3024,13 @@ type GetTournamentStudentRankingParams struct {
 }
 
 type GetTournamentStudentRankingRow struct {
-	Studentid   int32       `json:"studentid"`
-	Studentname interface{} `json:"studentname"`
-	Schoolname  string      `json:"schoolname"`
-	Totalwins   int64       `json:"totalwins"`
-	Totalpoints string      `json:"totalpoints"`
-	Averagerank float64     `json:"averagerank"`
-	Place       int64       `json:"place"`
+	Studentid   int32         `json:"studentid"`
+	Studentname interface{}   `json:"studentname"`
+	Schoolname  string        `json:"schoolname"`
+	Totalwins   sql.NullInt32 `json:"totalwins"`
+	Totalpoints string        `json:"totalpoints"`
+	Averagerank float64       `json:"averagerank"`
+	Place       int64         `json:"place"`
 }
 
 func (q *Queries) GetTournamentStudentRanking(ctx context.Context, arg GetTournamentStudentRankingParams) ([]GetTournamentStudentRankingRow, error) {

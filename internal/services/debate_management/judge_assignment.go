@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 
 	"github.com/iRankHub/backend/internal/models"
@@ -34,6 +33,7 @@ type JudgeUpdateOperation struct {
 	NewRoomID      int32
 	WasHeadJudge   bool
 	NewIsHeadJudge bool
+	TargetJudgeID  int32
 }
 
 func (s *JudgeAssignmentService) UpdateJudgeAssignment(ctx context.Context, op JudgeUpdateOperation) error {
@@ -45,101 +45,147 @@ func (s *JudgeAssignmentService) UpdateJudgeAssignment(ctx context.Context, op J
 
 	queries := models.New(s.db).WithTx(tx)
 
-	// 1. Get current judge assignment details
-	currentAssignment, err := queries.GetJudgeAssignment(ctx, models.GetJudgeAssignmentParams{
+	// Ensure "Unassigned" room exists
+	unassignedRoom, err := queries.EnsureUnassignedRoomExists(ctx, sql.NullInt32{
+		Int32: op.TournamentID,
+		Valid: true,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to ensure unassigned room exists: %v", err)
+	}
+
+	// Get current assignment for the judge being moved (if any)
+	judgeA, err := queries.GetJudgeAssignment(ctx, models.GetJudgeAssignmentParams{
 		Tournamentid:  op.TournamentID,
 		Judgeid:       op.JudgeID,
 		Roundnumber:   op.RoundNumber,
 		Iselimination: op.IsElimination,
 	})
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("failed to get current assignment: %v", err)
-	}
+	hasJudgeA := err == nil
 
-	// 2. If moving a head judge, ensure replacement in old room
-	if currentAssignment.Isheadjudge {
-		// Find another judge in the old room to promote to head judge
-		newHeadJudgeID, err := queries.GetEligibleHeadJudge(ctx, models.GetEligibleHeadJudgeParams{
+	// Variables to store target judge info
+	var targetJudgeID int32
+	var targetJudgeIsHeadJudge bool
+	var targetDebateID int32
+	var hasTargetJudge bool
+
+	// Find judge in the target room (if any)
+	if op.NewRoomID > 0 && op.NewRoomID != unassignedRoom {
+		// Try to find a judge in the target room
+		roomJudge, err := queries.GetJudgeInRoom(ctx, models.GetJudgeInRoomParams{
 			Tournamentid:  op.TournamentID,
-			Roundnumber:   op.RoundNumber,
-			Roomid:        op.OldRoomID,
-			Iselimination: op.IsElimination,
-			Judgeid:       op.JudgeID, // This is the ExcludeJudgeID field
-		})
-		if err != nil {
-			return fmt.Errorf("cannot move head judge - no replacement available in old room: %v", err)
-		}
-
-		// Update the new head judge
-		err = queries.UpdateJudgeToHeadJudge(ctx, models.UpdateJudgeToHeadJudgeParams{
-			Judgeid:       newHeadJudgeID,
-			Tournamentid:  op.TournamentID,
-			Roundnumber:   op.RoundNumber,
-			Roomid:        op.OldRoomID,
-			Iselimination: op.IsElimination,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to update new head judge: %v", err)
-		}
-
-		// Update related ballot records
-		err = queries.TransferBallotOwnership(ctx, models.TransferBallotOwnershipParams{
-			Judgeid:   op.JudgeID,     // This is OldJudgeID
-			Judgeid_2: newHeadJudgeID, // This is NewJudgeID
-			Debateid:  currentAssignment.Debateid,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to transfer ballot ownership: %v", err)
-		}
-	}
-
-	// 3. Check head judge status in the new room
-	if op.NewIsHeadJudge {
-		// Demote current head judge in the new room if exists
-		err = queries.DemoteCurrentHeadJudge(ctx, models.DemoteCurrentHeadJudgeParams{
-			Tournamentid:  op.TournamentID,
-			Roundnumber:   op.RoundNumber,
 			Roomid:        op.NewRoomID,
+			Roundnumber:   op.RoundNumber,
 			Iselimination: op.IsElimination,
 		})
-		if err != nil {
-			return fmt.Errorf("failed to demote current head judge: %v", err)
+		if err == nil {
+			// We found a judge in the target room
+			targetJudgeID = roomJudge.Judgeid
+			targetJudgeIsHeadJudge = roomJudge.Isheadjudge
+			targetDebateID = roomJudge.Debateid
+			hasTargetJudge = true
+		}
+	} else if op.TargetJudgeID > 0 {
+		// We have a specific target judge to swap with
+		targetJudge, err := queries.GetJudgeAssignment(ctx, models.GetJudgeAssignmentParams{
+			Tournamentid:  op.TournamentID,
+			Judgeid:       op.TargetJudgeID,
+			Roundnumber:   op.RoundNumber,
+			Iselimination: op.IsElimination,
+		})
+		if err == nil {
+			// We found the specified target judge
+			targetJudgeID = targetJudge.Judgeid
+			targetJudgeIsHeadJudge = targetJudge.Isheadjudge
+			targetDebateID = targetJudge.Debateid
+			hasTargetJudge = true
 		}
 	}
 
-	// 4. Update the judge's assignment
-	err = queries.UpdateJudgeAssignment(ctx, models.UpdateJudgeAssignmentParams{
-		Judgeid:            op.JudgeID,
-		Tournamentid:       op.TournamentID,
-		Roundnumber:        op.RoundNumber,
-		Roomid:             op.NewRoomID, // Changed from NewRoomID
-		Isheadjudge:        op.NewIsHeadJudge,
-		Iseliminationround: op.IsElimination,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to update judge assignment: %v", err)
-	}
+	// Handle the different scenarios
+	if hasJudgeA && hasTargetJudge {
+		// Scenario 1/2/3: Both judges are assigned - swap them completely
+		err = queries.SwapJudges(ctx, models.SwapJudgesParams{
+			Judgeid:       op.JudgeID,
+			Judgeid_2:     targetJudgeID,
+			Tournamentid:  op.TournamentID,
+			Roundnumber:   op.RoundNumber,
+			Iselimination: op.IsElimination,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to swap judges: %v", err)
+		}
 
-	// 5. Validate head judge presence in both rooms
-	err = s.validateHeadJudgePresence(ctx, queries, models.CheckHeadJudgeExistsParams{
-		Tournamentid:  op.TournamentID,
-		Roomid:        op.OldRoomID,
-		Roundnumber:   op.RoundNumber,
-		Iselimination: op.IsElimination,
-	})
-	if err != nil {
-		return fmt.Errorf("old room validation failed: %v", err)
-	}
+		// Transfer ballot ownership if either judge was a head judge
+		if judgeA.Isheadjudge || targetJudgeIsHeadJudge {
+			err = queries.TransferBallotOwnership(ctx, models.TransferBallotOwnershipParams{
+				Judgeid:   op.JudgeID,
+				Judgeid_2: targetJudgeID,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to transfer ballot ownership: %v", err)
+			}
+		}
+	} else if hasJudgeA && !hasTargetJudge {
+		// Scenario 4: Moving judge to "Unassigned" room
+		err = queries.UnassignJudge(ctx, models.UnassignJudgeParams{
+			Judgeid:       op.JudgeID,
+			Tournamentid:  op.TournamentID,
+			Roundnumber:   op.RoundNumber,
+			Iselimination: op.IsElimination,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to unassign judge: %v", err)
+		}
+	} else if !hasJudgeA && hasTargetJudge {
+		// Scenario 4 reversed: Assigning unassigned judge to a debate
+		// Get the debate that target judge is assigned to
+		_, err := queries.GetDebateByRoomAndRound(ctx, models.GetDebateByRoomAndRoundParams{
+			Tournamentid:       op.TournamentID,
+			Roomid:             op.NewRoomID,
+			Roundnumber:        op.RoundNumber,
+			Iseliminationround: op.IsElimination,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get debate: %v", err)
+		}
 
-	err = s.validateHeadJudgePresence(ctx, queries, models.CheckHeadJudgeExistsParams{
-		Tournamentid:  op.TournamentID,
-		Roomid:        op.NewRoomID,
-		Roundnumber:   op.RoundNumber,
-		Iselimination: op.IsElimination,
-	})
-	if err != nil {
-		return fmt.Errorf("new room validation failed: %v", err)
+		// Assign judgeA to the debate that target judge was assigned to
+		err = queries.AssignJudgeToDebate(ctx, models.AssignJudgeToDebateParams{
+			Tournamentid:  op.TournamentID,
+			Judgeid:       op.JudgeID,
+			Debateid:      targetDebateID,
+			Roundnumber:   op.RoundNumber,
+			Iselimination: op.IsElimination,
+			Isheadjudge:   targetJudgeIsHeadJudge, // Take on target judge's head judge status
+		})
+		if err != nil {
+			return fmt.Errorf("failed to assign judge to debate: %v", err)
+		}
+
+		// If taking over head judge position, update ballot ownership
+		if targetJudgeIsHeadJudge {
+			err = queries.TransferBallotOwnership(ctx, models.TransferBallotOwnershipParams{
+				Judgeid:   targetJudgeID,
+				Judgeid_2: op.JudgeID,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to transfer ballot ownership: %v", err)
+			}
+		}
+
+		// Unassign target judge
+		err = queries.UnassignJudge(ctx, models.UnassignJudgeParams{
+			Judgeid:       targetJudgeID,
+			Tournamentid:  op.TournamentID,
+			Roundnumber:   op.RoundNumber,
+			Iselimination: op.IsElimination,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to unassign target judge: %v", err)
+		}
 	}
+	// Scenario 5: Both unassigned - nothing happens
 
 	return tx.Commit()
 }

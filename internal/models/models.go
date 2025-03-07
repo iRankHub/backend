@@ -80,7 +80,7 @@ type Judgefeedback struct {
 	Timelinessrating       sql.NullFloat64 `json:"timelinessrating"`
 	Fairnessrating         sql.NullFloat64 `json:"fairnessrating"`
 	Engagementrating       sql.NullFloat64 `json:"engagementrating"`
-	Averagerating          sql.NullString  `json:"averagerating"`
+	Averagerating          sql.NullFloat64 `json:"averagerating"`
 	Textfeedback           sql.NullString  `json:"textfeedback"`
 	Isread                 sql.NullBool    `json:"isread"`
 	Createdat              sql.NullTime    `json:"createdat"`
