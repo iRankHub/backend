@@ -6,6 +6,7 @@ option go_package = "github.com/iRankHub/backend/internal/grpc/proto/system_heal
 
 service SystemHealthService {
   rpc GetSystemHealth(GetSystemHealthRequest) returns (GetSystemHealthResponse) {}
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse) {}
 }
 
 message GetSystemHealthRequest {
@@ -24,4 +25,18 @@ message GetSystemHealthResponse {
   int32 node_count = 9;
   int32 pod_count = 10;
   int32 pvc_count = 11;
+}
+
+message HealthCheckRequest {
+  string service = 1;
+}
+
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+    SERVICE_UNKNOWN = 3;
+  }
+  ServingStatus status = 1;
 }

@@ -40,3 +40,10 @@ func (s *SystemHealthServer) GetSystemHealth(ctx context.Context, req *system_he
 		PvcCount:                   int32(metrics.PVCCount),
 	}, nil
 }
+
+func (s *SystemHealthServer) Check(ctx context.Context, req *system_health.HealthCheckRequest) (*system_health.HealthCheckResponse, error) {
+	// Simple health check that always returns SERVING if the service is running
+	return &system_health.HealthCheckResponse{
+		Status: system_health.HealthCheckResponse_SERVING,
+	}, nil
+}

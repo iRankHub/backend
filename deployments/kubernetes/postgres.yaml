@@ -23,9 +23,11 @@ spec:
             requests:
               memory: "4Gi"
               cpu: "2"
+              ephemeral-storage: "80Gi"  # Added ephemeral storage
             limits:
               memory: "6Gi"
               cpu: "4"
+              ephemeral-storage: "100Gi"
           env:
             - name: POSTGRES_USER
               valueFrom:

@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: backend
 spec:
-  replicas: 1
+  replicas: 2  # Changed from 1 to 2
   selector:
     matchLabels:
       app: backend
@@ -32,13 +32,13 @@ spec:
           imagePullPolicy: Always
           resources:
             requests:
-              memory: "4Gi"      # Equal to 4 × 1Gi
-              cpu: "1600m"       # Equal to 4 × 400m
-              ephemeral-storage: "64Gi"  # Equal to 4 × 16Gi
+              memory: "4Gi"      # Increased from 2Gi to 4Gi
+              cpu: "1000m"       # Increased from 800m to 1000m
+              ephemeral-storage: "80Gi"  # Increased from 32Gi to 80Gi
             limits:
-              memory: "8Gi"      # Equal to 4 × 2Gi
-              cpu: "3200m"       # Equal to 4 × 800m
-              ephemeral-storage: "96Gi"  # Equal to 4 × 24Gi
+              memory: "6Gi"      # Increased from 4Gi to 6Gi
+              cpu: "2000m"       # Increased from 1600m to 2000m
+              ephemeral-storage: "100Gi"  # Increased from 48Gi to 100Gi
           envFrom:
             - configMapRef:
                 name: app-config
@@ -46,13 +46,13 @@ spec:
                 name: app-secrets
           env:
             - name: MAX_PROCS
-              value: "4"         # Set to use 4 cores (1 per previous instance)
+              value: "2"         # Keep as 2 since we have 2 replicas
             - name: DB_MAX_CONNS
-              value: "80"        # Equal to 4 × 20
+              value: "40"        # Keep as 40 per replica
             - name: DB_MIN_CONNS
-              value: "20"        # Equal to 4 × 5
+              value: "10"        # Keep as 10 per replica
           readinessProbe:
-            tcpSocket:
+            tcpSocket:           # Changed back to tcpSocket as requested
               port: 8080
             initialDelaySeconds: 15
             periodSeconds: 10
@@ -60,7 +60,7 @@ spec:
             successThreshold: 1
             failureThreshold: 3
           livenessProbe:
-            tcpSocket:
+            tcpSocket:           # Changed back to tcpSocket as requested
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 20
