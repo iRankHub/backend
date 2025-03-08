@@ -2845,40 +2845,48 @@ func (q *Queries) GetTopPerformingTeams(ctx context.Context, arg GetTopPerformin
 }
 
 const getTournamentSchoolRanking = `-- name: GetTournamentSchoolRanking :many
-WITH SchoolData AS (
-    SELECT
+WITH SchoolTeams AS (
+    -- First, get distinct teams by school
+    SELECT DISTINCT
         s.SchoolID,
         s.SchoolName,
-        COUNT(DISTINCT te.TeamID) AS TeamCount,
-        COUNT(CASE WHEN b.Verdict = te.Name THEN 1 END) AS TotalWins,
-        CAST(COALESCE(AVG(ts.Rank), 0) AS text) AS AverageRank,
-        CAST(COALESCE(SUM(ts.TotalScore), 0) AS text) AS TotalPoints
+        t.TeamID,
+        t.TotalWins,
+        t.TotalSpeakerPoints,
+        t.AverageRank
     FROM Schools s
              JOIN Students stu ON s.SchoolID = stu.SchoolID
              JOIN TeamMembers tm ON stu.StudentID = tm.StudentID
-             JOIN Teams te ON tm.TeamID = te.TeamID
-             JOIN Tournaments tour ON te.TournamentID = tour.TournamentID
-             LEFT JOIN Debates d ON (te.TeamID = d.Team1ID OR te.TeamID = d.Team2ID)
-             LEFT JOIN Ballots b ON d.DebateID = b.DebateID
-             LEFT JOIN TeamScores ts ON te.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+             JOIN Teams t ON tm.TeamID = t.TeamID
+             JOIN Tournaments tour ON t.TournamentID = tour.TournamentID
              LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
-    WHERE te.TournamentID = $1
-      AND l.Name != 'DAC'
-      AND d.IsEliminationRound = false
-    GROUP BY s.SchoolID, s.SchoolName
-    HAVING COUNT(DISTINCT te.TeamID) > 0
+    WHERE t.TournamentID = $1
+      AND (l.Name != 'DAC' OR l.Name IS NULL)
 ),
+     SchoolData AS (
+         -- Aggregate school data using the distinct teams
+         SELECT
+             SchoolID,
+             SchoolName,
+             COUNT(TeamID) AS TeamCount,
+             SUM(TotalWins) AS TotalWins,
+             CAST(SUM(TotalSpeakerPoints) AS numeric(10,2)) AS TotalPoints,
+             CAST(AVG(AverageRank) AS numeric(5,2)) AS AverageRank
+         FROM SchoolTeams
+         GROUP BY SchoolID, SchoolName
+         HAVING COUNT(TeamID) > 0
+     ),
      RankedSchools AS (
          SELECT
              SchoolName,
              TeamCount,
              TotalWins,
-             AverageRank,
-             TotalPoints,
+             CAST(AverageRank AS text) AS AverageRank,
+             CAST(TotalPoints AS text) AS TotalPoints,
              RANK() OVER (
                  ORDER BY TotalWins DESC,
-                     CAST(TotalPoints AS numeric) DESC,
-                     CAST(AverageRank AS numeric) ASC
+                     TotalPoints DESC,
+                     AverageRank ASC
                  ) as place
          FROM SchoolData
      ),
@@ -2955,14 +2963,21 @@ func (q *Queries) GetTournamentSchoolRanking(ctx context.Context, arg GetTournam
 }
 
 const getTournamentSchoolRankingCount = `-- name: GetTournamentSchoolRankingCount :one
-SELECT COUNT(DISTINCT s.SchoolID)
-FROM Schools s
-JOIN Students stu ON s.SchoolID = stu.SchoolID
-JOIN TeamMembers tm ON stu.StudentID = tm.StudentID
-JOIN Teams t ON tm.TeamID = t.TeamID
-JOIN Tournaments tour ON t.TournamentID = tour.TournamentID
-LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
-WHERE t.TournamentID = $1 AND l.Name != 'DAC'
+WITH SchoolTeams AS (
+    -- Get distinct teams per school to avoid duplicates
+    SELECT DISTINCT
+        s.SchoolID
+    FROM Schools s
+             JOIN Students stu ON s.SchoolID = stu.SchoolID
+             JOIN TeamMembers tm ON stu.StudentID = tm.StudentID
+             JOIN Teams t ON tm.TeamID = t.TeamID
+             JOIN Tournaments tour ON t.TournamentID = tour.TournamentID
+             LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
+    WHERE t.TournamentID = $1
+      AND (l.Name != 'DAC' OR l.Name IS NULL)
+)
+SELECT COUNT(DISTINCT SchoolID)
+FROM SchoolTeams
 `
 
 func (q *Queries) GetTournamentSchoolRankingCount(ctx context.Context, tournamentid int32) (int64, error) {
