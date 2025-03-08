@@ -841,10 +841,13 @@ WITH TeamData AS (
         t.TotalSpeakerPoints AS TotalPoints,
         t.AverageRank,
         t.TournamentID
-    FROM
-        Teams t
-    WHERE
-        t.TournamentID = $1
+    FROM Teams t
+             -- Join to debates to filter preliminary rounds only
+             JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
+    WHERE t.TournamentID = $1
+      AND d.TournamentID = $1
+      AND d.IsEliminationRound = false
+    GROUP BY t.TeamID, t.Name, t.TotalWins, t.TotalSpeakerPoints, t.AverageRank, t.TournamentID
 ),
      TeamSchools AS (
          SELECT
@@ -902,25 +905,34 @@ WHERE t.TournamentID = $1;
 
 -- name: GetTournamentSchoolRanking :many
 WITH TeamSchools AS (
-    -- Connect teams to schools through students
+    -- Get unique teams and their schools
     SELECT DISTINCT
         t.TeamID,
+        t.Name AS TeamName,
         t.TotalWins,
         t.TotalSpeakerPoints,
         t.AverageRank,
         s.SchoolID,
         s.SchoolName
     FROM Teams t
-             JOIN TeamMembers tm ON t.TeamID = tm.TeamID
-             JOIN Students stu ON tm.StudentID = stu.StudentID
-             JOIN Schools s ON stu.SchoolID = s.SchoolID
+             -- Use a subquery to get distinct school per team
+             JOIN (
+        SELECT DISTINCT tm.TeamID, stu.SchoolID
+        FROM TeamMembers tm
+                 JOIN Students stu ON tm.StudentID = stu.StudentID
+    ) team_schools ON t.TeamID = team_schools.TeamID
+             JOIN Schools s ON team_schools.SchoolID = s.SchoolID
              JOIN Tournaments tour ON t.TournamentID = tour.TournamentID
              LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
+        -- Join to Debates to filter preliminary rounds only
+             JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
     WHERE t.TournamentID = $1
+      AND d.TournamentID = $1
+      AND d.IsEliminationRound = false
       AND (l.Name != 'DAC' OR l.Name IS NULL)
 ),
      SchoolData AS (
-         -- Aggregate school statistics
+         -- Aggregate school statistics properly
          SELECT
              SchoolID,
              SchoolName,
