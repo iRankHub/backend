@@ -21,13 +21,13 @@ spec:
           image: postgres:13-alpine
           resources:
             requests:
-              memory: "4Gi"
-              cpu: "2"
-              ephemeral-storage: "80Gi"  # Added ephemeral storage
+              memory: "3.5Gi"
+              cpu: "1200m"
+              ephemeral-storage: "50Gi"
             limits:
-              memory: "6Gi"
-              cpu: "4"
-              ephemeral-storage: "100Gi"
+              memory: "5Gi"
+              cpu: "2400m"
+              ephemeral-storage: "60Gi"
           env:
             - name: POSTGRES_USER
               valueFrom:

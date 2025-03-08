@@ -32,19 +32,29 @@ spec:
           imagePullPolicy: Always
           resources:
             requests:
-              memory: "4Gi"      # Increased from 2Gi to 4Gi
-              cpu: "1000m"       # Increased from 800m to 1000m
-              ephemeral-storage: "80Gi"  # Increased from 32Gi to 80Gi
+              memory: "3Gi"
+              cpu: "1200m"
+              ephemeral-storage: "40Gi"
             limits:
-              memory: "6Gi"      # Increased from 4Gi to 6Gi
-              cpu: "2000m"       # Increased from 1600m to 2000m
-              ephemeral-storage: "100Gi"  # Increased from 48Gi to 100Gi
+              memory: "4Gi"
+              cpu: "1800m"
+              ephemeral-storage: "50Gi"
           envFrom:
             - configMapRef:
                 name: app-config
             - secretRef:
                 name: app-secrets
           env:
+            - name: TOKEN_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: token-keys
+                  key: TOKEN_PUBLIC_KEY
+            - name: TOKEN_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: token-keys
+                  key: TOKEN_PRIVATE_KEY
             - name: MAX_PROCS
               value: "2"         # Keep as 2 since we have 2 replicas
             - name: DB_MAX_CONNS
