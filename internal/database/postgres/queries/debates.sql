@@ -901,36 +901,36 @@ FROM Teams t
 WHERE t.TournamentID = $1;
 
 -- name: GetTournamentSchoolRanking :many
-WITH SchoolTeams AS (
-    -- First, get distinct teams by school
+WITH TeamSchools AS (
+    -- Connect teams to schools through students
     SELECT DISTINCT
-        s.SchoolID,
-        s.SchoolName,
         t.TeamID,
         t.TotalWins,
         t.TotalSpeakerPoints,
-        t.AverageRank
-    FROM Schools s
-             JOIN Students stu ON s.SchoolID = stu.SchoolID
-             JOIN TeamMembers tm ON stu.StudentID = tm.StudentID
-             JOIN Teams t ON tm.TeamID = t.TeamID
+        t.AverageRank,
+        s.SchoolID,
+        s.SchoolName
+    FROM Teams t
+             JOIN TeamMembers tm ON t.TeamID = tm.TeamID
+             JOIN Students stu ON tm.StudentID = stu.StudentID
+             JOIN Schools s ON stu.SchoolID = s.SchoolID
              JOIN Tournaments tour ON t.TournamentID = tour.TournamentID
              LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
     WHERE t.TournamentID = $1
       AND (l.Name != 'DAC' OR l.Name IS NULL)
 ),
      SchoolData AS (
-         -- Aggregate school data using the distinct teams
+         -- Aggregate school statistics
          SELECT
              SchoolID,
              SchoolName,
-             COUNT(TeamID) AS TeamCount,
+             COUNT(DISTINCT TeamID) AS TeamCount,
              SUM(TotalWins) AS TotalWins,
              CAST(SUM(TotalSpeakerPoints) AS numeric(10,2)) AS TotalPoints,
              CAST(AVG(AverageRank) AS numeric(5,2)) AS AverageRank
-         FROM SchoolTeams
+         FROM TeamSchools
          GROUP BY SchoolID, SchoolName
-         HAVING COUNT(TeamID) > 0
+         HAVING COUNT(DISTINCT TeamID) > 0
      ),
      RankedSchools AS (
          SELECT
@@ -967,21 +967,15 @@ ORDER BY place
 LIMIT $2 OFFSET $3;
 
 -- name: GetTournamentSchoolRankingCount :one
-WITH SchoolTeams AS (
-    -- Get distinct teams per school to avoid duplicates
-    SELECT DISTINCT
-        s.SchoolID
-    FROM Schools s
-             JOIN Students stu ON s.SchoolID = stu.SchoolID
-             JOIN TeamMembers tm ON stu.StudentID = tm.StudentID
-             JOIN Teams t ON tm.TeamID = t.TeamID
-             JOIN Tournaments tour ON t.TournamentID = tour.TournamentID
-             LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
-    WHERE t.TournamentID = $1
-      AND (l.Name != 'DAC' OR l.Name IS NULL)
-)
-SELECT COUNT(DISTINCT SchoolID)
-FROM SchoolTeams;
+SELECT COUNT(DISTINCT s.SchoolID)
+FROM Schools s
+         JOIN Students stu ON s.SchoolID = stu.SchoolID
+         JOIN TeamMembers tm ON stu.StudentID = tm.StudentID
+         JOIN Teams t ON tm.TeamID = t.TeamID
+         JOIN Tournaments tour ON t.TournamentID = tour.TournamentID
+         LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
+WHERE t.TournamentID = $1
+  AND (l.Name != 'DAC' OR l.Name IS NULL);
 
 -- name: GetOverallSchoolRanking :many
 WITH school_ranking AS (
