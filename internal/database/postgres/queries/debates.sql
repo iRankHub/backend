@@ -728,28 +728,51 @@ WHERE
     Teams.TeamID = team_stats.TeamID AND Teams.TournamentID = team_stats.TournamentID;
 
 -- name: GetTournamentStudentRanking :many
-WITH RankedStudents AS (
-    SELECT
-        s.StudentID,
-        s.FirstName || ' ' || s.LastName AS StudentName,
-        sch.SchoolName,
-        t.TotalWins AS TotalWins,
-        CAST(SUM(ss.SpeakerPoints) AS DECIMAL(10,2)) AS TotalPoints,
-        AVG(ss.SpeakerRank) AS AverageRank,
-        RANK() OVER (ORDER BY SUM(ss.SpeakerPoints) DESC,
-            t.TotalWins DESC,
-            AVG(ss.SpeakerRank) ASC) as place
-    FROM Students s
-             JOIN TeamMembers tm ON s.StudentID = tm.StudentID
-             JOIN Teams t ON tm.TeamID = t.TeamID
-             JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
-             JOIN Ballots b ON d.DebateID = b.DebateID
-             JOIN SpeakerScores ss ON s.StudentID = ss.SpeakerID AND b.BallotID = ss.BallotID
-             JOIN Schools sch ON s.SchoolID = sch.SchoolID
+WITH PrelimDebates AS (
+    -- First identify all preliminary debates for this tournament
+    SELECT d.DebateID
+    FROM Debates d
     WHERE d.TournamentID = $1
       AND (d.IsEliminationRound = false OR d.IsEliminationRound IS NULL)
-    GROUP BY s.StudentID, StudentName, sch.SchoolName, t.TotalWins, t.TeamID
 ),
+     StudentScores AS (
+         -- Get speaker scores for each student in preliminary debates only
+         SELECT
+             s.StudentID,
+             s.FirstName || ' ' || s.LastName AS StudentName,
+             sch.SchoolName,
+             t.TeamID,
+             COUNT(DISTINCT CASE WHEN (
+                 (d.Team1ID = t.TeamID AND b.Verdict = (SELECT tm1.Name FROM Teams tm1 WHERE tm1.TeamID = d.Team1ID)) OR
+                 (d.Team2ID = t.TeamID AND b.Verdict = (SELECT tm2.Name FROM Teams tm2 WHERE tm2.TeamID = d.Team2ID))
+                 ) THEN d.DebateID END) AS Wins,
+             CAST(SUM(ss.SpeakerPoints) AS DECIMAL(10,2)) AS TotalPoints,
+             AVG(ss.SpeakerRank) AS AverageRank
+         FROM Students s
+                  JOIN TeamMembers tm ON s.StudentID = tm.StudentID
+                  JOIN Teams t ON tm.TeamID = t.TeamID
+                  JOIN Schools sch ON s.SchoolID = sch.SchoolID
+                  JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
+                  JOIN PrelimDebates pd ON d.DebateID = pd.DebateID
+                  JOIN Ballots b ON d.DebateID = b.DebateID
+                  JOIN SpeakerScores ss ON b.BallotID = ss.BallotID AND s.StudentID = ss.SpeakerID
+         WHERE t.TournamentID = $1
+         GROUP BY s.StudentID, StudentName, sch.SchoolName, t.TeamID
+     ),
+     RankedStudents AS (
+         SELECT
+             StudentID,
+             StudentName,
+             SchoolName,
+             Wins,
+             TotalPoints,
+             AverageRank,
+             RANK() OVER (ORDER BY
+                 TotalPoints DESC,
+                 Wins DESC,
+                 AverageRank ASC) as place
+         FROM StudentScores
+     ),
      TopThree AS (
          SELECT *
          FROM RankedStudents
@@ -762,7 +785,14 @@ WITH RankedStudents AS (
             OR StudentName ILIKE '%' || $4 || '%'
             OR SchoolName ILIKE '%' || $4 || '%'
      )
-SELECT DISTINCT ON (place) *
+SELECT DISTINCT ON (place)
+    StudentID,
+    StudentName,
+    SchoolName,
+    Wins,
+    TotalPoints,
+    AverageRank,
+    place
 FROM (
          SELECT * FROM TopThree
          UNION
