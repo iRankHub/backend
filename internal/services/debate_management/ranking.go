@@ -397,13 +397,6 @@ func (s *RankingService) GetTournamentTeamsRanking(ctx context.Context, req *deb
 				dbRanking.Teamid, err)
 		}
 
-		var wins int32
-		if dbRanking.Wins.Valid {
-			wins = dbRanking.Wins.Int32
-		} else {
-			wins = 0 // Default value when NULL
-		}
-
 		// Use sequential position (i+1) instead of the place from database
 		sequentialPlace := int32(i + 1)
 
@@ -411,7 +404,7 @@ func (s *RankingService) GetTournamentTeamsRanking(ctx context.Context, req *deb
 			TeamId:      dbRanking.Teamid,
 			TeamName:    strings.Trim(dbRanking.Teamname, "\" \t"),
 			SchoolNames: schoolNames,
-			Wins:        wins,
+			Wins:        int32(dbRanking.Wins),
 			TotalPoints: totalPoints,
 			AverageRank: averageRank,
 			Place:       sequentialPlace,
