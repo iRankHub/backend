@@ -872,21 +872,35 @@ WITH TeamScoreData AS (
         COUNT(DISTINCT CASE WHEN
                                 ((d.Team1ID = t.TeamID AND b.Verdict = t1.Name) OR
                                  (d.Team2ID = t.TeamID AND b.Verdict = t2.Name)) AND
-                                (d.IsEliminationRound = false OR d.IsEliminationRound IS NULL)
+                                d.IsEliminationRound = false
                                 THEN d.DebateID END) AS Wins,
-        -- Sum speaker points from team scores where not elimination
-        CAST(SUM(CASE WHEN ts.IsElimination = false OR ts.IsElimination IS NULL
-                          THEN ts.TotalScore ELSE 0 END) AS text) AS TotalPoints,
-        CAST(AVG(CASE WHEN ts.IsElimination = false OR ts.IsElimination IS NULL
-                          THEN ts.Rank ELSE NULL END) AS text) AS AverageRank
+        -- Sum speaker points from non-elimination debates
+        CAST(SUM(CASE WHEN d.IsEliminationRound = false THEN
+                          CASE
+                              WHEN d.Team1ID = t.TeamID THEN COALESCE(b.Team1TotalScore, 0)
+                              WHEN d.Team2ID = t.TeamID THEN COALESCE(b.Team2TotalScore, 0)
+                              ELSE 0
+                              END
+                      ELSE 0 END) AS DECIMAL(10,2)) AS TotalPoints,
+        -- Calculate average rank correctly - average of speaker averages per debate
+        CAST(AVG(
+            -- Get the average speaker rank within each debate
+                (SELECT AVG(ss.SpeakerRank)
+                 FROM SpeakerScores ss
+                          JOIN Ballots b2 ON ss.BallotID = b2.BallotID
+                          JOIN TeamMembers tm ON ss.SpeakerID = tm.StudentID
+                 WHERE b2.DebateID = d.DebateID
+                   AND tm.TeamID = t.TeamID
+                   AND d.IsEliminationRound = false)
+             ) AS DECIMAL(5,2)) AS AverageRank
     FROM Teams t
              JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
              JOIN Teams t1 ON d.Team1ID = t1.TeamID
              JOIN Teams t2 ON d.Team2ID = t2.TeamID
-             JOIN Ballots b ON d.DebateID = b.DebateID
-             LEFT JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+             LEFT JOIN Ballots b ON d.DebateID = b.DebateID
     WHERE t.TournamentID = $1
       AND d.TournamentID = $1
+      AND b.RecordingStatus = 'Recorded'
     GROUP BY t.TeamID, t.Name
 ),
      TeamSchools AS (
@@ -895,7 +909,7 @@ WITH TeamScoreData AS (
              tsd.TeamName,
              tsd.Wins,
              tsd.TotalPoints,
-             tsd.AverageRank,
+             COALESCE(tsd.AverageRank, 99) AS AverageRank,
              ARRAY_AGG(DISTINCT s.SchoolName) FILTER (WHERE s.SchoolName IS NOT NULL) AS SchoolNames
          FROM
              TeamScoreData tsd
@@ -911,11 +925,11 @@ WITH TeamScoreData AS (
              TeamName,
              SchoolNames,
              Wins,
-             TotalPoints,
-             AverageRank,
+             CAST(TotalPoints AS text) AS TotalPoints,
+             CAST(AverageRank AS text) AS AverageRank,
              RANK() OVER (ORDER BY Wins DESC,
-                 CAST(TotalPoints AS numeric) DESC,
-                 CAST(AverageRank AS numeric) ASC) as place
+                 TotalPoints DESC,
+                 AverageRank ASC) as place
          FROM
              TeamSchools
      ),
@@ -944,118 +958,148 @@ LIMIT $2 OFFSET $3;
 SELECT COUNT(DISTINCT t.TeamID)
 FROM Teams t
          JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
-         JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
+         JOIN Ballots b ON d.DebateID = b.DebateID
 WHERE t.TournamentID = $1
-  AND (ts.IsElimination = false OR ts.IsElimination IS NULL);
+  AND d.TournamentID = $1
+  AND d.IsEliminationRound = false
+  AND b.RecordingStatus = 'Recorded';
 
 -- name: GetTournamentSchoolRanking :many
-WITH TeamScoreData AS (
-    SELECT
+WITH TeamDebateScores AS (
+    -- First get each team's score for each debate ONCE, no student joins yet
+    SELECT DISTINCT
         t.TeamID,
         t.Name AS TeamName,
-        -- Count wins from ballots where debate is not elimination round
-        COUNT(DISTINCT CASE WHEN
-                                ((d.Team1ID = t.TeamID AND b.Verdict = t1.Name) OR
-                                 (d.Team2ID = t.TeamID AND b.Verdict = t2.Name)) AND
-                                (d.IsEliminationRound = false OR d.IsEliminationRound IS NULL)
-                                THEN d.DebateID END) AS Wins,
-        -- Sum speaker points from team scores where not elimination
-        SUM(CASE WHEN ts.IsElimination = false OR ts.IsElimination IS NULL
-                     THEN ts.TotalScore ELSE 0 END) AS TotalPoints,
-        AVG(CASE WHEN ts.IsElimination = false OR ts.IsElimination IS NULL
-                     THEN ts.Rank ELSE NULL END) AS AverageRank
+        d.DebateID,
+        d.RoundNumber,
+        CASE
+            WHEN d.Team1ID = t.TeamID AND b.Verdict = t1.Name THEN 1
+            WHEN d.Team2ID = t.TeamID AND b.Verdict = t2.Name THEN 1
+            ELSE 0
+            END AS Win,
+        CASE
+            WHEN d.Team1ID = t.TeamID THEN b.Team1TotalScore
+            WHEN d.Team2ID = t.TeamID THEN b.Team2TotalScore
+            ELSE 0
+            END AS Score
     FROM Teams t
              JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
              JOIN Teams t1 ON d.Team1ID = t1.TeamID
              JOIN Teams t2 ON d.Team2ID = t2.TeamID
              JOIN Ballots b ON d.DebateID = b.DebateID
-             LEFT JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
     WHERE t.TournamentID = $1
       AND d.TournamentID = $1
-    GROUP BY t.TeamID, t.Name
+      AND d.IsEliminationRound = false
+      AND b.RecordingStatus = 'Recorded'
 ),
+     TeamScores AS (
+         -- Aggregate by team
+         SELECT
+             tds.TeamID,
+             tds.TeamName,
+             SUM(tds.Win) AS Wins,
+             SUM(tds.Score) AS TotalPoints,
+             -- Get average rank from a separate calculation to avoid multiplication
+             (
+                 SELECT COALESCE(AVG(avg_ranks.avg_rank), 99)
+                 FROM (
+                          SELECT
+                              b.DebateID,
+                              AVG(ss.SpeakerRank) AS avg_rank
+                          FROM SpeakerScores ss
+                                   JOIN Ballots b ON ss.BallotID = b.BallotID
+                                   JOIN Debates d ON b.DebateID = d.DebateID
+                                   JOIN TeamMembers tm ON ss.SpeakerID = tm.StudentID
+                          WHERE tm.TeamID = tds.TeamID
+                            AND d.IsEliminationRound = false
+                            AND d.TournamentID = $1
+                          GROUP BY b.DebateID
+                      ) AS avg_ranks
+             ) AS AvgRank
+         FROM TeamDebateScores tds
+         GROUP BY tds.TeamID, tds.TeamName
+     ),
      TeamSchools AS (
-         -- Get unique teams and their schools with proper score data
+         -- Join with schools ONCE per team
          SELECT DISTINCT
-             tsd.TeamID,
-             tsd.TeamName,
-             tsd.Wins,
-             tsd.TotalPoints,
-             tsd.AverageRank,
+             ts.TeamID,
+             ts.TeamName,
+             ts.Wins,
+             ts.TotalPoints,
+             ts.AvgRank,
              s.SchoolID,
              s.SchoolName
-         FROM TeamScoreData tsd
-                  -- Join to get schools information
+         FROM TeamScores ts
+                  -- Get exactly one school per team
                   JOIN (
-             SELECT DISTINCT tm.TeamID, stu.SchoolID
+             SELECT DISTINCT tm.TeamID, s.SchoolID, s.SchoolName
              FROM TeamMembers tm
                       JOIN Students stu ON tm.StudentID = stu.StudentID
-         ) team_schools ON tsd.TeamID = team_schools.TeamID
-                  JOIN Schools s ON team_schools.SchoolID = s.SchoolID
+                      JOIN Schools s ON stu.SchoolID = s.SchoolID
+         ) s ON ts.TeamID = s.TeamID
                   JOIN Tournaments tour ON tour.TournamentID = $1
                   LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
          WHERE (l.Name != 'DAC' OR l.Name IS NULL)
      ),
-     SchoolData AS (
-         -- Aggregate school statistics properly
+     SchoolAggregates AS (
+         -- Aggregate by school
          SELECT
              SchoolID,
              SchoolName,
              COUNT(DISTINCT TeamID) AS TeamCount,
              SUM(Wins) AS TotalWins,
-             CAST(SUM(TotalPoints) AS numeric(10,2)) AS TotalPoints,
-             CAST(AVG(AverageRank) AS numeric(5,2)) AS AverageRank
+             SUM(TotalPoints) AS TotalPoints,
+             AVG(AvgRank) AS AverageRank
          FROM TeamSchools
          GROUP BY SchoolID, SchoolName
-         HAVING COUNT(DISTINCT TeamID) > 0
      ),
      RankedSchools AS (
+         -- Apply ranking
          SELECT
              SchoolName,
              TeamCount,
              TotalWins,
              CAST(AverageRank AS text) AS AverageRank,
              CAST(TotalPoints AS text) AS TotalPoints,
-             RANK() OVER (
-                 ORDER BY TotalWins DESC,
-                     TotalPoints DESC,
-                     AverageRank ASC
-                 ) as place
-         FROM SchoolData
-     ),
-     TopThree AS (
-         SELECT *
-         FROM RankedSchools
-         WHERE place <= 3
-     ),
-     SearchResults AS (
-         SELECT *
-         FROM RankedSchools
-         WHERE $4::text IS NULL
-            OR SchoolName ILIKE '%' || $4 || '%'
+             RANK() OVER (ORDER BY TotalWins DESC, TotalPoints DESC, AverageRank ASC) AS place
+         FROM SchoolAggregates
      )
-SELECT DISTINCT ON (place) *
+-- Final output with pagination and search
+SELECT *
 FROM (
-         SELECT * FROM TopThree
-         UNION
-         SELECT * FROM SearchResults WHERE place > 3
+         -- Top 3 schools
+         SELECT * FROM RankedSchools WHERE place <= 3
+         UNION ALL
+         -- Filtered schools beyond top 3
+         SELECT * FROM RankedSchools
+         WHERE place > 3 AND ($4::text IS NULL OR SchoolName ILIKE '%' || $4 || '%')
      ) combined
 ORDER BY place
 LIMIT $2 OFFSET $3;
 
 -- name: GetTournamentSchoolRankingCount :one
-SELECT COUNT(DISTINCT s.SchoolID)
-FROM Schools s
-         JOIN Students stu ON s.SchoolID = stu.SchoolID
-         JOIN TeamMembers tm ON stu.StudentID = tm.StudentID
-         JOIN Teams t ON tm.TeamID = t.TeamID
-         JOIN Tournaments tour ON t.TournamentID = tour.TournamentID
-         LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
-         JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
-         JOIN TeamScores ts ON t.TeamID = ts.TeamID AND d.DebateID = ts.DebateID
-WHERE t.TournamentID = $1
-  AND (ts.IsElimination = false OR ts.IsElimination IS NULL)
-  AND (l.Name != 'DAC' OR l.Name IS NULL);
+WITH TeamSchools AS (
+    -- Get one school per team that participated in preliminary debates
+    SELECT DISTINCT s.SchoolID
+    FROM Teams t
+             JOIN Debates d ON (t.TeamID = d.Team1ID OR t.TeamID = d.Team2ID)
+             JOIN Ballots b ON d.DebateID = b.DebateID
+        -- Join to get exactly one school per team
+             JOIN (
+        SELECT DISTINCT tm.TeamID, s.SchoolID
+        FROM TeamMembers tm
+                 JOIN Students stu ON tm.StudentID = stu.StudentID
+                 JOIN Schools s ON stu.SchoolID = s.SchoolID
+    ) s ON t.TeamID = s.TeamID
+             JOIN Tournaments tour ON tour.TournamentID = $1
+             LEFT JOIN Leagues l ON tour.LeagueID = l.LeagueID
+    WHERE t.TournamentID = $1
+      AND d.TournamentID = $1
+      AND d.IsEliminationRound = false
+      AND b.RecordingStatus = 'Recorded'
+      AND (l.Name != 'DAC' OR l.Name IS NULL)
+)
+SELECT COUNT(*) FROM TeamSchools;
 
 -- name: GetOverallSchoolRanking :many
 WITH school_ranking AS (
