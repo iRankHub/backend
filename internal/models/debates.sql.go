@@ -3081,25 +3081,19 @@ WITH PrelimDebates AS (
              Wins,
              TotalPoints,
              AverageRank,
-             RANK() OVER (ORDER BY
+             -- Always use ROW_NUMBER for unique sequential ranking
+             ROW_NUMBER() OVER (ORDER BY
                  TotalPoints DESC,
                  Wins DESC,
-                 AverageRank ASC) as place
+                 AverageRank ASC) as place,
+             -- Use DENSE_RANK for the original ranking logic (used in filtering)
+             DENSE_RANK() OVER (ORDER BY
+                 TotalPoints DESC,
+                 Wins DESC,
+                 AverageRank ASC) as dense_place
          FROM StudentScores
-     ),
-     TopThree AS (
-         SELECT studentid, studentname, schoolname, wins, totalpoints, averagerank, place
-         FROM RankedStudents
-         WHERE place <= 3
-     ),
-     SearchResults AS (
-         SELECT studentid, studentname, schoolname, wins, totalpoints, averagerank, place
-         FROM RankedStudents
-         WHERE $4::text IS NULL
-            OR StudentName ILIKE '%' || $4 || '%'
-            OR SchoolName ILIKE '%' || $4 || '%'
      )
-SELECT DISTINCT ON (place)
+SELECT
     StudentID,
     StudentName,
     SchoolName,
@@ -3107,11 +3101,13 @@ SELECT DISTINCT ON (place)
     TotalPoints,
     AverageRank,
     place
-FROM (
-         SELECT studentid, studentname, schoolname, wins, totalpoints, averagerank, place FROM TopThree
-         UNION
-         SELECT studentid, studentname, schoolname, wins, totalpoints, averagerank, place FROM SearchResults WHERE place > 3
-     ) combined
+FROM RankedStudents
+WHERE
+   -- Handle NULL search and provide search criteria
+    ($4::text IS NULL) OR
+    (dense_place <= 3) OR
+    (StudentName ILIKE '%' || COALESCE($4, '') || '%') OR
+    (SchoolName ILIKE '%' || COALESCE($4, '') || '%')
 ORDER BY place
 LIMIT $2 OFFSET $3
 `
