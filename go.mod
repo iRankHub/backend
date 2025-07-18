@@ -1,6 +1,6 @@
 module github.com/iRankHub/backend
 
-go 1.23
+go 1.23.0
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.32.2
@@ -83,7 +83,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.27.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/net v0.33.0 // indirect
-	golang.org/x/oauth2 v0.21.0 // indirect
+	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/term v0.27.0 // indirect
